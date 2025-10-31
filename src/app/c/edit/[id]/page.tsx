@@ -70,7 +70,17 @@ export default function EditPostPage() {
   /**
    * 提交表单
    */
-  const handleSubmit = async (values: any) => {
+  interface EditFormValues {
+    title: string;
+    description: string;
+    tags: string;
+    cover?: string;
+    category?: string;
+    content: string;
+    hide: string;
+  }
+
+  const handleSubmit = async (values: EditFormValues) => {
     try {
       setLoading(true);
       

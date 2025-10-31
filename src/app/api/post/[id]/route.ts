@@ -20,11 +20,11 @@ import dayjs from 'dayjs';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const postRepository = await getPostRepository();
-    const id = params.id;
+    const { id } = await context.params;
 
     // 判断是ID还是标题
     let post;
@@ -59,7 +59,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证Token
@@ -75,10 +75,11 @@ export async function PUT(
     };
 
     const postRepository = await getPostRepository();
-    await postRepository.update(Number(params.id), updateData);
+    const { id } = await context.params;
+    await postRepository.update(Number(id), updateData);
 
     const updatedPost = await postRepository.findOne({
-      where: { id: Number(params.id) },
+      where: { id: Number(id) },
     });
 
     if (!updatedPost) {
@@ -97,7 +98,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证Token
@@ -107,7 +108,8 @@ export async function DELETE(
     }
 
     const postRepository = await getPostRepository();
-    const result = await postRepository.update(Number(params.id), {
+    const { id } = await context.params;
+    const result = await postRepository.update(Number(id), {
       is_delete: 1,
     });
 

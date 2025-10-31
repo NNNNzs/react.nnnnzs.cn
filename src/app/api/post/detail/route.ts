@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPostRepository } from '@/lib/repositories';
 import { successResponse, errorResponse } from '@/lib/auth';
+import type { TbPost } from '@/entities/post.entity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const postRepository = await getPostRepository();
 
-    let post = null as any;
+    let post: TbPost | null = null;
 
     if (path) {
       post = await postRepository.findOne({

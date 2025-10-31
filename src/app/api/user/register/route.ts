@@ -40,6 +40,10 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(password);
 
     // 创建用户
+    const xForwardedFor = request.headers.get('x-forwarded-for');
+    const realIp = request.headers.get('x-real-ip');
+    const clientIp = (xForwardedFor?.split(',')[0]?.trim() || realIp || '127.0.0.1');
+
     const newUser = await userRepository.save({
       account,
       password: hashedPassword,
@@ -48,7 +52,7 @@ export async function POST(request: NextRequest) {
       phone: phone || '',
       role: 'user',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${account}`,
-      registered_ip: request.ip || '127.0.0.1',
+      registered_ip: clientIp,
       registered_time: new Date(),
       status: 1,
     });
@@ -58,8 +62,9 @@ export async function POST(request: NextRequest) {
     await storeToken(token, newUser);
 
     // 返回用户信息（不包含密码）
-    const userInfo = { ...newUser };
-    delete (userInfo as any).password;
+    const { password: _password, ...userInfo } = newUser as import('@/entities/user.entity').TbUser & {
+      password?: string;
+    };
 
     const response = NextResponse.json(
       successResponse({ token, userInfo }, '注册成功')

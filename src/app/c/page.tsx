@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Table, Button, Input, Space, Tag, message, Modal, Select } from 'antd';
+import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -48,7 +49,13 @@ export default function AdminPage() {
   const loadPosts = async () => {
     try {
       setLoading(true);
-      const params: any = {
+      interface ListParams {
+        pageNum: number;
+        pageSize: number;
+        hide?: string;
+      }
+
+      const params: ListParams = {
         pageNum: 1,
         pageSize: 100,
       };
@@ -148,7 +155,7 @@ export default function AdminPage() {
   /**
    * 表格列定义
    */
-  const columns = [
+  const columns: TableColumnsType<Post> = [
     {
       title: 'ID',
       dataIndex: 'id',
@@ -192,7 +199,7 @@ export default function AdminPage() {
       title: '统计',
       key: 'stats',
       width: 150,
-      render: (_: any, record: Post) => (
+      render: (_: unknown, record: Post) => (
         <Space direction="vertical" size="small">
           <span>👁️ {record.visitors || 0}</span>
           <span>❤️ {record.likes || 0}</span>
@@ -210,7 +217,7 @@ export default function AdminPage() {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: any, record: Post) => (
+      render: (_: unknown, record: Post) => (
         <Space>
           <Button
             type="link"

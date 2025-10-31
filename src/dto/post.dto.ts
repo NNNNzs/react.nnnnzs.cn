@@ -18,7 +18,7 @@ export type UpdatePostDto = Partial<TbPost>;
 /**
  * 列表查询 DTO
  */
-export interface ListPostDto extends Omit<TbPost, 'content'> {}
+export type ListPostDto = Omit<TbPost, 'content'>;
 
 /**
  * 查询条件

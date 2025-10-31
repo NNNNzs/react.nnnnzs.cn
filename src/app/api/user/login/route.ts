@@ -67,8 +67,9 @@ export async function POST(request: NextRequest) {
     await storeToken(token, user);
 
     // 返回用户信息（不包含密码）
-    const userInfo = { ...user };
-    delete (userInfo as any).password;
+    const { password: _password, ...userInfo } = user as import('@/entities/user.entity').TbUser & {
+      password?: string;
+    };
 
     const response = NextResponse.json(
       successResponse({ token, userInfo }, '登录成功')

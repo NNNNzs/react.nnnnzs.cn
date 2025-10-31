@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const { TabPane } = Tabs;
 
-export default function LoginPage() {
+function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, register } = useAuth();
@@ -32,8 +32,9 @@ export default function LoginPage() {
       // 跳转到来源页面或管理后台
       const redirect = searchParams.get('redirect') || '/c';
       router.push(redirect);
-    } catch (error: any) {
-      message.error(error.message || '登录失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '登录失败';
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -54,8 +55,9 @@ export default function LoginPage() {
       
       // 跳转到首页
       router.push('/');
-    } catch (error: any) {
-      message.error(error.message || '注册失败');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '注册失败';
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -204,6 +206,14 @@ export default function LoginPage() {
         </Tabs>
       </Card>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
   );
 }
 

@@ -63,8 +63,21 @@ export class RedisService {
   /**
    * 设置键值
    */
-  async set(key: string, value: string, ...args: (string | number)[]): Promise<string | null> {
-    return this.client.set(key, value, ...args);
+  async set(key: string, value: string): Promise<string | null>;
+  async set(key: string, value: string, mode: 'EX' | 'PX', duration: number): Promise<string | null>;
+  async set(
+    key: string,
+    value: string,
+    mode?: 'EX' | 'PX',
+    duration?: number
+  ): Promise<string | null> {
+    if (mode && typeof duration === 'number') {
+      if (mode === 'EX') {
+        return this.client.set(key, value, 'EX', duration);
+      }
+      return this.client.set(key, value, 'PX', duration);
+    }
+    return this.client.set(key, value);
   }
 
   /**
@@ -113,5 +126,6 @@ export class RedisService {
 /**
  * 导出默认实例
  */
-export default new RedisService();
+const redisService = new RedisService();
+export default redisService;
 

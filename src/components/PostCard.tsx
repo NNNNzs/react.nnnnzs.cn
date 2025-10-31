@@ -24,7 +24,7 @@ export default function PostCard({ post }: PostCardProps) {
           {post.cover ? (
             <Image
               src={post.cover}
-              alt={post.title}
+              alt={post.title as string}
               fill
               className="object-cover transition-transform group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

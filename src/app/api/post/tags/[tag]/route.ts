@@ -10,10 +10,11 @@ import { successResponse, errorResponse } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tag: string } }
+  context: { params: Promise<{ tag: string }> }
 ) {
   try {
-    const tag = decodeURIComponent(params.tag);
+    const { tag: rawTag } = await context.params;
+    const tag = decodeURIComponent(rawTag);
     const postRepository = await getPostRepository();
 
     const posts = await postRepository.find({

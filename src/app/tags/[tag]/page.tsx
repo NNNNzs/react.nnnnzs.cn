@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty } from 'antd';
 import axios from 'axios';
@@ -17,11 +17,12 @@ export default function TagPostsPage() {
   const tag = decodeURIComponent(params.tag as string);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const listAnchorRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * 加载文章列表
    */
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(
@@ -35,11 +36,11 @@ export default function TagPostsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tag]);
 
   useEffect(() => {
     loadPosts();
-  }, [tag]);
+  }, [loadPosts]);
 
   if (loading) {
     return (
@@ -52,7 +53,13 @@ export default function TagPostsPage() {
   return (
     <div>
       {/* 横幅 */}
-      <Banner title={`标签: ${tag}`} subtitle={`共 ${posts.length} 篇文章`} />
+      <Banner anchorRef={listAnchorRef} />
+
+      {/* 标题与统计 */}
+      <div ref={listAnchorRef} className="container mx-auto px-4 pt-8">
+        <h1 className="mb-2 text-2xl font-bold">标签: {tag}</h1>
+        <p className="text-slate-500">共 {posts.length} 篇文章</p>
+      </div>
 
       {/* 文章列表 */}
       <div className="container mx-auto px-4 py-8">

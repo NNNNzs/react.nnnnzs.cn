@@ -8,7 +8,13 @@ const nextConfig: NextConfig = {
   },
   // 安全的images字段host
   images: {
-    domains: ['static.nnnnzs.cn'],
+    // domains: ['static.nnnnzs.cn'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.nnnnzs.cn',
+      },
+    ],
   },
 };
 

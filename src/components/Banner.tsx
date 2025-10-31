@@ -3,19 +3,23 @@
  * 参考 nnnnzs.cn/components/Banner.vue 的设计
  */
 
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { DownOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import React, { useEffect } from "react";
+import { DownOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 
 interface BannerProps {
   cover?: string;
-  anchorRef?: React.RefObject<HTMLDivElement>;
+  title?: string;
+  subtitle?: string;
+  anchorRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function Banner({ cover, anchorRef }: BannerProps) {
-  const defaultCover = `https://static.nnnnzs.cn/bing/${dayjs().format('YYYYMMDD')}.png`;
+  const defaultCover = `https://static.nnnnzs.cn/bing/${dayjs().format(
+    "YYYYMMDD"
+  )}.png`;
   const bannerImage = cover || defaultCover;
 
   /**
@@ -24,7 +28,7 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
   const scrollIntoPost = () => {
     if (anchorRef?.current) {
       anchorRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: "smooth",
       });
     }
   };
@@ -39,7 +43,7 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  });
 
   return (
     <div className="relative snap-start">
@@ -65,4 +69,3 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
     </div>
   );
 }
-
