@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // 安全的images字段host
+  images: {
+    domains: ['static.nnnnzs.cn'],
+  },
 };
 
 export default nextConfig;

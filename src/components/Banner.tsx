@@ -1,0 +1,68 @@
+/**
+ * 横幅组件
+ * 参考 nnnnzs.cn/components/Banner.vue 的设计
+ */
+
+'use client';
+
+import React, { useEffect } from 'react';
+import { DownOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+interface BannerProps {
+  cover?: string;
+  anchorRef?: React.RefObject<HTMLDivElement>;
+}
+
+export default function Banner({ cover, anchorRef }: BannerProps) {
+  const defaultCover = `https://static.nnnnzs.cn/bing/${dayjs().format('YYYYMMDD')}.png`;
+  const bannerImage = cover || defaultCover;
+
+  /**
+   * 滚动到文章列表
+   */
+  const scrollIntoPost = () => {
+    if (anchorRef?.current) {
+      anchorRef.current.scrollIntoView({
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  /**
+   * 自动滚动
+   */
+  useEffect(() => {
+    if (window.scrollY === 0) {
+      const timer = setTimeout(() => {
+        scrollIntoPost();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  return (
+    <div className="relative snap-start">
+      <div
+        className="banner relative flex h-screen items-center justify-center bg-cover bg-scroll bg-center md:bg-fixed"
+        style={{
+          backgroundImage: `url(${bannerImage})`,
+        }}
+      >
+        {/* 一言文字 */}
+        <div className="mix-blend-difference p-8 text-2xl text-white antialiased transition-all duration-300 hover:backdrop-blur-[3px]">
+          <p className="mb-20">记录技术，分享生活</p>
+        </div>
+
+        {/* 滚动提示 */}
+        <div
+          onClick={scrollIntoPost}
+          className="absolute bottom-4 left-0 right-0 cursor-pointer text-center text-white animate-bounce"
+        >
+          <DownOutlined className="text-4xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
