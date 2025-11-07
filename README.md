@@ -25,7 +25,9 @@
 - **ORM**: TypeORM 0.3
 - **数据库**: MySQL
 - **缓存**: Redis (Token 管理)
-- **Markdown**: react-markdown + remark-gfm + rehype-highlight
+- **Markdown 编辑器**: md-editor-rt
+- **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight
+- **文件上传**: 腾讯云 COS (cos-nodejs-sdk-v5)
 - **HTTP客户端**: Axios
 - **日期处理**: dayjs
 - **认证**: JWT + Cookie + bcryptjs
@@ -46,7 +48,7 @@ pnpm install
 cp .env.example .env
 ```
 
-配置你的数据库和 Redis 连接信息：
+配置你的数据库、Redis 和腾讯云 COS 连接信息：
 
 ```env
 # MySQL 数据库配置
@@ -62,6 +64,13 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
 
+# 腾讯云 COS 配置（用于文件上传）
+SecretId=your-cos-secret-id
+SecretKey=your-cos-secret-key
+Bucket=your-bucket-name
+Region=ap-shanghai
+CDN_URL=https://static.your-domain.com
+
 # JWT Secret
 JWT_SECRET=your-secret-key-here
 
@@ -69,10 +78,12 @@ JWT_SECRET=your-secret-key-here
 NODE_ENV=development
 ```
 
-> **注意**: 本项目需要使用已有的 MySQL 数据库和 Redis 服务，请确保：
+> **注意**: 
 > 1. MySQL 数据库中已存在 `tb_post` 和 `tb_user` 表
 > 2. Redis 服务已启动并可访问
-> 3. 参考项目 `api.nnnnzs.cn` 的数据库结构创建表
+> 3. 腾讯云 COS 配置用于文件上传功能（Markdown 编辑器中的图片上传）
+> 4. 参考项目 `api.nnnnzs.cn` 的数据库结构创建表
+> 5. 详细的 COS 配置说明请参考 [COS_UPLOAD.md](./COS_UPLOAD.md)
 
 ### 3. 运行开发服务器
 
@@ -151,6 +162,10 @@ src/
 - `POST /api/user/register` - 用户注册
 - `GET /api/user/info` - 获取用户信息 (需要登录)
 - `POST /api/user/logout` - 退出登录
+
+### 文件上传
+
+- `POST /api/fs/upload` - 上传文件到腾讯云 COS (需要登录)
 
 ## 🎨 页面路由
 
@@ -283,6 +298,25 @@ const posts = await postRepository.find({ where: { hide: '0' } });
 ### 3. Redis Token 管理
 
 使用 Redis 存储用户 Token，替代传统的内存存储，支持分布式部署和持久化。
+
+### 4. Markdown 编辑器
+
+使用 `md-editor-rt` 作为 Markdown 编辑器，支持：
+- 实时预览
+- 代码高亮
+- 图片上传（自动上传到腾讯云 COS）
+- 工具栏快捷操作
+- 全屏编辑
+
+### 5. 文件上传
+
+集成腾讯云 COS 文件上传功能：
+- 支持图片上传
+- 自动生成 MD5 文件名
+- 返回 CDN 加速 URL
+- 需要登录认证
+
+详细的配置说明请参考 [COS_UPLOAD.md](./COS_UPLOAD.md)
 
 ## 📄 License
 
