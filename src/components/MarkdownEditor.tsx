@@ -14,7 +14,7 @@ import { message } from 'antd';
 
 interface MarkdownEditorProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
 }
 

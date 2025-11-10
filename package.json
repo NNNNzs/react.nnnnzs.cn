@@ -11,6 +11,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@ant-design/nextjs-registry": "^1.2.0",
+    "@docsearch/react": "^4.3.1",
     "@types/multer": "^2.0.0",
     "antd": "6.0.0-alpha.3",
     "axios": "^1.13.1",

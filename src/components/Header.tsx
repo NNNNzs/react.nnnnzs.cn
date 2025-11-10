@@ -4,17 +4,94 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, Dropdown, Space } from 'antd';
+import { Avatar, Dropdown, Space, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
-import { UserOutlined, LogoutOutlined, EditOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, EditOutlined, MenuOutlined, GithubOutlined } from '@ant-design/icons';
+import { DocSearch } from '@docsearch/react';
+// import '@docsearch/css';
 
 export default function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [headerOpacity, setHeaderOpacity] = useState(0);
+  const returnTopRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const scrollBarRef = useRef<HTMLDivElement>(null);
+
+  // 暗色模式切换
+  const toggleDark = () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    if (newIsDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  // 初始化主题
+  useEffect(() => {
+    const initTheme = () => {
+      const theme = localStorage.getItem('theme') || 
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const dark = theme === 'dark';
+      setIsDark(dark);
+      if (dark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    
+    // 使用 requestAnimationFrame 避免同步 setState
+    requestAnimationFrame(initTheme);
+  }, []);
+
+  // 滚动处理
+  useEffect(() => {
+    const handleScroll = () => {
+      const y = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // 计算滚动进度
+      const percent = ((y > 0 ? y + windowHeight : 0) / documentHeight) * 100;
+      setScrollProgress(percent);
+      
+      // 计算 header 透明度
+      const opacity = Math.min(y / windowHeight, 1);
+      setHeaderOpacity(opacity);
+      
+      // 更新 CSS 变量
+      if (scrollBarRef.current) {
+        scrollBarRef.current.style.setProperty('--percent', `${percent}%`);
+      }
+      if (headerRef.current) {
+        headerRef.current.style.setProperty('--header-opacity', opacity.toString());
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // 初始调用
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 返回顶部
+  const returnTop = () => {
+    returnTopRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    });
+  };
 
   const menuItems: MenuProps['items'] = [
     {
@@ -34,65 +111,201 @@ export default function Header() {
   ];
 
   const navItems = [
-    { href: '/', label: '首页' },
-    { href: '/tags', label: '标签' },
+    { href: '/tags', label: '分类' },
+    { href: '/archive', label: '归档' },
   ];
 
+  // Algolia 配置
+  const algoliaAppId = process.env.ALGOLIA_APP_ID || '';
+  const algoliaApiKey = process.env.ALGOLIA_API_KEY || '';
+  const algoliaIndexName = process.env.ALGOLIA_INDEX_NAME || 'nnnnzs';
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/60 dark:bg-slate-900/95 dark:supports-backdrop-filter:bg-slate-900/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">
-              我的博客
-            </span>
-          </Link>
+    <>
+      <div ref={returnTopRef}></div>
+      <header
+        ref={headerRef}
+        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 hover:opacity-100 hover:transition-opacity duration-300"
+        style={{
+          opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
+        } as React.CSSProperties}
+      >
+        <div className="container mx-auto h-full px-4">
+          <div className="mx-auto h-full menu flex items-center justify-between leading-8">
+            {/* Logo */}
+            <Link href="/" className="text-xl text-center align-bottom">
+              NNNNzs
+            </Link>
 
-          {/* 导航 */}
-          <nav className="hidden md:flex items-center space-x-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
-                  pathname === item.href
-                    ? 'text-blue-600'
-                    : 'text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* 用户信息 */}
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-                <Space className="cursor-pointer">
-                  <Avatar
-                    size="default"
-                    icon={<UserOutlined />}
-                    src={user.avatar}
+            {/* 桌面端导航 */}
+            <div className="hidden md:flex flex-row gap-2 justify-between items-center category w-auto">
+              {/* 搜索框 */}
+              {algoliaAppId && algoliaApiKey && (
+                <div className="flex items-center">
+                  <DocSearch
+                    appId={algoliaAppId}
+                    apiKey={algoliaApiKey}
+                    indexName={algoliaIndexName}
+                    translations={{
+                      button: {
+                        buttonText: '搜索',
+                        buttonAriaLabel: '搜索',
+                      },
+                    }}
                   />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                    {user.nickname}
-                  </span>
-                </Space>
-              </Dropdown>
-            ) : (
-              <Link
-                href="/login"
-                className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-300"
+                </div>
+              )}
+
+              {/* 导航菜单 */}
+              <ul className="h-full flex items-center">
+                {navItems.map((item) => (
+                  <li key={item.href} className="h-full inline-block mr-4">
+                    <Link
+                      href={item.href}
+                      className={`h-full inline-block relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-px after:bg-slate-900 dark:after:bg-white ${
+                        pathname === item.href
+                          ? 'after:opacity-100'
+                          : 'after:opacity-0 hover:after:opacity-50'
+                      } transition-opacity`}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* 暗色模式切换 */}
+              <button
+                onClick={toggleDark}
+                className="h-full align-middle flex items-center px-2 hover:opacity-70 transition-opacity"
+                aria-label="切换暗色模式"
               >
-                登录
-              </Link>
-            )}
+                {isDark ? (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                    />
+                  </svg>
+                )}
+              </button>
+
+              {/* GitHub 链接 */}
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-full align-middle flex items-center hover:opacity-70 transition-opacity"
+                href="https://github.com/NNNNzs/nnnnzs.cn"
+              >
+                <GithubOutlined className="text-[1.5rem]" />
+              </a>
+
+              {/* 用户信息 */}
+              <div className="h-full flex items-center">
+                {user ? (
+                  <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+                    <Space className="cursor-pointer">
+                      <Avatar
+                        size="default"
+                        icon={<UserOutlined />}
+                        src={user.avatar}
+                      />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {user.nickname}
+                      </span>
+                    </Space>
+                  </Dropdown>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-300"
+                  >
+                    登录
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* 移动端菜单按钮 */}
+            <div className="w-4 h-4 md:hidden cursor-pointer" onClick={() => setDrawerOpen(true)}>
+              <MenuOutlined />
+            </div>
           </div>
         </div>
+
+        {/* 滚动进度条 */}
+        <div
+          ref={scrollBarRef}
+          className="absolute bottom-0 h-px bg-slate-500"
+          style={{
+            width: `${scrollProgress}%`,
+          }}
+        ></div>
+      </header>
+
+      {/* 移动端抽屉菜单 */}
+      <Drawer
+        title="菜单"
+        placement="right"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        className="md:hidden"
+      >
+        <div className="flex flex-col space-y-4">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="text-black dark:text-white mb-2"
+              onClick={() => setDrawerOpen(false)}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </Drawer>
+
+      {/* 返回顶部按钮 */}
+      <div
+        onClick={returnTop}
+        className="fixed bottom-4 right-5 border rounded shadow hover:shadow-lg w-8 h-8 bg-white cursor-pointer flex justify-center items-center dark:bg-slate-800 dark:text-white z-50"
+      >
+        <svg
+          className="w-5 h-5 dark:text-white dark:fill-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 10l7-7m0 0l7 7m-7-7v18"
+          />
+        </svg>
       </div>
-    </header>
+    </>
   );
 }
 
