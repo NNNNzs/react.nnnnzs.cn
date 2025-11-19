@@ -6,6 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:pm2": "pm2 start ecosystem.config.cjs",
+    "stop:pm2": "pm2 stop react-nnnnzs-cn",
+    "restart:pm2": "pm2 restart react-nnnnzs-cn",
+    "delete:pm2": "pm2 delete react-nnnnzs-cn",
+    "logs:pm2": "pm2 logs react-nnnnzs-cn",
+    "monit:pm2": "pm2 monit",
     "lint": "eslint"
   },
   "dependencies": {
