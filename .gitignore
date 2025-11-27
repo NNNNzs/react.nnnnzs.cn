@@ -44,3 +44,6 @@ next-env.d.ts
 logs/
 .pm2/
 *.log
+
+# Docker
+# 注意：Dockerfile 和 docker-compose.yml 应该提交到仓库

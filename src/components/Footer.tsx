@@ -2,10 +2,10 @@
  * 页脚组件
  */
 
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -56,10 +56,10 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2 text-sm">
               <li className="text-slate-600 dark:text-slate-400">
-                Email: example@example.com
+                Email: nnnnzs@vip.qq.com
               </li>
               <li className="text-slate-600 dark:text-slate-400">
-                GitHub: @username
+                GitHub: @NNNNzs
               </li>
             </ul>
           </div>
@@ -73,4 +73,3 @@ export default function Footer() {
     </footer>
   );
 }
-

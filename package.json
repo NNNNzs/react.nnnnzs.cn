@@ -12,6 +12,13 @@
     "delete:pm2": "pm2 delete react-nnnnzs-cn",
     "logs:pm2": "pm2 logs react-nnnnzs-cn",
     "monit:pm2": "pm2 monit",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:restart": "docker-compose restart",
+    "docker:logs": "docker-compose logs -f",
+    "docker:rebuild": "docker-compose up -d --build",
+    "docker:exec": "docker-compose exec react-nnnnzs-cn sh",
     "lint": "eslint"
   },
   "dependencies": {
