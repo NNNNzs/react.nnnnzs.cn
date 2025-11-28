@@ -12,7 +12,7 @@ NC='\033[0m' # No Color
 
 # 配置
 COMPOSE_FILE="docker-compose.prod.yml"
-IMAGE_NAME="${DOCKERHUB_USERNAME:-your-dockerhub-username}/react-nnnnzs-cn"
+IMAGE_NAME="nnnnzs/react-nnnnzs-cn"
 CONTAINER_NAME="react-nnnnzs-cn-prod"
 
 # 打印带颜色的消息

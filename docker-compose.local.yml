@@ -6,8 +6,8 @@ version: "3.8"
 services:
   react-nnnnzs-cn:
     # 使用 DockerHub 上的镜像（需要替换为你的 DockerHub 用户名）
-    image: nnnnzs/react-nnnnzs-cn:latest
-    container_name: react-nnnnzs-cn-prod
+    image: react-nnnnzs-cn:local
+    container_name: react-nnnnzs-cn-local
     restart: unless-stopped
     ports:
       - "3000:3000"

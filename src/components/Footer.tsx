@@ -68,6 +68,7 @@ export default function Footer() {
         {/* 版权信息 */}
         <div className="mt-8 border-t pt-8 text-center text-sm text-slate-600 dark:text-slate-400">
           <p>© {currentYear} 我的博客. All rights reserved.</p>
+          <p>皖ICP备16025009号-1</p>
         </div>
       </div>
     </footer>

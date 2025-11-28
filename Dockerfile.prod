@@ -56,24 +56,25 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
+# 安装 CA 证书和其他必要工具
+RUN apk add --no-cache \
+    ca-certificates \
+    wget \
+    curl
+
 # 设置为生产环境
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3301
+ENV PORT=3000
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 安装 PM2（用于进程管理）
-RUN npm install -g pm2
-
-# 复制必要的文件
+# 复制必要的文件 (Standalone 模式)
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/ecosystem.config.cjs ./ecosystem.config.cjs
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 # 创建日志目录
 RUN mkdir -p logs && chown -R nextjs:nodejs logs
@@ -87,7 +88,7 @@ RUN chmod +x /app/docker-entrypoint-prod.sh && \
 USER nextjs
 
 # 暴露端口
-EXPOSE 3301
+EXPOSE 3000
 
 # 添加版本信息标签
 LABEL version="${VERSION}" \
@@ -97,7 +98,7 @@ LABEL version="${VERSION}" \
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3301/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
 # 设置启动脚本为入口点
 ENTRYPOINT ["/app/docker-entrypoint-prod.sh"]
