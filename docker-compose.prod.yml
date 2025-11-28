@@ -1,0 +1,44 @@
+version: '3.8'
+
+# 生产环境 Docker Compose 配置
+# 用于从 DockerHub 拉取并运行镜像
+
+services:
+  react-nnnnzs-cn:
+    # 使用 DockerHub 上的镜像（需要替换为你的 DockerHub 用户名）
+    image: ${DOCKERHUB_USERNAME:-your-dockerhub-username}/react-nnnnzs-cn:latest
+    container_name: react-nnnnzs-cn-prod
+    restart: unless-stopped
+    ports:
+      - "3301:3301"
+    
+    # 加载环境变量文件
+    env_file:
+      - .env
+    
+    environment:
+      - NODE_ENV=production
+      - PORT=3301
+    
+    # 持久化日志
+    volumes:
+      - ./logs:/app/logs
+    
+    # 连接宿主机服务（MySQL, Redis 等）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    networks:
+      - react-nnnnzs-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3301/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  react-nnnnzs-network:
+    driver: bridge

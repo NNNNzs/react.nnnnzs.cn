@@ -1,0 +1,115 @@
+name: Docker Release
+
+# 当推送到 release 分支时触发
+on:
+  push:
+    branches:
+      - release
+    tags:
+      - 'v*.*.*'  # 也支持推送版本标签触发
+
+env:
+  # DockerHub 相关配置（需要在 GitHub Secrets 中设置）
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  # 镜像名称（格式：用户名/仓库名）
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/react-nnnnzs-cn
+
+jobs:
+  build-and-push:
+    name: 构建并推送 Docker 镜像
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整的 git 历史，用于版本号生成
+
+      - name: 设置版本号
+        id: version
+        run: |
+          # 生成版本号
+          # 优先使用 git tag，如果没有则使用日期+短SHA
+          if git describe --tags --exact-match 2>/dev/null; then
+            VERSION=$(git describe --tags --exact-match)
+          else
+            # 格式：v{年}.{月}.{日}-{短SHA}
+            VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          fi
+          
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          
+          echo "📦 构建版本: ${VERSION}"
+
+      - name: 设置 QEMU（支持多平台构建）
+        uses: docker/setup-qemu-action@v3
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: 提取 Docker 元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # 始终标记为 latest
+            type=raw,value=latest
+            # 使用计算的版本号
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+            # 使用短 SHA
+            type=sha,prefix=,format=short
+            # 如果是 tag 触发，使用 tag 名称
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          platforms: linux/amd64,linux/arm64  # 支持多平台
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+            BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
+            COMMIT_SHA=${{ steps.version.outputs.SHORT_SHA }}
+
+      - name: 生成构建摘要
+        run: |
+          echo "## 🐳 Docker 镜像构建成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 镜像信息" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本号**: \`${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **镜像名称**: \`${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit SHA**: \`${{ steps.version.outputs.SHORT_SHA }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **构建时间**: \`${{ steps.version.outputs.BUILD_DATE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 使用方法" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# 拉取最新镜像" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 或拉取指定版本" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: 推送失败通知
+        if: failure()
+        run: |
+          echo "## ❌ Docker 镜像构建失败！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "请检查构建日志以获取详细错误信息。" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,36 @@
+name: Docker PR 检查
+
+# PR 到 release 分支时触发，只构建不推送
+on:
+  pull_request:
+    branches:
+      - release
+
+jobs:
+  build-test:
+    name: 测试 Docker 镜像构建
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 构建 Docker 镜像（不推送）
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          platforms: linux/amd64
+          push: false
+          tags: react-nnnnzs-cn:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 构建成功通知
+        run: |
+          echo "## ✅ Docker 镜像构建测试成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "镜像可以正常构建，合并后将自动推送到 DockerHub。" >> $GITHUB_STEP_SUMMARY
