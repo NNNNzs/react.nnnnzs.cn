@@ -4,7 +4,7 @@
  */
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
 import { MdPreview, MdCatalog } from "md-editor-rt";
 import "md-editor-rt/lib/preview.css";
 
@@ -26,9 +26,62 @@ interface MarkdownPreviewProps {
 export default function MarkdownPreview({ content }: MarkdownPreviewProps) {
   // 生成唯一的 editorId
   const editorId = useMemo(() => `preview-${Date.now()}`, []);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * 移除代码块的 sticky 吸附功能
+   */
+  useEffect(() => {
+    if (!wrapperRef.current) return;
+
+    // 查找所有代码块
+    const codeBlocks = wrapperRef.current.querySelectorAll('pre');
+    
+    codeBlocks.forEach((pre) => {
+      // 移除 sticky 或 fixed 定位
+      const htmlPre = pre as HTMLElement;
+      const computedStyle = window.getComputedStyle(htmlPre);
+      
+      if (computedStyle.position === 'sticky' || computedStyle.position === 'fixed') {
+        htmlPre.style.position = 'relative';
+        htmlPre.style.top = 'auto';
+      }
+    });
+
+    // 使用 MutationObserver 监听动态添加的代码块
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as HTMLElement;
+            const preElements = element.querySelectorAll?.('pre') || [];
+            
+            preElements.forEach((pre) => {
+              const htmlPre = pre as HTMLElement;
+              const computedStyle = window.getComputedStyle(htmlPre);
+              
+              if (computedStyle.position === 'sticky' || computedStyle.position === 'fixed') {
+                htmlPre.style.position = 'relative';
+                htmlPre.style.top = 'auto';
+              }
+            });
+          }
+        });
+      });
+    });
+
+    observer.observe(wrapperRef.current, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [content]);
 
   return (
-    <div className="markdown-preview-wrapper">
+    <div ref={wrapperRef} className="markdown-preview-wrapper">
       <MdPreview editorId={editorId} modelValue={content} />
     </div>
   );

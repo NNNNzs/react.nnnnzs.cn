@@ -71,7 +71,14 @@ const getPost = cache(async (params: PageProps["params"]): Promise<Post | null> 
       decodedTitle = title;
     }
 
+    // 确保数据源已初始化
     const postRepository = await getPostRepository();
+
+    // 验证 Repository 是否有效
+    if (!postRepository) {
+      console.error("❌ Repository 获取失败");
+      return null;
+    }
 
     let post = null;
 
@@ -89,7 +96,11 @@ const getPost = cache(async (params: PageProps["params"]): Promise<Post | null> 
     console.error("❌ 获取文章详情失败:", error);
     // 如果是数据库连接错误，也记录详细信息
     if (error instanceof Error) {
-      console.error("错误详情:", error.message, error.stack);
+      console.error("错误详情:", error.message);
+      // 在开发环境下打印完整堆栈
+      if (process.env.NODE_ENV === 'development') {
+        console.error("错误堆栈:", error.stack);
+      }
     }
     return null;
   }
@@ -148,8 +159,6 @@ export default async function PostDetail({ params }: PageProps) {
   try {
     // 解析 params
     const resolvedParams = await resolveParams(params);
-
-    console.log("🔍 解析后的 params:", JSON.stringify(resolvedParams, null, 2));
 
     const post = await getPost(resolvedParams);
 

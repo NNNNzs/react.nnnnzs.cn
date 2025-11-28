@@ -12,7 +12,7 @@ import { Avatar, Dropdown, Space, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import { UserOutlined, LogoutOutlined, EditOutlined, MenuOutlined, GithubOutlined } from '@ant-design/icons';
 import { DocSearch } from '@docsearch/react';
-// import '@docsearch/css';
+import '@docsearch/css';
 
 export default function Header() {
   const pathname = usePathname();
@@ -56,6 +56,37 @@ export default function Header() {
     requestAnimationFrame(initTheme);
   }, []);
 
+  // 路径变化时处理滚动位置
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // 如果是首页，尝试恢复之前的滚动位置
+      if (pathname === '/') {
+        const savedScrollPosition = sessionStorage.getItem('homeScrollPosition');
+        if (savedScrollPosition) {
+          // 延迟恢复，确保页面已渲染
+          setTimeout(() => {
+            window.scrollTo(0, parseInt(savedScrollPosition, 10));
+            sessionStorage.removeItem('homeScrollPosition');
+          }, 0);
+          return;
+        }
+      } else {
+        // 离开首页时，保存当前滚动位置
+        const prevPath = sessionStorage.getItem('prevPath');
+        if (prevPath === '/') {
+          sessionStorage.setItem('homeScrollPosition', String(window.scrollY));
+        }
+        // 保存当前路径
+        sessionStorage.setItem('prevPath', pathname);
+      }
+      
+      // 非首页路径，重置到顶部
+      if (pathname !== '/') {
+        window.scrollTo(0, 0);
+      }
+    }
+  }, [pathname]);
+
   // 滚动处理
   useEffect(() => {
     const handleScroll = () => {
@@ -81,10 +112,11 @@ export default function Header() {
     };
 
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // 初始调用
+    // 初始调用，确保路径变化后状态正确
+    handleScroll();
 
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [pathname]);
 
   // 返回顶部
   const returnTop = () => {
@@ -116,16 +148,16 @@ export default function Header() {
   ];
 
   // Algolia 配置
-  const algoliaAppId = process.env.ALGOLIA_APP_ID || '';
-  const algoliaApiKey = process.env.ALGOLIA_API_KEY || '';
-  const algoliaIndexName = process.env.ALGOLIA_INDEX_NAME || 'nnnnzs';
+  const algoliaAppId = "74Q4ZJSGIE"
+  const algoliaApiKey = "0d46f0335810c99223e60c13412be864"
+  const algoliaIndexName = "nnnnzs"
 
   return (
     <>
       <div ref={returnTopRef}></div>
       <header
         ref={headerRef}
-        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 hover:opacity-100 hover:transition-opacity duration-300"
+        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 z-[999]"
         style={{
           opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
         } as React.CSSProperties}
@@ -289,7 +321,7 @@ export default function Header() {
       {/* 返回顶部按钮 */}
       <div
         onClick={returnTop}
-        className="fixed bottom-4 right-5 border rounded shadow hover:shadow-lg w-8 h-8 bg-white cursor-pointer flex justify-center items-center dark:bg-slate-800 dark:text-white z-50"
+        className="fixed bottom-4 right-5 border rounded shadow hover:shadow-lg w-8 h-8 bg-white cursor-pointer flex justify-center items-center dark:bg-slate-800 dark:text-white z-\[99\]"
       >
         <svg
           className="w-5 h-5 dark:text-white dark:fill-white"

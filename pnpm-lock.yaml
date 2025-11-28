@@ -14,6 +14,9 @@ importers:
       '@ant-design/nextjs-registry':
         specifier: ^1.2.0
         version: 1.2.0(@ant-design/cssinjs@2.0.0-alpha.8(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(antd@6.0.0-alpha.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(next@16.0.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@docsearch/css':
+        specifier: ^4.3.2
+        version: 4.3.2
       '@docsearch/react':
         specifier: ^4.3.1
         version: 4.3.1(@algolia/client-search@5.43.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(search-insights@2.17.3)
@@ -434,6 +437,9 @@ packages:
 
   '@docsearch/css@4.3.1':
     resolution: {integrity: sha512-Jnct7LKOi/+Oxbmq215YPYASkMdZqtyyDCkma8Cj4sCcbBuybL6fvyBaX7uJoM6kVF7aIpBA38RhHAyN5ByCHg==}
+
+  '@docsearch/css@4.3.2':
+    resolution: {integrity: sha512-K3Yhay9MgkBjJJ0WEL5MxnACModX9xuNt3UlQQkDEDZJZ0+aeWKtOkxHNndMRkMBnHdYvQjxkm6mdlneOtU1IQ==}
 
   '@docsearch/react@4.3.1':
     resolution: {integrity: sha512-vbKwgDuHi/YA0CiicXhJm4DSfOIOccl3FJlkdVmeZ5d61wNbPdAnAy71i7FF0JzO6noCQScidBBguOCaNfauEw==}
@@ -4366,6 +4372,8 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
 
   '@docsearch/css@4.3.1': {}
+
+  '@docsearch/css@4.3.2': {}
 
   '@docsearch/react@4.3.1(@algolia/client-search@5.43.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(search-insights@2.17.3)':
     dependencies:

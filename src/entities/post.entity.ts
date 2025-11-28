@@ -3,6 +3,8 @@
  * 参考 api.nnnnzs.cn/src/post/entities/post.entity.ts
  */
 
+// 确保 reflect-metadata 已导入（在 data-source.ts 中已导入，这里作为双重保险）
+import 'reflect-metadata';
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('tb_post', { schema: 'system' })

@@ -61,6 +61,11 @@ body {
   box-shadow: 0 1px 3px rgb(18 18 18 / 10%);
   width: 100%;
   z-index: 50;
+  transition: opacity 0.3s;
+}
+
+.header:hover {
+  opacity: 1 !important;
 }
 
 .header .menu .category {
@@ -104,4 +109,22 @@ body {
 
 .dark .DocSearch .DocSearch-Button .DocSearch-Button-Key {
   box-shadow: unset;
+}
+
+/* MarkdownPreview 代码块样式修复 */
+/* 移除 md-editor-rt 代码块的 sticky 吸附功能 */
+.markdown-preview-wrapper pre,
+.markdown-preview-wrapper pre code,
+.markdown-preview-wrapper .md-editor-preview pre,
+.markdown-preview-wrapper .md-editor-preview pre code {
+  position: relative !important;
+  top: auto !important;
+  max-height: none !important;
+}
+
+/* 覆盖所有可能的 sticky 定位 */
+.markdown-preview-wrapper [style*="position: sticky"],
+.markdown-preview-wrapper [style*="position:fixed"] {
+  position: relative !important;
+  top: auto !important;
 }

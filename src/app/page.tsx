@@ -70,6 +70,30 @@ export default function Home() {
     loadPosts(1);
   }, []);
 
+  /**
+   * 保存滚动位置（在组件卸载或路径变化前）
+   */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem('homeScrollPosition', String(window.scrollY));
+    };
+
+    // 监听滚动，实时保存位置
+    const handleScroll = () => {
+      if (window.location.pathname === '/') {
+        sessionStorage.setItem('homeScrollPosition', String(window.scrollY));
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
