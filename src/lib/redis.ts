@@ -25,6 +25,8 @@ export function getRedisClient(): Redis {
         return delay;
       },
       maxRetriesPerRequest: 3,
+      // 在构建环境中延迟连接
+      lazyConnect: process.env.IS_BUILD === 'true',
     });
 
     redisClient.on('connect', () => {
@@ -71,6 +73,9 @@ export class RedisService {
     mode?: 'EX' | 'PX',
     duration?: number
   ): Promise<string | null> {
+    if (process.env.IS_BUILD === 'true') {
+      return 'OK';
+    }
     if (mode && typeof duration === 'number') {
       if (mode === 'EX') {
         return this.client.set(key, value, 'EX', duration);
@@ -84,6 +89,9 @@ export class RedisService {
    * 获取值
    */
   async get(key: string): Promise<string | null> {
+    if (process.env.IS_BUILD === 'true') {
+      return null;
+    }
     return this.client.get(key);
   }
 
@@ -91,6 +99,9 @@ export class RedisService {
    * 删除键
    */
   async del(key: string): Promise<number> {
+    if (process.env.IS_BUILD === 'true') {
+      return 1;
+    }
     return this.client.del(key);
   }
 
@@ -98,6 +109,9 @@ export class RedisService {
    * 检查键是否存在
    */
   async exists(key: string): Promise<number> {
+    if (process.env.IS_BUILD === 'true') {
+      return 0;
+    }
     return this.client.exists(key);
   }
 

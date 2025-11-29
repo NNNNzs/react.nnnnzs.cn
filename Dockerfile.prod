@@ -43,6 +43,7 @@ ARG COMMIT_SHA
 # 设置构建时环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV IS_BUILD=true
 
 # 构建 Next.js 应用
 RUN pnpm build
@@ -53,6 +54,11 @@ RUN pnpm prune --prod
 
 # ===== 阶段 3: 生产运行 =====
 FROM node:20-alpine AS runner
+
+# 重新声明 ARG，因为 ARG 只在当前阶段有效
+ARG VERSION
+ARG BUILD_DATE
+ARG COMMIT_SHA
 
 WORKDIR /app
 
