@@ -30,12 +30,12 @@ jobs:
         id: version
         run: |
           # 生成版本号
-          # 优先使用 git tag，如果没有则使用日期+短SHA
+          # 优先使用 git tag，如果没有则使用日期(精确到小时)
           if git describe --tags --exact-match 2>/dev/null; then
             VERSION=$(git describe --tags --exact-match)
           else
-            # 格式：v{年}.{月}.{日}-{短SHA}
-            VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+            # 格式：v{年}.{月}.{日}.{时}
+            VERSION="v$(date +'%Y.%m.%d.%H')"
           fi
           
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
@@ -66,11 +66,6 @@ jobs:
             type=raw,value=latest
             # 使用计算的版本号
             type=raw,value=${{ steps.version.outputs.VERSION }}
-            # 使用短 SHA
-            type=sha,prefix=,format=short
-            # 如果是 tag 触发，使用 tag 名称
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v5

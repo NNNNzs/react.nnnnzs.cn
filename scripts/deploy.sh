@@ -64,6 +64,8 @@ stop_old() {
 # 启动新容器
 start_new() {
     print_info "启动新容器..."
+    # 添加 --pull always 确保即使 compose 缓存也会尝试拉取（虽然 pull_image 已经做了，双重保险）
+    # 注意：旧版 docker-compose 可能不支持 --pull 参数，这里依赖 pull_image 函数
     docker-compose -f $COMPOSE_FILE up -d
 }
 

@@ -76,8 +76,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# 创建日志目录
-RUN mkdir -p logs && chown -R nextjs:nodejs logs
+# 创建日志目录和缓存目录
+RUN mkdir -p logs .next/cache && \
+    chown -R nextjs:nodejs logs .next/cache
 
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh
