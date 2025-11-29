@@ -2,51 +2,17 @@
  * 标签页
  */
 
-'use client';
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { Spin, Empty } from 'antd';
+import { Empty } from 'antd';
 import { TagOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import Banner from '@/components/Banner';
+import { getAllTags } from '@/services/tag';
 
-export default function TagsPage() {
-  const [tags, setTags] = useState<[string, number][]>([]);
-  const [loading, setLoading] = useState(true);
+export const revalidate = 60;
 
-  /**
-   * 加载标签列表
-   */
-  const loadTags = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/post/tags');
-      if (response.data.status) {
-        // 按文章数量倒序排序
-        const sortedTags = response.data.data.sort(
-          (a: [string, number], b: [string, number]) => b[1] - a[1]
-        );
-        setTags(sortedTags);
-      }
-    } catch (error) {
-      console.error('加载标签失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTags();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Spin size="large" />
-      </div>
-    );
-  }
+export default async function TagsPage() {
+  const tags = await getAllTags();
 
   return (
     <div>
@@ -98,4 +64,3 @@ export default function TagsPage() {
     </div>
   );
 }
-

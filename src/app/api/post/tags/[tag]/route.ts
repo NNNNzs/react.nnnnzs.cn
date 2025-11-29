@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Like } from 'typeorm';
-import { getPostRepository } from '@/lib/repositories';
+import { getPostsByTag } from '@/services/tag';
 import { successResponse, errorResponse } from '@/lib/auth';
 
 export async function GET(
@@ -15,18 +14,8 @@ export async function GET(
   try {
     const { tag: rawTag } = await context.params;
     const tag = decodeURIComponent(rawTag);
-    const postRepository = await getPostRepository();
-
-    const posts = await postRepository.find({
-      where: {
-        hide: '0',
-        is_delete: 0,
-        tags: Like(`%${tag}%`),
-      },
-      order: {
-        date: 'DESC',
-      },
-    });
+    
+    const posts = await getPostsByTag(tag);
 
     return NextResponse.json(successResponse(posts));
   } catch (error) {

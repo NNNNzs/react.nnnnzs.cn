@@ -14,19 +14,15 @@ import {
   HeartOutlined,
   CalendarOutlined,
 } from "@ant-design/icons";
-// import ReactMarkdown from 'react-markdown';
-// import remarkGfm from 'remark-gfm';
-// import rehypeHighlight from 'rehype-highlight';
-// import 'highlight.js/styles/github-dark.min.css';
 
 import dayjs from "dayjs";
 
-import { getPostRepository } from "@/lib/repositories";
+import { getPostByPath } from "@/services/post";
 import PostLikeButton from "./PostLikeButton";
 import PostVisitorTracker from "./PostVisitorTracker";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import type { Post } from "@/types";
-import { Like } from "typeorm";
+
 interface PageProps {
   params:
     | Promise<{
@@ -71,37 +67,13 @@ const getPost = cache(async (params: PageProps["params"]): Promise<Post | null> 
       decodedTitle = title;
     }
 
-    // 确保数据源已初始化
-    const postRepository = await getPostRepository();
-
-    // 验证 Repository 是否有效
-    if (!postRepository) {
-      console.error("❌ Repository 获取失败");
-      return null;
-    }
-
-    let post = null;
-
-    post = await postRepository.findOne({
-      where: {
-        path: Like(`%${decodedTitle}%`),
-        is_delete: 0,
-      },
-    });
+    const post = await getPostByPath(decodedTitle);
 
     console.log("🔍 数据库查询执行 - 文章标题:", decodedTitle);
 
-    return post as Post | null;
+    return post;
   } catch (error) {
     console.error("❌ 获取文章详情失败:", error);
-    // 如果是数据库连接错误，也记录详细信息
-    if (error instanceof Error) {
-      console.error("错误详情:", error.message);
-      // 在开发环境下打印完整堆栈
-      if (process.env.NODE_ENV === 'development') {
-        console.error("错误堆栈:", error.stack);
-      }
-    }
     return null;
   }
 });
@@ -234,12 +206,6 @@ export default async function PostDetail({ params }: PageProps) {
 
           {/* 文章内容 */}
           <div className="prose prose-lg dark:prose-invert max-w-none">
-            {/* <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-            >
-              {post.content || ''}
-            </ReactMarkdown> */}
             <MarkdownPreview content={post.content || ""} />
           </div>
 
@@ -252,9 +218,6 @@ export default async function PostDetail({ params }: PageProps) {
     );
   } catch (error) {
     console.error("❌ 页面渲染失败:", error);
-    if (error instanceof Error) {
-      console.error("错误详情:", error.message, error.stack);
-    }
     // 如果数据库连接失败，返回错误页面而不是404
     throw error;
   }

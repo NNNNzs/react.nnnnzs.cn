@@ -40,3 +40,10 @@ export interface PageQueryRes<T> {
   pageSize: number;
 }
 
+/**
+ * 归档数据
+ */
+export interface Archive {
+  year: string;
+  posts: TbPost[];
+}

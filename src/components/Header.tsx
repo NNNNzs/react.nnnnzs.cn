@@ -144,7 +144,7 @@ export default function Header() {
 
   const navItems = [
     { href: '/tags', label: '分类' },
-    { href: '/archive', label: '归档' },
+    { href: '/archives', label: '归档' },
   ];
 
   // Algolia 配置

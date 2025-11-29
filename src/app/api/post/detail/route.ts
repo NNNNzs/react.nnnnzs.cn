@@ -5,9 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPostRepository } from '@/lib/repositories';
+import { getPostByPath, getPostById } from '@/services/post';
 import { successResponse, errorResponse } from '@/lib/auth';
-import type { TbPost } from '@/entities/post.entity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,18 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(errorResponse('缺少参数 path 或 id'), { status: 400 });
     }
 
-    const postRepository = await getPostRepository();
-
-    let post: TbPost | null = null;
+    let post = null;
 
     if (path) {
-      post = await postRepository.findOne({
-        where: { path, is_delete: 0 },
-      });
+      post = await getPostByPath(path);
     } else if (idParam) {
-      post = await postRepository.findOne({
-        where: { id: Number(idParam), is_delete: 0 },
-      });
+      post = await getPostById(Number(idParam));
     }
 
     if (!post) {
@@ -43,4 +36,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(errorResponse('获取文章详情失败'), { status: 500 });
   }
 }
-

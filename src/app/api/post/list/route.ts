@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Like } from 'typeorm';
-import { getPostRepository } from '@/lib/repositories';
+import { getPostList } from '@/services/post';
 import { successResponse, errorResponse } from '@/lib/auth';
 import type { QueryCondition } from '@/dto/post.dto';
 
@@ -24,58 +23,10 @@ export async function GET(request: NextRequest) {
       query,
     };
 
-    const postRepository = await getPostRepository();
-
-    // 构建查询条件
-    const whereConditions = [];
-    const baseCondition = {
-      is_delete: 0,
-      ...(hide !== 'all' && { hide }),
-    };
-
-    if (query) {
-      whereConditions.push(
-        { ...baseCondition, content: Like(`%${query}%`) },
-        { ...baseCondition, title: Like(`%${query}%`) }
-      );
-    } else {
-      whereConditions.push(baseCondition);
-    }
-
-    // 查询数据
-    const [data, count] = await postRepository.findAndCount({
-      where: whereConditions,
-      order: {
-        date: 'DESC',
-      },
-      take: pageSize,
-      skip: (pageNum - 1) * pageSize,
-      select: {
-        id: true,
-        path: true,
-        title: true,
-        oldTitle: true,
-        category: true,
-        tags: true,
-        date: true,
-        updated: true,
-        cover: true,
-        layout: true,
-        description: true,
-        visitors: true,
-        likes: true,
-        hide: true,
-        // content 不在列表中返回
-      },
-    });
+    const result = await getPostList(params);
 
     return NextResponse.json(
-      successResponse({
-        record: data,
-        total: count,
-        pageNum,
-        pageSize,
-      })
+      successResponse(result)
     );
   } catch (error) {
     console.error('获取文章列表失败:', error);
