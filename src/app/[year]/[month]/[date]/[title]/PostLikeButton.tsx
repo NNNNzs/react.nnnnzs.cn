@@ -49,7 +49,7 @@ export default function PostLikeButton({ postId, initialLikes }: PostLikeButtonP
       onClick={handleLike}
       disabled={liked}
     >
-      {liked ? '已点赞' : '点赞'}
+      {liked ? '已点赞' : '点赞'} ({likes})
     </Button>
   );
 }

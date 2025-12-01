@@ -40,6 +40,7 @@ export async function login(account: string, password: string): Promise<{ token:
   await storeToken(token, user);
 
   // 返回用户信息（不包含密码）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password: _password, ...userInfo } = user;
 
   return { token, userInfo };

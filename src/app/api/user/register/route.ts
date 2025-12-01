@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     await storeToken(token, newUser);
 
     // 返回用户信息（不包含密码）
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...userInfo } = newUser as import('@/entities/user.entity').TbUser & {
       password?: string;
     };

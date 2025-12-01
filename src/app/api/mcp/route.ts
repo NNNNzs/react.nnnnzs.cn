@@ -13,7 +13,7 @@ import { getAllTags } from '@/services/tag';
  * 也可以支持流式响应 (NDJSON)
  */
 class NextJsHttpTransport implements Transport {
-  private _onMessage?: (message: JSONRPCMessage) => void;
+  private _onMessage: (message: JSONRPCMessage) => void = () => {};
   private messageQueue: JSONRPCMessage[] = [];
   private resolveResponse?: (value: JSONRPCMessage[] | PromiseLike<JSONRPCMessage[]>) => void;
   private isClosed = false;
@@ -45,12 +45,8 @@ class NextJsHttpTransport implements Transport {
    * @returns 服务端产生的消息数组
    */
   async handleRequest(message: JSONRPCMessage): Promise<JSONRPCMessage[]> {
-    if (!this._onMessage) {
-      throw new Error("No message handler registered");
-    }
-
     // 触发 Server 处理逻辑
-    this._onMessage(message);
+    this.onmessage(message);
 
     // 等待响应
     return new Promise((resolve) => {
@@ -192,8 +188,8 @@ function createMcpServer(headers: Headers) {
       async (args) => {
           await ensureAuth();
           const result = await getPostList({
-              pageNum: args.pageNum,
-              pageSize: args.pageSize,
+              pageNum: args.pageNum ?? 1,
+              pageSize: args.pageSize ?? 10,
               query: args.keyword,
               hide: args.hide
           });

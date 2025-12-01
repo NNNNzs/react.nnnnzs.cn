@@ -4,8 +4,8 @@
  */
 "use client";
 
-import React, { useMemo, useEffect, useRef } from "react";
-import { MdPreview, MdCatalog } from "md-editor-rt";
+import { useEffect, useRef, useState } from "react";
+import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/preview.css";
 
 interface MarkdownPreviewProps {
@@ -25,7 +25,9 @@ interface MarkdownPreviewProps {
  */
 export default function MarkdownPreview({ content }: MarkdownPreviewProps) {
   // 生成唯一的 editorId
-  const editorId = useMemo(() => `preview-${Date.now()}`, []);
+  const [editorId] = useState(
+    () => `preview-${Math.random().toString(36).slice(2)}`
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -35,16 +37,19 @@ export default function MarkdownPreview({ content }: MarkdownPreviewProps) {
     if (!wrapperRef.current) return;
 
     // 查找所有代码块
-    const codeBlocks = wrapperRef.current.querySelectorAll('pre');
-    
+    const codeBlocks = wrapperRef.current.querySelectorAll("pre");
+
     codeBlocks.forEach((pre) => {
       // 移除 sticky 或 fixed 定位
       const htmlPre = pre as HTMLElement;
       const computedStyle = window.getComputedStyle(htmlPre);
-      
-      if (computedStyle.position === 'sticky' || computedStyle.position === 'fixed') {
-        htmlPre.style.position = 'relative';
-        htmlPre.style.top = 'auto';
+
+      if (
+        computedStyle.position === "sticky" ||
+        computedStyle.position === "fixed"
+      ) {
+        htmlPre.style.position = "relative";
+        htmlPre.style.top = "auto";
       }
     });
 
@@ -54,15 +59,18 @@ export default function MarkdownPreview({ content }: MarkdownPreviewProps) {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
-            const preElements = element.querySelectorAll?.('pre') || [];
-            
+            const preElements = element.querySelectorAll?.("pre") || [];
+
             preElements.forEach((pre) => {
               const htmlPre = pre as HTMLElement;
               const computedStyle = window.getComputedStyle(htmlPre);
-              
-              if (computedStyle.position === 'sticky' || computedStyle.position === 'fixed') {
-                htmlPre.style.position = 'relative';
-                htmlPre.style.top = 'auto';
+
+              if (
+                computedStyle.position === "sticky" ||
+                computedStyle.position === "fixed"
+              ) {
+                htmlPre.style.position = "relative";
+                htmlPre.style.top = "auto";
               }
             });
           }

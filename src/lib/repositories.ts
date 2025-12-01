@@ -31,7 +31,7 @@ export async function getUserRepository(): Promise<Repository<TbUser>> {
   if (process.env.IS_BUILD === 'true') {
     return {
       findOne: async () => null,
-      save: async (entity: any) => entity,
+      save: async (entity: unknown) => entity,
     } as unknown as Repository<TbUser>;
   }
   const dataSource = await getDataSource();

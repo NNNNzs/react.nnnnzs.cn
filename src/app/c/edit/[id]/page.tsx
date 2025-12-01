@@ -20,7 +20,7 @@ import {
 } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Post } from '@/types';
 import MarkdownEditor from '@/components/MarkdownEditor';

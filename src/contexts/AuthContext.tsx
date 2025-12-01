@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.status) {
         setUser(response.data.data);
       }
-    } catch (error) {
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);

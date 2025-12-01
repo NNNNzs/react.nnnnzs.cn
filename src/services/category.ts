@@ -1,4 +1,3 @@
-import { Like } from 'typeorm';
 import { getPostRepository } from '@/lib/repositories';
 import { TbPost } from '@/entities/post.entity';
 

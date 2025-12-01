@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Table, Button, Input, Space, Tag, message, Modal, Select } from 'antd';
 import type { TableColumnsType } from 'antd';
@@ -46,7 +46,7 @@ export default function AdminPage() {
   /**
    * 加载文章列表
    */
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       setLoading(true);
       interface ListParams {
@@ -85,7 +85,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hideFilter, searchText]);
 
   /**
    * 删除文章
@@ -150,7 +150,7 @@ export default function AdminPage() {
     if (user) {
       loadPosts();
     }
-  }, [user, searchText, hideFilter]);
+  }, [user, loadPosts]);
 
   /**
    * 表格列定义

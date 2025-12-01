@@ -197,11 +197,11 @@ export async function getArchives(): Promise<Archive[]> {
 /**
  * 创建文章
  */
-export async function createPost(data: any): Promise<TbPost> {
+export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
   const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
   
   // 生成path
-  const path = genPath(data.title, data.date || now);
+  const path = genPath(data.title || '', data.date || now);
   
   // 生成cover
   const cover = data.cover || genCover(data.date || now);
@@ -219,7 +219,7 @@ export async function createPost(data: any): Promise<TbPost> {
   };
 
   const postRepository = await getPostRepository();
-  const result = await postRepository.save(postData);
+  const result = await postRepository.save(postData as TbPost);
   
   // 序列化
   const savedPost = { ...result };
@@ -232,10 +232,10 @@ export async function createPost(data: any): Promise<TbPost> {
 /**
  * 更新文章
  */
-export async function updatePost(id: number, data: any): Promise<TbPost | null> {
+export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbPost | null> {
   const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
   
-  const updateData: any = {
+  const updateData: Partial<TbPost> = {
     ...data,
     updated: now,
   };
