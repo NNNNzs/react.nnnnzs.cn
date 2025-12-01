@@ -15,6 +15,7 @@ import type { Post } from '@/types';
 interface PostListItemProps {
   post: Post;
 }
+const target = '_blank';
 
 export default function PostListItem({ post }: PostListItemProps) {
   return (
@@ -24,7 +25,7 @@ export default function PostListItem({ post }: PostListItemProps) {
     >
       {/* 封面图片 */}
       <div className="post-cover w-full bg-transparent text-center md:w-3/5">
-        <Link href={post.path || '#'}>
+        <Link href={post.path || '#'} target='_blank'>
           <div className="relative h-48 w-full md:h-full md:max-h-96">
             {post.cover ? (
               <Image
@@ -57,6 +58,7 @@ export default function PostListItem({ post }: PostListItemProps) {
             href={post.path || '#'}
             className="hover:text-blue-600"
             title={post.title || ''}
+            target={target}
           >
             {post.title}
           </Link>

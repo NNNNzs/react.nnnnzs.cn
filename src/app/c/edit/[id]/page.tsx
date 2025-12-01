@@ -84,14 +84,14 @@ export default function EditPostPage() {
       if (response.data.status) {
         const postData = response.data.data;
         setPost(postData);
-        
+
         // 设置表单值
         form.setFieldsValue({
           ...postData,
           date: postData.date ? dayjs(postData.date) : dayjs(),
           updated: postData.updated ? dayjs(postData.updated) : dayjs(),
         });
-        
+
         // 设置标签
         if (postData.tags) {
           setTagsString(postData.tags.split(',').filter(Boolean));
@@ -215,7 +215,7 @@ export default function EditPostPage() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-y-auto p-2 editor flex flex-col">
+    <div className="w-full h-screen overflow-hidden p-2 mt-(--header-height) editor flex flex-col">
       <Form
         form={form}
         layout="inline"
@@ -223,7 +223,7 @@ export default function EditPostPage() {
         initialValues={{
           date: dayjs(),
           updated: dayjs(),
-          hide: '1',
+          hide: 'all',
           visitors: 0,
           likes: 0,
         }}

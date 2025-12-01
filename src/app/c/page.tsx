@@ -31,7 +31,7 @@ export default function AdminPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [hideFilter, setHideFilter] = useState<string>('');
+  const [hideFilter, setHideFilter] = useState<string>('all');
 
   /**
    * 检查登录状态
@@ -59,16 +59,16 @@ export default function AdminPage() {
         pageNum: 1,
         pageSize: 100,
       };
-      
+
       if (hideFilter) {
         params.hide = hideFilter;
       }
 
       const response = await axios.get('/api/post/list', { params });
-      
+
       if (response.data.status) {
         let list = response.data.data.record;
-        
+
         // 客户端搜索过滤
         if (searchText) {
           list = list.filter((post: Post) =>
@@ -76,7 +76,7 @@ export default function AdminPage() {
             post.content?.toLowerCase().includes(searchText.toLowerCase())
           );
         }
-        
+
         setPosts(list);
       }
     } catch (error) {
@@ -216,7 +216,6 @@ export default function AdminPage() {
     {
       title: '操作',
       key: 'action',
-      width: 200,
       render: (_: unknown, record: Post) => (
         <Space>
           <Button
@@ -251,7 +250,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-10">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">文章管理</h1>
         <Button
@@ -282,6 +281,7 @@ export default function AdminPage() {
           style={{ width: 120 }}
           onChange={(value) => setHideFilter(value || '')}
           options={[
+            { label: '全部', value: 'all' },
             { label: '显示', value: '0' },
             { label: '隐藏', value: '1' },
           ]}

@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --header-height: 3rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,8 +57,7 @@ body {
 
 /* Header 样式 */
 .header {
-  --height: 3rem;
-  height: var(--height);
+  height: var(--header-height);
   box-shadow: 0 1px 3px rgb(18 18 18 / 10%);
   width: 100%;
   z-index: 50;
