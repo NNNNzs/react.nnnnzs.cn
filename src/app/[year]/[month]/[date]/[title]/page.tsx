@@ -53,30 +53,29 @@ async function resolveParams(params: PageProps["params"]) {
  * 获取文章数据
  * 使用 React cache 缓存，避免在同一个请求中重复查询数据库
  */
-const getPost = cache(async (params: PageProps["params"]): Promise<Post | null> => {
-  try {
-    const resolvedParams = await resolveParams(params);
-    const { title } = resolvedParams;
-
-    // 安全解码 title，支持中文等特殊字符
-    let decodedTitle: string;
+const getPost = cache(
+  async (params: PageProps["params"]): Promise<Post | null> => {
     try {
-      decodedTitle = decodeURIComponent(title);
-    } catch {
-      // 如果解码失败，使用原始值
-      decodedTitle = title;
+      const resolvedParams = await resolveParams(params);
+      const { year, month, date, title } = resolvedParams;
+
+      // 构建完整路径
+      // 注意：数据库中的 path 是 URL 编码过的 (encodeURIComponent)
+      // Next.js params 中的 title 是解码后的，所以需要重新编码以匹配数据库
+      const slug = decodeURIComponent(title);
+      const path = `/${year}/${month}/${date}/${slug}`;
+
+      console.log("🔍 数据库查询执行 - 文章路径:", path);
+
+      const post = await getPostByPath(path);
+
+      return post;
+    } catch (error) {
+      console.error("❌ 获取文章详情失败:", error);
+      return null;
     }
-
-    const post = await getPostByPath(decodedTitle);
-
-    console.log("🔍 数据库查询执行 - 文章标题:", decodedTitle);
-
-    return post;
-  } catch (error) {
-    console.error("❌ 获取文章详情失败:", error);
-    return null;
   }
-});
+);
 
 /**
  * 生成 SEO Metadata

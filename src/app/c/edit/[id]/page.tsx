@@ -26,20 +26,10 @@ import type { Post } from '@/types';
 import MarkdownEditor from '@/components/MarkdownEditor';
 
 /**
- * 生成文章路径
+ * 生成文章路径 - 已移至服务端
  */
-function genPath(post: {
-  title: string;
-  date: Dayjs | string;
-}): { path: string; oldTitle: string } {
-  const date = dayjs(post.date);
-  const year = date.format('YYYY');
-  const month = date.format('MM');
-  const day = date.format('DD');
-  const slug = encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, '-'));
-  const path = `/${year}/${month}/${day}/${slug}`;
-  return { path, oldTitle: post.title };
-}
+// function genPath... removed
+
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -166,19 +156,19 @@ export default function EditPostPage() {
       const values = await form.validateFields();
       setLoading(true);
 
-      // 生成路径
-      const { path, oldTitle } = genPath({
-        title: values.title,
-        date: values.date,
-      });
+      // 生成路径 - 已移至服务端
+      // const { path, oldTitle } = genPath({
+      //   title: values.title,
+      //   date: values.date,
+      // });
 
       // 处理标签
       const tagsStr = tagsString.join(',');
 
       const postData = {
         ...values,
-        path,
-        oldTitle,
+        // path,
+        // oldTitle,
         tags: tagsStr,
         date: dayjs(values.date).format('YYYY-MM-DD HH:mm:ss'),
         updated: dayjs().format('YYYY-MM-DD HH:mm:ss'),

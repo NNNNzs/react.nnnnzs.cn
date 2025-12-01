@@ -18,9 +18,6 @@ export class TbPost {
   @Column('varchar', { name: 'title', nullable: true, length: 255 })
   title!: string | null;
 
-  @Column('varchar', { name: 'oldTitle', nullable: true, length: 255 })
-  oldTitle?: string | null;
-
   @Column('varchar', { name: 'category', nullable: true, length: 255 })
   category!: string | null;
 

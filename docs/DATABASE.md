@@ -55,7 +55,6 @@ CREATE TABLE `tb_post` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `path` varchar(255) DEFAULT NULL COMMENT '路径',
   `title` varchar(255) DEFAULT NULL COMMENT '标题',
-  `oldTitle` varchar(255) DEFAULT NULL COMMENT '旧标题',
   `category` varchar(255) DEFAULT NULL COMMENT '分类',
   `tags` varchar(255) DEFAULT NULL COMMENT '标签（逗号分隔）',
   `date` datetime DEFAULT NULL COMMENT '创建时间',
