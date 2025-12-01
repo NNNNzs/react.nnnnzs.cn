@@ -92,6 +92,25 @@ export async function getPostByPath(path: string): Promise<TbPost | null> {
 }
 
 /**
+ * 根据标题或旧标题获取文章
+ */
+export async function getPostByTitle(title: string): Promise<TbPost | null> {
+  const postRepository = await getPostRepository();
+  const post = await postRepository.findOne({
+    where: [
+        { title: title, is_delete: 0 },
+        { oldTitle: title, is_delete: 0 }
+    ],
+  });
+  
+  if (post) {
+    post.date = post.date ? new Date(post.date).toISOString() : null;
+    post.updated = post.updated ? new Date(post.updated).toISOString() : null;
+  }
+  return post;
+}
+
+/**
  * 根据ID获取文章
  */
 export async function getPostById(id: number): Promise<TbPost | null> {
@@ -154,4 +173,65 @@ export async function getArchives(): Promise<Archive[]> {
     .sort((a, b) => Number(b.year) - Number(a.year));
 
   return archives;
+}
+
+/**
+ * 创建文章
+ */
+export async function createPost(data: any): Promise<TbPost> {
+  const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+  const postData = {
+    ...data,
+    date: now,
+    updated: now,
+    hide: data.hide || '0',
+    is_delete: 0,
+    visitors: 0,
+    likes: 0,
+  };
+
+  const postRepository = await getPostRepository();
+  const result = await postRepository.save(postData);
+  
+  // 序列化
+  const savedPost = { ...result };
+  savedPost.date = savedPost.date ? new Date(savedPost.date).toISOString() : null;
+  savedPost.updated = savedPost.updated ? new Date(savedPost.updated).toISOString() : null;
+  
+  return savedPost as TbPost;
+}
+
+/**
+ * 更新文章
+ */
+export async function updatePost(id: number, data: any): Promise<TbPost | null> {
+  const updateData = {
+    ...data,
+    updated: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+  };
+
+  const postRepository = await getPostRepository();
+  await postRepository.update(id, updateData);
+
+  const updatedPost = await postRepository.findOne({
+    where: { id },
+  });
+
+  if (updatedPost) {
+      updatedPost.date = updatedPost.date ? new Date(updatedPost.date).toISOString() : null;
+      updatedPost.updated = updatedPost.updated ? new Date(updatedPost.updated).toISOString() : null;
+  }
+
+  return updatedPost;
+}
+
+/**
+ * 删除文章
+ */
+export async function deletePost(id: number): Promise<boolean> {
+  const postRepository = await getPostRepository();
+  const result = await postRepository.update(id, {
+    is_delete: 1,
+  });
+  return result.affected !== 0;
 }

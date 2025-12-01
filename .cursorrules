@@ -14,6 +14,7 @@
 - **云存储**: 腾讯云 COS
 - **认证**: NextAuth 4.24.13
 - **Markdown**: md-editor-rt, react-markdown
+- ** 使用pnpm作为包管理器
 
 ## 代码规范
 

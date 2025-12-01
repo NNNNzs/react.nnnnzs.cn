@@ -16,6 +16,7 @@
     "@ant-design/nextjs-registry": "^1.2.0",
     "@docsearch/css": "^4.3.2",
     "@docsearch/react": "^4.3.1",
+    "@modelcontextprotocol/sdk": "^1.23.0",
     "@types/multer": "^2.0.0",
     "antd": "6.0.0-alpha.3",
     "axios": "^1.13.1",
@@ -36,7 +37,8 @@
     "reflect-metadata": "^0.2.2",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "typeorm": "^0.3.27"
+    "typeorm": "^0.3.27",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

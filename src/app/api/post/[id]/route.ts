@@ -6,14 +6,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPostRepository } from '@/lib/repositories';
+import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
 import {
   successResponse,
   errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
-import dayjs from 'dayjs';
 
 /**
  * 获取文章详情
@@ -23,7 +22,6 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const postRepository = await getPostRepository();
     const { id } = await context.params;
 
     // 判断是ID还是标题
@@ -31,14 +29,10 @@ export async function GET(
     if (isNaN(Number(id))) {
       // 是标题
       const decodedTitle = decodeURIComponent(id);
-      post = await postRepository.findOne({
-        where: [{ title: decodedTitle }, { oldTitle: decodedTitle }],
-      });
+      post = await getPostByTitle(decodedTitle);
     } else {
       // 是ID
-      post = await postRepository.findOne({
-        where: { id: Number(id) },
-      });
+      post = await getPostById(Number(id));
     }
 
     if (!post) {
@@ -69,18 +63,9 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const updateData = {
-      ...body,
-      updated: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-    };
-
-    const postRepository = await getPostRepository();
     const { id } = await context.params;
-    await postRepository.update(Number(id), updateData);
-
-    const updatedPost = await postRepository.findOne({
-      where: { id: Number(id) },
-    });
+    
+    const updatedPost = await updatePost(Number(id), body);
 
     if (!updatedPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
@@ -107,13 +92,10 @@ export async function DELETE(
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
     }
 
-    const postRepository = await getPostRepository();
     const { id } = await context.params;
-    const result = await postRepository.update(Number(id), {
-      is_delete: 1,
-    });
+    const success = await deletePost(Number(id));
 
-    if (result.affected === 0) {
+    if (!success) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 

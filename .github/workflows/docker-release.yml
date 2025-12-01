@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - release
+      - main
     tags:
       - 'v*.*.*'  # 也支持推送版本标签触发
 
