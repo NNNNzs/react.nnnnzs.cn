@@ -82,9 +82,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# 创建日志目录和缓存目录
-RUN mkdir -p logs .next/cache && \
-    chown -R nextjs:nodejs logs .next/cache
+# 创建必要的目录结构并设置权限（在切换用户之前）
+# 确保 nextjs 用户有权限写入预渲染缓存
+# 注意：在 standalone 模式下，.next/server/app 可能不存在于 standalone 输出中
+# 我们需要创建这个目录，让 Next.js 运行时可以写入缓存文件
+RUN mkdir -p logs .next/cache .next/server/app && \
+    chown -R nextjs:nodejs logs .next
 
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh

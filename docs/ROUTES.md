@@ -104,7 +104,7 @@ function generatePostPath(date: string | Date, title: string): string {
   const year = d.format('YYYY');
   const month = d.format('MM');
   const day = d.format('DD');
-  const slug = encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-'));
+  const slug = title.trim().replace(/\s+/g, '-');
   
   return `/${year}/${month}/${day}/${slug}`;
 }
@@ -228,16 +228,15 @@ const response = await axios.get('/api/post/list', {
 
 ### 2. 路径编码
 
-文章标题如果包含特殊字符，需要进行 URL 编码：
+数据库中存储的路径为未编码的中文路径（Raw String）。但在 URL 中使用时，浏览器会自动进行编码。获取时需要解码以匹配数据库。
 
 ```typescript
 const title = '这是中文标题';
-const encodedTitle = encodeURIComponent(title);
-// 使用: /2024/12/25/%E8%BF%99%E6%98%AF%E4%B8%AD%E6%96%87%E6%A0%87%E9%A2%98
+// 数据库存储路径: /2024/12/25/这是中文标题
+// 浏览器 URL: /2024/12/25/%E8%BF%99%E6%98%AF%E4%B8%AD%E6%96%87%E6%A0%87%E9%A2%98
 
-// 解码
-const decodedTitle = decodeURIComponent(encodedTitle);
-// 结果: '这是中文标题'
+// 在详情页获取参数时解码
+const decodedTitle = decodeURIComponent(params.title); // '这是中文标题'
 ```
 
 ### 3. 日期格式

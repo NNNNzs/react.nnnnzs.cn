@@ -12,7 +12,7 @@ function genPath(title: string, date: Date | string): string {
   const year = dateObj.format('YYYY');
   const month = dateObj.format('MM');
   const day = dateObj.format('DD');
-  const slug = encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-'));
+  const slug = title.trim().replace(/\s+/g, '-');
   return `/${year}/${month}/${day}/${slug}`;
 }
 

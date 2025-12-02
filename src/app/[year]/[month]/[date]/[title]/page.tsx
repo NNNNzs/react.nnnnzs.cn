@@ -60,8 +60,9 @@ const getPost = cache(
       const { year, month, date, title } = resolvedParams;
 
       // 构建完整路径
-      // 注意：数据库中的 path 是 URL 编码过的 (encodeURIComponent)
-      // Next.js params 中的 title 是解码后的，所以需要重新编码以匹配数据库
+      // 注意：数据库中的 path 是未编码的中文 (raw string)
+      // Next.js params 中的 title 可能是编码过的，也可能是解码后的
+      // 统一进行解码以匹配数据库中的 raw path
       const slug = decodeURIComponent(title);
       const path = `/${year}/${month}/${date}/${slug}`;
 

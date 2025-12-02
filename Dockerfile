@@ -72,6 +72,7 @@ RUN apk add --no-cache \
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV IS_BUILD=true
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
@@ -82,8 +83,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 创建日志目录
-RUN mkdir -p logs && chown -R nextjs:nodejs logs
+# 创建必要的目录结构并设置权限（在切换用户之前）
+# 确保 nextjs 用户有权限写入预渲染缓存
+# 注意：在 standalone 模式下，.next/server/app 可能不存在于 standalone 输出中
+# 我们需要创建这个目录，让 Next.js 运行时可以写入缓存文件
+RUN mkdir -p logs .next/cache .next/server/app && \
+    chown -R nextjs:nodejs logs .next
 
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh
