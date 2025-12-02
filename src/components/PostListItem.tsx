@@ -15,7 +15,7 @@ import type { Post } from '@/types';
 interface PostListItemProps {
   post: Post;
 }
-const target = '_blank';
+const target = '';
 
 export default function PostListItem({ post }: PostListItemProps) {
   return (

@@ -56,36 +56,6 @@ export default function Header() {
     requestAnimationFrame(initTheme);
   }, []);
 
-  // 路径变化时处理滚动位置
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // 如果是首页，尝试恢复之前的滚动位置
-      if (pathname === '/') {
-        const savedScrollPosition = sessionStorage.getItem('homeScrollPosition');
-        if (savedScrollPosition) {
-          // 延迟恢复，确保页面已渲染
-          setTimeout(() => {
-            window.scrollTo(0, parseInt(savedScrollPosition, 10));
-            sessionStorage.removeItem('homeScrollPosition');
-          }, 0);
-          return;
-        }
-      } else {
-        // 离开首页时，保存当前滚动位置
-        const prevPath = sessionStorage.getItem('prevPath');
-        if (prevPath === '/') {
-          sessionStorage.setItem('homeScrollPosition', String(window.scrollY));
-        }
-        // 保存当前路径
-        sessionStorage.setItem('prevPath', pathname);
-      }
-      
-      // 非首页路径，重置到顶部
-      if (pathname !== '/') {
-        window.scrollTo(0, 0);
-      }
-    }
-  }, [pathname]);
 
   // 滚动处理
   useEffect(() => {

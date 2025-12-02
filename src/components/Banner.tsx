@@ -37,12 +37,11 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
    * 自动滚动
    */
   useEffect(() => {
-    if (window.scrollY === 0) {
-      const timer = setTimeout(() => {
+    setTimeout(() => {
+      if (window.scrollY === 0) {
         scrollIntoPost();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
+      }
+    }, 1000);
   });
 
   return (
