@@ -5,6 +5,22 @@ import { TbPost } from '@/entities/post.entity';
 import dayjs from 'dayjs';
 
 /**
+ * 确保 tags 字段是数组格式
+ * 防御性转换，处理 transformer 可能未生效的情况
+ */
+function ensureTagsIsArray(post: TbPost): TbPost {
+  if (post.tags && typeof post.tags === 'string') {
+    // 如果是字符串，转换为数组
+    post.tags = post.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+  } else if (!post.tags) {
+    // 如果是 null 或 undefined，设置为空数组
+    post.tags = [];
+  }
+  // 如果已经是数组，保持不变
+  return post;
+}
+
+/**
  * 生成文章路径
  */
 function genPath(title: string, date: Date | string): string {
@@ -74,12 +90,15 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
     },
   });
 
-  // 序列化日期对象，防止传递给客户端组件时报错
-  const serializedData = data.map(post => ({
-    ...post,
-    date: post.date ? new Date(post.date).toISOString() : null,
-    updated: post.updated ? new Date(post.updated).toISOString() : null,
-  }));
+  // 序列化日期对象，确保 tags 是数组，防止传递给客户端组件时报错
+  const serializedData = data.map(post => {
+    const processedPost = ensureTagsIsArray(post);
+    return {
+      ...processedPost,
+      date: processedPost.date ? new Date(processedPost.date).toISOString() : null,
+      updated: processedPost.updated ? new Date(processedPost.updated).toISOString() : null,
+    };
+  });
 
   return {
     record: serializedData as TbPost[], 
@@ -102,6 +121,8 @@ export async function getPostByPath(path: string): Promise<TbPost | null> {
   });
   
   if (post) {
+    // 确保 tags 是数组格式
+    ensureTagsIsArray(post);
     // Serialize dates
     post.date = post.date ? new Date(post.date).toISOString() : null;
     post.updated = post.updated ? new Date(post.updated).toISOString() : null;
@@ -123,6 +144,8 @@ export async function getPostByTitle(title: string): Promise<TbPost | null> {
   });
   
   if (post) {
+    // 确保 tags 是数组格式
+    ensureTagsIsArray(post);
     post.date = post.date ? new Date(post.date).toISOString() : null;
     post.updated = post.updated ? new Date(post.updated).toISOString() : null;
   }
@@ -142,6 +165,8 @@ export async function getPostById(id: number): Promise<TbPost | null> {
   });
 
   if (post) {
+    // 确保 tags 是数组格式
+    ensureTagsIsArray(post);
     // Serialize dates
     post.date = post.date ? new Date(post.date).toISOString() : null;
     post.updated = post.updated ? new Date(post.updated).toISOString() : null;
@@ -170,6 +195,8 @@ export async function getArchives(): Promise<Archive[]> {
   const archivesMap = new Map<string, TbPost[]>();
   
   posts.forEach((post) => {
+    // 确保 tags 是数组格式
+    ensureTagsIsArray(post);
     // 序列化日期
     post.date = post.date ? new Date(post.date).toISOString() : null;
     post.updated = post.updated ? new Date(post.updated).toISOString() : null;
@@ -206,10 +233,31 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
   // 生成cover
   const cover = data.cover || genCover(data.date || now);
 
-  const postData = {
-    ...data,
+  // 处理 tags：如果是数组，转换为逗号分隔的字符串
+  // TypeORM transformer 可能在某些情况下不会正确应用，所以手动转换
+  let tagsValue: string | null = null;
+  if (data.tags) {
+    if (Array.isArray(data.tags)) {
+      const filteredTags = data.tags.filter(Boolean).map(tag => String(tag).trim());
+      tagsValue = filteredTags.length > 0 ? filteredTags.join(',') : null;
+    } else if (typeof data.tags === 'string') {
+      tagsValue = data.tags;
+    }
+  }
+
+  // 清理不需要的字段，只保留实体需要的字段
+  const { tagsString, ...cleanData } = data;
+
+  // 创建明确的实体对象，确保所有字段类型正确
+  const postData: Partial<TbPost> = {
+    title: cleanData.title || null,
+    category: cleanData.category || null,
+    tags: tagsValue, // 已经是字符串类型
     path, // Use generated path
     cover, // Use generated/provided cover
+    layout: cleanData.layout || null,
+    content: cleanData.content || null,
+    description: cleanData.description || null,
     date: data.date ? dayjs(data.date).format('YYYY-MM-DD HH:mm:ss') : now,
     updated: now,
     hide: data.hide || '0',
@@ -218,11 +266,18 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
     likes: 0,
   };
 
+  // 最终检查：确保 tags 是字符串类型（防御性检查）
+  if (postData.tags && Array.isArray(postData.tags)) {
+    console.warn('⚠️ tags 仍然是数组，强制转换为字符串:', postData.tags);
+    const filteredTags = postData.tags.filter(Boolean).map(tag => String(tag).trim());
+    postData.tags = filteredTags.length > 0 ? filteredTags.join(',') : null;
+  }
+
   const postRepository = await getPostRepository();
   const result = await postRepository.save(postData as TbPost);
   
-  // 序列化
-  const savedPost = { ...result };
+  // 确保 tags 是数组格式并序列化
+  const savedPost = ensureTagsIsArray({ ...result });
   savedPost.date = savedPost.date ? new Date(savedPost.date).toISOString() : null;
   savedPost.updated = savedPost.updated ? new Date(savedPost.updated).toISOString() : null;
   
@@ -239,6 +294,18 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
     ...data,
     updated: now,
   };
+
+  // 处理 tags：如果是数组，转换为逗号分隔的字符串
+  if (data.tags !== undefined) {
+    if (Array.isArray(data.tags)) {
+      const filteredTags = data.tags.filter(Boolean).map(tag => String(tag).trim());
+      updateData.tags = filteredTags.length > 0 ? filteredTags.join(',') : null;
+    } else if (typeof data.tags === 'string') {
+      updateData.tags = data.tags;
+    } else {
+      updateData.tags = null;
+    }
+  }
 
   // 如果有title，重新生成path
   if (data.title) {
@@ -269,6 +336,8 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
   });
 
   if (updatedPost) {
+      // 确保 tags 是数组格式
+      ensureTagsIsArray(updatedPost);
       updatedPost.date = updatedPost.date ? new Date(updatedPost.date).toISOString() : null;
       updatedPost.updated = updatedPost.updated ? new Date(updatedPost.updated).toISOString() : null;
   }

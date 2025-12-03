@@ -9,6 +9,7 @@
 import React from 'react';
 import { MdEditor } from 'md-editor-rt';
 import 'md-editor-rt/lib/style.css';
+import '@/style/makrdownEditor.css';
 import axios from 'axios';
 import { message } from 'antd';
 
@@ -16,6 +17,7 @@ interface MarkdownEditorProps {
   value: string;
   onChange?: (value: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
 /**
@@ -25,6 +27,7 @@ export default function MarkdownEditor({
   value,
   onChange,
   placeholder = '支持 Markdown 格式，可以直接粘贴图片...',
+  className,
 }: MarkdownEditorProps) {
   /**
    * 处理图片上传
@@ -76,7 +79,7 @@ export default function MarkdownEditor({
   };
 
   return (
-    <div className="h-full">
+    <div className={`h-full custom-md-editor ${className}`}>
       <MdEditor
         modelValue={value}
         onChange={onChange}

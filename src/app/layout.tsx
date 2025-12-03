@@ -6,7 +6,6 @@ import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "NNNNzs",
@@ -26,7 +25,6 @@ export default function RootLayout({
           <AntdRegistry>
             <ConfigProvider locale={zhCN}>{children}</ConfigProvider>
           </AntdRegistry>
-          <Footer />
           <Script id="baidu-analytics" strategy="afterInteractive">
             {`
               var _hmt = _hmt || [];

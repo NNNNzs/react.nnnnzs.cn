@@ -22,19 +22,19 @@ body {
 @layer base {
   html {
     /* 系统默认字体栈，优先使用本地字体 */
-    font-family: 
-      -apple-system, 
-      BlinkMacSystemFont, 
-      "Segoe UI", 
-      "Noto Sans", 
-      Helvetica, 
-      Arial, 
-      "PingFang SC", 
-      "Hiragino Sans GB", 
-      "Microsoft YaHei", 
-      "微软雅黑", 
-      sans-serif, 
-      "Apple Color Emoji", 
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Noto Sans",
+      Helvetica,
+      Arial,
+      "PingFang SC",
+      "Hiragino Sans GB",
+      "Microsoft YaHei",
+      "微软雅黑",
+      sans-serif,
+      "Apple Color Emoji",
       "Segoe UI Emoji";
   }
 
@@ -43,14 +43,14 @@ body {
   pre,
   kbd,
   samp {
-    font-family: 
-      ui-monospace, 
-      SFMono-Regular, 
-      "SF Mono", 
-      Menlo, 
-      Consolas, 
-      "Liberation Mono", 
-      "Courier New", 
+    font-family:
+      ui-monospace,
+      SFMono-Regular,
+      "SF Mono",
+      Menlo,
+      Consolas,
+      "Liberation Mono",
+      "Courier New",
       monospace;
   }
 }
@@ -111,20 +111,3 @@ body {
   box-shadow: unset;
 }
 
-/* MarkdownPreview 代码块样式修复 */
-/* 移除 md-editor-rt 代码块的 sticky 吸附功能 */
-.markdown-preview-wrapper pre,
-.markdown-preview-wrapper pre code,
-.markdown-preview-wrapper .md-editor-preview pre,
-.markdown-preview-wrapper .md-editor-preview pre code {
-  position: relative !important;
-  top: auto !important;
-  max-height: none !important;
-}
-
-/* 覆盖所有可能的 sticky 定位 */
-.markdown-preview-wrapper [style*="position: sticky"],
-.markdown-preview-wrapper [style*="position:fixed"] {
-  position: relative !important;
-  top: auto !important;
-}

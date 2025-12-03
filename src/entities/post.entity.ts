@@ -6,6 +6,8 @@
 // 确保 reflect-metadata 已导入（在 data-source.ts 中已导入，这里作为双重保险）
 import 'reflect-metadata';
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+// 导入通用的 safe transformer（方案二：兼容现有 varchar 列类型）
+import { createSafeArrayTransformer } from '@/lib/transformers';
 
 @Entity('tb_post', { schema: 'system' })
 export class TbPost {
@@ -21,8 +23,38 @@ export class TbPost {
   @Column('varchar', { name: 'category', nullable: true, length: 255 })
   category!: string | null;
 
-  @Column('varchar', { name: 'tags', nullable: true, length: 255 })
-  tags!: string | null;
+  /**
+   * 标签字段
+   * 
+   * 当前使用方案：通用的 Safe Transformer（兼容现有 varchar 列类型）
+   * - 自动处理字符串 ↔ 数组转换
+   * - 支持 trim、filterEmpty 等自定义选项
+   * - 完全兼容现有数据库列类型（varchar(255)）
+   * - 防御性处理，兼容多种输入格式
+   * 
+   * 备选方案一：使用 TypeORM 内置的 simple-array 类型
+   * - 优点：代码更简洁，TypeORM 官方支持
+   * - 缺点：在 MySQL 中会使用 text 类型，可能需要迁移现有列
+   * ```typescript
+   * @Column('simple-array', { 
+   *   name: 'tags', 
+   *   nullable: true,
+   * })
+   * tags!: string[] | null;
+   * ```
+   */
+  @Column('varchar', {
+    name: 'tags',
+    nullable: true,
+    length: 255,
+    transformer: createSafeArrayTransformer({
+      trim: true,        // 自动去除空格
+      filterEmpty: true,  // 过滤空值
+      separator: ',',    // 分隔符
+      defaultValue: [],  // 默认值
+    }),
+  })
+  tags!: string[] | null;
 
   @Column('datetime', { name: 'date', nullable: true })
   date!: Date | null | string;

@@ -49,19 +49,28 @@ export default function PostCard({ post }: PostCardProps) {
           </p>
 
           {/* 标签 */}
-          {post.tags && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {post.tags.split(',').map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                >
-                  <TagOutlined className="mr-1" />
-                  {tag.trim()}
-                </span>
-              ))}
-            </div>
-          )}
+          {(() => {
+            // 防御性处理：确保 tags 是数组
+            const tags = Array.isArray(post.tags) 
+              ? post.tags 
+              : typeof post.tags === 'string' 
+                ? post.tags.split(',').map(t => t.trim()).filter(Boolean)
+                : [];
+            
+            return tags.length > 0 ? (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                  >
+                    <TagOutlined className="mr-1" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null;
+          })()}
 
           {/* 元信息 */}
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">

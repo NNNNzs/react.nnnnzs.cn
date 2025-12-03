@@ -6,8 +6,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Table, Button, Input, Space, Tag, message, Modal, Select } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
@@ -25,13 +25,156 @@ import type { Post } from '@/types';
 const { Search } = Input;
 const { confirm } = Modal;
 
-export default function AdminPage() {
+/**
+ * 从 URL 查询参数中读取状态
+ */
+function useUrlState() {
+  const searchParams = useSearchParams();
+  
+  return {
+    searchText: searchParams.get('q') || '',
+    hideFilter: searchParams.get('hide') || 'all',
+    current: parseInt(searchParams.get('page') || '1', 10),
+    pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
+  };
+}
+
+/**
+ * 查询参数类型定义
+ */
+interface QueryParams {
+  q?: string;
+  hide?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 更新 URL 查询参数
+ */
+function useUpdateUrl() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  return useCallback((updates: Partial<QueryParams>) => {
+    // 获取当前所有查询参数
+    const currentParams: QueryParams = {
+      q: searchParams.get('q') || undefined,
+      hide: searchParams.get('hide') || undefined,
+      page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
+      pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined,
+    };
+    
+    // 合并更新到当前参数
+    const mergedParams: QueryParams = {
+      ...currentParams,
+      ...updates,
+    };
+    
+    // 构建新的 URLSearchParams，只包含非空值
+    const params = new URLSearchParams();
+    
+    // 处理搜索关键词 q
+    if (mergedParams.q && mergedParams.q.trim()) {
+      params.set('q', mergedParams.q.trim());
+    }
+    
+    // 处理状态筛选 hide
+    if (mergedParams.hide && mergedParams.hide !== 'all') {
+      params.set('hide', mergedParams.hide);
+    }
+    
+    // 处理页码 page
+    if (mergedParams.page && mergedParams.page > 1) {
+      params.set('page', mergedParams.page.toString());
+    }
+    
+    // 处理每页数量 pageSize
+    if (mergedParams.pageSize && mergedParams.pageSize !== 20) {
+      params.set('pageSize', mergedParams.pageSize.toString());
+    }
+    
+    const newUrl = params.toString() ? `?${params.toString()}` : '';
+    router.replace(`/c${newUrl}`, { scroll: false });
+  }, [router, searchParams]);
+}
+
+function AdminPageContent() {
   const router = useRouter();
   const { user } = useAuth();
+  const urlState = useUrlState();
+  const updateUrl = useUpdateUrl();
+  
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchText, setSearchText] = useState('');
-  const [hideFilter, setHideFilter] = useState<string>('all');
+  const [total, setTotal] = useState(0);
+  // 搜索框的临时输入状态（用于用户输入时显示）
+  const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
+  // 表格容器引用，用于动态计算高度
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  // 表格滚动高度（基于flex-1容器动态计算，减去分页器高度）
+  const [tableScrollHeight, setTableScrollHeight] = useState<number | undefined>(undefined);
+  
+  // 直接使用 URL 状态，不维护本地 state
+  const hideFilter = urlState.hideFilter;
+  
+  // 使用 useMemo 避免每次渲染都创建新对象
+  const pagination = useMemo(() => ({
+    current: urlState.current,
+    pageSize: urlState.pageSize,
+    total: total,
+  }), [urlState, total]);
+  
+  const paginationRef = useRef(pagination);
+  
+  // 保持 ref 与 pagination 同步
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
+
+  /**
+   * 动态计算表格滚动高度（基于flex-1容器的高度）
+   * 高度是动态计算的，基于flex布局的剩余空间
+   */
+  useEffect(() => {
+    const updateScrollHeight = () => {
+      if (tableContainerRef.current) {
+        const containerHeight = tableContainerRef.current.clientHeight;
+        if (containerHeight > 0) {
+          // 减去分页器的高度（约64px）和表格头部的高度（约40px）
+          // 这样表格内容区域可以正确滚动
+          const scrollHeight = containerHeight - 104;
+          setTableScrollHeight(Math.max(scrollHeight, 300)); // 最小高度300px
+        }
+      }
+    };
+
+    updateScrollHeight();
+    
+    // 使用 ResizeObserver 监听容器大小变化（响应flex布局变化）
+    const resizeObserver = new ResizeObserver(() => {
+      updateScrollHeight();
+    });
+    
+    if (tableContainerRef.current) {
+      resizeObserver.observe(tableContainerRef.current);
+    }
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateScrollHeight);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateScrollHeight);
+    };
+  }, []);
+
+  /**
+   * 当 URL 中的搜索关键词变化时，同步搜索框的值
+   */
+  useEffect(() => {
+    setSearchInputValue(urlState.searchText);
+  }, [urlState.searchText]);
 
   /**
    * 检查登录状态
@@ -44,40 +187,43 @@ export default function AdminPage() {
   }, [user, router]);
 
   /**
-   * 加载文章列表
+   * 加载文章列表（服务端分页）
    */
-  const loadPosts = useCallback(async () => {
+  const loadPosts = useCallback(async (pageNum?: number, pageSize?: number) => {
     try {
       setLoading(true);
       interface ListParams {
         pageNum: number;
         pageSize: number;
         hide?: string;
+        query?: string;
       }
 
+      // 使用传入的参数，如果没有则使用当前 URL 状态
+      const currentPage = pageNum ?? urlState.current;
+      const currentPageSize = pageSize ?? urlState.pageSize;
+
       const params: ListParams = {
-        pageNum: 1,
-        pageSize: 100,
+        pageNum: currentPage,
+        pageSize: currentPageSize,
       };
 
-      if (hideFilter) {
-        params.hide = hideFilter;
+      if (urlState.hideFilter && urlState.hideFilter !== 'all') {
+        params.hide = urlState.hideFilter;
+      }
+
+      // 如果有搜索关键词，也传给服务端
+      if (urlState.searchText) {
+        params.query = urlState.searchText;
       }
 
       const response = await axios.get('/api/post/list', { params });
 
       if (response.data.status) {
-        let list = response.data.data.record;
-
-        // 客户端搜索过滤
-        if (searchText) {
-          list = list.filter((post: Post) =>
-            post.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-            post.content?.toLowerCase().includes(searchText.toLowerCase())
-          );
-        }
-
-        setPosts(list);
+        const data = response.data.data;
+        setPosts(data.record || []);
+        // 更新总数
+        setTotal(data.total || 0);
       }
     } catch (error) {
       console.error('加载文章失败:', error);
@@ -85,7 +231,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [hideFilter, searchText]);
+  }, [urlState]);
 
   /**
    * 删除文章
@@ -102,7 +248,8 @@ export default function AdminPage() {
           const response = await axios.delete(`/api/post/${post.id}`);
           if (response.data.status) {
             message.success('删除成功');
-            loadPosts();
+            // 删除后重新加载当前页数据（使用 URL 状态）
+            loadPosts(urlState.current, urlState.pageSize);
           } else {
             message.error(response.data.message || '删除失败');
           }
@@ -140,17 +287,22 @@ export default function AdminPage() {
   };
 
   /**
-   * 搜索
+   * 统一的查询参数更新方法
+   * @param updates - 要更新的查询参数部分对象
    */
-  const handleSearch = (value: string) => {
-    setSearchText(value);
-  };
+  const updateQueryParams = useCallback((updates: Partial<QueryParams>) => {
+    updateUrl(updates);
+  }, [updateUrl]);
 
+  /**
+   * 当 URL 状态变化时（包括浏览器返回），重新加载数据
+   */
   useEffect(() => {
     if (user) {
-      loadPosts();
+      loadPosts(urlState.current, urlState.pageSize);
     }
-  }, [user, loadPosts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText]);
 
   /**
    * 表格列定义
@@ -173,12 +325,12 @@ export default function AdminPage() {
       dataIndex: 'tags',
       key: 'tags',
       width: 200,
-      render: (tags: string) =>
-        tags ? (
+      render: (tags: string[] | null) =>
+        tags && tags.length > 0 ? (
           <Space wrap>
-            {tags.split(',').map((tag, index) => (
+            {tags.map((tag, index) => (
               <Tag key={index} color="blue">
-                {tag.trim()}
+                {tag}
               </Tag>
             ))}
           </Space>
@@ -250,56 +402,89 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">文章管理</h1>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreate}
-          size="large"
-        >
-          创建新文章
-        </Button>
-      </div>
+    <div className="flex h-screen flex-col">
+      <div className="container mx-auto flex-1 flex flex-col px-4 py-8 pt-10 min-h-0">
+        <div className="mb-6 flex items-center justify-between shrink-0">
+          <h1 className="text-2xl font-bold">文章管理</h1>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreate}
+            size="large"
+          >
+            创建新文章
+          </Button>
+        </div>
 
-      {/* 搜索和筛选 */}
-      <div className="mb-4 flex gap-4">
-        <Search
-          placeholder="搜索标题或内容"
-          allowClear
-          enterButton={<SearchOutlined />}
-          size="large"
-          onSearch={handleSearch}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ maxWidth: 400 }}
-        />
-        <Select
-          placeholder="状态筛选"
-          allowClear
-          size="large"
-          style={{ width: 120 }}
-          onChange={(value) => setHideFilter(value || '')}
-          options={[
-            { label: '全部', value: 'all' },
-            { label: '显示', value: '0' },
-            { label: '隐藏', value: '1' },
-          ]}
-        />
-      </div>
+        {/* 搜索和筛选 */}
+        <div className="mb-4 flex gap-4 shrink-0">
+          <Search
+            placeholder="搜索标题或内容"
+            allowClear
+            enterButton={<SearchOutlined />}
+            size="large"
+            value={searchInputValue}
+            onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
+            onChange={(e) => setSearchInputValue(e.target.value)}
+            style={{ maxWidth: 400 }}
+          />
+          <Select
+            placeholder="状态筛选"
+            allowClear
+            size="large"
+            style={{ width: 120 }}
+            value={hideFilter === 'all' ? undefined : hideFilter}
+            onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}
+            options={[
+              { label: '全部', value: 'all' },
+              { label: '显示', value: '0' },
+              { label: '隐藏', value: '1' },
+            ]}
+          />
+        </div>
 
-      {/* 文章列表 */}
-      <Table
-        columns={columns}
-        dataSource={posts}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          pageSize: 20,
-          showTotal: (total) => `共 ${total} 篇文章`,
-        }}
-      />
+        {/* 文章列表 - 使用flex-1占据剩余空间，高度动态计算 */}
+        <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
+          <Table
+            columns={columns}
+            dataSource={posts}
+            rowKey="id"
+            loading={loading}
+            scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
+            pagination={{
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              total: pagination.total,
+              showTotal: (total) => `共 ${total} 篇文章`,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+            }}
+            onChange={(paginationConfig) => {
+              updateQueryParams({
+                page: paginationConfig.current || 1,
+                pageSize: paginationConfig.pageSize || 20,
+              });
+            }}
+          />
+        </div>
+      </div>
     </div>
+  );
+}
+
+/**
+ * 默认导出组件，使用 Suspense 包裹以支持 useSearchParams
+ */
+export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div>加载中...</div>
+      </div>
+    }>
+      <AdminPageContent />
+    </Suspense>
   );
 }
 

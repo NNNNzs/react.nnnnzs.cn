@@ -65,19 +65,28 @@ export default function PostListItem({ post }: PostListItemProps) {
         </h2>
 
         {/* 标签 */}
-        {post.tags && (
-          <div className="post-tags mb-4 flex flex-wrap gap-2">
-            {post.tags.split(',').map((tag, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-              >
-                <TagOutlined className="mr-1" />
-                {tag.trim()}
-              </span>
-            ))}
-          </div>
-        )}
+        {(() => {
+          // 防御性处理：确保 tags 是数组
+          const tags = Array.isArray(post.tags) 
+            ? post.tags 
+            : typeof post.tags === 'string' 
+              ? post.tags.split(',').map(t => t.trim()).filter(Boolean)
+              : [];
+          
+          return tags.length > 0 ? (
+            <div className="post-tags mb-4 flex flex-wrap gap-2">
+              {tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                >
+                  <TagOutlined className="mr-1" />
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null;
+        })()}
 
         {/* 描述 */}
         <p className="post-description hidden h-44 leading-10 text-gray-500 md:block">
