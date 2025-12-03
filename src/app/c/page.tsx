@@ -326,7 +326,7 @@ function AdminPageContent() {
       key: 'tags',
       width: 200,
       render: (tags: string[] | null) =>
-        tags && tags.length > 0 ? (
+        Array.isArray(tags) && tags.length > 0 ? (
           <Space wrap>
             {tags.map((tag, index) => (
               <Tag key={index} color="blue">

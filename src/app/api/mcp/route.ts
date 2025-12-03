@@ -107,7 +107,11 @@ function createMcpServer(headers: Headers) {
     },
     async (args) => {
       await ensureAuth();
-      const result = await createPost(args);
+      const postData: Partial<import('@/entities/post.entity').TbPost> = {
+        ...args,
+        tags: args.tags ? args.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
+      };
+      const result = await createPost(postData);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
       };
@@ -129,7 +133,11 @@ function createMcpServer(headers: Headers) {
     },
     async (args) => {
       await ensureAuth();
-      const { id, ...data } = args;
+      const { id, ...restArgs } = args;
+      const data: Partial<import('@/entities/post.entity').TbPost> = {
+        ...restArgs,
+        tags: restArgs.tags ? restArgs.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
+      };
       const result = await updatePost(id, data);
       if (!result) return { isError: true, content: [{ type: "text", text: "Article not found" }] };
       return {

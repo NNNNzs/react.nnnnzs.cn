@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "build:docker": "./scripts/build-docker.sh",
     "start:docker": "docker-compose -f docker-compose.local.yml up -d ",
     "local:image:push": "./scripts/push-docker.sh"
@@ -26,6 +27,7 @@
     "dayjs": "^1.11.18",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.8.2",
+    "lodash-es": "^4.17.21",
     "md-editor-rt": "^6.1.1",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
@@ -43,6 +45,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
+    "@types/lodash-es": "^4.17.12",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

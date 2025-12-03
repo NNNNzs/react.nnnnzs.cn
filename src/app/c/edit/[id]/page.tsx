@@ -88,22 +88,10 @@ export default function EditPostPage() {
         const postData = response.data.data;
         setPost(postData);
 
-        // 处理标签：确保是数组格式
-        let tagsArray: string[] = [];
-        if (postData.tags && Array.isArray(postData.tags)) {
-          tagsArray = postData.tags.filter(Boolean);
-        } else if (postData.tags && typeof postData.tags === "string") {
-          // 兼容旧数据格式
-          tagsArray = postData.tags
-            .split(",")
-            .filter(Boolean)
-            .map((tag: string) => tag.trim());
-        }
-
         // 设置表单值
         form.setFieldsValue({
           ...postData,
-          tags: tagsArray, // 直接设置到表单的 tags 字段
+          tags: postData.tags || [],
           date: postData.date ? dayjs(postData.date) : dayjs(),
           updated: postData.updated ? dayjs(postData.updated) : dayjs(),
         });

@@ -105,7 +105,7 @@ export async function generateMetadata({
   return {
     title: `${post.title} | 博客`,
     description,
-    keywords: post.tags ? post.tags.join(',') : undefined,
+    keywords: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags.join(',') : undefined,
     openGraph: {
       title: post.title || undefined,
       description,
@@ -113,7 +113,7 @@ export async function generateMetadata({
       publishedTime: post.date ? String(post.date) : undefined,
       modifiedTime: post.updated ? String(post.updated) : undefined,
       images: coverImages,
-      tags: post.tags || undefined,
+      tags: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags : undefined,
     },
     twitter: {
       card: "summary_large_image",
@@ -161,7 +161,7 @@ export default async function PostDetail({ params }: PageProps) {
                 "@type": "Organization",
                 name: "nnnnzs",
               },
-              keywords: post.tags ? post.tags.join(',') : undefined,
+              keywords: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags.join(',') : undefined,
             }),
           }}
         />
@@ -193,7 +193,7 @@ export default async function PostDetail({ params }: PageProps) {
             </div>
 
             {/* 标签 */}
-            {post.tags && post.tags.length > 0 && (
+            {Array.isArray(post.tags) && post.tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {post.tags.map((tag, index) => (
                   <Tag key={index} color="blue">

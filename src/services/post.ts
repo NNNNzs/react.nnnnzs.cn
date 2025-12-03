@@ -1,23 +1,30 @@
 import { Like } from 'typeorm';
+import { isArray, isString } from 'lodash-es';
 import { getPostRepository } from '@/lib/repositories';
 import type { QueryCondition, PageQueryRes, Archive } from '@/dto/post.dto';
 import { TbPost } from '@/entities/post.entity';
 import dayjs from 'dayjs';
 
 /**
- * 确保 tags 字段是数组格式
- * 防御性转换，处理 transformer 可能未生效的情况
+ * 将 TypeORM 实体序列化为纯对象，确保 tags 是数组格式
  */
-function ensureTagsIsArray(post: TbPost): TbPost {
-  if (post.tags && typeof post.tags === 'string') {
-    // 如果是字符串，转换为数组
-    post.tags = post.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-  } else if (!post.tags) {
-    // 如果是 null 或 undefined，设置为空数组
-    post.tags = [];
-  }
-  // 如果已经是数组，保持不变
-  return post;
+function serializePost(post: TbPost): TbPost {
+  // 转换为纯对象（移除 TypeORM 的类实例）
+  const plain = JSON.parse(JSON.stringify(post));
+  
+  // 确保 tags 是数组格式
+  const rawTags = post.tags as string[] | string | null | undefined;
+  plain.tags = isArray(rawTags) 
+    ? rawTags 
+    : isString(rawTags) 
+      ? rawTags.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
+  
+  // 序列化日期
+  plain.date = post.date ? new Date(post.date).toISOString() : null;
+  plain.updated = post.updated ? new Date(post.updated).toISOString() : null;
+  
+  return plain as TbPost;
 }
 
 /**
@@ -90,15 +97,8 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
     },
   });
 
-  // 序列化日期对象，确保 tags 是数组，防止传递给客户端组件时报错
-  const serializedData = data.map(post => {
-    const processedPost = ensureTagsIsArray(post);
-    return {
-      ...processedPost,
-      date: processedPost.date ? new Date(processedPost.date).toISOString() : null,
-      updated: processedPost.updated ? new Date(processedPost.updated).toISOString() : null,
-    };
-  });
+  // 序列化日期对象并确保 tags 是数组格式
+  const serializedData = data.map(post => serializePost(post));
 
   return {
     record: serializedData as TbPost[], 
@@ -115,20 +115,12 @@ export async function getPostByPath(path: string): Promise<TbPost | null> {
   const postRepository = await getPostRepository();
   const post = await postRepository.findOne({
     where: {
-      path: path, // Exact match
+      path: path,
       is_delete: 0,
     },
   });
   
-  if (post) {
-    // 确保 tags 是数组格式
-    ensureTagsIsArray(post);
-    // Serialize dates
-    post.date = post.date ? new Date(post.date).toISOString() : null;
-    post.updated = post.updated ? new Date(post.updated).toISOString() : null;
-  }
-
-  return post;
+  return post ? serializePost(post) : null;
 }
 
 /**
@@ -143,13 +135,7 @@ export async function getPostByTitle(title: string): Promise<TbPost | null> {
     },
   });
   
-  if (post) {
-    // 确保 tags 是数组格式
-    ensureTagsIsArray(post);
-    post.date = post.date ? new Date(post.date).toISOString() : null;
-    post.updated = post.updated ? new Date(post.updated).toISOString() : null;
-  }
-  return post;
+  return post ? serializePost(post) : null;
 }
 
 /**
@@ -164,15 +150,7 @@ export async function getPostById(id: number): Promise<TbPost | null> {
     },
   });
 
-  if (post) {
-    // 确保 tags 是数组格式
-    ensureTagsIsArray(post);
-    // Serialize dates
-    post.date = post.date ? new Date(post.date).toISOString() : null;
-    post.updated = post.updated ? new Date(post.updated).toISOString() : null;
-  }
-
-  return post;
+  return post ? serializePost(post) : null;
 }
 
 /**
@@ -195,18 +173,14 @@ export async function getArchives(): Promise<Archive[]> {
   const archivesMap = new Map<string, TbPost[]>();
   
   posts.forEach((post) => {
-    // 确保 tags 是数组格式
-    ensureTagsIsArray(post);
-    // 序列化日期
-    post.date = post.date ? new Date(post.date).toISOString() : null;
-    post.updated = post.updated ? new Date(post.updated).toISOString() : null;
+    const serializedPost = serializePost(post);
 
-    if (post.date) {
-      const year = dayjs(post.date).format('YYYY');
+    if (serializedPost.date) {
+      const year = dayjs(serializedPost.date).format('YYYY');
       if (!archivesMap.has(year)) {
         archivesMap.set(year, []);
       }
-      archivesMap.get(year)?.push(post);
+      archivesMap.get(year)?.push(serializedPost);
     }
   });
 
@@ -233,31 +207,26 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
   // 生成cover
   const cover = data.cover || genCover(data.date || now);
 
-  // 处理 tags：如果是数组，转换为逗号分隔的字符串
-  // TypeORM transformer 可能在某些情况下不会正确应用，所以手动转换
-  let tagsValue: string | null = null;
+  // 处理 tags：确保是数组格式
+  let tagsArray: string[] | null = null;
   if (data.tags) {
     if (Array.isArray(data.tags)) {
-      const filteredTags = data.tags.filter(Boolean).map(tag => String(tag).trim());
-      tagsValue = filteredTags.length > 0 ? filteredTags.join(',') : null;
-    } else if (typeof data.tags === 'string') {
-      tagsValue = data.tags;
+      const filteredTags = data.tags.filter(Boolean).map((tag: string) => String(tag).trim());
+      tagsArray = filteredTags.length > 0 ? filteredTags : null;
+    } else {
+      throw new Error('tags must be an array');
     }
   }
 
-  // 清理不需要的字段，只保留实体需要的字段
-  const { tagsString, ...cleanData } = data;
-
-  // 创建明确的实体对象，确保所有字段类型正确
   const postData: Partial<TbPost> = {
-    title: cleanData.title || null,
-    category: cleanData.category || null,
-    tags: tagsValue, // 已经是字符串类型
-    path, // Use generated path
-    cover, // Use generated/provided cover
-    layout: cleanData.layout || null,
-    content: cleanData.content || null,
-    description: cleanData.description || null,
+    title: data.title || null,
+    category: data.category || null,
+    tags: tagsArray,
+    path,
+    cover,
+    layout: data.layout || null,
+    content: data.content || null,
+    description: data.description || undefined,
     date: data.date ? dayjs(data.date).format('YYYY-MM-DD HH:mm:ss') : now,
     updated: now,
     hide: data.hide || '0',
@@ -266,22 +235,10 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
     likes: 0,
   };
 
-  // 最终检查：确保 tags 是字符串类型（防御性检查）
-  if (postData.tags && Array.isArray(postData.tags)) {
-    console.warn('⚠️ tags 仍然是数组，强制转换为字符串:', postData.tags);
-    const filteredTags = postData.tags.filter(Boolean).map(tag => String(tag).trim());
-    postData.tags = filteredTags.length > 0 ? filteredTags.join(',') : null;
-  }
-
   const postRepository = await getPostRepository();
   const result = await postRepository.save(postData as TbPost);
   
-  // 确保 tags 是数组格式并序列化
-  const savedPost = ensureTagsIsArray({ ...result });
-  savedPost.date = savedPost.date ? new Date(savedPost.date).toISOString() : null;
-  savedPost.updated = savedPost.updated ? new Date(savedPost.updated).toISOString() : null;
-  
-  return savedPost as TbPost;
+  return serializePost(result);
 }
 
 /**
@@ -295,35 +252,26 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
     updated: now,
   };
 
-  // 处理 tags：如果是数组，转换为逗号分隔的字符串
+  // 处理 tags：确保是数组格式
   if (data.tags !== undefined) {
     if (Array.isArray(data.tags)) {
-      const filteredTags = data.tags.filter(Boolean).map(tag => String(tag).trim());
-      updateData.tags = filteredTags.length > 0 ? filteredTags.join(',') : null;
-    } else if (typeof data.tags === 'string') {
-      updateData.tags = data.tags;
-    } else {
+      const filteredTags = data.tags.filter(Boolean).map((tag: string) => String(tag).trim());
+      updateData.tags = filteredTags.length > 0 ? filteredTags : null;
+    } else if (data.tags === null) {
       updateData.tags = null;
+    } else {
+      throw new Error('tags must be an array or null');
     }
   }
 
   // 如果有title，重新生成path
   if (data.title) {
-     // 如果没有传入date，尝试使用现有data.date或者当前时间（这里假设updateData包含了完整数据或者至少包含date）
-     // 如果data是partial update，可能没有date。
-     // 但是前端通常传所有字段。
-     // 安全起见，如果data.date存在，用data.date。如果不存在，可能需要查库？
-     // 根据page.tsx，提交时会带上date。
      const date = data.date || now;
      updateData.path = genPath(data.title, date);
   }
 
   // 如果cover为空字符串，生成cover
   if (data.cover === '' || data.cover === null || data.cover === undefined) {
-      // 检查是否应该生成。用户说“如果传空”。
-      // 如果本来有cover，传空是想删除吗？还是生成默认？
-      // 用户说 "cover user if passed empty in frontend, also put to server side generation".
-      // 这意味着空字符串 = 生成默认。
       const date = data.date || now;
       updateData.cover = genCover(date);
   }
@@ -335,14 +283,7 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
     where: { id },
   });
 
-  if (updatedPost) {
-      // 确保 tags 是数组格式
-      ensureTagsIsArray(updatedPost);
-      updatedPost.date = updatedPost.date ? new Date(updatedPost.date).toISOString() : null;
-      updatedPost.updated = updatedPost.updated ? new Date(updatedPost.updated).toISOString() : null;
-  }
-
-  return updatedPost;
+  return updatedPost ? serializePost(updatedPost) : null;
 }
 
 /**

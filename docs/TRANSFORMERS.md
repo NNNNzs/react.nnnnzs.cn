@@ -134,7 +134,7 @@ A:
 - 直接使用 QueryBuilder 的 `select` 时
 - 数据序列化/反序列化过程中
 
-**解决方案**：在 Service 层添加防御性检查（参考 `src/services/post.ts` 中的 `ensureTagsIsArray` 函数）
+**解决方案**：确保数据库中的数据格式正确，transformer 会自动处理转换。如果数据格式不正确，接口应该报错而不是静默处理。
 
 ## 📚 参考资源
 

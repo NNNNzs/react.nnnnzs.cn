@@ -1,21 +1,28 @@
 import { Like } from 'typeorm';
+import { isArray, isString } from 'lodash-es';
 import { getPostRepository } from '@/lib/repositories';
 import { TbPost } from '@/entities/post.entity';
 
 /**
- * 确保 tags 字段是数组格式
- * 防御性转换，处理 transformer 可能未生效的情况
+ * 将 TypeORM 实体序列化为纯对象，确保 tags 是数组格式
  */
-function ensureTagsIsArray(post: TbPost): TbPost {
-  if (post.tags && typeof post.tags === 'string') {
-    // 如果是字符串，转换为数组
-    post.tags = post.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-  } else if (!post.tags) {
-    // 如果是 null 或 undefined，设置为空数组
-    post.tags = [];
-  }
-  // 如果已经是数组，保持不变
-  return post;
+function serializePost(post: TbPost): TbPost {
+  // 转换为纯对象（移除 TypeORM 的类实例）
+  const plain = JSON.parse(JSON.stringify(post));
+  
+  // 确保 tags 是数组格式
+  const rawTags = post.tags as string[] | string | null | undefined;
+  plain.tags = isArray(rawTags) 
+    ? rawTags 
+    : isString(rawTags) 
+      ? rawTags.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
+  
+  // 序列化日期
+  plain.date = post.date ? new Date(post.date).toISOString() : null;
+  plain.updated = post.updated ? new Date(post.updated).toISOString() : null;
+  
+  return plain as TbPost;
 }
 
 /**
@@ -33,10 +40,9 @@ export async function getAllTags(): Promise<[string, number][]> {
     select: ['tags'],
   });
 
-  // 统计标签（确保 tags 是数组类型）
+  // 统计标签
   const tagMap = new Map<string, number>();
   posts.forEach((post) => {
-    ensureTagsIsArray(post);
     if (post.tags && Array.isArray(post.tags)) {
       post.tags.forEach((tag) => {
         const trimmedTag = tag.trim();
@@ -69,14 +75,7 @@ export async function getPostsByTag(tag: string): Promise<TbPost[]> {
     },
   });
 
-  // 确保 tags 是数组格式并序列化日期
-  return posts.map(post => {
-    const processedPost = ensureTagsIsArray(post);
-    return {
-      ...processedPost,
-      date: processedPost.date ? new Date(processedPost.date).toISOString() : null,
-      updated: processedPost.updated ? new Date(processedPost.updated).toISOString() : null,
-    };
-  });
+  // 序列化日期并确保 tags 是数组格式
+  return posts.map(post => serializePost(post));
 }
 
