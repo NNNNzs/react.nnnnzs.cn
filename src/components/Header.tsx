@@ -118,9 +118,9 @@ export default function Header() {
   ];
 
   // Algolia 配置
-  const algoliaAppId = "74Q4ZJSGIE"
-  const algoliaApiKey = "0d46f0335810c99223e60c13412be864"
-  const algoliaIndexName = "nnnnzs"
+  const algoliaAppId = "Z7X1APTNTI"
+  const algoliaApiKey = "2c45b6e4d3bdd9bc7038a863a4b8ae5d"
+  const algoliaIndexName = "www_nnnnzs_cn_z7x1aptnti_pages"
 
   return (
     <>
