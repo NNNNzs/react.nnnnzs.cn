@@ -2,17 +2,23 @@
  * 头部导航组件
  */
 
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, Dropdown, Space, Drawer } from 'antd';
-import type { MenuProps } from 'antd';
-import { UserOutlined, LogoutOutlined, EditOutlined, MenuOutlined, GithubOutlined } from '@ant-design/icons';
-import { DocSearch } from '@docsearch/react';
-import '@docsearch/css';
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, Dropdown, Space, Drawer } from "antd";
+import type { MenuProps } from "antd";
+import {
+  UserOutlined,
+  LogoutOutlined,
+  EditOutlined,
+  MenuOutlined,
+  GithubOutlined,
+} from "@ant-design/icons";
+import { DocSearch } from "@docsearch/react";
+import "@docsearch/css";
 
 export default function Header() {
   const pathname = usePathname();
@@ -30,32 +36,34 @@ export default function Header() {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
     if (newIsDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   };
 
   // 初始化主题
   useEffect(() => {
     const initTheme = () => {
-      const theme = localStorage.getItem('theme') || 
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      const dark = theme === 'dark';
+      const theme =
+        localStorage.getItem("theme") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light");
+      const dark = theme === "dark";
       setIsDark(dark);
       if (dark) {
-        document.documentElement.classList.add('dark');
+        document.documentElement.classList.add("dark");
       } else {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.remove("dark");
       }
     };
-    
+
     // 使用 requestAnimationFrame 避免同步 setState
     requestAnimationFrame(initTheme);
   }, []);
-
 
   // 滚动处理
   useEffect(() => {
@@ -63,64 +71,108 @@ export default function Header() {
       const y = window.scrollY;
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.scrollHeight;
-      
+
       // 计算滚动进度
       const percent = ((y > 0 ? y + windowHeight : 0) / documentHeight) * 100;
       setScrollProgress(percent);
-      
+
       // 计算 header 透明度
       const opacity = Math.min(y / windowHeight, 1);
       setHeaderOpacity(opacity);
-      
+
       // 更新 CSS 变量
       if (scrollBarRef.current) {
-        scrollBarRef.current.style.setProperty('--percent', `${percent}%`);
+        scrollBarRef.current.style.setProperty("--percent", `${percent}%`);
       }
       if (headerRef.current) {
-        headerRef.current.style.setProperty('--header-opacity', opacity.toString());
+        headerRef.current.style.setProperty(
+          "--header-opacity",
+          opacity.toString()
+        );
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
     // 初始调用，确保路径变化后状态正确
     handleScroll();
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [pathname]);
 
   // 返回顶部
   const returnTop = () => {
     returnTopRef.current?.scrollIntoView({
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   };
 
-  const menuItems: MenuProps['items'] = [
+  const menuItems: MenuProps["items"] = [
     {
-      key: 'admin',
+      key: "admin",
       label: <Link href="/c">管理后台</Link>,
       icon: <EditOutlined />,
     },
     {
-      key: 'logout',
-      label: '退出登录',
+      key: "logout",
+      label: "退出登录",
       icon: <LogoutOutlined />,
       onClick: async () => {
         await logout();
-        window.location.href = '/';
+        window.location.href = "/";
       },
     },
   ];
 
   const navItems = [
-    { href: '/tags', label: '分类' },
-    { href: '/archives', label: '归档' },
+    { href: "/tags", label: "分类" },
+    { href: "/archives", label: "归档" },
   ];
 
   // Algolia 配置
-  const algoliaAppId = "Z7X1APTNTI"
-  const algoliaApiKey = "2c45b6e4d3bdd9bc7038a863a4b8ae5d"
-  const algoliaIndexName = "www_nnnnzs_cn_z7x1aptnti_pages"
+  const [algoliaAppId, setAlgoliaAppId] = useState<string>("");
+  const [algoliaApiKey, setAlgoliaApiKey] = useState<string>("");
+  const [algoliaIndexName, setAlgoliaIndexName] = useState<string>("");
+
+  // 从配置服务获取 Algolia 配置
+  useEffect(() => {
+    const fetchAlgoliaConfig = async () => {
+      try {
+        const keys = [
+          "algolia_app_id",
+          "algolia_api_key",
+          "algolia_index_name",
+        ];
+        const [appIdRes, apiKeyRes, indexNameRes] = await Promise.all(
+          keys.map((key) => fetch(`/api/config/key/${key}`))
+        );
+
+        if (appIdRes.ok) {
+          const appIdData = await appIdRes.json();
+          if (appIdData.status && appIdData.data?.value) {
+            setAlgoliaAppId(appIdData.data.value);
+          }
+        }
+
+        if (apiKeyRes.ok) {
+          const apiKeyData = await apiKeyRes.json();
+          if (apiKeyData.status && apiKeyData.data?.value) {
+            setAlgoliaApiKey(apiKeyData.data.value);
+          }
+        }
+
+        if (indexNameRes.ok) {
+          const indexNameData = await indexNameRes.json();
+          if (indexNameData.status && indexNameData.data?.value) {
+            setAlgoliaIndexName(indexNameData.data.value);
+          }
+        }
+      } catch (error) {
+        console.error("获取 Algolia 配置失败:", error);
+      }
+    };
+
+    fetchAlgoliaConfig();
+  }, []);
 
   return (
     <>
@@ -128,9 +180,11 @@ export default function Header() {
       <header
         ref={headerRef}
         className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 z-\[999]"
-        style={{
-          opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
-        } as React.CSSProperties}
+        style={
+          {
+            opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
+          } as React.CSSProperties
+        }
       >
         <div className="container mx-auto h-full px-4">
           <div className="mx-auto h-full menu flex items-center justify-between leading-8">
@@ -140,7 +194,7 @@ export default function Header() {
             </Link>
 
             {/* 桌面端导航 */}
-            <div className="hidden md:flex flex-row gap-2 justify-between items-center category w-auto">
+            <div className="md:flex flex-row gap-2 justify-between items-center category w-auto">
               {/* 搜索框 */}
               {algoliaAppId && algoliaApiKey && (
                 <div className="flex items-center">
@@ -150,8 +204,8 @@ export default function Header() {
                     indexName={algoliaIndexName}
                     translations={{
                       button: {
-                        buttonText: '搜索',
-                        buttonAriaLabel: '搜索',
+                        buttonText: "搜索",
+                        buttonAriaLabel: "搜索",
                       },
                     }}
                   />
@@ -166,8 +220,8 @@ export default function Header() {
                       href={item.href}
                       className={`h-full inline-block relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-px after:bg-slate-900 dark:after:bg-white ${
                         pathname === item.href
-                          ? 'after:opacity-100'
-                          : 'after:opacity-0 hover:after:opacity-50'
+                          ? "after:opacity-100"
+                          : "after:opacity-0 hover:after:opacity-50"
                       } transition-opacity`}
                     >
                       {item.label}
@@ -250,7 +304,10 @@ export default function Header() {
             </div>
 
             {/* 移动端菜单按钮 */}
-            <div className="w-4 h-4 md:hidden cursor-pointer" onClick={() => setDrawerOpen(true)}>
+            <div
+              className="w-4 h-4 md:hidden cursor-pointer"
+              onClick={() => setDrawerOpen(true)}
+            >
               <MenuOutlined />
             </div>
           </div>
@@ -310,4 +367,3 @@ export default function Header() {
     </>
   );
 }
-

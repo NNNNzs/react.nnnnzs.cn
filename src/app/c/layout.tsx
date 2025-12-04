@@ -76,7 +76,7 @@ export default function CLayout({
     <Layout className="h-screen">
       <Sider
         width={200}
-        className="!bg-white dark:!bg-slate-800"
+        className="bg-white dark:bg-slate-800"
         style={{
           overflow: 'auto',
           height: '100vh',
