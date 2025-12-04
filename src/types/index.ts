@@ -26,6 +26,7 @@ export type { ResponseBody } from '@/dto/response.dto';
 // 前端使用的类型别名
 import type { TbPost } from '@/entities/post.entity';
 import type { TbUser } from '@/entities/user.entity';
+import type { TbConfig } from '@/entities/config.entity';
 
 export type Post = TbPost;
 export type User = TbUser;

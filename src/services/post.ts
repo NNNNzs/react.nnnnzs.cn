@@ -199,13 +199,14 @@ export async function getArchives(): Promise<Archive[]> {
  * 创建文章
  */
 export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
-  const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+  const now = new Date();
   
-  // 生成path
-  const path = genPath(data.title || '', data.date || now);
+  // 生成path - 使用 Date 对象或字符串
+  const dateForPath = data.date ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date) : now;
+  const path = genPath(data.title || '', dateForPath);
   
-  // 生成cover
-  const cover = data.cover || genCover(data.date || now);
+  // 生成cover - 使用 Date 对象或字符串
+  const cover = data.cover || genCover(dateForPath);
 
   // 处理 tags：确保是数组格式
   let tagsArray: string[] | null = null;
@@ -218,6 +219,15 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
     }
   }
 
+  // 处理日期：转换为 Date 对象（TypeORM datetime 列需要 Date 对象）
+  let dateValue: Date;
+  if (data.date) {
+    dateValue = typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date;
+  } else {
+    dateValue = now;
+  }
+
+  // 构建文章数据对象
   const postData: Partial<TbPost> = {
     title: data.title || null,
     category: data.category || null,
@@ -227,7 +237,7 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
     layout: data.layout || null,
     content: data.content || null,
     description: data.description || undefined,
-    date: data.date ? dayjs(data.date).format('YYYY-MM-DD HH:mm:ss') : now,
+    date: dateValue,
     updated: now,
     hide: data.hide || '0',
     is_delete: 0,
@@ -236,7 +246,15 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
   };
 
   const postRepository = await getPostRepository();
-  const result = await postRepository.save(postData as TbPost);
+  // 使用 create 方法创建实体实例，确保 TypeORM 正确处理所有字段
+  const postEntity = postRepository.create(postData);
+  
+  // 调试：打印实体数据
+  if (process.env.NODE_ENV === 'development') {
+    console.log('创建文章实体:', JSON.stringify(postEntity, null, 2));
+  }
+  
+  const result = await postRepository.save(postEntity);
   
   return serializePost(result);
 }
@@ -245,7 +263,7 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
  * 更新文章
  */
 export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbPost | null> {
-  const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+  const now = new Date();
   
   const updateData: Partial<TbPost> = {
     ...data,
@@ -264,16 +282,25 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
     }
   }
 
+  // 处理日期：如果提供了日期，转换为 Date 对象
+  if (data.date !== undefined) {
+    updateData.date = typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date;
+  }
+
   // 如果有title，重新生成path
   if (data.title) {
-     const date = data.date || now;
-     updateData.path = genPath(data.title, date);
+     const dateForPath = data.date 
+       ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date)
+       : now;
+     updateData.path = genPath(data.title, dateForPath);
   }
 
   // 如果cover为空字符串，生成cover
   if (data.cover === '' || data.cover === null || data.cover === undefined) {
-      const date = data.date || now;
-      updateData.cover = genCover(date);
+      const dateForCover = data.date 
+        ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date)
+        : now;
+      updateData.cover = genCover(dateForCover);
   }
 
   const postRepository = await getPostRepository();
