@@ -1,0 +1,32 @@
+/**
+ * 创建配置API
+ * POST /api/config
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createConfig } from '@/services/config';
+import {
+  successResponse,
+  errorResponse,
+  getTokenFromRequest,
+  validateToken,
+} from '@/lib/auth';
+
+export async function POST(request: NextRequest) {
+  try {
+    // 验证Token
+    const token = getTokenFromRequest(request.headers);
+    if (!token || !(await validateToken(token))) {
+      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    const body = await request.json();
+    const result = await createConfig(body);
+
+    return NextResponse.json(successResponse(result, '创建成功'));
+  } catch (error) {
+    console.error('创建配置失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '创建配置失败';
+    return NextResponse.json(errorResponse(errorMessage), { status: 500 });
+  }
+}

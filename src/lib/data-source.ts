@@ -8,6 +8,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { TbPost } from '@/entities/post.entity';
 import { TbUser } from '@/entities/user.entity';
+import { TbConfig } from '@/entities/config.entity';
 
 /**
  * 数据库配置
@@ -21,7 +22,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'system',
   synchronize: process.env.NODE_ENV === 'development', // 开发环境自动同步表结构
   logging: process.env.NODE_ENV === 'development',
-  entities: [TbPost, TbUser],
+  entities: [TbPost, TbUser, TbConfig],
   migrations: [],
   subscribers: [],
   charset: 'utf8mb4',

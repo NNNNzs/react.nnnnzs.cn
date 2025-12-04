@@ -127,7 +127,7 @@ export default function Header() {
       <div ref={returnTopRef}></div>
       <header
         ref={headerRef}
-        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 z-[999]"
+        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 z-\[999]"
         style={{
           opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
         } as React.CSSProperties}
