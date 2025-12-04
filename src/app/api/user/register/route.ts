@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserRepository } from '@/lib/repositories';
+import { getPrisma } from '@/lib/prisma';
 import {
   successResponse,
   errorResponse,
@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const userRepository = await getUserRepository();
+    const prisma = await getPrisma();
 
     // 检查用户是否已存在
-    const existingUser = await userRepository.findOne({
+    const existingUser = await prisma.tbUser.findFirst({
       where: { account },
     });
 
@@ -44,17 +44,19 @@ export async function POST(request: NextRequest) {
     const realIp = request.headers.get('x-real-ip');
     const clientIp = (xForwardedFor?.split(',')[0]?.trim() || realIp || '127.0.0.1');
 
-    const newUser = await userRepository.save({
-      account,
-      password: hashedPassword,
-      nickname,
-      mail: mail || '',
-      phone: phone || '',
-      role: 'user',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${account}`,
-      registered_ip: clientIp,
-      registered_time: new Date(),
-      status: 1,
+    const newUser = await prisma.tbUser.create({
+      data: {
+        account,
+        password: hashedPassword,
+        nickname,
+        mail: mail || null,
+        phone: phone || null,
+        role: 'user',
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${account}`,
+        registered_ip: clientIp,
+        registered_time: new Date(),
+        status: 1,
+      },
     });
 
     // 生成Token
@@ -63,9 +65,7 @@ export async function POST(request: NextRequest) {
 
     // 返回用户信息（不包含密码）
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...userInfo } = newUser as import('@/entities/user.entity').TbUser & {
-      password?: string;
-    };
+    const { password: _password, ...userInfo } = newUser;
 
     const response = NextResponse.json(
       successResponse({ token, userInfo }, '注册成功')

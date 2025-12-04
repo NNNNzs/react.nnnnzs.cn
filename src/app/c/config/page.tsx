@@ -36,7 +36,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import type { QueryConfigCondition } from "@/dto/config.dto";
-import type { TbConfig } from "@/entities/config.entity";
+import type { TbConfig } from "@/generated/prisma-client";
 
 const { Search } = Input;
 const { confirm } = Modal;

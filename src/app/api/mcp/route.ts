@@ -111,7 +111,7 @@ function createMcpServer(headers: Headers) {
       // createPost 会进一步处理并转换为数组或字符串
       const tagsValue = args.tags?.trim() || undefined;
       
-      const postData: Partial<import('@/entities/post.entity').TbPost> = {
+      const postData: Partial<import('@/generated/prisma-client').TbPost> = {
         ...args,
         tags: tagsValue,
       };
@@ -138,7 +138,7 @@ function createMcpServer(headers: Headers) {
     async (args) => {
       await ensureAuth();
       const { id, ...restArgs } = args;
-      const data: Partial<import('@/entities/post.entity').TbPost> = {
+      const data: Partial<import('@/generated/prisma-client').TbPost> = {
         ...restArgs,
         // tags 保持字符串格式，updatePost 会处理
         tags: restArgs.tags?.trim() || undefined,

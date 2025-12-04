@@ -11,9 +11,35 @@ import Redis from 'ioredis';
 let redisClient: Redis | null = null;
 
 /**
+ * 创建 Mock Redis 客户端（用于构建环境）
+ */
+function createMockRedisClient(): Redis {
+  console.log('🚧 构建环境，使用 Mock Redis Client');
+  return {
+    set: async () => 'OK',
+    get: async () => null,
+    del: async () => 1,
+    exists: async () => 0,
+    expire: async () => 1,
+    ttl: async () => -1,
+    keys: async () => [],
+    quit: async () => 'OK',
+    on: () => {},
+  } as unknown as Redis;
+}
+
+/**
  * 获取 Redis 客户端
  */
 export function getRedisClient(): Redis {
+  // 在构建环境中返回 Mock 客户端
+  if (process.env.IS_BUILD === 'true') {
+    if (!redisClient) {
+      redisClient = createMockRedisClient();
+    }
+    return redisClient;
+  }
+
   if (!redisClient) {
     redisClient = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
@@ -25,8 +51,6 @@ export function getRedisClient(): Redis {
         return delay;
       },
       maxRetriesPerRequest: 3,
-      // 在构建环境中延迟连接
-      lazyConnect: process.env.IS_BUILD === 'true',
     });
 
     redisClient.on('connect', () => {

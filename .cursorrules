@@ -14,13 +14,13 @@
 - **云存储**: 腾讯云 COS
 - **认证**: NextAuth 4.24.13
 - **Markdown**: md-editor-rt, react-markdown
-- ** 使用pnpm作为包管理器
+- **使用pnpm作为包管理器
+- 使用lodash-es
 
 ## 代码规范
 
 ### TypeScript
 - 使用严格模式 (`strict: true`)
-- 启用装饰器和元数据 (`experimentalDecorators`, `emitDecoratorMetadata`)
 - 使用路径别名 `@/*` 指向 `./src/*`
 - 所有类型定义必须明确，避免使用 `any`
 
@@ -28,9 +28,10 @@
 - **路由**: `src/app/` - Next.js App Router 路由和页面
 - **组件**: `src/components/` - 可复用的 React 组件
 - **API 路由**: `src/app/api/` - Next.js API 路由处理程序
-- **实体**: `src/entities/` - TypeORM 实体定义
+- **Schema**: `prisma/` - Prisma schema 定义
 - **DTO**: `src/dto/` - 数据传输对象和类型定义
 - **工具库**: `src/lib/` - 工具函数、配置和数据库连接
+- **服务层**: `src/services/` - 业务逻辑和数据库操作
 - **上下文**: `src/contexts/` - React Context 提供者
 - **类型**: `src/types/` - TypeScript 类型定义
 - **文档**: `docs/` - 项目文档
@@ -47,14 +48,14 @@
 - 所有 API 路由必须包含 JSDoc 注释说明功能
 - 使用统一的响应格式 (`successResponse`, `errorResponse`)
 - 错误处理必须包含适当的 HTTP 状态码
-- 使用 TypeORM Repository 模式进行数据库操作
+- 通过服务层（`src/services/`）进行数据库操作
 
 ### 数据库规范
-- 使用 TypeORM 实体定义数据模型
-- 实体类使用装饰器 (`@Entity`, `@Column` 等)
-- 使用 Repository 模式访问数据库
-- 通过 `getDataSource()` 获取数据库连接
-- 开发环境启用 `synchronize`，生产环境必须使用迁移
+- 使用 Prisma Schema 定义数据模型（`prisma/schema.prisma`）
+- 通过 `getPrisma()` 获取 Prisma Client 实例
+- 使用 Prisma Client 进行类型安全的数据库操作
+- 开发环境使用 `prisma db push`，生产环境使用 `prisma migrate deploy`
+- 支持 MySQL 5.7+，连接字符串格式：`mysql://user:password@host:port/database`
 
 ### 样式规范
 - 优先使用 Tailwind CSS 工具类
@@ -86,7 +87,7 @@
 - 使用路径别名 `@/` 而不是相对路径
 
 ### 环境变量
-- 数据库配置: `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`
+- 数据库配置: `DATABASE_URL` (格式: `mysql://user:password@host:port/database`)
 - Redis 配置: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
 - 认证配置: NextAuth 相关环境变量
 - 云存储配置: 腾讯云 COS 相关配置
@@ -106,7 +107,8 @@
 ### 部署相关
 - 支持 Docker 部署 (`Dockerfile`, `docker-compose.yml`)
 - 支持 PM2 进程管理 (`ecosystem.config.cjs`)
-- 生产环境必须关闭数据库 `synchronize`
+- Docker 镜像自动包含 Prisma Client 和 schema 文件
+- 生产环境使用 `prisma migrate deploy` 应用数据库迁移
 
 ## 开发建议
 - 新功能开发前先查看现有代码风格
@@ -114,9 +116,11 @@
 - 保持代码简洁和可维护性
 - 及时更新文档到 `docs/` 目录
 - 提交前运行 ESLint 检查
+- 使用`pnpm run lint`和`pnpm run typecheck`检查代码质量和类型安全
 
 ## 注意事项
-- 必须在所有使用 TypeORM 的文件顶部导入 `reflect-metadata`
-- 客户端组件不能直接使用 TypeORM，需要通过 API 路由
+- 客户端组件不能直接使用 Prisma Client，需要通过 API 路由
+- 修改 Prisma Schema 后必须运行 `pnpm prisma generate` 重新生成 Client
 - 注意 Next.js 16 和 React 19 的新特性和变化
 - Ant Design 6.0.0-alpha.3 是 alpha 版本，注意 API 变化
+- Prisma 在 Docker 环境中需要正确的 binaryTargets 配置

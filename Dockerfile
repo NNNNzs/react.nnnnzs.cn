@@ -49,11 +49,17 @@ ARG COMMIT_SHA
 # 设置构建时环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV IS_BUILD=true
+ENV DATABASE_URL="mysql://placeholder:placeholder@localhost:3306/placeholder"
+
+# 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
+RUN pnpm prisma generate
 
 # 构建 Next.js 应用
 RUN pnpm build
 
 # 清理开发依赖，只保留生产依赖
+# 注意：Prisma Client 已生成到 src/generated，不受 prune 影响
 RUN pnpm prune --prod
 
 
@@ -72,7 +78,6 @@ RUN apk add --no-cache \
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV IS_BUILD=true
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
@@ -82,6 +87,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 
 # 创建必要的目录结构并设置权限（在切换用户之前）
 # 确保 nextjs 用户有权限写入预渲染缓存

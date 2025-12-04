@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# prisma generated client
+/src/generated/prisma-client
+
 # PM2
 logs/
 .pm2/

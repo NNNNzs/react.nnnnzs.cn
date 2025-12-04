@@ -1,28 +1,12 @@
-import { getUserRepository } from '@/lib/repositories';
+import { getPrisma } from '@/lib/prisma';
 import { verifyPassword, generateToken, storeToken } from '@/lib/auth';
-import { TbUser } from '@/entities/user.entity';
+import { TbUser } from '@/generated/prisma-client';
 
 export async function login(account: string, password: string): Promise<{ token: string; userInfo: Omit<TbUser, 'password'> } | null> {
-  const userRepository = await getUserRepository();
+  const prisma = await getPrisma();
 
-  const user = await userRepository.findOne({
+  const user = await prisma.tbUser.findFirst({
     where: { account },
-    select: [
-      'id',
-      'role',
-      'account',
-      'avatar',
-      'password',
-      'nickname',
-      'mail',
-      'phone',
-      'registered_ip',
-      'registered_time',
-      'dd_id',
-      'github_id',
-      'work_wechat_id',
-      'status',
-    ],
   });
 
   if (!user) {

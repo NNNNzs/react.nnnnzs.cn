@@ -3,10 +3,10 @@
  * 重新导出共享的实体和 DTO
  */
 
-// 实体
-export type { TbPost } from '@/entities/post.entity';
-export type { TbUser } from '@/entities/user.entity';
-export type { TbConfig } from '@/entities/config.entity';
+// 实体（从 Prisma Client 导出）
+export type { TbPost } from '@/generated/prisma-client';
+export type { TbUser } from '@/generated/prisma-client';
+export type { TbConfig } from '@/generated/prisma-client';
 
 // DTO
 export type {
@@ -26,8 +26,8 @@ export type { ResponseBody } from '@/dto/response.dto';
 
 // 前端使用的类型别名
 import type { SerializedPost } from '@/dto/post.dto';
-import type { TbUser } from '@/entities/user.entity';
-import type { TbConfig } from '@/entities/config.entity';
+import type { TbUser } from '@/generated/prisma-client';
+import type { TbConfig } from '@/generated/prisma-client';
 
 /**
  * 前端使用的 Post 类型（序列化后的版本）

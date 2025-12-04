@@ -2,7 +2,7 @@
  * 用户相关 DTO
  */
 
-import { TbUser } from '@/entities/user.entity';
+import { TbUser } from '@/generated/prisma-client';
 
 /**
  * 登录 DTO

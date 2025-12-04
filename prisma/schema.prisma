@@ -1,0 +1,71 @@
+// Prisma Schema 文件
+// 文档: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  // 自定义输出路径，避免被 pnpm prune 删除
+  output   = "../src/generated/prisma-client"
+  // 支持多架构部署
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 文章表
+model TbPost {
+  id          Int       @id @default(autoincrement())
+  path        String?   @db.VarChar(255)
+  title       String?   @db.VarChar(255)
+  category    String?   @db.VarChar(255)
+  tags        String?   @db.VarChar(255) // 逗号分隔的标签字符串
+  date        DateTime? @db.DateTime(0)
+  updated     DateTime? @db.DateTime(0)
+  cover       String?   @db.VarChar(255)
+  layout      String?   @db.VarChar(255)
+  content     String?   @db.Text
+  description String?   @db.VarChar(500)
+  visitors    Int?      @default(0)
+  likes       Int?      @default(0)
+  hide        String?   @default("0") @db.VarChar(255)
+  is_delete   Int       @default(0)
+
+  @@map("tb_post")
+}
+
+// 用户表
+model TbUser {
+  id              Int       @id @default(autoincrement())
+  role            String?   @db.VarChar(255)
+  account         String    @db.VarChar(16)
+  avatar          String?   @db.VarChar(255)
+  password        String    @db.VarChar(255)
+  nickname        String    @db.VarChar(16)
+  mail            String?   @db.VarChar(30)
+  phone           String?   @db.VarChar(11)
+  registered_ip   String?   @db.VarChar(16)
+  registered_time DateTime? @db.DateTime(0)
+  dd_id           String?   @db.VarChar(30)
+  github_id       String?   @db.VarChar(255)
+  work_wechat_id  String?   @db.VarChar(255)
+  status          Int       @default(1)
+
+  @@map("tb_user")
+}
+
+// 配置表
+model TbConfig {
+  id           Int       @id @default(autoincrement())
+  title        String?   @db.VarChar(20)
+  key          String?   @db.VarChar(20)
+  value        String?   @db.Text
+  status       Int?
+  created_at   DateTime? @db.DateTime(0)
+  updated_at   DateTime? @db.DateTime(0)
+  last_read_at DateTime? @db.DateTime(0)
+  remark       String?   @db.Text
+
+  @@map("tb_config")
+}

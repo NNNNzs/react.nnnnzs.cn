@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPostRepository } from '@/lib/repositories';
+import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/lib/auth';
 
 export async function PUT(request: NextRequest) {
@@ -17,10 +17,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(errorResponse('参数错误'), { status: 400 });
     }
 
-    const postRepository = await getPostRepository();
+    const prisma = await getPrisma();
 
     // 找到文章
-    const post = await postRepository.findOne({
+    const post = await prisma.tbPost.findUnique({
       where: { id: Number(id) },
     });
 
@@ -30,13 +30,11 @@ export async function PUT(request: NextRequest) {
 
     // 更新统计
     const currentValue = (post[type] || 0) as number;
-    await postRepository.update(Number(id), {
-      [type]: currentValue + 1,
-    });
-
-    // 获取更新后的文章
-    const updatedPost = await postRepository.findOne({
+    const updatedPost = await prisma.tbPost.update({
       where: { id: Number(id) },
+      data: {
+        [type]: currentValue + 1,
+      },
     });
 
     return NextResponse.json(successResponse(updatedPost));

@@ -3,7 +3,7 @@
  * 参考 api.nnnnzs.cn/src/post/dto
  */
 
-import { TbPost } from '@/entities/post.entity';
+import { TbPost } from '@/generated/prisma-client';
 
 /**
  * 序列化后的文章类型（用于 API 响应）

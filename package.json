@@ -4,10 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "prisma:generate": "npx prisma generate",
+    "prisma:studio": "npx prisma studio",
+    "prisma:migrate": "npx prisma migrate dev",
+    "prisma:push": "npx prisma db push",
     "build:docker": "./scripts/build-docker.sh",
     "start:docker": "docker-compose -f docker-compose.local.yml up -d ",
     "local:image:push": "./scripts/push-docker.sh"
@@ -18,6 +22,7 @@
     "@docsearch/css": "^4.3.2",
     "@docsearch/react": "^4.3.1",
     "@modelcontextprotocol/sdk": "^1.23.0",
+    "@prisma/client": "6.2.1",
     "@types/multer": "^2.0.0",
     "antd": "6.0.0-alpha.3",
     "axios": "^1.13.1",
@@ -30,16 +35,13 @@
     "lodash-es": "^4.17.21",
     "md-editor-rt": "^6.1.1",
     "multer": "^2.0.2",
-    "mysql2": "^3.15.3",
     "next": "16.0.1",
     "next-auth": "^4.24.13",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-markdown": "^10.1.0",
-    "reflect-metadata": "^0.2.2",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "typeorm": "^0.3.27",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -53,6 +55,7 @@
     "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "prisma": "6.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

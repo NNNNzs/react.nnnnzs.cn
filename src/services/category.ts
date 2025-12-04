@@ -1,4 +1,4 @@
-import { getPostRepository } from '@/lib/repositories';
+import { getPrisma } from '@/lib/prisma';
 import { SerializedPost } from '@/dto/post.dto';
 
 /**
@@ -18,7 +18,7 @@ function parseTagsString(tags: string | null | undefined): string[] {
  * 序列化文章对象
  * 手动将数据库的字符串格式转换为前端需要的数组格式
  */
-function serializePost(post: import('@/entities/post.entity').TbPost): SerializedPost {
+function serializePost(post: import('@/generated/prisma-client').TbPost): SerializedPost {
   return {
     ...post,
     tags: parseTagsString(post.tags),
@@ -31,15 +31,17 @@ function serializePost(post: import('@/entities/post.entity').TbPost): Serialize
  * 获取所有分类及其文章数量
  */
 export async function getAllCategories(): Promise<[string, number][]> {
-  const postRepository = await getPostRepository();
+  const prisma = await getPrisma();
 
   // 获取所有未删除且显示的文章的分类
-  const posts = await postRepository.find({
+  const posts = await prisma.tbPost.findMany({
     where: {
       hide: '0',
       is_delete: 0,
     },
-    select: ['category'],
+    select: {
+      category: true,
+    },
   });
 
   // 统计分类
@@ -62,20 +64,19 @@ export async function getAllCategories(): Promise<[string, number][]> {
  * 根据分类获取文章列表
  */
 export async function getPostsByCategory(category: string): Promise<SerializedPost[]> {
-  const postRepository = await getPostRepository();
+  const prisma = await getPrisma();
 
-  const posts = await postRepository.find({
+  const posts = await prisma.tbPost.findMany({
     where: {
       hide: '0',
       is_delete: 0,
       category: category, // Exact match for category usually
     },
-    order: {
-      date: 'DESC',
+    orderBy: {
+      date: 'desc',
     },
   });
 
   // 序列化文章
   return posts.map(post => serializePost(post));
 }
-

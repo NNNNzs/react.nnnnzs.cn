@@ -1,7 +1,6 @@
-import { Like } from 'typeorm';
-import { getPostRepository } from '@/lib/repositories';
+import { getPrisma } from '@/lib/prisma';
 import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dto/post.dto';
-import { TbPost } from '@/entities/post.entity';
+import { TbPost } from '@/generated/prisma-client';
 import dayjs from 'dayjs';
 
 /**
@@ -20,7 +19,7 @@ function parseTagsString(tags: string | null | undefined): string[] {
 }
 
 /**
- * 将 TypeORM 实体序列化为纯对象
+ * 将 Prisma 实体序列化为纯对象
  * 
  * 说明：
  * - tags: 手动将数据库字符串 'tag1,tag2,tag3' 转换为数组 ['tag1', 'tag2', 'tag3']
@@ -63,52 +62,57 @@ function genCover(date: Date | string): string {
 export async function getPostList(params: QueryCondition): Promise<PageQueryRes<SerializedPost>> {
   const { pageNum = 1, pageSize = 10, hide = '0', query = '' } = params;
   
-  const postRepository = await getPostRepository();
+  const prisma = await getPrisma();
 
   // 构建查询条件
-  const whereConditions = [];
-  const baseCondition = {
+  const whereConditions: Record<string, unknown> = {
     is_delete: 0,
-    ...(hide !== 'all' && { hide }),
   };
 
+  if (hide !== 'all') {
+    whereConditions.hide = hide;
+  }
+
   if (query) {
-    whereConditions.push(
-      { ...baseCondition, content: Like(`%${query}%`) },
-      { ...baseCondition, title: Like(`%${query}%`) }
-    );
-  } else {
-    whereConditions.push(baseCondition);
+    whereConditions.OR = [
+      { content: { contains: query } },
+      { title: { contains: query } }
+    ];
   }
 
   // 查询数据
-  const [data, count] = await postRepository.findAndCount({
-    where: whereConditions,
-    order: {
-      date: 'DESC',
-    },
-    take: pageSize,
-    skip: (pageNum - 1) * pageSize,
-    select: {
-      id: true,
-      path: true,
-      title: true,
-      category: true,
-      tags: true,
-      date: true,
-      updated: true,
-      cover: true,
-      layout: true,
-      description: true,
-      visitors: true,
-      likes: true,
-      hide: true,
-      // content 不在列表中返回
-    },
-  });
+  const [data, count] = await Promise.all([
+    prisma.tbPost.findMany({
+      where: whereConditions,
+      orderBy: {
+        date: 'desc',
+      },
+      take: pageSize,
+      skip: (pageNum - 1) * pageSize,
+      select: {
+        id: true,
+        path: true,
+        title: true,
+        category: true,
+        tags: true,
+        date: true,
+        updated: true,
+        cover: true,
+        layout: true,
+        description: true,
+        visitors: true,
+        likes: true,
+        hide: true,
+        // content 不在列表中返回
+        content: false,
+        is_delete: false,
+      },
+    }),
+    prisma.tbPost.count({ where: whereConditions }),
+  ]);
 
   // 序列化日期对象并确保 tags 是数组格式
-  const serializedData = data.map(post => serializePost(post));
+  const serializedData = data.map(post => serializePost(post as TbPost));
 
   return {
     record: serializedData,
@@ -122,8 +126,8 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
  * 根据路径获取文章
  */
 export async function getPostByPath(path: string): Promise<SerializedPost | null> {
-  const postRepository = await getPostRepository();
-  const post = await postRepository.findOne({
+  const prisma = await getPrisma();
+  const post = await prisma.tbPost.findFirst({
     where: {
       path: path,
       is_delete: 0,
@@ -137,11 +141,11 @@ export async function getPostByPath(path: string): Promise<SerializedPost | null
  * 根据标题获取文章
  */
 export async function getPostByTitle(title: string): Promise<SerializedPost | null> {
-  const postRepository = await getPostRepository();
-  const post = await postRepository.findOne({
+  const prisma = await getPrisma();
+  const post = await prisma.tbPost.findFirst({
     where: { 
-        title: title, 
-        is_delete: 0 
+      title: title, 
+      is_delete: 0 
     },
   });
   
@@ -152,31 +156,37 @@ export async function getPostByTitle(title: string): Promise<SerializedPost | nu
  * 根据ID获取文章
  */
 export async function getPostById(id: number): Promise<SerializedPost | null> {
-  const postRepository = await getPostRepository();
-  const post = await postRepository.findOne({
+  const prisma = await getPrisma();
+  const post = await prisma.tbPost.findUnique({
     where: {
       id,
-      is_delete: 0,
     },
   });
+
+  // 检查是否已删除
+  if (post && post.is_delete !== 0) {
+    return null;
+  }
 
   return post ? serializePost(post) : null;
 }
 
 /**
  * 获取归档数据
+ * 
+ * 注意：查询所有字段以满足 SerializedPost 类型要求
+ * 虽然归档页面可能只需要部分字段，但保持类型一致性很重要
  */
 export async function getArchives(): Promise<Archive[]> {
-  const postRepository = await getPostRepository();
-  const posts = await postRepository.find({
+  const prisma = await getPrisma();
+  const posts = await prisma.tbPost.findMany({
     where: {
       hide: '0',
       is_delete: 0,
     },
-    order: {
-      date: 'DESC',
+    orderBy: {
+      date: 'desc',
     },
-    select: ['id', 'title', 'date', 'path'],
   });
 
   // 按年份分组
@@ -210,8 +220,7 @@ export async function getArchives(): Promise<Archive[]> {
  * 
  * 说明：
  * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
- * - date/updated: 接收 Date 对象，TypeORM 会自动转换为 MySQL datetime 格式
- * - MySQL 5.7 datetime 不支持毫秒，TypeORM 会自动截断
+ * - date/updated: 接收 Date 对象
  */
 export async function createPost(data: Partial<TbPost>): Promise<SerializedPost> {
   const now = new Date();
@@ -247,32 +256,27 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
     }
   }
 
-  // 构建文章数据对象
-  const postData: Partial<TbPost> = {
-    title: data.title || null,
-    category: data.category || null,
-    // tags 存储字符串格式到数据库
-    tags: tagsString,
-    path,
-    cover,
-    layout: data.layout || null,
-    content: data.content || null,
-    description: data.description || null,
-    date: dateValue,
-    updated: now,
-    hide: data.hide || '0',
-    is_delete: 0,
-    visitors: 0,
-    likes: 0,
-  };
+  const prisma = await getPrisma();
   
-  const postRepository = await getPostRepository();
-  
-  // create() 创建实体实例
-  const postEntity = postRepository.create(postData);
-  
-  // save() 保存时，transformer 的 from 方法会将数组转换为字符串
-  const result = await postRepository.save(postEntity);
+  // 创建文章
+  const result = await prisma.tbPost.create({
+    data: {
+      title: data.title || null,
+      category: data.category || null,
+      tags: tagsString,
+      path,
+      cover,
+      layout: data.layout || null,
+      content: data.content || null,
+      description: data.description || null,
+      date: dateValue,
+      updated: now,
+      hide: data.hide || '0',
+      is_delete: 0,
+      visitors: 0,
+      likes: 0,
+    },
+  });
   
   return serializePost(result);
 }
@@ -282,13 +286,12 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
  * 
  * 说明：
  * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
- * - date: 接收 Date 对象，TypeORM 会自动处理格式转换
+ * - date: 接收 Date 对象
  */
 export async function updatePost(id: number, data: Partial<TbPost>): Promise<SerializedPost | null> {
   const now = new Date();
   
-  const updateData: Partial<TbPost> = {
-    ...data,
+  const updateData: Record<string, unknown> = {
     updated: now,
   };
 
@@ -321,21 +324,32 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
 
   // 如果有 title，重新生成 path
   if (data.title) {
-    const dateForPath = updateData.date || now;
+    const dateForPath = (updateData.date as Date) || now;
     updateData.path = genPath(data.title, dateForPath);
+    updateData.title = data.title;
   }
 
   // 如果 cover 为空，生成新的 cover
   if (data.cover === '' || data.cover === null || data.cover === undefined) {
-    const dateForCover = updateData.date || now;
+    const dateForCover = (updateData.date as Date) || now;
     updateData.cover = genCover(dateForCover);
+  } else if (data.cover) {
+    updateData.cover = data.cover;
   }
 
-  const postRepository = await getPostRepository();
-  await postRepository.update(id, updateData);
+  // 添加其他字段
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.layout !== undefined) updateData.layout = data.layout;
+  if (data.content !== undefined) updateData.content = data.content;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.hide !== undefined) updateData.hide = data.hide;
+  if (data.visitors !== undefined) updateData.visitors = data.visitors;
+  if (data.likes !== undefined) updateData.likes = data.likes;
 
-  const updatedPost = await postRepository.findOne({
+  const prisma = await getPrisma();
+  const updatedPost = await prisma.tbPost.update({
     where: { id },
+    data: updateData,
   });
 
   return updatedPost ? serializePost(updatedPost) : null;
@@ -345,9 +359,12 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
  * 删除文章
  */
 export async function deletePost(id: number): Promise<boolean> {
-  const postRepository = await getPostRepository();
-  const result = await postRepository.update(id, {
-    is_delete: 1,
+  const prisma = await getPrisma();
+  const result = await prisma.tbPost.update({
+    where: { id },
+    data: {
+      is_delete: 1,
+    },
   });
-  return result.affected !== 0;
+  return !!result;
 }
