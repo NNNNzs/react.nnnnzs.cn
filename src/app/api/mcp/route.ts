@@ -107,9 +107,13 @@ function createMcpServer(headers: Headers) {
     },
     async (args) => {
       await ensureAuth();
+      // 处理 tags：清理空格，保持逗号分隔的字符串格式
+      // createPost 会进一步处理并转换为数组或字符串
+      const tagsValue = args.tags?.trim() || undefined;
+      
       const postData: Partial<import('@/entities/post.entity').TbPost> = {
         ...args,
-        tags: args.tags ? args.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
+        tags: tagsValue,
       };
       const result = await createPost(postData);
       return {
@@ -136,7 +140,8 @@ function createMcpServer(headers: Headers) {
       const { id, ...restArgs } = args;
       const data: Partial<import('@/entities/post.entity').TbPost> = {
         ...restArgs,
-        tags: restArgs.tags ? restArgs.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
+        // tags 保持字符串格式，updatePost 会处理
+        tags: restArgs.tags?.trim() || undefined,
       };
       const result = await updatePost(id, data);
       if (!result) return { isError: true, content: [{ type: "text", text: "Article not found" }] };

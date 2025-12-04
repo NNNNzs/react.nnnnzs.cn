@@ -6,8 +6,6 @@
 // 确保 reflect-metadata 已导入（在 data-source.ts 中已导入，这里作为双重保险）
 import 'reflect-metadata';
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
-// 导入通用的 safe transformer（方案二：兼容现有 varchar 列类型）
-import { createSafeArrayTransformer } from '@/lib/transformers';
 
 @Entity('tb_post', { schema: 'system' })
 export class TbPost {
@@ -26,41 +24,34 @@ export class TbPost {
   /**
    * 标签字段
    * 
-   * 当前使用方案：通用的 Safe Transformer（兼容现有 varchar 列类型）
-   * - 自动处理字符串 ↔ 数组转换
-   * - 支持 trim、filterEmpty 等自定义选项
-   * - 完全兼容现有数据库列类型（varchar(255)）
-   * - 防御性处理，兼容多种输入格式
+   * 数据库存储格式：逗号分隔的字符串 'tag1,tag2,tag3'
+   * 应用层格式：字符串数组 ['tag1', 'tag2', 'tag3']
    * 
-   * 备选方案一：使用 TypeORM 内置的 simple-array 类型
-   * - 优点：代码更简洁，TypeORM 官方支持
-   * - 缺点：在 MySQL 中会使用 text 类型，可能需要迁移现有列
-   * ```typescript
-   * @Column('simple-array', { 
-   *   name: 'tags', 
-   *   nullable: true,
-   * })
-   * tags!: string[] | null;
-   * ```
+   * 注意：不使用 TypeORM Transformer，在 Service 层手动处理转换
+   * - 存储时：数组 → 字符串（createPost/updatePost）
+   * - 读取时：字符串 → 数组（serializePost）
    */
   @Column('varchar', {
     name: 'tags',
     nullable: true,
     length: 255,
-    transformer: createSafeArrayTransformer({
-      trim: true,        // 自动去除空格
-      filterEmpty: true,  // 过滤空值
-      separator: ',',    // 分隔符
-      defaultValue: [],  // 默认值
-    }),
   })
-  tags!: string[] | null;
+  tags!: string | null;
 
+  /**
+   * 发布日期
+   * TypeORM 会自动处理 Date ↔ MySQL datetime 转换
+   * MySQL 5.7 datetime 格式：YYYY-MM-DD HH:MM:SS (不支持毫秒，TypeORM 会自动截断)
+   */
   @Column('datetime', { name: 'date', nullable: true })
-  date!: Date | null | string;
+  date!: Date | null;
 
+  /**
+   * 更新时间
+   * TypeORM 会自动处理 Date ↔ MySQL datetime 转换
+   */
   @Column('datetime', { name: 'updated', nullable: true })
-  updated!: Date | string | null;
+  updated!: Date | null;
 
   @Column('varchar', { name: 'cover', nullable: true, length: 255 })
   cover!: string | null;
@@ -71,8 +62,8 @@ export class TbPost {
   @Column('text', { name: 'content', nullable: true })
   content!: string | null;
 
-  @Column('varchar', { name: 'description', nullable: true })
-  description?: string;
+  @Column('varchar', { name: 'description', nullable: true, length: 500 })
+  description?: string | null;
 
   @Column('int', { name: 'visitors', nullable: true, default: 0 })
   visitors?: number | null;

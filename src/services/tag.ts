@@ -1,28 +1,31 @@
 import { Like } from 'typeorm';
-import { isArray, isString } from 'lodash-es';
 import { getPostRepository } from '@/lib/repositories';
-import { TbPost } from '@/entities/post.entity';
+import { SerializedPost } from '@/dto/post.dto';
 
 /**
- * 将 TypeORM 实体序列化为纯对象，确保 tags 是数组格式
+ * 将字符串标签转换为数组
  */
-function serializePost(post: TbPost): TbPost {
-  // 转换为纯对象（移除 TypeORM 的类实例）
-  const plain = JSON.parse(JSON.stringify(post));
-  
-  // 确保 tags 是数组格式
-  const rawTags = post.tags as string[] | string | null | undefined;
-  plain.tags = isArray(rawTags) 
-    ? rawTags 
-    : isString(rawTags) 
-      ? rawTags.split(',').map(t => t.trim()).filter(Boolean)
-      : [];
-  
-  // 序列化日期
-  plain.date = post.date ? new Date(post.date).toISOString() : null;
-  plain.updated = post.updated ? new Date(post.updated).toISOString() : null;
-  
-  return plain as TbPost;
+function parseTagsString(tags: string | null | undefined): string[] {
+  if (!tags || typeof tags !== 'string') {
+    return [];
+  }
+  return tags
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(Boolean);
+}
+
+/**
+ * 序列化文章对象
+ * 手动将数据库的字符串格式转换为前端需要的数组格式
+ */
+function serializePost(post: import('@/entities/post.entity').TbPost): SerializedPost {
+  return {
+    ...post,
+    tags: parseTagsString(post.tags),
+    date: post.date ? new Date(post.date).toISOString() : null,
+    updated: post.updated ? new Date(post.updated).toISOString() : null,
+  };
 }
 
 /**
@@ -43,14 +46,13 @@ export async function getAllTags(): Promise<[string, number][]> {
   // 统计标签
   const tagMap = new Map<string, number>();
   posts.forEach((post) => {
-    if (post.tags && Array.isArray(post.tags)) {
-      post.tags.forEach((tag) => {
-        const trimmedTag = tag.trim();
-        if (trimmedTag) {
-          tagMap.set(trimmedTag, (tagMap.get(trimmedTag) || 0) + 1);
-        }
-      });
-    }
+    // 手动解析字符串格式的 tags
+    const tagsArray = parseTagsString(post.tags);
+    tagsArray.forEach((tag) => {
+      if (tag) {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+      }
+    });
   });
 
   // 转换为数组格式并排序
@@ -61,7 +63,7 @@ export async function getAllTags(): Promise<[string, number][]> {
 /**
  * 根据标签获取文章列表
  */
-export async function getPostsByTag(tag: string): Promise<TbPost[]> {
+export async function getPostsByTag(tag: string): Promise<SerializedPost[]> {
   const postRepository = await getPostRepository();
 
   const posts = await postRepository.find({
@@ -75,7 +77,7 @@ export async function getPostsByTag(tag: string): Promise<TbPost[]> {
     },
   });
 
-  // 序列化日期并确保 tags 是数组格式
+  // 序列化文章
   return posts.map(post => serializePost(post));
 }
 

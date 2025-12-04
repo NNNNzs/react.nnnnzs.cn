@@ -1,30 +1,40 @@
 import { Like } from 'typeorm';
-import { isArray, isString } from 'lodash-es';
 import { getPostRepository } from '@/lib/repositories';
-import type { QueryCondition, PageQueryRes, Archive } from '@/dto/post.dto';
+import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dto/post.dto';
 import { TbPost } from '@/entities/post.entity';
 import dayjs from 'dayjs';
 
 /**
- * 将 TypeORM 实体序列化为纯对象，确保 tags 是数组格式
+ * 将字符串标签转换为数组
+ * @param tags 数据库中的标签字符串 'tag1,tag2,tag3'
+ * @returns 标签数组 ['tag1', 'tag2', 'tag3']
  */
-function serializePost(post: TbPost): TbPost {
-  // 转换为纯对象（移除 TypeORM 的类实例）
-  const plain = JSON.parse(JSON.stringify(post));
-  
-  // 确保 tags 是数组格式
-  const rawTags = post.tags as string[] | string | null | undefined;
-  plain.tags = isArray(rawTags) 
-    ? rawTags 
-    : isString(rawTags) 
-      ? rawTags.split(',').map(t => t.trim()).filter(Boolean)
-      : [];
-  
-  // 序列化日期
-  plain.date = post.date ? new Date(post.date).toISOString() : null;
-  plain.updated = post.updated ? new Date(post.updated).toISOString() : null;
-  
-  return plain as TbPost;
+function parseTagsString(tags: string | null | undefined): string[] {
+  if (!tags || typeof tags !== 'string') {
+    return [];
+  }
+  return tags
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(Boolean);
+}
+
+/**
+ * 将 TypeORM 实体序列化为纯对象
+ * 
+ * 说明：
+ * - tags: 手动将数据库字符串 'tag1,tag2,tag3' 转换为数组 ['tag1', 'tag2', 'tag3']
+ * - date/updated: 转换为 ISO 字符串格式，便于 JSON 序列化
+ */
+function serializePost(post: TbPost): SerializedPost {
+  return {
+    ...post,
+    // 手动将字符串转换为数组
+    tags: parseTagsString(post.tags),
+    // 日期字段转换为 ISO 字符串
+    date: post.date ? new Date(post.date).toISOString() : null,
+    updated: post.updated ? new Date(post.updated).toISOString() : null,
+  };
 }
 
 /**
@@ -50,7 +60,7 @@ function genCover(date: Date | string): string {
 /**
  * 获取文章列表
  */
-export async function getPostList(params: QueryCondition): Promise<PageQueryRes<TbPost>> {
+export async function getPostList(params: QueryCondition): Promise<PageQueryRes<SerializedPost>> {
   const { pageNum = 1, pageSize = 10, hide = '0', query = '' } = params;
   
   const postRepository = await getPostRepository();
@@ -101,7 +111,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
   const serializedData = data.map(post => serializePost(post));
 
   return {
-    record: serializedData as TbPost[], 
+    record: serializedData,
     total: count,
     pageNum,
     pageSize,
@@ -111,7 +121,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
 /**
  * 根据路径获取文章
  */
-export async function getPostByPath(path: string): Promise<TbPost | null> {
+export async function getPostByPath(path: string): Promise<SerializedPost | null> {
   const postRepository = await getPostRepository();
   const post = await postRepository.findOne({
     where: {
@@ -126,7 +136,7 @@ export async function getPostByPath(path: string): Promise<TbPost | null> {
 /**
  * 根据标题获取文章
  */
-export async function getPostByTitle(title: string): Promise<TbPost | null> {
+export async function getPostByTitle(title: string): Promise<SerializedPost | null> {
   const postRepository = await getPostRepository();
   const post = await postRepository.findOne({
     where: { 
@@ -141,7 +151,7 @@ export async function getPostByTitle(title: string): Promise<TbPost | null> {
 /**
  * 根据ID获取文章
  */
-export async function getPostById(id: number): Promise<TbPost | null> {
+export async function getPostById(id: number): Promise<SerializedPost | null> {
   const postRepository = await getPostRepository();
   const post = await postRepository.findOne({
     where: {
@@ -170,7 +180,7 @@ export async function getArchives(): Promise<Archive[]> {
   });
 
   // 按年份分组
-  const archivesMap = new Map<string, TbPost[]>();
+  const archivesMap = new Map<string, SerializedPost[]>();
   
   posts.forEach((post) => {
     const serializedPost = serializePost(post);
@@ -197,46 +207,57 @@ export async function getArchives(): Promise<Archive[]> {
 
 /**
  * 创建文章
+ * 
+ * 说明：
+ * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
+ * - date/updated: 接收 Date 对象，TypeORM 会自动转换为 MySQL datetime 格式
+ * - MySQL 5.7 datetime 不支持毫秒，TypeORM 会自动截断
  */
-export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
+export async function createPost(data: Partial<TbPost>): Promise<SerializedPost> {
   const now = new Date();
   
-  // 生成path - 使用 Date 对象或字符串
-  const dateForPath = data.date ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date) : now;
-  const path = genPath(data.title || '', dateForPath);
+  // 处理日期：统一转换为 Date 对象
+  const dateValue = data.date ? new Date(data.date) : now;
   
-  // 生成cover - 使用 Date 对象或字符串
-  const cover = data.cover || genCover(dateForPath);
+  // 生成 path
+  const path = genPath(data.title || '', dateValue);
+  
+  // 生成或使用提供的 cover
+  const cover = data.cover || genCover(dateValue);
 
-  // 处理 tags：确保是数组格式
-  let tagsArray: string[] | null = null;
-  if (data.tags) {
-    if (Array.isArray(data.tags)) {
-      const filteredTags = data.tags.filter(Boolean).map((tag: string) => String(tag).trim());
-      tagsArray = filteredTags.length > 0 ? filteredTags : null;
+  // 处理 tags: 手动转换为逗号分隔的字符串
+  // 输入: ['tag1', 'tag2'] 或 'tag1,tag2'
+  // 输出: 'tag1,tag2' (存储到数据库)
+  let tagsString: string | null = null;
+  if (data.tags !== undefined && data.tags !== null) {
+    // 类型守卫：允许运行时接收 string 或 string[]
+    const rawTags = data.tags as string | string[];
+    if (Array.isArray(rawTags)) {
+      // 数组 → 字符串
+      const filteredTags = rawTags
+        .filter(Boolean)
+        .map((tag: string) => String(tag).trim())
+        .filter(Boolean);
+      tagsString = filteredTags.length > 0 ? filteredTags.join(',') : null;
+    } else if (typeof rawTags === 'string') {
+      // 字符串 → 清理后的字符串
+      tagsString = rawTags.trim() || null;
     } else {
-      throw new Error('tags must be an array');
+      throw new Error('tags must be an array or string');
     }
-  }
-
-  // 处理日期：转换为 Date 对象（TypeORM datetime 列需要 Date 对象）
-  let dateValue: Date;
-  if (data.date) {
-    dateValue = typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date;
-  } else {
-    dateValue = now;
   }
 
   // 构建文章数据对象
   const postData: Partial<TbPost> = {
     title: data.title || null,
     category: data.category || null,
-    tags: tagsArray,
+    // tags 存储字符串格式到数据库
+    tags: tagsString,
     path,
     cover,
     layout: data.layout || null,
     content: data.content || null,
-    description: data.description || undefined,
+    description: data.description || null,
     date: dateValue,
     updated: now,
     hide: data.hide || '0',
@@ -244,16 +265,13 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
     visitors: 0,
     likes: 0,
   };
-
+  
   const postRepository = await getPostRepository();
-  // 使用 create 方法创建实体实例，确保 TypeORM 正确处理所有字段
+  
+  // create() 创建实体实例
   const postEntity = postRepository.create(postData);
   
-  // 调试：打印实体数据
-  if (process.env.NODE_ENV === 'development') {
-    console.log('创建文章实体:', JSON.stringify(postEntity, null, 2));
-  }
-  
+  // save() 保存时，transformer 的 from 方法会将数组转换为字符串
   const result = await postRepository.save(postEntity);
   
   return serializePost(result);
@@ -261,8 +279,12 @@ export async function createPost(data: Partial<TbPost>): Promise<TbPost> {
 
 /**
  * 更新文章
+ * 
+ * 说明：
+ * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
+ * - date: 接收 Date 对象，TypeORM 会自动处理格式转换
  */
-export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbPost | null> {
+export async function updatePost(id: number, data: Partial<TbPost>): Promise<SerializedPost | null> {
   const now = new Date();
   
   const updateData: Partial<TbPost> = {
@@ -270,37 +292,43 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<TbP
     updated: now,
   };
 
-  // 处理 tags：确保是数组格式
+  // 处理 tags: 手动转换为字符串格式
   if (data.tags !== undefined) {
-    if (Array.isArray(data.tags)) {
-      const filteredTags = data.tags.filter(Boolean).map((tag: string) => String(tag).trim());
-      updateData.tags = filteredTags.length > 0 ? filteredTags : null;
-    } else if (data.tags === null) {
+    if (data.tags === null) {
       updateData.tags = null;
     } else {
-      throw new Error('tags must be an array or null');
+      const rawTags = data.tags as string | string[];
+      if (Array.isArray(rawTags)) {
+        // 数组 → 字符串
+        const filteredTags = rawTags
+          .filter(Boolean)
+          .map((tag: string) => String(tag).trim())
+          .filter(Boolean);
+        updateData.tags = filteredTags.length > 0 ? filteredTags.join(',') : null;
+      } else if (typeof rawTags === 'string') {
+        // 字符串 → 清理后的字符串
+        updateData.tags = rawTags.trim() || null;
+      } else {
+        throw new Error('tags must be an array, string, or null');
+      }
     }
   }
 
-  // 处理日期：如果提供了日期，转换为 Date 对象
-  if (data.date !== undefined) {
-    updateData.date = typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date;
+  // 处理日期：统一转换为 Date 对象
+  if (data.date !== undefined && data.date !== null) {
+    updateData.date = new Date(data.date);
   }
 
-  // 如果有title，重新生成path
+  // 如果有 title，重新生成 path
   if (data.title) {
-     const dateForPath = data.date 
-       ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date)
-       : now;
-     updateData.path = genPath(data.title, dateForPath);
+    const dateForPath = updateData.date || now;
+    updateData.path = genPath(data.title, dateForPath);
   }
 
-  // 如果cover为空字符串，生成cover
+  // 如果 cover 为空，生成新的 cover
   if (data.cover === '' || data.cover === null || data.cover === undefined) {
-      const dateForCover = data.date 
-        ? (typeof data.date === 'string' ? dayjs(data.date).toDate() : data.date)
-        : now;
-      updateData.cover = genCover(dateForCover);
+    const dateForCover = updateData.date || now;
+    updateData.cover = genCover(dateForCover);
   }
 
   const postRepository = await getPostRepository();

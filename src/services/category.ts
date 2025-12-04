@@ -1,5 +1,31 @@
 import { getPostRepository } from '@/lib/repositories';
-import { TbPost } from '@/entities/post.entity';
+import { SerializedPost } from '@/dto/post.dto';
+
+/**
+ * 将字符串标签转换为数组
+ */
+function parseTagsString(tags: string | null | undefined): string[] {
+  if (!tags || typeof tags !== 'string') {
+    return [];
+  }
+  return tags
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(Boolean);
+}
+
+/**
+ * 序列化文章对象
+ * 手动将数据库的字符串格式转换为前端需要的数组格式
+ */
+function serializePost(post: import('@/entities/post.entity').TbPost): SerializedPost {
+  return {
+    ...post,
+    tags: parseTagsString(post.tags),
+    date: post.date ? new Date(post.date).toISOString() : null,
+    updated: post.updated ? new Date(post.updated).toISOString() : null,
+  };
+}
 
 /**
  * 获取所有分类及其文章数量
@@ -35,7 +61,7 @@ export async function getAllCategories(): Promise<[string, number][]> {
 /**
  * 根据分类获取文章列表
  */
-export async function getPostsByCategory(category: string): Promise<TbPost[]> {
+export async function getPostsByCategory(category: string): Promise<SerializedPost[]> {
   const postRepository = await getPostRepository();
 
   const posts = await postRepository.find({
@@ -49,11 +75,7 @@ export async function getPostsByCategory(category: string): Promise<TbPost[]> {
     },
   });
 
-  // 序列化日期
-  return posts.map(post => ({
-    ...post,
-    date: post.date ? new Date(post.date).toISOString() : null,
-    updated: post.updated ? new Date(post.updated).toISOString() : null,
-  }));
+  // 序列化文章
+  return posts.map(post => serializePost(post));
 }
 
