@@ -22,7 +22,7 @@
     "@docsearch/css": "^4.3.2",
     "@docsearch/react": "^4.3.2",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@prisma/client": "7.1.0",
+    "@prisma/client": "6.2.1",
     "@types/multer": "^2.0.0",
     "antd": "6.1.0",
     "axios": "^1.13.2",
@@ -55,7 +55,7 @@
     "baseline-browser-mapping": "^2.9.5",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.0.8",
-    "prisma": "6.2.0",
+    "prisma": "6.2.1",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3"
   }
