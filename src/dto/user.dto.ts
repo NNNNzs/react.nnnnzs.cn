@@ -36,3 +36,51 @@ export interface LoginResponse {
   userInfo: UserInfo;
 }
 
+/**
+ * 创建用户 DTO
+ */
+export interface CreateUserDto {
+  account: string;
+  password: string;
+  nickname: string;
+  role?: string;
+  mail?: string;
+  phone?: string;
+  avatar?: string;
+  status?: number;
+}
+
+/**
+ * 更新用户 DTO
+ */
+export interface UpdateUserDto {
+  nickname?: string;
+  role?: string;
+  mail?: string;
+  phone?: string;
+  avatar?: string;
+  status?: number;
+  password?: string;
+}
+
+/**
+ * 用户查询条件
+ */
+export interface QueryUserCondition {
+  pageNum?: number;
+  pageSize?: number;
+  query?: string;
+  role?: string;
+  status?: number;
+}
+
+/**
+ * 分页查询响应
+ */
+export interface PageQueryRes<T> {
+  record: T[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+

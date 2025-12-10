@@ -4,11 +4,12 @@
 
 'use client';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
 
 const { TabPane } = Tabs;
 
@@ -19,6 +20,34 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [loginForm] = Form.useForm();
   const [registerForm] = Form.useForm();
+  const [allowRegister, setAllowRegister] = useState(true);
+  const [checkingConfig, setCheckingConfig] = useState(true);
+
+  /**
+   * 检查是否允许注册
+   */
+  useEffect(() => {
+    const checkRegisterConfig = async () => {
+      try {
+        const response = await axios.get('/api/config/key/allow_register');
+        if (response.data.status && response.data.data) {
+          const config = response.data.data;
+          setAllowRegister(config.status === 1 && config.value === '1');
+        } else {
+          // 如果没有配置，默认不允许注册
+          setAllowRegister(false);
+        }
+      } catch (error) {
+        console.error('检查注册配置失败:', error);
+        // 出错时默认不允许注册
+        setAllowRegister(false);
+      } finally {
+        setCheckingConfig(false);
+      }
+    };
+
+    checkRegisterConfig();
+  }, []);
 
   /**
    * 登录表单提交
@@ -63,6 +92,15 @@ function LoginPage() {
     }
   };
 
+  // 显示加载状态
+  if (checkingConfig) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div>加载中...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 to-purple-50 px-4 dark:from-slate-900 dark:to-slate-800">
       <Card
@@ -74,7 +112,7 @@ function LoginPage() {
             欢迎回来
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            登录或注册以继续
+            {allowRegister ? '登录或注册以继续' : '请登录以继续'}
           </p>
         </div>
 
@@ -125,84 +163,86 @@ function LoginPage() {
             </Form>
           </TabPane>
 
-          {/* 注册表单 */}
-          <TabPane tab="注册" key="register">
-            <Form
-              form={registerForm}
-              name="register"
-              onFinish={handleRegister}
-              autoComplete="off"
-              size="large"
-            >
-              <Form.Item
-                name="account"
-                rules={[
-                  { required: true, message: '请输入账号！' },
-                  { min: 3, message: '账号至少3个字符！' },
-                ]}
+          {/* 注册表单 - 仅在允许注册时显示 */}
+          {allowRegister && (
+            <TabPane tab="注册" key="register">
+              <Form
+                form={registerForm}
+                name="register"
+                onFinish={handleRegister}
+                autoComplete="off"
+                size="large"
               >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="账号"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="nickname"
-                rules={[{ required: true, message: '请输入昵称！' }]}
-              >
-                <Input
-                  prefix={<MailOutlined />}
-                  placeholder="昵称"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="password"
-                rules={[
-                  { required: true, message: '请输入密码！' },
-                  { min: 6, message: '密码至少6个字符！' },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="密码"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                dependencies={['password']}
-                rules={[
-                  { required: true, message: '请确认密码！' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('password') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('两次密码不一致！'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="确认密码"
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  className="w-full"
-                  loading={loading}
+                <Form.Item
+                  name="account"
+                  rules={[
+                    { required: true, message: '请输入账号！' },
+                    { min: 3, message: '账号至少3个字符！' },
+                  ]}
                 >
-                  注册
-                </Button>
-              </Form.Item>
-            </Form>
-          </TabPane>
+                  <Input
+                    prefix={<UserOutlined />}
+                    placeholder="账号"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="nickname"
+                  rules={[{ required: true, message: '请输入昵称！' }]}
+                >
+                  <Input
+                    prefix={<MailOutlined />}
+                    placeholder="昵称"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="password"
+                  rules={[
+                    { required: true, message: '请输入密码！' },
+                    { min: 6, message: '密码至少6个字符！' },
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined />}
+                    placeholder="密码"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="confirmPassword"
+                  dependencies={['password']}
+                  rules={[
+                    { required: true, message: '请确认密码！' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('password') === value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('两次密码不一致！'));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined />}
+                    placeholder="确认密码"
+                  />
+                </Form.Item>
+
+                <Form.Item>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    className="w-full"
+                    loading={loading}
+                  >
+                    注册
+                  </Button>
+                </Form.Item>
+              </Form>
+            </TabPane>
+          )}
         </Tabs>
       </Card>
     </div>

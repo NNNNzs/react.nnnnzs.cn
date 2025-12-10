@@ -9,7 +9,7 @@ import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Layout, Menu, message } from "antd";
 import type { MenuProps } from "antd";
-import { FileTextOutlined, SettingOutlined } from "@ant-design/icons";
+import { FileTextOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 
 const { Sider, Content } = Layout;
@@ -27,6 +27,11 @@ const menuItems: MenuProps["items"] = [
     key: "/c/config",
     icon: <SettingOutlined />,
     label: "配置管理",
+  },
+  {
+    key: "/c/user",
+    icon: <UserOutlined />,
+    label: "用户管理",
   },
 ];
 

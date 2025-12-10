@@ -13,9 +13,23 @@ import {
   storeToken,
   TOKEN_KEY,
 } from '@/lib/auth';
+import { getConfigByKey } from '@/services/config';
 
 export async function POST(request: NextRequest) {
   try {
+    // 检查是否允许注册
+    const allowRegisterConfig = await getConfigByKey('allow_register');
+    
+    if (
+      !allowRegisterConfig ||
+      allowRegisterConfig.status !== 1 ||
+      allowRegisterConfig.value !== '1'
+    ) {
+      return NextResponse.json(errorResponse('当前系统不允许注册'), {
+        status: 403,
+      });
+    }
+
     const body = await request.json();
     const { account, password, nickname, mail, phone } = body;
 

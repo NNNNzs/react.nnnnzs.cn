@@ -18,11 +18,35 @@ export type {
   SerializedPost,
 } from '@/dto/post.dto';
 
-export type { LoginDto, RegisterDto, UserInfo, LoginResponse } from '@/dto/user.dto';
+export type {
+  LoginDto,
+  RegisterDto,
+  UserInfo,
+  LoginResponse,
+  CreateUserDto,
+  UpdateUserDto,
+  QueryUserCondition,
+} from '@/dto/user.dto';
 
-export type { CreateConfigDto, UpdateConfigDto, QueryConfigCondition, PageQueryRes as ConfigPageQueryRes } from '@/dto/config.dto';
+export type {
+  CreateConfigDto,
+  UpdateConfigDto,
+  QueryConfigCondition,
+  PageQueryRes as ConfigPageQueryRes,
+} from '@/dto/config.dto';
 
 export type { ResponseBody } from '@/dto/response.dto';
+
+// 角色相关类型
+export {
+  UserRole,
+  RoleDisplayNames,
+  RolePermissionsMap,
+  hasPermission,
+  isAdmin,
+  getRoleOptions,
+} from '@/types/role';
+export type { RolePermissions } from '@/types/role';
 
 // 前端使用的类型别名
 import type { SerializedPost } from '@/dto/post.dto';

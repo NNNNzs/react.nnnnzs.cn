@@ -1,12 +1,16 @@
 /**
- * 配置详情、更新、删除API
- * GET /api/config/[id]
- * PUT /api/config/[id]
- * DELETE /api/config/[id]
+ * 用户详情、更新、删除API
+ * GET /api/user/[id]
+ * PUT /api/user/[id]
+ * DELETE /api/user/[id]
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getConfigById, updateConfig, deleteConfig } from '@/services/config';
+import {
+  getUserById,
+  updateUser,
+  deleteUser,
+} from '@/services/user';
 import {
   successResponse,
   errorResponse,
@@ -14,9 +18,10 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
+import type { UpdateUserDto } from '@/dto/user.dto';
 
 /**
- * 获取配置详情
+ * 获取用户详情
  */
 export async function GET(
   request: NextRequest,
@@ -41,23 +46,23 @@ export async function GET(
 
     const { id } = await context.params;
 
-    const config = await getConfigById(Number(id));
+    const targetUser = await getUserById(Number(id));
 
-    if (!config) {
-      return NextResponse.json(errorResponse('配置不存在'), { status: 404 });
+    if (!targetUser) {
+      return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
     }
 
-    return NextResponse.json(successResponse(config));
+    return NextResponse.json(successResponse(targetUser));
   } catch (error) {
-    console.error('获取配置详情失败:', error);
-    return NextResponse.json(errorResponse('获取配置详情失败'), {
+    console.error('获取用户详情失败:', error);
+    return NextResponse.json(errorResponse('获取用户详情失败'), {
       status: 500,
     });
   }
 }
 
 /**
- * 更新配置
+ * 更新用户
  */
 export async function PUT(
   request: NextRequest,
@@ -81,20 +86,20 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const body = await request.json();
+    const body: UpdateUserDto = await request.json();
 
-    const result = await updateConfig(Number(id), body);
+    const result = await updateUser(Number(id), body);
 
     return NextResponse.json(successResponse(result, '更新成功'));
   } catch (error) {
-    console.error('更新配置失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '更新配置失败';
+    console.error('更新用户失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '更新用户失败';
     return NextResponse.json(errorResponse(errorMessage), { status: 500 });
   }
 }
 
 /**
- * 删除配置
+ * 删除用户
  */
 export async function DELETE(
   request: NextRequest,
@@ -119,12 +124,12 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    await deleteConfig(Number(id));
+    await deleteUser(Number(id));
 
     return NextResponse.json(successResponse(null, '删除成功'));
   } catch (error) {
-    console.error('删除配置失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '删除配置失败';
+    console.error('删除用户失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '删除用户失败';
     return NextResponse.json(errorResponse(errorMessage), { status: 500 });
   }
 }
