@@ -121,6 +121,11 @@ export default function Header() {
         window.location.href = "/";
       },
     },
+    {
+      key: "user",
+      label: <Link href="/c/user/info">个人中心</Link>,
+      icon: <UserOutlined />,
+    }
   ];
 
   const navItems = [
@@ -283,7 +288,7 @@ export default function Header() {
                   <Dropdown menu={{ items: menuItems }} placement="bottomRight">
                     <Space className="cursor-pointer">
                       <Avatar
-                        size="default"
+                        size={32}
                         icon={<UserOutlined />}
                         src={user.avatar}
                       />
