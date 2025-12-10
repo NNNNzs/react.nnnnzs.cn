@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Table, Button, Input, Space, Tag, message, Modal, Select } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
@@ -54,6 +54,7 @@ interface QueryParams {
  */
 function useUpdateUrl() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   
   return useCallback((updates: Partial<QueryParams>) => {
@@ -95,8 +96,9 @@ function useUpdateUrl() {
     }
     
     const newUrl = params.toString() ? `?${params.toString()}` : '';
-    router.replace(`/c${newUrl}`, { scroll: false });
-  }, [router, searchParams]);
+    // 使用当前路径而不是硬编码 /c
+    router.replace(`${pathname}${newUrl}`, { scroll: false });
+  }, [router, pathname, searchParams]);
 }
 
 function AdminPageContent() {
@@ -414,6 +416,11 @@ function AdminPageContent() {
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
+            onPressEnter={(e) => {
+              // 阻止默认的表单提交行为，避免页面刷新
+              e.preventDefault();
+              updateQueryParams({ q: searchInputValue, page: 1 });
+            }}
             style={{ maxWidth: 400 }}
           />
           <Select

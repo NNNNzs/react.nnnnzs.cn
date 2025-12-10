@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
 import {
   successResponse,
@@ -13,6 +14,27 @@ import {
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
+
+// 定义文章更新的验证schema
+const updatePostSchema = z.object({
+  title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),
+  content: z.string().min(1, '内容不能为空').optional(),
+  category: z.string().optional().nullable(),
+  tags: z.union([
+    z.array(z.string()),
+    z.string(),
+  ]).optional().nullable(),
+  description: z.string().max(500, '描述不能超过500个字符').optional().nullable(),
+  cover: z.string().optional().nullable(),
+  layout: z.string().optional().nullable(),
+  date: z.union([
+    z.string().transform(str => new Date(str)),
+    z.date(),
+  ]).optional().nullable(),
+  hide: z.enum(['0', '1']).optional(),
+  visitors: z.number().int().min(0).optional(),
+  likes: z.number().int().min(0).optional(),
+});
 
 /**
  * 获取文章详情
@@ -63,9 +85,22 @@ export async function PUT(
     }
 
     const body = await request.json();
+
+    // 使用Zod验证输入
+    const validationResult = updatePostSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ');
+      return NextResponse.json(
+        errorResponse(`输入验证失败: ${errorMessages}`),
+        { status: 400 }
+      );
+    }
+
     const { id } = await context.params;
-    
-    const updatedPost = await updatePost(Number(id), body);
+
+    const updatedPost = await updatePost(Number(id), validationResult.data as Partial<import('@/generated/prisma-client').TbPost>);
 
     if (!updatedPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });

@@ -3,44 +3,37 @@
  * 包含左侧菜单和右侧内容区域
  */
 
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Layout, Menu, message } from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  FileTextOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Layout, Menu, message } from "antd";
+import type { MenuProps } from "antd";
+import { FileTextOutlined, SettingOutlined } from "@ant-design/icons";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { Sider, Content } = Layout;
 
 /**
  * 菜单项配置
  */
-const menuItems: MenuProps['items'] = [
+const menuItems: MenuProps["items"] = [
   {
-    key: '/c/post',
+    key: "/c/post",
     icon: <FileTextOutlined />,
-    label: '文章管理',
+    label: "文章管理",
   },
   {
-    key: '/c/config',
+    key: "/c/config",
     icon: <SettingOutlined />,
-    label: '配置管理',
+    label: "配置管理",
   },
 ];
 
 /**
  * 管理后台布局组件
  */
-export default function CLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function CLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -51,15 +44,15 @@ export default function CLayout({
    */
   useEffect(() => {
     if (!loading && !user) {
-      message.warning('请先登录');
-      router.push('/login');
+      message.warning("请先登录");
+      router.push("/login");
     }
   }, [user, loading, router]);
 
   /**
    * 处理菜单点击
    */
-  const handleMenuClick: MenuProps['onClick'] = (e) => {
+  const handleMenuClick: MenuProps["onClick"] = (e) => {
     router.push(e.key);
   };
 
@@ -76,11 +69,12 @@ export default function CLayout({
     <Layout className="h-screen">
       <Sider
         width={200}
-        className="bg-white dark:bg-slate-800"
+        className="bg-white "
+        theme="light"
         style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
+          overflow: "auto",
+          height: "100vh",
+          position: "fixed",
           left: 0,
           top: 0,
           bottom: 0,

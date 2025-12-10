@@ -116,25 +116,18 @@ export default function EditPostPage() {
    * 生成描述
    * 参考 nnnnzs.cn/components/Post/Edit.vue 的 genDescription
    */
-  const genDescription = () => {
-    const preview = previewRef.current;
-    if (preview) {
-      const text = preview.textContent || "";
-      const description = text.substring(0, 77) + "...";
-      form.setFieldsValue({ description });
+  const genDescription = async () => {
+    const content = form.getFieldValue("content") || "";
+    const response = await axios.post("/api/claude", { content });
+    // 增加loading
+    setLoading(true);
+    if (response.data.status) {
+      form.setFieldsValue({ description: response.data.data });
     } else {
-      // 从 markdown 内容中提取纯文本
-      const content = form.getFieldValue("content") || "";
-      const text = content
-        .replace(/```[\s\S]*?```/g, "") // 移除代码块
-        .replace(/`[^`]+`/g, "") // 移除行内代码
-        .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1") // 移除链接，保留文本
-        .replace(/[#*_~]/g, "") // 移除 markdown 标记
-        .replace(/\n+/g, " ") // 替换换行为空格
-        .trim();
-      const description = text.substring(0, 77) + "...";
-      form.setFieldsValue({ description });
+      message.error(response.data.message);
+      console.error("生成描述失败:", response.data.message);
     }
+    setLoading(false);
   };
 
   /**
@@ -211,8 +204,7 @@ export default function EditPostPage() {
 
   return (
     <div
-      className="w-full h-screen  overflow-hidden p-2 editor flex flex-col"
-      style={{ paddingTop: "calc(var(--header-height) + 1rem)" }}
+      className="w-full h-full  overflow-hidden p-2 editor flex flex-col"
     >
       <Form
         form={form}
@@ -346,20 +338,9 @@ export default function EditPostPage() {
           value={form.getFieldValue("content") || ""}
           onChange={(value) => {
             form.setFieldsValue({ content: value });
-            // 更新预览区域用于生成描述
-            if (previewRef.current) {
-              previewRef.current.innerHTML = value
-                .replace(/```[\s\S]*?```/g, "")
-                .replace(/`[^`]+`/g, "")
-                .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
-                .replace(/[#*_~]/g, "")
-                .replace(/\n+/g, " ");
-            }
           }}
           placeholder="支持 Markdown 格式，可以直接粘贴图片..."
         />
-        {/* 隐藏的预览区域，用于生成描述 */}
-        <div ref={previewRef} id="md-editor-v3-preview" className="hidden" />
       </div>
     </div>
   );

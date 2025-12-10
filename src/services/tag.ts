@@ -67,11 +67,25 @@ export async function getAllTags(): Promise<[string, number][]> {
 export async function getPostsByTag(tag: string): Promise<SerializedPost[]> {
   const prisma = await getPrisma();
 
+  // 清理标签输入，防止注入攻击
+  const sanitizedTag = tag.trim().replace(/[,;%_\\]/g, '');
+
+  if (!sanitizedTag) {
+    return [];
+  }
+
+  // 使用精确匹配模式，避免部分匹配
+  // 匹配三种情况：标签在开头、中间或末尾
   const posts = await prisma.tbPost.findMany({
     where: {
       hide: '0',
       is_delete: 0,
-      tags: { contains: tag },
+      OR: [
+        { tags: { equals: sanitizedTag } }, // 只有一个标签
+        { tags: { startsWith: `${sanitizedTag},` } }, // 标签在开头
+        { tags: { endsWith: `,${sanitizedTag}` } }, // 标签在末尾
+        { tags: { contains: `,${sanitizedTag},` } }, // 标签在中间
+      ],
     },
     orderBy: {
       date: 'desc',

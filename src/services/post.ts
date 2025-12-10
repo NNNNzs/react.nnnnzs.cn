@@ -283,14 +283,24 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
 
 /**
  * 更新文章
- * 
+ *
  * 说明：
  * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
  * - date: 接收 Date 对象
  */
 export async function updatePost(id: number, data: Partial<TbPost>): Promise<SerializedPost | null> {
+  const prisma = await getPrisma();
   const now = new Date();
-  
+
+  // 先获取原文章数据，用于获取原始发布日期
+  const existingPost = await prisma.tbPost.findUnique({
+    where: { id },
+  });
+
+  if (!existingPost) {
+    return null;
+  }
+
   const updateData: Record<string, unknown> = {
     updated: now,
   };
@@ -322,16 +332,17 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
     updateData.date = new Date(data.date);
   }
 
-  // 如果有 title，重新生成 path
+  // 如果有 title，重新生成 path（使用原始发布日期或更新后的日期）
   if (data.title) {
-    const dateForPath = (updateData.date as Date) || now;
+    // 优先使用更新的日期，否则使用原文章的日期
+    const dateForPath = (updateData.date as Date) || existingPost.date;
     updateData.path = genPath(data.title, dateForPath);
     updateData.title = data.title;
   }
 
-  // 如果 cover 为空，生成新的 cover
+  // 如果 cover 为空，生成新的 cover（使用原始发布日期或更新后的日期）
   if (data.cover === '' || data.cover === null || data.cover === undefined) {
-    const dateForCover = (updateData.date as Date) || now;
+    const dateForCover = (updateData.date as Date) || existingPost.date;
     updateData.cover = genCover(dateForCover);
   } else if (data.cover) {
     updateData.cover = data.cover;
@@ -346,13 +357,12 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
   if (data.visitors !== undefined) updateData.visitors = data.visitors;
   if (data.likes !== undefined) updateData.likes = data.likes;
 
-  const prisma = await getPrisma();
   const updatedPost = await prisma.tbPost.update({
     where: { id },
     data: updateData,
   });
 
-  return updatedPost ? serializePost(updatedPost) : null;
+  return serializePost(updatedPost);
 }
 
 /**
