@@ -7,9 +7,10 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
+import WechatQRLogin from '@/components/WechatQRLogin';
 
 const { TabPane } = Tabs;
 
@@ -22,6 +23,7 @@ function LoginPage() {
   const [registerForm] = Form.useForm();
   const [allowRegister, setAllowRegister] = useState(true);
   const [checkingConfig, setCheckingConfig] = useState(true);
+  const [activeTab, setActiveTab] = useState('login');
 
   /**
    * 检查是否允许注册
@@ -92,6 +94,34 @@ function LoginPage() {
     }
   };
 
+  /**
+   * 微信扫码登录成功回调
+   */
+  const handleWechatLoginSuccess = async (token: string) => {
+    try {
+      // 使用 token 获取用户信息并设置到 context
+      const response = await axios.get('/api/user/info', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (response.data.status && response.data.data) {
+        // 存储 token 到 cookie 或 localStorage
+        document.cookie = `token=${token}; path=/; max-age=2592000`; // 30 天
+        
+        message.success('微信登录成功！');
+        
+        // 跳转到来源页面或管理后台
+        const redirect = searchParams.get('redirect') || '/c';
+        router.push(redirect);
+      }
+    } catch (error) {
+      console.error('微信登录失败:', error);
+      message.error('微信登录失败，请重试');
+    }
+  };
+
   // 显示加载状态
   if (checkingConfig) {
     return (
@@ -116,9 +146,21 @@ function LoginPage() {
           </p>
         </div>
 
-        <Tabs defaultActiveKey="login" centered>
-          {/* 登录表单 */}
-          <TabPane tab="登录" key="login">
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab} 
+          centered
+        >
+          {/* 账号密码登录 */}
+          <TabPane 
+            tab={
+              <span>
+                <UserOutlined />
+                账号登录
+              </span>
+            } 
+            key="login"
+          >
             <Form
               form={loginForm}
               name="login"
@@ -163,9 +205,33 @@ function LoginPage() {
             </Form>
           </TabPane>
 
+          {/* 微信扫码登录 */}
+          <TabPane 
+            tab={
+              <span>
+                <WechatOutlined />
+                微信登录
+              </span>
+            } 
+            key="wechat"
+          >
+            <WechatQRLogin 
+              onSuccess={handleWechatLoginSuccess}
+              env="trial"
+            />
+          </TabPane>
+
           {/* 注册表单 - 仅在允许注册时显示 */}
           {allowRegister && (
-            <TabPane tab="注册" key="register">
+            <TabPane 
+              tab={
+                <span>
+                  <UserOutlined />
+                  注册
+                </span>
+              } 
+              key="register"
+            >
               <Form
                 form={registerForm}
                 name="register"

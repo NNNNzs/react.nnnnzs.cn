@@ -11,9 +11,20 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
     "next-env.d.ts",
+    // Dependencies
+    "node_modules/**",
     // Prisma generated files
     "src/generated/**",
+    // Node.js scripts
+    "scripts/**",
+    // Environment files
+    ".env*",
+    // Logs
+    "*.log",
+    // OS files
+    ".DS_Store",
   ]),
 ]);
 

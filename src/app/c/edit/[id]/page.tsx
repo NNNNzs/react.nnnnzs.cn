@@ -42,7 +42,6 @@ export default function EditPostPage() {
   const [fetchLoading, setFetchLoading] = useState(true);
   const [post, setPost] = useState<Post | null>(null);
   const [tags, setTags] = useState<[string, number][]>([]);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const isNewPost = params.id === "new";
 

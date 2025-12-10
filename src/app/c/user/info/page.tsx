@@ -32,6 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { UserInfo } from "@/dto/user.dto";
 import type { RcFile } from "antd/es/upload";
 import AvatarCropper from "@/components/AvatarCropper";
+import WechatBindCard from "@/components/WechatBindCard";
 
 const { Title, Text } = Typography;
 
@@ -183,6 +184,22 @@ export default function UserInfoPage() {
   const handleCropperClose = () => {
     setCropperVisible(false);
     setSelectedFile(null);
+  };
+
+  /**
+   * 微信绑定状态变化回调
+   */
+  const handleWechatStatusChange = async () => {
+    // 重新加载用户信息
+    try {
+      const response = await axios.get("/api/user/info");
+      if (response.data.status) {
+        const data = response.data.data;
+        setUserInfo(data);
+      }
+    } catch (error) {
+      console.error("刷新用户信息失败:", error);
+    }
   };
 
   /**
@@ -364,6 +381,14 @@ export default function UserInfoPage() {
           </Form>
         </Space>
       </Card>
+
+      {/* 微信绑定卡片 */}
+      <div className="mt-6">
+        <WechatBindCard
+          isBound={!!userInfo?.wx_open_id}
+          onStatusChange={handleWechatStatusChange}
+        />
+      </div>
 
       {/* 头像裁剪弹窗 */}
       <AvatarCropper

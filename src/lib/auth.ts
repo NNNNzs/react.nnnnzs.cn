@@ -4,6 +4,7 @@
 
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
+import type { NextRequest } from 'next/server';
 import type { User } from '@/types';
 import RedisService from './redis';
 
@@ -140,5 +141,18 @@ export function errorResponse(message = '失败', data: unknown = null) {
     message,
     data,
   };
+}
+
+/**
+ * 从 NextRequest 中获取用户信息
+ * @param request NextRequest 对象
+ * @returns 用户信息，如果未登录或 token 无效则返回 null
+ */
+export async function getUserFromToken(request: NextRequest): Promise<User | null> {
+  const token = getTokenFromRequest(request.headers);
+  if (!token) {
+    return null;
+  }
+  return await validateToken(token);
 }
 

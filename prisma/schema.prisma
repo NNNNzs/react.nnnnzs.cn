@@ -50,6 +50,7 @@ model TbUser {
   dd_id           String?   @db.VarChar(30)
   github_id       String?   @db.VarChar(255)
   work_wechat_id  String?   @db.VarChar(255)
+  wx_open_id      String?   @db.VarChar(255) // 微信小程序 openID
   status          Int       @default(1)
 
   @@map("tb_user")
