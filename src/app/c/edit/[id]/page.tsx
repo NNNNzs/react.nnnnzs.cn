@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Form,
@@ -27,6 +27,7 @@ import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/types";
 import MarkdownEditor from "@/components/MarkdownEditor";
+import { fetchAndProcessStream } from "@/lib/stream";
 
 /**
  * 生成文章路径 - 已移至服务端
@@ -38,8 +39,12 @@ export default function EditPostPage() {
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(true);
+  // 统一的loading状态管理
+  const [loading, setLoading] = useState({
+    submit: false, // 提交表单
+    generateDescription: false, // 生成描述
+    fetch: true, // 加载文章数据
+  });
   const [post, setPost] = useState<Post | null>(null);
   const [tags, setTags] = useState<[string, number][]>([]);
 
@@ -76,12 +81,12 @@ export default function EditPostPage() {
    */
   const loadPost = async () => {
     if (isNewPost) {
-      setFetchLoading(false);
+      setLoading((prev) => ({ ...prev, fetch: false }));
       return;
     }
 
     try {
-      setFetchLoading(true);
+      setLoading((prev) => ({ ...prev, fetch: true }));
       const response = await axios.get(`/api/post/${params.id}`);
       if (response.data.status) {
         const postData = response.data.data;
@@ -99,7 +104,7 @@ export default function EditPostPage() {
       console.error("加载文章失败:", error);
       message.error("加载文章失败");
     } finally {
-      setFetchLoading(false);
+      setLoading((prev) => ({ ...prev, fetch: false }));
     }
   };
 
@@ -112,21 +117,52 @@ export default function EditPostPage() {
   }, [user, params.id]);
 
   /**
-   * 生成描述
+   * 生成描述（流式）
    * 参考 nnnnzs.cn/components/Post/Edit.vue 的 genDescription
    */
   const genDescription = async () => {
     const content = form.getFieldValue("content") || "";
-    const response = await axios.post("/api/claude", { content });
-    // 增加loading
-    setLoading(true);
-    if (response.data.status) {
-      form.setFieldsValue({ description: response.data.data });
-    } else {
-      message.error(response.data.message);
-      console.error("生成描述失败:", response.data.message);
+    if (!content.trim()) {
+      message.warning("请先输入文章内容");
+      return;
     }
-    setLoading(false);
+
+    try {
+      setLoading((prev) => ({ ...prev, generateDescription: true }));
+      
+      // 先清空描述字段
+      form.setFieldsValue({ description: "" });
+      
+      let accumulatedText = "";
+      
+      // 使用封装的流式处理函数
+      await fetchAndProcessStream(
+        "/api/claude",
+        {
+          method: "POST",
+          body: JSON.stringify({ content, stream: true }),
+        },
+        {
+          onChunk: (chunk) => {
+            // 累积文本并实时更新表单字段
+            accumulatedText += chunk;
+            form.setFieldsValue({ description: accumulatedText });
+          },
+          onComplete: () => {
+            message.success("描述生成成功");
+          },
+          onError: (error) => {
+            console.error("生成描述失败:", error);
+            message.error("生成描述失败");
+          },
+        }
+      );
+    } catch (error) {
+      console.error("生成描述失败:", error);
+      message.error("生成描述失败");
+    } finally {
+      setLoading((prev) => ({ ...prev, generateDescription: false }));
+    }
   };
 
   /**
@@ -145,7 +181,7 @@ export default function EditPostPage() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
+      setLoading((prev) => ({ ...prev, submit: true }));
 
       // 生成路径 - 已移至服务端
       // const { path, oldTitle } = genPath({
@@ -185,11 +221,11 @@ export default function EditPostPage() {
       console.error("操作失败:", error);
       message.error(isNewPost ? "创建失败" : "保存失败");
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, submit: false }));
     }
   };
 
-  if (authLoading || fetchLoading) {
+  if (authLoading || loading.fetch) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Spin size="large" />
@@ -261,12 +297,17 @@ export default function EditPostPage() {
           </Col>
           <Col flex="240px">
             <Space>
-              <Button onClick={genDescription}>生成描述</Button>
+              <Button 
+                onClick={genDescription}
+                loading={loading.generateDescription}
+              >
+                生成描述
+              </Button>
               <Button onClick={genCover}>生成背景</Button>
               <Button
                 type="primary"
                 onClick={handleSubmit}
-                loading={loading}
+                loading={loading.submit}
                 icon={<SaveOutlined />}
               >
                 保存

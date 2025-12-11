@@ -67,14 +67,14 @@ while [[ $# -gt 0 ]]; do
       echo "  -r, --registry REGISTRY  镜像仓库地址 (例如: docker.io/username)"
       echo "  -p, --push               构建后推送到仓库"
       echo "  --no-cache               不使用 Docker 缓存"
-      echo "  --platform PLATFORM      目标平台 (例如: linux/amd64,linux/arm64)"
+      echo "  --platform PLATFORM      目标平台 (例如: linux/amd64)"
       echo "  -h, --help               显示帮助信息"
       echo ""
       echo "示例:"
       echo "  $0                                    # 构建 local 标签"
       echo "  $0 -t local                            # 构建 local 标签"
       echo "  $0 -r docker.io/username -p            # 构建并推送到 Docker Hub"
-      echo "  $0 --platform linux/amd64,linux/arm64 # 多平台构建"
+      echo "  $0 --platform linux/amd64 # 指定平台构建"
       exit 0
       ;;
     *)

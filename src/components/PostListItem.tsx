@@ -80,7 +80,7 @@ export default function PostListItem({ post }: PostListItemProps) {
         )}
 
         {/* 描述 */}
-        <p className="post-description hidden h-44 leading-10 text-gray-500 md:block">
+        <p className="post-description hidden h-42 leading-10 text-gray-500 md:block overflow-hidden">
           {post.description}
         </p>
 

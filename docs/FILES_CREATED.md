@@ -229,7 +229,7 @@ docker rmi react-nnnnzs-cn:test
 - ✅ 推送代码自动触发构建
 - ✅ 自动生成版本号
 - ✅ 自动推送到 DockerHub
-- ✅ 支持多平台构建（amd64 + arm64）
+- ✅ 支持 amd64 平台构建
 
 ### ✅ 版本管理
 
