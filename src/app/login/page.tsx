@@ -217,7 +217,7 @@ function LoginPage() {
           >
             <WechatQRLogin 
               onSuccess={handleWechatLoginSuccess}
-              env="trial"
+              env="release"
             />
           </TabPane>
 

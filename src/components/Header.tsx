@@ -113,6 +113,11 @@ export default function Header() {
       icon: <EditOutlined />,
     },
     {
+      key: "user",
+      label: <Link href="/c/user/info">个人中心</Link>,
+      icon: <UserOutlined />,
+    },
+    {
       key: "logout",
       label: "退出登录",
       icon: <LogoutOutlined />,
@@ -120,12 +125,8 @@ export default function Header() {
         await logout();
         window.location.href = "/";
       },
-    },
-    {
-      key: "user",
-      label: <Link href="/c/user/info">个人中心</Link>,
-      icon: <UserOutlined />,
     }
+   
   ];
 
   const navItems = [

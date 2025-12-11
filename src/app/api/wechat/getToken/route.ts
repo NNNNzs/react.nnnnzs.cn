@@ -12,7 +12,10 @@ import { successResponse, errorResponse } from '@/lib/auth';
  * 生成短 token（32位，符合微信小程序场景值限制）
  */
 function createToken(): string {
-  return uuidv4().replace(/-/g, '').toUpperCase();
+  let id =  uuidv4().replace(/-/g, '').toUpperCase();
+  // 把前几位换成 blog_
+  id = id.replace(/^[a-zA-Z0-9]{8}/, 'blog_');
+  return id;
 }
 
 /**
