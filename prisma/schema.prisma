@@ -16,42 +16,46 @@ datasource db {
 
 // 文章表
 model TbPost {
-  id          Int       @id @default(autoincrement())
-  path        String?   @db.VarChar(255)
-  title       String?   @db.VarChar(255)
-  category    String?   @db.VarChar(255)
-  tags        String?   @db.VarChar(255) // 逗号分隔的标签字符串
-  date        DateTime? @db.DateTime(0)
-  updated     DateTime? @db.DateTime(0)
-  cover       String?   @db.VarChar(255)
-  layout      String?   @db.VarChar(255)
-  content     String?   @db.Text
-  description String?   @db.VarChar(500)
-  visitors    Int?      @default(0)
-  likes       Int?      @default(0)
-  hide        String?   @default("0") @db.VarChar(255)
-  is_delete   Int       @default(0)
+  id             Int       @id @default(autoincrement())
+  path           String?   @db.VarChar(255)
+  title          String?   @db.VarChar(255)
+  category       String?   @db.VarChar(255)
+  tags           String?   @db.VarChar(255) // 逗号分隔的标签字符串
+  date           DateTime? @db.DateTime(0)
+  updated        DateTime? @db.DateTime(0)
+  cover          String?   @db.VarChar(255)
+  layout         String?   @db.VarChar(255)
+  content        String?   @db.Text
+  description    String?   @db.VarChar(500)
+  visitors       Int?      @default(0)
+  likes          Int?      @default(0)
+  hide           String?   @default("0") @db.VarChar(255)
+  is_delete      Int       @default(0)
+  github_issue_number Int?  // GitHub Issue 编号
+  github_issue_id     Int?  // GitHub Issue ID
 
   @@map("tb_post")
 }
 
 // 用户表
 model TbUser {
-  id              Int       @id @default(autoincrement())
-  role            String?   @db.VarChar(255)
-  account         String    @db.VarChar(16)
-  avatar          String?   @db.VarChar(255)
-  password        String    @db.VarChar(255)
-  nickname        String    @db.VarChar(16)
-  mail            String?   @db.VarChar(30)
-  phone           String?   @db.VarChar(11)
-  registered_ip   String?   @db.VarChar(16)
-  registered_time DateTime? @db.DateTime(0)
-  dd_id           String?   @db.VarChar(30)
-  github_id       String?   @db.VarChar(255)
-  work_wechat_id  String?   @db.VarChar(255)
-  wx_open_id      String?   @db.VarChar(255) // 微信小程序 openID
-  status          Int       @default(1)
+  id                 Int       @id @default(autoincrement())
+  role               String?   @db.VarChar(255)
+  account            String    @db.VarChar(16)
+  avatar             String?   @db.VarChar(255)
+  password           String    @db.VarChar(255)
+  nickname           String    @db.VarChar(16)
+  mail               String?   @db.VarChar(30)
+  phone              String?   @db.VarChar(11)
+  registered_ip      String?   @db.VarChar(16)
+  registered_time    DateTime? @db.DateTime(0)
+  dd_id              String?   @db.VarChar(30)
+  github_id          String?   @db.VarChar(255)
+  github_username    String?   @db.VarChar(255) // GitHub 用户名
+  github_access_token String?  @db.Text // GitHub Access Token
+  work_wechat_id     String?   @db.VarChar(255)
+  wx_open_id         String?   @db.VarChar(255) // 微信小程序 openID
+  status             Int       @default(1)
 
   @@map("tb_user")
 }

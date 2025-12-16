@@ -18,6 +18,11 @@ interface MarkdownEditorProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /**
+   * 是否显示右侧预览区域（默认显示）
+   * 在评论编辑等场景可以关闭，只保留编辑区域
+   */
+  preview?: boolean;
 }
 
 /**
@@ -28,6 +33,7 @@ export default function MarkdownEditor({
   onChange,
   placeholder = '支持 Markdown 格式，可以直接粘贴图片...',
   className,
+  preview = true,
 }: MarkdownEditorProps) {
   /**
    * 处理图片上传
@@ -83,6 +89,7 @@ export default function MarkdownEditor({
       <MdEditor
         modelValue={value}
         onChange={onChange}
+        preview={preview ?? true}
         onUploadImg={onUploadImg}
         placeholder={placeholder}
         codeFoldable={false}

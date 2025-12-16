@@ -4,9 +4,9 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, Dropdown, Space, Drawer } from "antd";
 import type { MenuProps } from "antd";
@@ -22,6 +22,7 @@ import "@docsearch/css";
 
 export default function Header() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -30,6 +31,12 @@ export default function Header() {
   const returnTopRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const scrollBarRef = useRef<HTMLDivElement>(null);
+
+  // 构建当前完整 URL 用于登录后返回
+  const currentUrl = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
 
   // 暗色模式切换
   const toggleDark = () => {
@@ -123,7 +130,8 @@ export default function Header() {
       icon: <LogoutOutlined />,
       onClick: async () => {
         await logout();
-        window.location.href = "/";
+        // 退出后返回当前页面
+        window.location.href = currentUrl;
       },
     }
    
@@ -300,7 +308,7 @@ export default function Header() {
                   </Dropdown>
                 ) : (
                   <Link
-                    href="/login"
+                    href={`/login?redirect=${encodeURIComponent(currentUrl)}`}
                     className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-300"
                   >
                     登录

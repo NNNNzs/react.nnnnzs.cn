@@ -21,6 +21,7 @@ import { getPostByPath } from "@/services/post";
 import PostLikeButton from "./PostLikeButton";
 import PostVisitorTracker from "./PostVisitorTracker";
 import MarkdownPreview from "@/components/MarkdownPreview";
+import CommentSection from "@/components/CommentSection";
 import type { Post } from "@/types";
 
 interface PageProps {
@@ -214,6 +215,11 @@ export default async function PostDetail({ params }: PageProps) {
             <PostLikeButton postId={post.id} initialLikes={post.likes || 0} />
           </div>
         </article>
+
+        {/* 评论区 */}
+        <div className="mt-12 px-4">
+          <CommentSection postId={post.id} />
+        </div>
       </>
     );
   } catch (error) {

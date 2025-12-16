@@ -33,6 +33,7 @@ import type { UserInfo } from "@/dto/user.dto";
 import type { RcFile } from "antd/es/upload";
 import AvatarCropper from "@/components/AvatarCropper";
 import WechatBindCard from "@/components/WechatBindCard";
+import GithubBindCard from "@/components/GithubBindCard";
 
 const { Title, Text } = Typography;
 
@@ -210,7 +211,7 @@ export default function UserInfoPage() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
@@ -386,6 +387,15 @@ export default function UserInfoPage() {
       <div className="mt-6">
         <WechatBindCard
           isBound={!!userInfo?.wx_open_id}
+          onStatusChange={handleWechatStatusChange}
+        />
+      </div>
+
+      {/* GitHub 绑定卡片 */}
+      <div className="mt-6">
+        <GithubBindCard
+          isBound={!!userInfo?.github_id}
+          githubUsername={userInfo?.github_username || undefined}
           onStatusChange={handleWechatStatusChange}
         />
       </div>

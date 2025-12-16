@@ -7,12 +7,10 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
-
-const { TabPane } = Tabs;
 
 function LoginPage() {
   const router = useRouter();
@@ -122,6 +120,14 @@ function LoginPage() {
     }
   };
 
+  /**
+   * GitHub 登录
+   */
+  const handleGithubLogin = () => {
+    const redirect = searchParams.get('redirect') || '/c';
+    window.location.href = `/api/github/auth?action=login&redirect=${encodeURIComponent(redirect)}`;
+  };
+
   // 显示加载状态
   if (checkingConfig) {
     return (
@@ -131,107 +137,114 @@ function LoginPage() {
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 to-purple-50 px-4 dark:from-slate-900 dark:to-slate-800">
-      <Card
-        className="w-full max-w-md shadow-xl"
-        bordered={false}
-      >
-        <div className="mb-8 text-center">
-          <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">
-            欢迎回来
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            {allowRegister ? '登录或注册以继续' : '请登录以继续'}
-          </p>
-        </div>
-
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab} 
-          centered
+  const items = [
+    {
+      key: 'login',
+      label: (
+        <span>
+          <UserOutlined />
+          账号登录
+        </span>
+      ),
+      children: (
+        <Form
+          form={loginForm}
+          name="login"
+          onFinish={handleLogin}
+          autoComplete="off"
+          size="large"
         >
-          {/* 账号密码登录 */}
-          <TabPane 
-            tab={
+          <Form.Item
+            name="account"
+            rules={[{ required: true, message: '请输入账号！' }]}
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="账号"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: '请输入密码！' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="密码"
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              className="w-full"
+              loading={loading}
+            >
+              登录
+            </Button>
+          </Form.Item>
+
+          <div className="text-center text-sm text-slate-500">
+            测试账号: admin / admin123
+          </div>
+        </Form>
+      ),
+    },
+    {
+      key: 'wechat',
+      label: (
+        <span>
+          <WechatOutlined />
+          微信登录
+        </span>
+      ),
+      children: (
+        <WechatQRLogin 
+          onSuccess={handleWechatLoginSuccess}
+          env="release"
+        />
+      ),
+    },
+    {
+      key: 'github',
+      label: (
+        <span>
+          <GithubOutlined />
+          GitHub
+        </span>
+      ),
+      children: (
+        <div className="flex flex-col items-center justify-center py-8">
+          <div className="mb-6 text-center">
+            <GithubOutlined className="text-6xl text-gray-700 dark:text-gray-300" />
+            <p className="mt-4 text-gray-600 dark:text-gray-400">
+              使用 GitHub 账号登录
+            </p>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            icon={<GithubOutlined />}
+            onClick={handleGithubLogin}
+            className="w-full"
+          >
+            使用 GitHub 登录
+          </Button>
+        </div>
+      ),
+    },
+    ...(allowRegister
+      ? [
+          {
+            key: 'register',
+            label: (
               <span>
                 <UserOutlined />
-                账号登录
+                注册
               </span>
-            } 
-            key="login"
-          >
-            <Form
-              form={loginForm}
-              name="login"
-              onFinish={handleLogin}
-              autoComplete="off"
-              size="large"
-            >
-              <Form.Item
-                name="account"
-                rules={[{ required: true, message: '请输入账号！' }]}
-              >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="账号"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="password"
-                rules={[{ required: true, message: '请输入密码！' }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="密码"
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  className="w-full"
-                  loading={loading}
-                >
-                  登录
-                </Button>
-              </Form.Item>
-
-              <div className="text-center text-sm text-slate-500">
-                测试账号: admin / admin123
-              </div>
-            </Form>
-          </TabPane>
-
-          {/* 微信扫码登录 */}
-          <TabPane 
-            tab={
-              <span>
-                <WechatOutlined />
-                微信登录
-              </span>
-            } 
-            key="wechat"
-          >
-            <WechatQRLogin 
-              onSuccess={handleWechatLoginSuccess}
-              env="release"
-            />
-          </TabPane>
-
-          {/* 注册表单 - 仅在允许注册时显示 */}
-          {allowRegister && (
-            <TabPane 
-              tab={
-                <span>
-                  <UserOutlined />
-                  注册
-                </span>
-              } 
-              key="register"
-            >
+            ),
+            children: (
               <Form
                 form={registerForm}
                 name="register"
@@ -307,9 +320,33 @@ function LoginPage() {
                   </Button>
                 </Form.Item>
               </Form>
-            </TabPane>
-          )}
-        </Tabs>
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 to-purple-50 px-4 dark:from-slate-900 dark:to-slate-800">
+      <Card
+        className="w-full max-w-md shadow-xl"
+        variant="borderless"
+      >
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">
+            欢迎回来
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400">
+            {allowRegister ? '登录或注册以继续' : '请登录以继续'}
+          </p>
+        </div>
+
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab} 
+          centered
+          items={items}
+        />
       </Card>
     </div>
   );
