@@ -12,6 +12,7 @@ import {
   TOKEN_KEY,
   validateToken,
   getTokenFromRequest,
+  getBaseUrl,
 } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { proxyFetch } from '@/lib/proxy-fetch';
@@ -88,16 +89,19 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     
+    // 获取基础 URL
+    const baseUrl = getBaseUrl(request);
+    
     // 检查是否有错误
     if (error) {
-      const errorUrl = new URL('/login', request.url);
+      const errorUrl = new URL('/login', baseUrl);
       errorUrl.searchParams.set('error', 'github_auth_failed');
       return NextResponse.redirect(errorUrl);
     }
     
     // 检查必要参数
     if (!code || !state) {
-      const errorUrl = new URL('/login', request.url);
+      const errorUrl = new URL('/login', baseUrl);
       errorUrl.searchParams.set('error', 'invalid_params');
       return NextResponse.redirect(errorUrl);
     }
@@ -172,7 +176,7 @@ export async function GET(request: NextRequest) {
       await storeToken(token, userWithoutPassword as typeof user);
       
       // 重定向到目标页面，并设置 token
-      const redirectUrl = new URL(redirect, request.url);
+      const redirectUrl = new URL(redirect, baseUrl);
       const response = NextResponse.redirect(redirectUrl);
       
       // 设置 cookie
@@ -191,7 +195,7 @@ export async function GET(request: NextRequest) {
       const token = getTokenFromRequest(request.headers);
       
       if (!token) {
-        const errorUrl = new URL('/login', request.url);
+        const errorUrl = new URL('/login', baseUrl);
         errorUrl.searchParams.set('error', 'not_logged_in');
         return NextResponse.redirect(errorUrl);
       }
@@ -200,7 +204,7 @@ export async function GET(request: NextRequest) {
       const currentUser = await validateToken(token);
       
       if (!currentUser) {
-        const errorUrl = new URL('/login', request.url);
+        const errorUrl = new URL('/login', baseUrl);
         errorUrl.searchParams.set('error', 'invalid_token');
         return NextResponse.redirect(errorUrl);
       }
@@ -214,7 +218,7 @@ export async function GET(request: NextRequest) {
       });
       
       if (existingUser) {
-        const errorUrl = new URL(redirect, request.url);
+        const errorUrl = new URL(redirect, baseUrl);
         errorUrl.searchParams.set('error', 'github_already_bound');
         return NextResponse.redirect(errorUrl);
       }
@@ -235,18 +239,20 @@ export async function GET(request: NextRequest) {
       }
       
       // 重定向回目标页面
-      const redirectUrl = new URL(redirect, request.url);
+      const redirectUrl = new URL(redirect, baseUrl);
       redirectUrl.searchParams.set('success', 'github_bound');
       return NextResponse.redirect(redirectUrl);
     }
     
     // 未知的 action
-    const errorUrl = new URL('/login', request.url);
+    const errorUrl = new URL('/login', baseUrl);
     errorUrl.searchParams.set('error', 'unknown_action');
     return NextResponse.redirect(errorUrl);
   } catch (error) {
     console.error('GitHub 回调处理失败:', error);
-    const errorUrl = new URL('/login', request.url);
+    // 在 catch 块中也需要获取 baseUrl，因为可能 try 块中的 baseUrl 还未定义
+    const baseUrl = getBaseUrl(request);
+    const errorUrl = new URL('/login', baseUrl);
     errorUrl.searchParams.set('error', 'callback_failed');
     return NextResponse.redirect(errorUrl);
   }

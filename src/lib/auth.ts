@@ -156,3 +156,29 @@ export async function getUserFromToken(request: NextRequest): Promise<User | nul
   return await validateToken(token);
 }
 
+/**
+ * 获取网站的基础 URL
+ * 优先使用环境变量 NEXT_PUBLIC_SITE_URL，其次从请求头获取
+ * @param request NextRequest 对象
+ * @returns 网站的基础 URL（包含协议和域名）
+ */
+export function getBaseUrl(request: NextRequest): string {
+  // 优先使用环境变量配置的网站 URL
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+
+  // 从请求头获取（支持反向代理场景）
+  const protocol = 
+    request.headers.get('x-forwarded-proto') || 
+    request.headers.get('x-forwarded-protocol') ||
+    (request.url.startsWith('https') ? 'https' : 'http');
+  
+  const host = 
+    request.headers.get('x-forwarded-host') || 
+    request.headers.get('host') ||
+    'localhost:3000';
+
+  return `${protocol}://${host}`;
+}
+
