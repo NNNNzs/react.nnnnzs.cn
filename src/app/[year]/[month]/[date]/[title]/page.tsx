@@ -5,7 +5,7 @@
  * 服务端渲染，支持 SEO
  */
 
-import React, { cache } from "react";
+import React, { cache, Suspense } from "react";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Tag } from "antd";
@@ -218,7 +218,9 @@ export default async function PostDetail({ params }: PageProps) {
 
         {/* 评论区 */}
         <div className="mt-12 px-4">
-          <CommentSection postId={post.id} />
+          <Suspense fallback={<div className="text-center py-8 text-slate-500">加载评论中...</div>}>
+            <CommentSection postId={post.id} />
+          </Suspense>
         </div>
       </>
     );
