@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     githubAuthUrl.searchParams.set('redirect_uri', redirectUri);
     githubAuthUrl.searchParams.set('scope', 'user,public_repo');
     githubAuthUrl.searchParams.set('state', state);
+    console.log('githubAuthUrl', githubAuthUrl.toString());
     
     return NextResponse.redirect(githubAuthUrl.toString());
   } catch (error) {

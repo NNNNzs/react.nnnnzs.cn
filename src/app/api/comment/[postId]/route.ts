@@ -8,6 +8,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 interface RouteParams {
   params: Promise<{
@@ -69,7 +70,7 @@ export async function GET(
       headers.Authorization = `Bearer ${githubToken}`;
     }
     
-    const response = await fetch(
+    const response = await proxyFetch(
       `https://api.github.com/repos/${githubRepo}/issues/${post.github_issue_number}/comments`,
       {
         headers,

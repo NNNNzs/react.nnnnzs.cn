@@ -14,17 +14,21 @@ import {
   getTokenFromRequest,
 } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 /**
  * 获取 GitHub 用户信息
  */
 async function getGithubUser(accessToken: string) {
-  const response = await fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-    },
-  });
+  const response = await proxyFetch(
+    'https://api.github.com/user',
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+      },
+    }
+  );
   
   if (!response.ok) {
     throw new Error('获取 GitHub 用户信息失败');
@@ -44,18 +48,21 @@ async function exchangeCodeForToken(code: string) {
     throw new Error('GitHub OAuth 配置缺失');
   }
   
-  const response = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-    }),
-  });
+  const response = await proxyFetch(
+    'https://github.com/login/oauth/access_token',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+      }),
+    }
+  );
   
   if (!response.ok) {
     throw new Error('交换 GitHub Access Token 失败');

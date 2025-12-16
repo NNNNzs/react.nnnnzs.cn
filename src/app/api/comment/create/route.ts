@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromToken } from '@/lib/auth';
 import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 /**
  * 创建 GitHub Issue
@@ -18,7 +19,7 @@ async function createGithubIssue(
   title: string,
   body: string
 ) {
-  const response = await fetch(
+  const response = await proxyFetch(
     `https://api.github.com/repos/${repo}/issues`,
     {
       method: 'POST',
@@ -53,7 +54,7 @@ async function addGithubComment(
   issueNumber: number,
   body: string
 ) {
-  const response = await fetch(
+  const response = await proxyFetch(
     `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments`,
     {
       method: 'POST',
