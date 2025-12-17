@@ -6,20 +6,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import {
-  successResponse,
-  errorResponse,
   hashPassword,
   generateToken,
   storeToken,
   TOKEN_KEY,
 } from '@/lib/auth';
 import { getConfigByKey } from '@/services/config';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
   try {
     // 检查是否允许注册
     const allowRegisterConfig = await getConfigByKey('allow_register');
-    
+
     if (
       !allowRegisterConfig ||
       allowRegisterConfig.status !== 1 ||

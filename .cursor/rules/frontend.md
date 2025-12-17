@@ -78,7 +78,7 @@ export default function Header() {
 ## UI 组件库规范
 
 ### Ant Design
-- **版本**: 6.1.0
+- **版本**: 6.1.1
 - **配置**: 使用 `ConfigProvider` 全局配置
 - **主题**: 使用 `ConfigProvider` 配置主题色
 - **国际化**: 使用 `zhCN` 中文语言包

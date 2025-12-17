@@ -6,13 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfigList } from '@/services/config';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import type { QueryConfigCondition } from '@/dto/config.dto';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function GET(request: NextRequest) {
   try {

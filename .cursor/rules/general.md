@@ -14,7 +14,7 @@
 - **包管理器**: pnpm
 
 ### UI 和样式
-- **Ant Design**: 6.1.0 (企业级UI组件库)
+- **Ant Design**: 6.1.1 (企业级UI组件库)
 - **Tailwind CSS**: 4.1.17 (原子化CSS框架)
 - **CSS Modules**: 支持
 

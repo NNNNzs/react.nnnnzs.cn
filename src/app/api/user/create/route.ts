@@ -6,14 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createUser } from '@/services/user';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import type { CreateUserDto } from '@/dto/user.dto';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
   try {
     // 验证Token

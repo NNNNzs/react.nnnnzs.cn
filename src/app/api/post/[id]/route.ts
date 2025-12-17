@@ -9,12 +9,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 // 定义文章更新的验证schema
 const updatePostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),

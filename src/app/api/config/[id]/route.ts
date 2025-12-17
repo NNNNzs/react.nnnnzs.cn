@@ -8,12 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfigById, updateConfig, deleteConfig } from '@/services/config';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
+import { successResponse, errorResponse } from '@/dto/response.dto';
+
 
 /**
  * 获取配置详情

@@ -5,6 +5,7 @@ import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
+// import "./antd-fix.css";
 import Header from "@/components/Header";
 
 export const metadata: Metadata = {
@@ -18,25 +19,52 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <AuthProvider>
-        <body className="antialiased">
-          <Header />
-          <AntdRegistry>
-            <ConfigProvider locale={zhCN}>{children}</ConfigProvider>
-          </AntdRegistry>
-          <Script id="baidu-analytics" strategy="afterInteractive">
-            {`
-              var _hmt = _hmt || [];
-              (function() {
-                var hm = document.createElement("script");
-                hm.src = "https://hm.baidu.com/hm.js?51f12d30a4c94bac90b35bde7079f7b8";
-                var s = document.getElementsByTagName("script")[0];
-                s.parentNode.insertBefore(hm, s);
-              })();
-            `}
-          </Script>
-        </body>
+        <AntdRegistry>
+          <ConfigProvider 
+            locale={zhCN}
+            theme={{
+              token: {
+                colorPrimary: '#1677ff',
+                borderRadius: 6,
+                fontSize: 14,
+                lineHeight: 1.5715,
+                controlHeight: 32,
+                controlHeightLG: 40,
+                controlHeightSM: 24,
+              },
+              components: {
+                Button: {
+                  controlHeightLG: 40,
+                  controlHeight: 32,
+                  controlHeightSM: 24,
+                },
+                Input: {
+                  controlHeightLG: 40,
+                  controlHeight: 32,
+                  controlHeightSM: 24,
+                },
+              }
+            }}
+          >
+            <body className="antialiased">
+              <Header />
+              {children}
+              <Script id="baidu-analytics" strategy="afterInteractive">
+                {`
+                var _hmt = _hmt || [];
+                (function() {
+                  var hm = document.createElement("script");
+                  hm.src = "https://hm.baidu.com/hm.js?51f12d30a4c94bac90b35bde7079f7b8";
+                  var s = document.getElementsByTagName("script")[0];
+                  s.parentNode.insertBefore(hm, s);
+                })();
+                `}
+              </Script>
+            </body>
+          </ConfigProvider>
+        </AntdRegistry>
       </AuthProvider>
     </html>
   );

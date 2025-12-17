@@ -5,14 +5,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function POST(request: NextRequest) {
   try {

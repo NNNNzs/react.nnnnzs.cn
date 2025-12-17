@@ -6,14 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserList } from '@/services/user';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import type { QueryUserCondition } from '@/dto/user.dto';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function GET(request: NextRequest) {
   try {
     // 验证Token

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPostList } from '@/services/post';
-import { successResponse, errorResponse } from '@/lib/auth';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 import type { QueryCondition } from '@/dto/post.dto';
 
 export async function GET(request: NextRequest) {

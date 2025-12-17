@@ -545,9 +545,12 @@ function ConfigPageContent() {
         okText="保存"
         cancelText="取消"
         width={700}
-        style={{ zIndex: 1000 }}
-        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
-        destroyOnClose
+        styles={{
+          header: { zIndex: 1001 },
+          mask: { backgroundColor: "rgba(0, 0, 0, 0.45)" },
+          content: { zIndex: 1000 }
+        }}
+        destroyOnHidden
       >
         <Form
           form={form}

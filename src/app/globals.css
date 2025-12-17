@@ -21,7 +21,6 @@ body {
 /* 中文友好的系统字体配置 */
 @layer base {
   html {
-    /* 系统默认字体栈，优先使用本地字体 */
     font-family:
       -apple-system,
       BlinkMacSystemFont,
@@ -38,7 +37,6 @@ body {
       "Segoe UI Emoji";
   }
 
-  /* 代码字体 */
   code,
   pre,
   kbd,
@@ -110,4 +108,3 @@ body {
 .dark .DocSearch .DocSearch-Button .DocSearch-Button-Key {
   box-shadow: unset;
 }
-

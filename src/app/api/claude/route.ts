@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generDescription, generDescriptionStream } from '@/services/claude';
-import { successResponse } from '@/lib/auth';
+import { successResponse } from '@/dto/response.dto';
 
 /**
  * 创建流式响应

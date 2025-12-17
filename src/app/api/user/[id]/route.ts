@@ -12,14 +12,12 @@ import {
   deleteUser,
 } from '@/services/user';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import type { UpdateUserDto } from '@/dto/user.dto';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 /**
  * 获取用户详情
  */

@@ -6,13 +6,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createConfig } from '@/services/config';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
   try {
     // 验证Token

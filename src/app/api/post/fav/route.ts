@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { successResponse, errorResponse } from '@/lib/auth';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function PUT(request: NextRequest) {
   try {

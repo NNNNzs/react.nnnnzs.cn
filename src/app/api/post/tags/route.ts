@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getAllTags } from '@/services/tag';
-import { successResponse, errorResponse } from '@/lib/auth';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function GET() {
   try {

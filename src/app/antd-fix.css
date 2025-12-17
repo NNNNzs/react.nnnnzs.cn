@@ -1,0 +1,113 @@
+/**
+ * Ant Design 6.1.0 在 Next.js 中的样式修复
+ * 解决 css-dev-only-do-not-override-dbp7pc 类名导致的样式问题
+ */
+
+/* 确保 Ant Design 的基础样式正确加载 */
+:root {
+  /* Ant Design 基础变量 */
+  --ant-primary-color: #1677ff;
+  --ant-border-radius: 6px;
+  --ant-font-size: 14px;
+  --ant-line-height: 1.5715;
+  --ant-control-height: 32px;
+  --ant-control-height-lg: 40px;
+  --ant-control-height-sm: 24px;
+  --ant-padding-lg: 24px;
+  --ant-padding-md: 16px;
+  --ant-padding-sm: 12px;
+  --ant-padding-xs: 8px;
+  
+  /* 按钮尺寸变量 */
+  --ant-button-size-lg: 40px;
+  --ant-button-size-md: 32px;
+  --ant-button-size-sm: 24px;
+  --ant-input-size-lg: 40px;
+  --ant-input-size-md: 32px;
+  --ant-input-size-sm: 24px;
+}
+
+/* 修复 Ant Design 按钮在 Next.js 中的渲染问题 */
+.css-dev-only-do-not-override-dbp7pc, 
+.ant-btn {
+  /* 确保按钮基础尺寸 */
+  font-family: inherit;
+}
+
+/* 大号按钮样式修复 */
+.css-dev-only-do-not-override-dbp7pc.ant-btn-lg,
+.ant-btn-lg {
+  min-height: 40px;
+  height: 40px;
+  padding: 6.4px 15px;
+  line-height: 1.5715;
+  font-size: 14px;
+}
+
+/* 默认按钮样式修复 */
+.css-dev-only-do-not-override-dbp7pc.ant-btn,
+.ant-btn {
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 15px;
+  line-height: 1.5715;
+}
+
+/* 小号按钮样式修复 */
+.css-dev-only-do-not-override-dbp7pc.ant-btn-sm,
+.ant-btn-sm {
+  min-height: 24px;
+  height: 24px;
+  padding: 2px 8px;
+}
+
+/* 搜索框按钮修复 */
+.ant-input-search .css-dev-only-do-not-override-dbp7pc.ant-input-search-button,
+.ant-input-search .ant-input-search-button {
+  min-height: 40px;
+  height: 40px;
+  padding: 6.4px 15px;
+}
+
+/* 紧凑模式按钮修复 */
+.css-dev-only-do-not-override-dbp7pc.ant-btn-compact-item,
+.css-dev-only-do-not-override-dbp7pc.ant-btn-compact-last-item,
+.ant-btn-compact-item,
+.ant-btn-compact-last-item {
+  min-height: 40px;
+  height: 40px;
+}
+
+/* 确保所有 Ant Design 组件使用正确的尺寸 */
+.ant-layout-content .css-dev-only-do-not-override-dbp7pc.ant-btn-lg,
+.ant-layout-content .ant-btn-lg {
+  min-height: 40px;
+  height: 40px;
+  padding: 6.4px 15px;
+}
+
+/* 为所有 Ant Design 组件设置固定的 CSS 变量 */
+.css-dev-only-do-not-override-dbp7pc * {
+  --ant-button-size-lg: 40px !important;
+  --ant-button-size-md: 32px !important;
+  --ant-button-size-sm: 24px !important;
+  --ant-input-size-lg: 40px !important;
+  --ant-input-size-md: 32px !important;
+  --ant-input-size-sm: 24px !important;
+  --ant-control-height: 32px !important;
+  --ant-control-height-lg: 40px !important;
+  --ant-control-height-sm: 24px !important;
+}
+
+/* 全局设置确保不被覆盖 */
+:root * {
+  --ant-button-size-lg: 40px;
+  --ant-button-size-md: 32px;
+  --ant-button-size-sm: 24px;
+  --ant-input-size-lg: 40px;
+  --ant-input-size-md: 32px;
+  --ant-input-size-sm: 24px;
+  --ant-control-height: 32px;
+  --ant-control-height-lg: 40px;
+  --ant-control-height-sm: 24px;
+}

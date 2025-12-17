@@ -6,14 +6,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
 import { updateUser } from '@/services/user';
 import type { UpdateUserDto } from '@/dto/user.dto';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 /**
  * 获取当前用户信息
  */

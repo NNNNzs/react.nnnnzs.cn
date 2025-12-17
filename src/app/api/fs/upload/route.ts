@@ -9,12 +9,10 @@ import { extname } from 'path';
 import { createHash } from 'crypto';
 import COS from 'cos-nodejs-sdk-v5';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   validateToken,
 } from '@/lib/auth';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 /**
  * 初始化 COS 客户端
  */

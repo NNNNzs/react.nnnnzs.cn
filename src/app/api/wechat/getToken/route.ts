@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import redisService from '@/lib/redis';
-import { successResponse, errorResponse } from '@/lib/auth';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 /**
  * 生成短 token（32位，符合微信小程序场景值限制）

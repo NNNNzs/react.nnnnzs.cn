@@ -35,7 +35,8 @@ src/app/api/
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserInfo } from '@/services/user'
-import { successResponse, errorResponse, getUserFromToken } from '@/lib/auth'
+import { getUserFromToken } from '@/lib/auth'
+import { successResponse, errorResponse } from '@/dto/response.dto'
 
 export async function GET(request: NextRequest) {
   try {

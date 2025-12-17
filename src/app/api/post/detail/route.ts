@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPostByPath, getPostById } from '@/services/post';
-import { successResponse, errorResponse } from '@/lib/auth';
+import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function GET(request: NextRequest) {
   try {

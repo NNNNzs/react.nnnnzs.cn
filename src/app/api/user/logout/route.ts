@@ -5,13 +5,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  successResponse,
-  errorResponse,
   getTokenFromRequest,
   removeToken,
   TOKEN_KEY,
 } from '@/lib/auth';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
   try {
     const token = getTokenFromRequest(request.headers);

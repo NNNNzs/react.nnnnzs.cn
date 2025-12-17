@@ -221,12 +221,12 @@ function UserPageContent() {
           ...(urlState.searchText && { query: urlState.searchText }),
           ...(urlState.roleFilter &&
             urlState.roleFilter !== "all" && {
-              role: urlState.roleFilter,
-            }),
+            role: urlState.roleFilter,
+          }),
           ...(urlState.statusFilter &&
             urlState.statusFilter !== "all" && {
-              status: Number(urlState.statusFilter),
-            }),
+            status: Number(urlState.statusFilter),
+          }),
         };
 
         const response = await axios.get("/api/user/list", { params });
@@ -608,9 +608,12 @@ function UserPageContent() {
         okText="保存"
         cancelText="取消"
         width={600}
-        style={{ zIndex: 1000 }}
-        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
-        destroyOnClose
+        styles={{
+          header: { zIndex: 1001 },
+          mask: { backgroundColor: "rgba(0, 0, 0, 0.45)" },
+          content: { zIndex: 1000 }
+        }}
+        destroyOnHidden
       >
         <Form
           form={form}
@@ -689,8 +692,8 @@ function UserPageContent() {
                   value={
                     editingUser.registered_time
                       ? dayjs(editingUser.registered_time).format(
-                          "YYYY-MM-DD HH:mm:ss"
-                        )
+                        "YYYY-MM-DD HH:mm:ss"
+                      )
                       : "-"
                   }
                   disabled

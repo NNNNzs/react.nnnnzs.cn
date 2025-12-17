@@ -119,7 +119,7 @@ export default function AvatarCropper({
           </Button>
         </Space>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="w-full">
         {imageUrl && (

@@ -6,11 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { login } from '@/services/auth';
 import {
-  successResponse,
-  errorResponse,
   TOKEN_KEY,
 } from '@/lib/auth';
-
+import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

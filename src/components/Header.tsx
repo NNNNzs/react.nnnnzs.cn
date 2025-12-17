@@ -98,9 +98,16 @@ export default function Header() {
     });
   };
 
+  // 统一的导航菜单配置 - 只维护一份数据
   const navItems = [
-    { href: "/tags", label: "分类" },
-    { href: "/archives", label: "归档" },
+    { href: "/tags", label: "分类", type: "link" as const },
+    { href: "/archives", label: "归档", type: "link" as const },
+    { 
+      href: "https://github.com/NNNNzs/nnnnzs.cn", 
+      label: "GitHub", 
+      type: "external" as const,
+      icon: "github" as const
+    },
   ];
 
   // Algolia 配置
@@ -169,7 +176,7 @@ export default function Header() {
             </Link>
 
             {/* 桌面端导航 */}
-            <div className="md:flex flex-row gap-2 justify-between items-center category w-auto">
+            <div className="hidden md:flex flex-row gap-2 justify-between items-center category w-auto">
               {/* 搜索框 */}
               {algoliaAppId && algoliaApiKey && (
                 <div className="flex items-center">
@@ -187,22 +194,24 @@ export default function Header() {
                 </div>
               )}
 
-              {/* 导航菜单 */}
+              {/* 导航菜单 - 只显示链接类型 */}
               <ul className="h-full flex items-center">
-                {navItems.map((item) => (
-                  <li key={item.href} className="h-full inline-block mr-4">
-                    <Link
-                      href={item.href}
-                      className={`h-full inline-block relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-px after:bg-slate-900 dark:after:bg-white ${
-                        pathname === item.href
-                          ? "after:opacity-100"
-                          : "after:opacity-0 hover:after:opacity-50"
-                      } transition-opacity`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
+                {navItems
+                  .filter((item) => item.type === "link")
+                  .map((item) => (
+                    <li key={item.href} className="h-full inline-block mr-4">
+                      <Link
+                        href={item.href}
+                        className={`h-full inline-block relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-px after:bg-slate-900 dark:after:bg-white ${
+                          pathname === item.href
+                            ? "after:opacity-100"
+                            : "after:opacity-0 hover:after:opacity-50"
+                        } transition-opacity`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
               </ul>
 
               {/* 暗色模式切换 */}
@@ -242,7 +251,7 @@ export default function Header() {
                 )}
               </button>
 
-              {/* GitHub 链接 */}
+              {/* GitHub 链接 - 桌面端显示 */}
               <a
                 target="_blank"
                 rel="noopener noreferrer"
@@ -287,16 +296,67 @@ export default function Header() {
         className="md:hidden"
       >
         <div className="flex flex-col space-y-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-black dark:text-white mb-2"
-              onClick={() => setDrawerOpen(false)}
+          {/* 所有导航项 - 使用统一的数据源 */}
+          {navItems.map((item) => {
+            if (item.type === "external") {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black dark:text-white mb-2 flex items-center gap-2"
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  <GithubOutlined />
+                  {item.label}
+                </a>
+              );
+            }
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-black dark:text-white mb-2"
+                onClick={() => setDrawerOpen(false)}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+          
+          {/* 暗色模式切换 - 在抽屉中也添加 */}
+          <button
+            onClick={() => {
+              toggleDark();
+              setDrawerOpen(false);
+            }}
+            className="text-left text-black dark:text-white mb-2 flex items-center gap-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {item.label}
-            </Link>
-          ))}
+              {isDark ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
+              )}
+            </svg>
+            {isDark ? "切换到亮色" : "切换到暗色"}
+          </button>
         </div>
       </Drawer>
 
