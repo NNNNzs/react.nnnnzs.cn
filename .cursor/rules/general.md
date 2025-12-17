@@ -351,3 +351,7 @@ pnpm run build     # 生产构建
 ### 更新文档
 - 新功能开发完成后及时更新 `docs/` 目录
 - 保持文档与代码同步
+
+## 命令行
+- mac 使用zsh
+- windows 使用git bash，注意路径问题，例如当前项目路径是 /d/project/react.nnnnzs.cn

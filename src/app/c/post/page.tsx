@@ -346,7 +346,7 @@ function AdminPageContent() {
       key: 'stats',
       width: 150,
       render: (_: unknown, record: Post) => (
-        <Space direction="vertical" size="small">
+        <Space orientation="vertical" size="small">
           <span>👁️ {record.visitors || 0}</span>
           <span>❤️ {record.likes || 0}</span>
         </Space>

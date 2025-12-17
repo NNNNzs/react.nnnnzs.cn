@@ -12,6 +12,7 @@ import { MenuOutlined, GithubOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
+import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 
 export default function Header() {
   const pathname = usePathname();
@@ -22,6 +23,9 @@ export default function Header() {
   const returnTopRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const scrollBarRef = useRef<HTMLDivElement>(null);
+  
+  // 获取 Header 样式配置
+  const { headerStyle } = useHeaderStyle();
 
   // 暗色模式切换
   const toggleDark = () => {
@@ -161,11 +165,17 @@ export default function Header() {
       <div ref={returnTopRef}></div>
       <header
         ref={headerRef}
-        className="header fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white top-0 z-\[999]"
+        className={`header top-0 z-999 ${
+          headerStyle.static 
+            ? 'static bg-white dark:bg-slate-700 text-slate-900 dark:text-white' 
+            : 'fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white'
+        }`}
         style={
-          {
-            opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
-          } as React.CSSProperties
+          headerStyle.static
+            ? undefined
+            : ({
+                opacity: headerOpacity < 0.1 ? 0 : Math.max(headerOpacity, 0.6),
+              } as React.CSSProperties)
         }
       >
         <div className="container mx-auto h-full px-4">

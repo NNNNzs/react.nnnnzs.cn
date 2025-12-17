@@ -125,7 +125,7 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
         }
         className="w-full"
       >
-        <Space direction="vertical" size="middle" className="w-full">
+        <Space orientation="vertical" size="middle" className="w-full">
           <div className="flex items-center justify-between">
             <div>
               <Text strong>绑定状态</Text>

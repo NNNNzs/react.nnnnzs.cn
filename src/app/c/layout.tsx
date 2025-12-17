@@ -11,6 +11,7 @@ import { Layout, Menu, message } from "antd";
 import type { MenuProps } from "antd";
 import { FileTextOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 
 const { Sider, Content } = Layout;
 
@@ -42,6 +43,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
 
   /**
    * 检查登录状态
@@ -55,6 +57,22 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, router]);
 
   /**
+   * 后台页面统一控制 Header 样式：
+   * - 不使用 fixed，避免遮挡后台布局
+   * - 始终不透明，保证后台页面观感一致
+   */
+  useEffect(() => {
+    setHeaderStyle({
+      static: true,
+      alwaysVisible: true,
+    });
+
+    return () => {
+      resetHeaderStyle();
+    };
+  }, [setHeaderStyle, resetHeaderStyle]);
+
+  /**
    * 处理菜单点击
    */
   const handleMenuClick: MenuProps["onClick"] = (e) => {
@@ -64,24 +82,24 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 如果正在加载或未登录，显示加载状态
   if (loading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-[calc(100vh-var(--header-height))] items-center justify-center">
         <div>加载中...</div>
       </div>
     );
   }
 
   return (
-    <Layout className="h-screen">
+    <Layout className="h-[calc(100vh-var(--header-height))]">
       <Sider
         width={200}
         className="bg-white "
         theme="light"
         style={{
           overflow: "auto",
-          height: "100vh",
+          height: "calc(100vh - var(--header-height))",
           position: "fixed",
           left: 0,
-          top: 0,
+          top: "var(--header-height)",
           bottom: 0,
         }}
       >
@@ -95,11 +113,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           selectedKeys={[pathname]}
           items={menuItems}
           onClick={handleMenuClick}
-          className="h-[calc(100vh-64px)] border-r-0"
+          className="h-[calc(100vh-var(--header-height)-64px)] border-r-0"
         />
       </Sider>
-      <Layout className="ml-[200px]">
-        <Content className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 container mx-auto px-4 py-8 pt-10">
+      <Layout className="ml-[200px] h-full">
+        <Content className="h-full overflow-hidden bg-slate-50 dark:bg-slate-900 container mx-auto px-4 py-8">
           {children}
         </Content>
       </Layout>

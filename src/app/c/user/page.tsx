@@ -611,7 +611,7 @@ function UserPageContent() {
         styles={{
           header: { zIndex: 1001 },
           mask: { backgroundColor: "rgba(0, 0, 0, 0.45)" },
-          content: { zIndex: 1000 }
+          body: { zIndex: 1000 }
         }}
         destroyOnHidden
       >
