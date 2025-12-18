@@ -8,11 +8,15 @@ import React, { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
-import { MenuOutlined, GithubOutlined } from "@ant-design/icons";
+import { MenuOutlined, GithubOutlined, EditOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentPost } from "@/contexts/CurrentPostContext";
+import { useRouteMatch } from "@/hooks/useRouteMatch";
+import { buildEditPostPath } from "@/lib/routes";
 
 export default function Header() {
   const pathname = usePathname();
@@ -23,9 +27,27 @@ export default function Header() {
   const returnTopRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const scrollBarRef = useRef<HTMLDivElement>(null);
-  
+
   // 获取 Header 样式配置
   const { headerStyle } = useHeaderStyle();
+
+  // 获取当前登录用户
+  const { user } = useAuth();
+
+  // 使用路由匹配 Hook
+  const { isPostDetail } = useRouteMatch();
+
+  // 从 Context 获取当前文章信息
+  const { currentPost } = useCurrentPost();
+
+  // 检查是否应该显示编辑按钮
+  const shouldShowEditButton =
+    isPostDetail && currentPost && user && currentPost.created_by === user.id;
+
+  console.log(shouldShowEditButton, "shouldShowEditButton");
+  console.log(isPostDetail, "isPostDetail");
+  console.log(currentPost?.created_by, "currentPost.created_by");
+  console.log(JSON.stringify(user), "user");
 
   // 暗色模式切换
   const toggleDark = () => {
@@ -106,11 +128,11 @@ export default function Header() {
   const navItems = [
     { href: "/tags", label: "分类", type: "link" as const },
     { href: "/archives", label: "归档", type: "link" as const },
-    { 
-      href: "https://github.com/NNNNzs/nnnnzs.cn", 
-      label: "GitHub", 
+    {
+      href: "https://github.com/NNNNzs/nnnnzs.cn",
+      label: "GitHub",
       type: "external" as const,
-      icon: "github" as const
+      icon: "github" as const,
     },
   ];
 
@@ -166,9 +188,9 @@ export default function Header() {
       <header
         ref={headerRef}
         className={`header top-0 z-999 ${
-          headerStyle.static 
-            ? 'static bg-white dark:bg-slate-700 text-slate-900 dark:text-white' 
-            : 'fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white'
+          headerStyle.static
+            ? "static bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            : "fixed backdrop-blur-md bg-white text-slate-900 dark:bg-slate-700 dark:text-white"
         }`}
         style={
           headerStyle.static
@@ -222,6 +244,19 @@ export default function Header() {
                       </Link>
                     </li>
                   ))}
+
+                {/* 编辑按钮 - 仅在当前用户是文章创建人时显示 */}
+                {shouldShowEditButton && currentPost && (
+                  <li className="h-full mr-4">
+                    <Link
+                      href={buildEditPostPath(currentPost.id)}
+                      className="h-full flex items-center gap-1 relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-px after:bg-slate-900 dark:after:bg-white after:opacity-0 hover:after:opacity-50 transition-opacity"
+                    >
+                      <EditOutlined />
+                      编辑
+                    </Link>
+                  </li>
+                )}
               </ul>
 
               {/* 暗色模式切换 */}
@@ -334,7 +369,19 @@ export default function Header() {
               </Link>
             );
           })}
-          
+
+          {/* 编辑按钮 - 在移动端抽屉中显示 */}
+          {shouldShowEditButton && currentPost && (
+            <Link
+              href={buildEditPostPath(currentPost.id)}
+              className="text-black dark:text-white mb-2 flex items-center gap-2"
+              onClick={() => setDrawerOpen(false)}
+            >
+              <EditOutlined />
+              编辑
+            </Link>
+          )}
+
           {/* 暗色模式切换 - 在抽屉中也添加 */}
           <button
             onClick={() => {

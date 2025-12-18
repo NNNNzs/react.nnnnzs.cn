@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Avatar, Button, message, Typography, Space, Spin, Empty, Tabs } from 'antd';
+import { Card, Avatar, Button, message, Typography, Space, Spin, Empty, Tabs, Collapse } from 'antd';
 import { GithubOutlined, SendOutlined, LoginOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
@@ -23,6 +23,7 @@ dayjs.locale('zh-cn');
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 interface Comment {
   id: number;
@@ -245,7 +246,15 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           评论 {comments.length > 0 && `(${comments.length})`}
         </Title>
         
-        {renderCommentInput()}
+        <Collapse
+          defaultActiveKey={[]}
+          bordered={false}
+          className="mb-6"
+        >
+          <Panel header="写评论" key="comment-editor">
+            {renderCommentInput()}
+          </Panel>
+        </Collapse>
         
         {loading ? (
           <div className="py-12 text-center">

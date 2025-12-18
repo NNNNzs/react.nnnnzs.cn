@@ -76,7 +76,7 @@ function createMcpServer(headers: Headers) {
     version: "1.0.0"
   });
 
-  // Helper to ensure auth via Headers
+  // Helper to ensure auth via Headers，返回已认证用户信息
   const ensureAuth = async () => {
     // 优先从 Header 获取，也可以保留环境变量作为兜底
     const account = headers.get('x-mcp-account') || process.env.MCP_USER_ACCOUNT;
@@ -90,7 +90,8 @@ function createMcpServer(headers: Headers) {
     if (!result) {
         throw new Error("Authentication failed for MCP user");
     }
-    return result;
+    // 仅返回用户信息，后续用于 created_by 字段
+    return result.userInfo;
   };
 
   server.registerTool(
@@ -109,7 +110,7 @@ function createMcpServer(headers: Headers) {
       }
     },
     async (args) => {
-      await ensureAuth();
+      const user = await ensureAuth();
       // 处理 tags：清理空格，保持逗号分隔的字符串格式
       // createPost 会进一步处理并转换为数组或字符串
       const tagsValue = args.tags?.trim() || undefined;
@@ -117,6 +118,8 @@ function createMcpServer(headers: Headers) {
       const postData: Partial<import('@/generated/prisma-client').TbPost> = {
         ...args,
         tags: tagsValue,
+        // 使用 MCP 登录用户作为创建人
+        created_by: user.id,
       };
       const result = await createPost(postData);
       return {

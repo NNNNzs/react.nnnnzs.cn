@@ -5,6 +5,7 @@ import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
+import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
@@ -22,8 +23,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <AuthProvider>
-        <HeaderStyleProvider>
-          <AntdRegistry>
+        <CurrentPostProvider>
+          <HeaderStyleProvider>
+            <AntdRegistry>
             <ConfigProvider 
               locale={zhCN}
               theme={{
@@ -68,6 +70,7 @@ export default function RootLayout({
             </ConfigProvider>
           </AntdRegistry>
         </HeaderStyleProvider>
+        </CurrentPostProvider>
       </AuthProvider>
     </html>
   );

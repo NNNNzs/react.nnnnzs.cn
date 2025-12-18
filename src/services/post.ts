@@ -103,6 +103,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
         visitors: true,
         likes: true,
         hide: true,
+        created_by: true,
         // content 不在列表中返回
         content: false,
         is_delete: false,
@@ -275,6 +276,8 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
       is_delete: 0,
       visitors: 0,
       likes: 0,
+      // 创建人：允许上层传入，默认为空
+      created_by: data.created_by ?? null,
     },
   });
   

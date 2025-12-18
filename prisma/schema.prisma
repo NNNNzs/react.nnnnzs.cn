@@ -33,6 +33,10 @@ model TbPost {
   is_delete      Int       @default(0)
   github_issue_number Int?  // GitHub Issue 编号
   github_issue_id     Int?  // GitHub Issue ID
+  created_by     Int?      // 创建人ID，关联用户表
+
+  // 关联关系
+  creator        TbUser?   @relation(fields: [created_by], references: [id])
 
   @@map("tb_post")
 }
@@ -56,6 +60,9 @@ model TbUser {
   work_wechat_id     String?   @db.VarChar(255)
   wx_open_id         String?   @db.VarChar(255) // 微信小程序 openID
   status             Int       @default(1)
+
+  // 关联关系
+  posts              TbPost[]  // 创建的文章
 
   @@map("tb_user")
 }

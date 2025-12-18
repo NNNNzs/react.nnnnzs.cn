@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
   try {
     // 验证Token
     const token = getTokenFromRequest(request.headers);
-    if (!token || !(await validateToken(token))) {
+    const user = token ? await validateToken(token) : null;
+
+    if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
     }
 
@@ -52,7 +54,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await createPost(validationResult.data as Partial<import('@/generated/prisma-client').TbPost>);
+    const result = await createPost({
+      ...(validationResult.data as Partial<import('@/generated/prisma-client').TbPost>),
+      // 创建人使用当前登录用户
+      created_by: user.id,
+    });
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {

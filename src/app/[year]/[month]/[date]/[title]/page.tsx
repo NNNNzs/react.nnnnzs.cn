@@ -22,6 +22,7 @@ import PostLikeButton from "./PostLikeButton";
 import PostVisitorTracker from "./PostVisitorTracker";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import CommentSection from "@/components/CommentSection";
+import SetCurrentPost from "@/components/SetCurrentPost";
 import type { Post } from "@/types";
 
 interface PageProps {
@@ -70,6 +71,7 @@ const getPost = cache(
       console.log("🔍 数据库查询执行 - 文章路径:", path);
 
       const post = await getPostByPath(path);
+      console.log('post from server:', post);
 
       return post;
     } catch (error) {
@@ -142,6 +144,9 @@ export default async function PostDetail({ params }: PageProps) {
 
     return (
       <>
+        {/* 将文章信息传递给 Header 组件 */}
+        <SetCurrentPost post={post} />
+
         {/* 结构化数据（JSON-LD） */}
         <script
           type="application/ld+json"
