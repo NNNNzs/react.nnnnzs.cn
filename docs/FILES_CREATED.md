@@ -1,273 +1,236 @@
-# 📦 Docker 自动化部署 - 文件清单
+# 新增文件清单
 
-本文档列出了为实现 Docker 自动化部署所创建的所有文件。
+## Cursor Rules (数据库相关)
 
-## ✅ 已创建的文件
+### 1. 数据库开发规范
+**文件**: `.cursor/rules/database.md`  
+**说明**: 完整的数据库开发规范，包括：
+- Prisma Schema 定义规范
+- 手写 SQL 迁移脚本规范
+- 数据库操作最佳实践
+- 性能优化建议
+- 安全考虑
 
-### 1. GitHub Actions 工作流
-
-| 文件路径 | 说明 | 功能 |
-|---------|------|------|
-| `.github/workflows/docker-release.yml` | Docker 发布工作流 | 当推送到 release 分支时自动构建并推送镜像到 DockerHub |
-| `.github/workflows/docker-pr-check.yml` | PR 检查工作流 | PR 到 release 分支时进行 Docker 构建测试 |
-| `.github/PULL_REQUEST_TEMPLATE.md` | PR 模板 | 规范化 Pull Request 格式 |
-
-### 2. Docker 配置文件
-
-| 文件路径 | 说明 | 用途 |
-|---------|------|------|
-| `Dockerfile` | 开发环境 Dockerfile | 本地开发和测试 |
-| `Dockerfile.prod` | 生产环境 Dockerfile | GitHub Actions 构建，多阶段构建优化 |
-| `docker-compose.yml` | 开发环境 Compose | 本地 Docker 开发 |
-| `docker-compose.prod.yml` | 生产环境 Compose | 从 DockerHub 拉取镜像部署 |
-| `docker-entrypoint.sh` | 开发环境启动脚本 | 容器启动时执行 |
-| `docker-entrypoint-prod.sh` | 生产环境启动脚本 | 生产容器启动时执行 |
-
-### 3. 部署脚本
-
-| 文件路径 | 说明 | 功能 |
-|---------|------|------|
-| `scripts/deploy.sh` | 快速部署脚本 | 一键部署、更新、回滚等操作 |
-| `scripts/setup-secrets.sh` | 配置助手脚本 | 引导配置 GitHub Secrets |
-
-### 4. API 端点
-
-| 文件路径 | 说明 | 功能 |
-|---------|------|------|
-| `src/app/api/health/route.ts` | 健康检查 API | 用于 Docker 健康检查和服务监控 |
-
-### 5. 文档
-
-| 文件路径 | 说明 | 内容 |
-|---------|------|------|
-| `docs/DOCKER_DEPLOYMENT.md` | 完整部署指南 | 详细的配置和部署说明 |
-| `docs/QUICK_START.md` | 快速开始指南 | 5 分钟快速部署教程 |
-| `docs/FILES_CREATED.md` | 文件清单（本文档） | 列出所有创建的文件 |
-
-### 6. 配置文件更新
-
-| 文件路径 | 修改内容 |
-|---------|---------|
-| `README.md` | 添加 Docker 部署章节 |
-| `.env.example` | 添加 Docker 和 COS 配置说明 |
-
-## 📁 完整文件树
-
-```
-react.nnnnzs.cn/
-├── .github/
-│   ├── workflows/
-│   │   ├── docker-release.yml          # ✨ 新增：自动发布工作流
-│   │   └── docker-pr-check.yml         # ✨ 新增：PR 检查工作流
-│   └── PULL_REQUEST_TEMPLATE.md        # ✨ 新增：PR 模板
-├── docs/
-│   ├── DOCKER_DEPLOYMENT.md            # ✨ 新增：完整部署指南
-│   ├── QUICK_START.md                  # ✨ 新增：快速开始指南
-│   └── FILES_CREATED.md                # ✨ 新增：文件清单
-├── scripts/
-│   ├── deploy.sh                       # ✨ 新增：部署脚本
-│   └── setup-secrets.sh                # ✨ 新增：配置助手
-├── src/
-│   └── app/
-│       └── api/
-│           └── health/
-│               └── route.ts            # ✨ 新增：健康检查 API
-├── Dockerfile                          # 现有：开发环境
-├── Dockerfile.prod                     # ✨ 新增：生产环境（多阶段构建）
-├── docker-compose.yml                  # 现有：开发环境
-├── docker-compose.prod.yml             # ✨ 新增：生产环境
-├── docker-entrypoint.sh                # 现有：开发启动脚本
-├── docker-entrypoint-prod.sh           # ✨ 新增：生产启动脚本
-├── .env.example                        # 🔄 更新：添加配置说明
-└── README.md                           # 🔄 更新：添加 Docker 章节
-```
-
-## 🚀 下一步操作
-
-### 1. 配置 GitHub Secrets（必需）
-
-```bash
-# 使用自动化脚本（推荐）
-./scripts/setup-secrets.sh
-
-# 或手动配置：
-# 访问: https://github.com/你的用户名/你的仓库/settings/secrets/actions
-# 添加 DOCKERHUB_USERNAME 和 DOCKERHUB_TOKEN
-```
-
-### 2. 推送到 release 分支
-
-```bash
-# 创建 release 分支
-git checkout -b release
-
-# 提交所有新文件
-git add .
-git commit -m "feat: 添加 Docker 自动化部署支持"
-
-# 推送到远程
-git push origin release
-```
-
-### 3. 验证自动构建
-
-1. 访问 `https://github.com/你的用户名/你的仓库/actions`
-2. 查看 "Docker Release" 工作流是否成功运行
-3. 检查 DockerHub 是否有新的镜像
-
-### 4. 在服务器上部署
-
-```bash
-# 克隆仓库（或拉取最新代码）
-git clone https://github.com/你的用户名/你的仓库.git
-cd 你的仓库
-
-# 配置环境变量
-cp .env.example .env
-nano .env  # 修改数据库、Redis 等配置
-
-# 修改 docker-compose.prod.yml 中的镜像名称
-# 或设置环境变量
-export DOCKERHUB_USERNAME=你的dockerhub用户名
-
-# 运行部署
-./scripts/deploy.sh deploy
-
-# 查看日志
-./scripts/deploy.sh logs
-```
-
-## 📋 配置检查清单
-
-在推送到 release 分支之前，请确保：
-
-- [ ] 已注册 DockerHub 账号
-- [ ] 已创建 DockerHub Access Token
-- [ ] 已在 GitHub 设置 Secrets（DOCKERHUB_USERNAME 和 DOCKERHUB_TOKEN）
-- [ ] 已将所有新文件添加到 Git
-- [ ] 已测试本地 Docker 构建（可选）
-- [ ] 已更新 .env 文件（生产服务器）
-
-## 🔧 本地测试（可选）
-
-在推送到 GitHub 之前，可以在本地测试 Docker 构建：
-
-```bash
-# 测试生产环境 Dockerfile 构建
-docker build -f Dockerfile.prod -t react-nnnnzs-cn:test .
-
-# 运行测试容器
-docker run -d \
-  --name react-nnnnzs-cn-test \
-  -p 3301:3301 \
-  --env-file .env \
-  react-nnnnzs-cn:test
-
-# 查看日志
-docker logs -f react-nnnnzs-cn-test
-
-# 测试健康检查
-curl http://localhost:3301/api/health
-
-# 清理测试容器
-docker stop react-nnnnzs-cn-test
-docker rm react-nnnnzs-cn-test
-docker rmi react-nnnnzs-cn:test
-```
-
-## 📊 工作流程图
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    开发流程                              │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  1. 本地开发和测试                                       │
-│     git commit -m "feat: 新功能"                        │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  2. 推送到 release 分支                                  │
-│     git push origin release                             │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  3. GitHub Actions 自动触发                              │
-│     ├─ 检出代码                                         │
-│     ├─ 生成版本号                                       │
-│     ├─ 构建 Docker 镜像                                 │
-│     └─ 推送到 DockerHub                                 │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  4. 在服务器上部署                                       │
-│     ./scripts/deploy.sh deploy                          │
-│     ├─ 拉取最新镜像                                     │
-│     ├─ 停止旧容器                                       │
-│     ├─ 启动新容器                                       │
-│     └─ 健康检查                                         │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  5. 应用运行中                                           │
-│     监控日志、性能、错误                                 │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 🎯 功能特性
-
-本次添加的 Docker 自动化部署方案提供：
-
-### ✅ 自动化
-
-- ✅ 推送代码自动触发构建
-- ✅ 自动生成版本号
-- ✅ 自动推送到 DockerHub
-- ✅ 支持 amd64 平台构建
-
-### ✅ 版本管理
-
-- ✅ 支持语义化版本标签（v1.0.0）
-- ✅ 自动生成日期版本（v2024.11.28-abc1234）
-- ✅ 同时维护 latest 和版本标签
-- ✅ 支持快速回滚
-
-### ✅ 生产优化
-
-- ✅ 多阶段 Docker 构建（减小镜像体积）
-- ✅ 非 root 用户运行（安全性）
-- ✅ 健康检查支持
-- ✅ 构建缓存优化
-
-### ✅ 部署便利
-
-- ✅ 一键部署脚本
-- ✅ 自动化配置助手
-- ✅ 详细的文档和示例
-- ✅ 完整的错误处理
-
-## 🔗 相关链接
-
-- [GitHub Actions 文档](https://docs.github.com/en/actions)
-- [DockerHub](https://hub.docker.com/)
-- [Docker 最佳实践](https://docs.docker.com/develop/dev-best-practices/)
-- [Next.js Docker 部署](https://nextjs.org/docs/deployment#docker-image)
-
-## 💬 反馈
-
-如有任何问题或建议，请：
-
-1. 查看 [完整部署指南](./DOCKER_DEPLOYMENT.md)
-2. 查看 [快速开始指南](./QUICK_START.md)
-3. 提交 Issue 到项目仓库
+**核心原则**: ⚠️ **不使用 Prisma Migrate，必须手写 SQL 迁移脚本**
 
 ---
 
-**文档创建日期**: 2024年11月28日
-**最后更新**: 2024年11月28日
+## 迁移脚本
+
+### 2. 迁移脚本说明
+**文件**: `docs/migrations/README.md`  
+**说明**: 
+- 迁移文件命名规范
+- 迁移脚本模板
+- 执行和回滚方法
+- 最佳实践
+
+### 3. 初始数据库结构
+**文件**: `docs/migrations/20251218_001_initial_schema.sql`  
+**说明**: 创建所有基础表（用户、文章、评论、标签、配置、迁移记录）
+
+### 4. 示例迁移：添加字段
+**文件**: `docs/migrations/20251218_002_add_user_phone.sql`  
+**说明**: 为用户表添加手机号字段的示例
+
+### 5. 回滚脚本示例
+**文件**: `docs/migrations/rollback/20251218_002_rollback.sql`  
+**说明**: 回滚添加手机号字段的示例
+
+---
+
+## 工具脚本
+
+### 6. 迁移执行脚本
+**文件**: `scripts/run-migrations.sh`  
+**权限**: `chmod +x`  
+**功能**:
+- 自动检测待执行迁移
+- 支持开发/生产环境
+- 记录执行历史
+- 显示进度和耗时
+
+**使用方法**:
+```bash
+./scripts/run-migrations.sh dev    # 开发环境
+./scripts/run-migrations.sh prod   # 生产环境
+```
+
+### 7. 迁移状态检查脚本
+**文件**: `scripts/check-migrations.sh`  
+**权限**: `chmod +x`  
+**功能**:
+- 检查数据库连接
+- 显示迁移记录
+- 列出待执行迁移
+- 显示表结构信息
+
+**使用方法**:
+```bash
+./scripts/check-migrations.sh
+```
+
+---
+
+## 文档更新
+
+### 8. 数据库工作流程指南
+**文件**: `docs/DATABASE_WORKFLOW.md`  
+**说明**: 完整的工作流程，包括：
+- 添加字段的完整流程
+- 创建新表的步骤
+- 添加索引的方法
+- 数据迁移示例
+- 回滚操作
+- 常见问题解答
+
+### 9. 后端规范更新
+**文件**: `.cursor/rules/backend.md`  
+**更新内容**:
+- 添加数据库集成章节
+- 引用数据库规范文档
+- 添加数据库测试建议
+
+### 10. 脚本说明更新
+**文件**: `scripts/README.md`  
+**更新内容**:
+- 添加迁移脚本说明
+- 添加状态检查脚本说明
+- 更新脚本清单
+
+---
+
+## 目录结构
+
+```
+project/
+├── .cursor/rules/
+│   ├── backend.md          # 更新：添加数据库章节
+│   └── database.md         # 新增：数据库开发规范
+│
+├── docs/
+│   ├── DATABASE_WORKFLOW.md    # 新增：工作流程指南
+│   ├── migrations/
+│   │   ├── README.md            # 新增：迁移说明
+│   │   ├── 20251218_001_initial_schema.sql
+│   │   ├── 20251218_002_add_user_phone.sql
+│   │   └── rollback/
+│   │       └── 20251218_002_rollback.sql
+│   └── FILES_CREATED.md         # 更新：本文件
+│
+├── scripts/
+│   ├── README.md           # 更新：添加迁移脚本说明
+│   ├── run-migrations.sh   # 新增：迁移执行脚本
+│   └── check-migrations.sh # 新增：状态检查脚本
+│
+└── prisma/
+    └── schema.prisma       # 现有：Prisma Schema
+```
+
+---
+
+## 快速开始
+
+### 首次使用
+
+1. **查看数据库规范**
+   ```bash
+   # 阅读数据库开发规范
+   cat .cursor/rules/database.md
+   ```
+
+2. **检查迁移状态**
+   ```bash
+   ./scripts/check-migrations.sh
+   ```
+
+3. **执行初始迁移**
+   ```bash
+   # 如果是新数据库
+   mysql -u root -p react_blog < docs/migrations/20251218_001_initial_schema.sql
+   ```
+
+### 日常开发
+
+1. **修改 Schema**
+   ```bash
+   vim prisma/schema.prisma
+   pnpm prisma generate
+   ```
+
+2. **编写迁移脚本**
+   ```bash
+   vim docs/migrations/20251218_XXX_description.sql
+   ```
+
+3. **测试迁移**
+   ```bash
+   mysql -u root -p react_blog < docs/migrations/20251218_XXX_description.sql
+   ```
+
+4. **检查状态**
+   ```bash
+   ./scripts/check-migrations.sh
+   ```
+
+5. **更新代码**
+   ```bash
+   vim src/services/xxx.ts
+   ```
+
+---
+
+## 核心原则回顾
+
+### ✅ 必须做的
+1. **手写 SQL 迁移脚本**
+2. **使用事务保证原子性**
+3. **检查字段/表是否存在**
+4. **记录迁移执行历史**
+5. **测试回滚脚本**
+
+### ❌ 禁止做的
+1. **不使用 Prisma Migrate**
+2. **不直接修改生产数据库**
+3. **不删除字段（软删除）**
+4. **不修改主键**
+5. **不跳过事务**
+
+---
+
+## 常用命令速查
+
+```bash
+# 检查迁移状态
+./scripts/check-migrations.sh
+
+# 执行迁移
+./scripts/run-migrations.sh dev
+
+# 查看表结构
+mysql -u root -p -e "DESCRIBE tb_user;" react_blog
+
+# 查看迁移历史
+mysql -u root -p -e "SELECT * FROM tb_migration_history;" react_blog
+
+# 生成 Prisma Client
+pnpm prisma generate
+
+# 查看 Schema
+pnpm prisma studio
+```
+
+---
+
+## 相关资源
+
+- **数据库规范**: `.cursor/rules/database.md`
+- **工作流程**: `docs/DATABASE_WORKFLOW.md`
+- **迁移说明**: `docs/migrations/README.md`
+- **后端规范**: `.cursor/rules/backend.md`
+- **脚本说明**: `scripts/README.md`
+
+---
+
+**创建日期**: 2025-12-18  
+**最后更新**: 2025-12-18

@@ -810,6 +810,49 @@ if (process.env.NODE_ENV === 'production') {
 }
 ```
 
+## 数据库集成
+
+### 数据库操作规范
+本项目使用 Prisma 作为 ORM，但**不使用 Prisma Migrate**，而是手写 SQL 迁移脚本。
+
+详细规范请参考：[数据库开发规范](database.md)
+
+#### 快速参考
+- **Schema**: `prisma/schema.prisma`
+- **迁移脚本**: `docs/migrations/`
+- **客户端**: `src/generated/prisma-client/`
+- **服务层**: `src/services/`
+
+#### 常用命令
+```bash
+# 生成 Prisma Client
+pnpm prisma generate
+
+# 查看 Schema
+pnpm prisma studio
+
+# 数据库推送（开发环境）
+pnpm prisma db push
+```
+
+#### 数据库操作示例
+```typescript
+// 服务层示例
+export async function getUserById(id: bigint) {
+  const prisma = await getPrisma()
+  
+  return await prisma.tbUser.findUnique({
+    where: { id, is_delete: 0 },
+    select: {
+      id: true,
+      username: true,
+      nickname: true,
+      // 不返回敏感字段
+    },
+  })
+}
+```
+
 ## 测试建议
 
 ### API 测试
@@ -817,3 +860,9 @@ if (process.env.NODE_ENV === 'production') {
 - 测试边界条件
 - 测试错误处理
 - 测试权限验证
+
+### 数据库测试
+- 测试迁移脚本执行
+- 验证数据完整性
+- 测试事务回滚
+- 验证索引性能
