@@ -16,14 +16,14 @@ import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentPost } from "@/contexts/CurrentPostContext";
 import { useRouteMatch } from "@/hooks/useRouteMatch";
+import { useDarkMode } from "@/hooks/useDarkMode";
+import { useScrollProgress } from "@/hooks/useScrollProgress";
+import { useConfig } from "@/hooks/useConfig";
 import { buildEditPostPath } from "@/lib/routes";
 
 export default function Header() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [headerOpacity, setHeaderOpacity] = useState(0);
   const returnTopRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const scrollBarRef = useRef<HTMLDivElement>(null);
@@ -40,82 +40,31 @@ export default function Header() {
   // 从 Context 获取当前文章信息
   const { currentPost } = useCurrentPost();
 
+  // 暗色模式
+  const { isDark, toggleDark } = useDarkMode();
+
+  // 滚动进度与 Header 透明度
+  const { scrollProgress, headerOpacity } = useScrollProgress(pathname);
+
   // 检查是否应该显示编辑按钮
   const shouldShowEditButton =
     isPostDetail && currentPost && user && currentPost.created_by === user.id;
 
-  console.log(shouldShowEditButton, "shouldShowEditButton");
-  console.log(isPostDetail, "isPostDetail");
-  console.log(currentPost?.created_by, "currentPost.created_by");
-  console.log(JSON.stringify(user), "user");
-
-  // 暗色模式切换
-  const toggleDark = () => {
-    const newIsDark = !isDark;
-    setIsDark(newIsDark);
-    if (newIsDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+  // 根据滚动进度与透明度更新 CSS 变量
+  useEffect(() => {
+    if (scrollBarRef.current) {
+      scrollBarRef.current.style.setProperty(
+        "--percent",
+        `${scrollProgress}%`
+      );
     }
-  };
-
-  // 初始化主题
-  useEffect(() => {
-    const initTheme = () => {
-      const theme =
-        localStorage.getItem("theme") ||
-        (window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light");
-      const dark = theme === "dark";
-      setIsDark(dark);
-      if (dark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    };
-
-    // 使用 requestAnimationFrame 避免同步 setState
-    requestAnimationFrame(initTheme);
-  }, []);
-
-  // 滚动处理
-  useEffect(() => {
-    const handleScroll = () => {
-      const y = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-
-      // 计算滚动进度
-      const percent = ((y > 0 ? y + windowHeight : 0) / documentHeight) * 100;
-      setScrollProgress(percent);
-
-      // 计算 header 透明度
-      const opacity = Math.min(y / windowHeight, 1);
-      setHeaderOpacity(opacity);
-
-      // 更新 CSS 变量
-      if (scrollBarRef.current) {
-        scrollBarRef.current.style.setProperty("--percent", `${percent}%`);
-      }
-      if (headerRef.current) {
-        headerRef.current.style.setProperty(
-          "--header-opacity",
-          opacity.toString()
-        );
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    // 初始调用，确保路径变化后状态正确
-    handleScroll();
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [pathname]);
+    if (headerRef.current) {
+      headerRef.current.style.setProperty(
+        "--header-opacity",
+        headerOpacity.toString()
+      );
+    }
+  }, [scrollProgress, headerOpacity]);
 
   // 返回顶部
   const returnTop = () => {
@@ -136,51 +85,18 @@ export default function Header() {
     },
   ];
 
-  // Algolia 配置
-  const [algoliaAppId, setAlgoliaAppId] = useState<string>("");
-  const [algoliaApiKey, setAlgoliaApiKey] = useState<string>("");
-  const [algoliaIndexName, setAlgoliaIndexName] = useState<string>("");
+  // Algolia 配置 - 使用通用配置 Hook 获取
+  const ALGOLIA_CONFIG_KEYS = [
+    "algolia_app_id",
+    "algolia_api_key",
+    "algolia_index_name",
+  ] as const;
 
-  // 从配置服务获取 Algolia 配置
-  useEffect(() => {
-    const fetchAlgoliaConfig = async () => {
-      try {
-        const keys = [
-          "algolia_app_id",
-          "algolia_api_key",
-          "algolia_index_name",
-        ];
-        const [appIdRes, apiKeyRes, indexNameRes] = await Promise.all(
-          keys.map((key) => fetch(`/api/config/key/${key}`))
-        );
+  const { values: algoliaConfig } = useConfig(ALGOLIA_CONFIG_KEYS);
 
-        if (appIdRes.ok) {
-          const appIdData = await appIdRes.json();
-          if (appIdData.status && appIdData.data?.value) {
-            setAlgoliaAppId(appIdData.data.value);
-          }
-        }
-
-        if (apiKeyRes.ok) {
-          const apiKeyData = await apiKeyRes.json();
-          if (apiKeyData.status && apiKeyData.data?.value) {
-            setAlgoliaApiKey(apiKeyData.data.value);
-          }
-        }
-
-        if (indexNameRes.ok) {
-          const indexNameData = await indexNameRes.json();
-          if (indexNameData.status && indexNameData.data?.value) {
-            setAlgoliaIndexName(indexNameData.data.value);
-          }
-        }
-      } catch (error) {
-        console.error("获取 Algolia 配置失败:", error);
-      }
-    };
-
-    fetchAlgoliaConfig();
-  }, []);
+  const algoliaAppId = algoliaConfig.algolia_app_id;
+  const algoliaApiKey = algoliaConfig.algolia_api_key;
+  const algoliaIndexName = algoliaConfig.algolia_index_name;
 
   return (
     <>
