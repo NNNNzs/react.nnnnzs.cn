@@ -2,6 +2,7 @@
  * 博客文章详情API
  * GET /api/post/[id]
  * PUT /api/post/[id]
+ * PATCH /api/post/[id]
  * DELETE /api/post/[id]
  */
 
@@ -108,6 +109,60 @@ export async function PUT(
   } catch (error) {
     console.error('更新文章失败:', error);
     return NextResponse.json(errorResponse('更新文章失败'), { status: 500 });
+  }
+}
+
+/**
+ * 部分更新文章
+ */
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    // 验证Token
+    const token = getTokenFromRequest(request.headers);
+    if (!token || !(await validateToken(token))) {
+      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // 检查是否有要更新的字段
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json(
+        errorResponse('请求体不能为空，至少需要提供一个要更新的字段'),
+        { status: 400 }
+      );
+    }
+
+    // 使用Zod验证输入（允许部分字段）
+    const validationResult = updatePostSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ');
+      return NextResponse.json(
+        errorResponse(`输入验证失败: ${errorMessages}`),
+        { status: 400 }
+      );
+    }
+
+    const { id } = await context.params;
+
+    const updatedPost = await updatePost(
+      Number(id),
+      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>
+    );
+
+    if (!updatedPost) {
+      return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    return NextResponse.json(successResponse(updatedPost));
+  } catch (error) {
+    console.error('部分更新文章失败:', error);
+    return NextResponse.json(errorResponse('部分更新文章失败'), { status: 500 });
   }
 }
 

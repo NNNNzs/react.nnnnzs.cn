@@ -1,0 +1,301 @@
+---
+description: "通用开发规范 - 适用于所有文件"
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# 通用开发规范
+
+## 项目概述
+
+基于 Next.js 16 的全栈博客项目，使用 TypeScript、Prisma、Ant Design 和 Tailwind CSS 构建。
+
+## 技术栈
+
+### 核心框架
+- Next.js 16.0.8 (App Router)
+- React 19.2.1
+- TypeScript 5.9.3 (严格模式)
+- Node.js >= 18.x
+- 包管理器：pnpm
+
+### UI 和样式
+- Ant Design 6.1.1
+- Tailwind CSS 4.1.17
+- CSS Modules 支持
+
+### 数据层
+- 数据库：MySQL 5.7+
+- ORM：Prisma 6.2.1（不使用 Prisma Migrate，手写 SQL 迁移）
+- 缓存：Redis (ioredis)
+
+### 其他工具库
+- Axios：HTTP 客户端
+- dayjs：日期处理
+- lodash-es：工具函数库
+- bcrypt：密码加密
+- zod：运行时类型验证
+
+## 文件组织
+
+- `src/app/` - Next.js App Router 路由和页面
+- `src/components/` - 可复用的 React 组件
+- `src/app/api/` - Next.js API 路由处理程序
+- `prisma/` - Prisma schema 定义
+- `src/dto/` - 数据传输对象和类型定义
+- `src/lib/` - 工具函数、配置和数据库连接
+- `src/services/` - 业务逻辑和数据库操作
+- `src/contexts/` - React Context 提供者
+- `src/types/` - TypeScript 类型定义
+- `docs/` - 项目文档
+- `.cursor/rules/` - Cursor 编辑器规范文件（MDC 格式）
+
+### ⚠️ 项目结构变更规范
+
+**重要：当涉及到项目目录结构或架构变更时，必须及时更新规范文件**
+
+变更需要更新规范的情况：
+1. **新增目录** - 在项目中创建新的目录结构
+2. **删除目录** - 移除现有的目录或模块
+3. **重命名目录** - 修改目录或文件的命名约定
+4. **调整架构** - 改变代码组织方式或分层结构
+5. **新增技术栈** - 引入新的框架、库或工具
+6. **修改开发流程** - 改变构建、测试或部署流程
+
+更新步骤：
+1. 完成代码变更后，立即检查相关规范文件
+2. 更新受影响的 `.cursor/rules/*.mdc` 文件
+3. 确保规范文件与实际项目结构保持一致
+4. 在 commit message 中注明规范文件的更新
+
+**规范文件位置：**
+- `general.mdc` - 通用规范和项目结构
+- `frontend.mdc` - 前端组件和页面规范
+- `backend.mdc` - API 路由和服务层规范
+- `database.mdc` - 数据库和 ORM 规范
+
+示例：
+```bash
+# 添加新目录时
+mkdir src/hooks
+# 应立即更新 general.mdc 的"文件组织"部分，添加：
+# - `src/hooks/` - React 自定义 Hooks
+
+# 提交时注明
+git commit -m "feat: 添加 hooks 目录并更新规范文件"
+```
+
+## TypeScript 规范
+
+### 严格模式
+- 启用 TypeScript 严格模式
+- 禁止使用 `any`，必须明确类型定义
+- 使用 `unknown` 代替 `any` 处理未知类型
+
+### 路径别名
+- 使用 `@/*` 指向 `./src/*`
+- 禁止使用相对路径引用跨目录模块
+
+```typescript
+// ✅ 正确
+import { User } from '@/types'
+import { getUserById } from '@/services/user'
+
+// ❌ 错误
+import { User } from '../../types'
+```
+
+## 命名规范
+
+- **文件**：
+  - 组件：PascalCase (如 `Header.tsx`)
+  - 工具函数：kebab-case (如 `auth.ts`)
+  - 路由文件：Next.js 约定 (`page.tsx`, `layout.tsx`, `route.ts`)
+- **变量/函数**：camelCase (如 `getUserInfo`)
+- **常量**：UPPER_SNAKE_CASE (如 `API_BASE_URL`)
+- **类型/接口**：PascalCase (如 `User`, `ApiResponse`)
+- **布尔值**：使用清晰前缀 (`isLoading`, `hasPermission`, `canEdit`)
+
+## 导入顺序
+
+按以下顺序组织导入：
+
+1. React 和 Next.js 核心
+2. 第三方库
+3. UI组件库 (Ant Design)
+4. 项目内部模块 (`@/...`)
+5. 类型定义
+6. 样式文件
+
+```typescript
+// 1. React 和 Next.js
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+// 2. 第三方库
+import axios from 'axios'
+import dayjs from 'dayjs'
+
+// 3. UI组件库
+import { Button, Form } from 'antd'
+
+// 4. 项目内部模块
+import { getUserInfo } from '@/services/user'
+
+// 5. 类型定义
+import type { User } from '@/types'
+
+// 6. 样式
+import styles from './styles.module.css'
+```
+
+## 注释规范
+
+- **语言**：所有注释和文档使用中文
+- **JSDoc**：所有函数、类、组件必须包含 JSDoc 注释
+- **行内注释**：复杂逻辑必须添加说明
+
+```typescript
+/**
+ * 获取用户信息
+ * @param userId 用户ID
+ * @returns 用户信息对象
+ */
+async function getUserInfo(userId: string): Promise<User> {
+  // 从缓存中获取用户信息
+  const cachedUser = await redis.get(`user:${userId}`)
+  if (cachedUser) return JSON.parse(cachedUser)
+
+  // 缓存不存在，从数据库查询
+  const user = await prisma.tbUser.findUnique({ where: { id: userId } })
+
+  return user
+}
+```
+
+## 环境变量
+
+### 命名规范
+- 服务端：`VARIABLE_NAME`
+- 客户端：`NEXT_PUBLIC_VARIABLE_NAME`
+
+### 关键环境变量
+```bash
+# 数据库
+DATABASE_URL=mysql://user:password@host:port/database
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_REDIRECT_URI=
+
+# 微信登录
+WECHAT_CORP_ID=
+WECHAT_AGENT_ID=
+WECHAT_SECRET=
+```
+
+## Git 规范
+
+### Commit Message
+使用语义化提交信息：
+- `feat`: 新功能
+- `fix`: 修复Bug
+- `docs`: 文档更新
+- `style`: 代码格式调整
+- `refactor`: 重构
+- `perf`: 性能优化
+- `test`: 测试相关
+- `chore`: 构建/工具链更新
+
+示例：
+```bash
+feat: 添加文章评论功能
+fix: 修复用户登录状态丢失问题
+docs: 更新API文档
+refactor: 重构文章服务层代码
+```
+
+## 错误处理
+
+### API 错误处理
+```typescript
+try {
+  const result = await someAsyncOperation()
+  return NextResponse.json({
+    status: true,
+    message: '操作成功',
+    data: result
+  })
+} catch (error) {
+  console.error('操作失败:', error)
+  return NextResponse.json({
+    status: false,
+    message: error instanceof Error ? error.message : '操作失败',
+    data: null
+  }, { status: 500 })
+}
+```
+
+### 客户端错误处理
+```typescript
+try {
+  const response = await axios.get('/api/user/info')
+  if (response.data.status) {
+    // 处理成功逻辑
+  }
+} catch (error) {
+  if (axios.isAxiosError(error)) {
+    message.error(error.response?.data?.message || '请求失败')
+  } else {
+    message.error('发生未知错误')
+  }
+}
+```
+
+## 性能优化
+
+- 使用 Next.js `Image` 组件优化图片
+- 合理使用 `React.memo`、`useMemo`、`useCallback`
+- 已启用 React Compiler (`reactCompiler: true`)
+- 使用 `dynamic` 进行代码分割
+- Redis 缓存热点数据
+
+## 安全规范
+
+### 密码安全
+- 使用 bcrypt 加密存储密码，Salt rounds >= 10
+
+### Token 安全
+- Token 存储在 Redis，设置合理过期时间
+- Token 传输使用 HTTP-only Cookie
+
+### 输入验证
+- 所有用户输入必须验证
+- 使用 zod 进行运行时类型检查
+- Prisma 自动防护 SQL 注入
+- 防止 XSS 攻击
+
+## 部署规范
+
+### 构建检查
+```bash
+pnpm run lint      # ESLint 检查
+pnpm run typecheck # TypeScript 类型检查
+pnpm run build     # 生产构建
+```
+
+### 重要注意事项
+- 客户端组件不能直接使用 Prisma Client，需要通过 API 路由
+- 修改 Prisma Schema 后必须运行 `pnpm prisma generate`
+- 注意 Next.js 16 和 React 19 的新特性
+- Prisma 在 Docker 环境中需要正确的 binaryTargets 配置
+
+## 命令行环境
+- macOS 使用 zsh
+- Windows 使用 git bash，注意路径问题（如 `/d/project/react.nnnnzs.cn`）

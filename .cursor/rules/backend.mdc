@@ -1,0 +1,350 @@
+---
+description: "后端开发规范 - API 路由和服务层"
+globs: ["src/app/api/**/*.ts", "src/services/**/*.ts", "src/lib/**/*.ts"]
+alwaysApply: false
+---
+
+# 后端开发规范
+
+## API 路由规范
+
+### 路由结构
+- 位置：`src/app/api/` 目录
+- 文件名：`route.ts`
+- HTTP 方法：GET, POST, PUT, DELETE, PATCH
+
+```typescript
+/**
+ * 用户信息API
+ * GET /api/user/info
+ */
+import { NextRequest, NextResponse } from 'next/server'
+import { getUserFromToken } from '@/lib/auth'
+import { successResponse, errorResponse } from '@/dto/response.dto'
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getUserFromToken(request)
+    if (!user) {
+      return NextResponse.json(errorResponse('未登录'), { status: 401 })
+    }
+
+    const userInfo = await getUserInfo(user.id)
+    return NextResponse.json(successResponse(userInfo, '获取成功'))
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    return NextResponse.json(
+      errorResponse('获取用户信息失败'),
+      { status: 500 }
+    )
+  }
+}
+```
+
+### 动态路由参数
+```typescript
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params
+  // 处理逻辑
+}
+```
+
+## 响应格式规范
+
+### 统一响应格式
+```typescript
+// src/dto/response.dto.ts
+export interface ApiResponse<T = unknown> {
+  status: boolean      // true: 成功, false: 失败
+  message: string      // 提示信息
+  data: T | null       // 响应数据
+}
+
+export function successResponse<T>(data: T, message = '操作成功'): ApiResponse<T> {
+  return { status: true, message, data }
+}
+
+export function errorResponse(message = '操作失败', data: unknown = null): ApiResponse {
+  return { status: false, message, data }
+}
+```
+
+### HTTP 状态码
+- **200**: 成功
+- **201**: 创建成功
+- **400**: 请求参数错误
+- **401**: 未授权/未登录
+- **403**: 无权限
+- **404**: 资源不存在
+- **500**: 服务器错误
+
+## 服务层规范
+
+### 服务层组织
+- 位置：`src/services/` 目录
+- 命名：按业务模块命名（如 `post.ts`, `user.ts`）
+- 职责：封装业务逻辑和数据库操作
+
+```typescript
+// src/services/post.ts
+import { getPrisma } from '@/lib/prisma'
+
+/**
+ * 获取文章列表
+ */
+export async function getPostList(params: {
+  pageNum?: number
+  pageSize?: number
+  hide?: string
+}) {
+  const { pageNum = 1, pageSize = 10, hide = '0' } = params
+  const prisma = await getPrisma()
+
+  const where = {
+    is_delete: 0,
+    ...(hide !== 'all' && { hide }),
+  }
+
+  const [record, total] = await Promise.all([
+    prisma.tbPost.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      take: pageSize,
+      skip: (pageNum - 1) * pageSize,
+    }),
+    prisma.tbPost.count({ where }),
+  ])
+
+  return { record, total, pageNum, pageSize }
+}
+```
+
+## 认证和授权
+
+### Token 认证
+```typescript
+// src/lib/auth.ts
+import { NextRequest } from 'next/server'
+import { getRedis } from '@/lib/redis'
+
+export const TOKEN_KEY = 'auth_token'
+
+/**
+ * 从请求中获取用户信息
+ */
+export async function getUserFromToken(request: NextRequest) {
+  const token = request.cookies.get(TOKEN_KEY)?.value
+  if (!token) return null
+
+  const redis = await getRedis()
+  const userStr = await redis.get(`token:${token}`)
+  if (!userStr) return null
+
+  return JSON.parse(userStr)
+}
+
+/**
+ * 验证用户权限
+ */
+export async function checkPermission(
+  request: NextRequest,
+  requiredRole: string
+): Promise<boolean> {
+  const user = await getUserFromToken(request)
+  if (!user) return false
+
+  return user.role === requiredRole || user.role === 'admin'
+}
+```
+
+## 数据验证
+
+### 使用 Zod 验证
+```typescript
+import { z } from 'zod'
+
+const createPostSchema = z.object({
+  title: z.string().min(1, '标题不能为空').max(100, '标题不能超过100个字符'),
+  content: z.string().min(1, '内容不能为空'),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  hide: z.enum(['0', '1']).default('0'),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const validatedData = createPostSchema.parse(body)
+
+    const post = await createPost(validatedData)
+    return NextResponse.json(successResponse(post, '创建成功'))
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        errorResponse(error.errors[0].message),
+        { status: 400 }
+      )
+    }
+    return NextResponse.json(errorResponse('创建失败'), { status: 500 })
+  }
+}
+```
+
+## 缓存策略
+
+### Redis 缓存
+```typescript
+import { getRedis } from '@/lib/redis'
+
+/**
+ * 获取用户信息（带缓存）
+ */
+export async function getUserInfo(userId: string) {
+  const redis = await getRedis()
+  const cacheKey = `user:${userId}`
+
+  // 1. 尝试从缓存获取
+  const cached = await redis.get(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  // 2. 从数据库查询
+  const prisma = await getPrisma()
+  const user = await prisma.tbUser.findUnique({ where: { id: userId } })
+  if (!user) return null
+
+  // 3. 写入缓存（24小时过期）
+  await redis.setex(cacheKey, 86400, JSON.stringify(user))
+
+  return user
+}
+```
+
+## 错误处理
+
+### 分层错误处理
+```typescript
+// 业务错误类
+export class BusinessError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 400
+  ) {
+    super(message)
+    this.name = 'BusinessError'
+  }
+}
+
+// 服务层抛出错误
+export async function createPost(data: PostData) {
+  if (!data.title) {
+    throw new BusinessError('标题不能为空', 400)
+  }
+
+  const existing = await getPostByTitle(data.title)
+  if (existing) {
+    throw new BusinessError('标题已存在', 409)
+  }
+
+  return await prisma.tbPost.create({ data })
+}
+
+// API 路由捕获错误
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const post = await createPost(body)
+    return NextResponse.json(successResponse(post, '创建成功'))
+  } catch (error) {
+    if (error instanceof BusinessError) {
+      return NextResponse.json(
+        errorResponse(error.message),
+        { status: error.statusCode }
+      )
+    }
+
+    console.error('创建文章失败:', error)
+    return NextResponse.json(errorResponse('创建文章失败'), { status: 500 })
+  }
+}
+```
+
+## 性能优化
+
+### 数据库查询优化
+```typescript
+// ✅ 并行查询
+const [posts, count] = await Promise.all([
+  prisma.tbPost.findMany({ where }),
+  prisma.tbPost.count({ where }),
+])
+
+// ✅ 只查询需要的字段
+const posts = await prisma.tbPost.findMany({
+  select: {
+    id: true,
+    title: true,
+    date: true,
+    // 不查询 content 字段
+  },
+})
+
+// ✅ 使用 include 避免 N+1 查询
+const posts = await prisma.tbPost.findMany({
+  include: {
+    user: true,
+  },
+})
+```
+
+## 安全规范
+
+### 密码安全
+```typescript
+import bcrypt from 'bcryptjs'
+
+// 密码加密
+const hashedPassword = await bcrypt.hash(password, 10)
+
+// 密码验证
+const isValid = await bcrypt.compare(password, hashedPassword)
+```
+
+### 敏感信息保护
+```typescript
+// ✅ 不返回敏感字段
+const user = await prisma.tbUser.findUnique({
+  where: { id },
+  select: {
+    id: true,
+    nickname: true,
+    avatar: true,
+    // 不返回 password 字段
+  },
+})
+
+// ✅ 使用环境变量
+const secret = process.env.JWT_SECRET
+```
+
+## 数据库集成
+
+### 数据库操作规范
+本项目使用 Prisma 作为 ORM，但**不使用 Prisma Migrate**，而是手写 SQL 迁移脚本。
+
+详细规范请参考：`database.mdc`
+
+#### 常用命令
+```bash
+# 生成 Prisma Client
+pnpm prisma generate
+
+# 查看 Schema
+pnpm prisma studio
+
+# 数据库推送（开发环境）
+pnpm prisma db push
+```

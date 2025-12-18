@@ -93,24 +93,27 @@ function createMcpServer(headers: Headers) {
     return result;
   };
 
-  server.tool(
+  server.registerTool(
     "create_article",
-    "Create a new blog article",
     {
-      title: z.string().describe("Article title"),
-      content: z.string().describe("Article content (Markdown)"),
-      category: z.string().optional().describe("Article category"),
-      tags: z.string().optional().describe("Comma separated tags"),
-      description: z.string().optional().describe("Short description"),
-      cover: z.string().optional().describe("Cover image URL"),
-      hide: z.string().optional().describe("'1' to hide, '0' to show")
+      title: "Create article",
+      description: "Create a new blog article",
+      inputSchema: {
+        title: z.string().describe("Article title"),
+        content: z.string().describe("Article content (Markdown)"),
+        category: z.string().optional().describe("Article category"),
+        tags: z.string().optional().describe("Comma separated tags"),
+        description: z.string().optional().describe("Short description"),
+        cover: z.string().optional().describe("Cover image URL"),
+        hide: z.string().optional().describe("'1' to hide, '0' to show")
+      }
     },
     async (args) => {
       await ensureAuth();
       // 处理 tags：清理空格，保持逗号分隔的字符串格式
       // createPost 会进一步处理并转换为数组或字符串
       const tagsValue = args.tags?.trim() || undefined;
-      
+
       const postData: Partial<import('@/generated/prisma-client').TbPost> = {
         ...args,
         tags: tagsValue,
@@ -122,18 +125,21 @@ function createMcpServer(headers: Headers) {
     }
   );
 
-  server.tool(
+  server.registerTool(
     "update_article",
-    "Update an existing blog article",
     {
-      id: z.number().describe("Article ID"),
-      title: z.string().optional(),
-      content: z.string().optional(),
-      category: z.string().optional(),
-      tags: z.string().optional(),
-      description: z.string().optional(),
-      cover: z.string().optional(),
-      hide: z.string().optional()
+      title: "Update article",
+      description: "Update an existing blog article",
+      inputSchema: {
+        id: z.number().describe("Article ID"),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        category: z.string().optional(),
+        tags: z.string().optional(),
+        description: z.string().optional(),
+        cover: z.string().optional(),
+        hide: z.string().optional()
+      }
     },
     async (args) => {
       await ensureAuth();
@@ -151,78 +157,92 @@ function createMcpServer(headers: Headers) {
     }
   );
 
-  server.tool(
-      "delete_article",
-      "Delete (soft delete) an article",
-      { id: z.number().describe("Article ID") },
-      async ({ id }) => {
-          await ensureAuth();
-          const success = await deletePost(id);
-          return {
-              content: [{ type: "text", text: success ? "Deleted successfully" : "Failed to delete" }]
-          };
+  server.registerTool(
+    "delete_article",
+    {
+      title: "Delete article",
+      description: "Delete (soft delete) an article",
+      inputSchema: {
+        id: z.number().describe("Article ID")
       }
+    },
+    async ({ id }) => {
+      await ensureAuth();
+      const success = await deletePost(id);
+      return {
+        content: [{ type: "text", text: success ? "Deleted successfully" : "Failed to delete" }]
+      };
+    }
   );
 
-  server.tool(
-      "get_article",
-      "Get article details by ID or Title",
-      { 
-          id: z.number().optional().describe("Article ID"),
-          title: z.string().optional().describe("Article Title (if ID not provided)")
-      },
-      async ({ id, title }) => {
-          await ensureAuth();
-          let result;
-          if (id) {
-              result = await getPostById(id);
-          } else if (title) {
-              result = await getPostByTitle(title);
-          } else {
-              return { isError: true, content: [{ type: "text", text: "Must provide id or title" }] };
-          }
-          
-          if (!result) return { isError: true, content: [{ type: "text", text: "Not found" }] };
-          return {
-              content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-          };
+  server.registerTool(
+    "get_article",
+    {
+      title: "Get article",
+      description: "Get article details by ID or Title",
+      inputSchema: {
+        id: z.number().optional().describe("Article ID"),
+        title: z.string().optional().describe("Article Title (if ID not provided)")
       }
+    },
+    async ({ id, title }) => {
+      await ensureAuth();
+      let result;
+      if (id) {
+        result = await getPostById(id);
+      } else if (title) {
+        result = await getPostByTitle(title);
+      } else {
+        return { isError: true, content: [{ type: "text", text: "Must provide id or title" }] };
+      }
+
+      if (!result) return { isError: true, content: [{ type: "text", text: "Not found" }] };
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    }
   );
 
-  server.tool(
-      "list_articles",
-      "List articles with pagination and search",
-      {
-          pageNum: z.number().optional().describe("Page number (default 1)"),
-          pageSize: z.number().optional().describe("Page size (default 10)"),
-          keyword: z.string().optional().describe("Search keyword"),
-          hide: z.string().optional().describe("Filter by visibility")
-      },
-      async (args) => {
-          await ensureAuth();
-          const result = await getPostList({
-              pageNum: args.pageNum ?? 1,
-              pageSize: args.pageSize ?? 10,
-              query: args.keyword,
-              hide: args.hide
-          });
-          return {
-              content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-          };
+  server.registerTool(
+    "list_articles",
+    {
+      title: "List articles",
+      description: "List articles with pagination and search",
+      inputSchema: {
+        pageNum: z.number().optional().describe("Page number (default 1)"),
+        pageSize: z.number().optional().describe("Page size (default 10)"),
+        keyword: z.string().optional().describe("Search keyword"),
+        hide: z.string().optional().describe("Filter by visibility")
       }
+    },
+    async (args) => {
+      await ensureAuth();
+      const result = await getPostList({
+        pageNum: args.pageNum ?? 1,
+        pageSize: args.pageSize ?? 10,
+        query: args.keyword,
+        hide: args.hide
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    }
   );
 
-  server.tool(
-      "list_tags",
-      "List all tags",
-      {},
-      async () => {
-          await ensureAuth();
-          const tags = await getAllTags();
-          return {
-              content: [{ type: "text", text: JSON.stringify(tags, null, 2) }]
-          };
-      }
+  server.registerTool(
+    "list_tags",
+    {
+      title: "List tags",
+      description: "List all tags",
+      inputSchema: {}
+    },
+    async () => {
+      await ensureAuth();
+      const tags = await getAllTags();
+      return {
+        content: [{ type: "text", text: JSON.stringify(tags, null, 2) }]
+      };
+    }
   );
   
   return server;
