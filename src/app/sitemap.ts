@@ -29,6 +29,11 @@ function getBaseUrl(): string {
   // 生产环境默认值（根据项目名称推断）
   return 'https://www.nnnnzs.cn';
 }
+/**
+ * 强制动态生成，确保每次请求时都从数据库获取最新数据
+ * 而不是在构建时生成静态文件
+ */
+export const dynamic = 'force-dynamic';
 
 /**
  * 生成站点地图
