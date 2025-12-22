@@ -39,11 +39,27 @@ COPY . .
 ARG VERSION
 ARG BUILD_DATE
 ARG COMMIT_SHA
+# 数据库连接（仅在构建时使用，不会保留在最终镜像中）
+ARG DATABASE_URL
+# 微信小程序配置（仅在构建时使用，不会保留在最终镜像中）
+ARG WX_APP_ID
+ARG WX_APP_SECRET
+# Redis 配置（仅在构建时使用，不会保留在最终镜像中）
+ARG REDIS_HOST
+ARG REDIS_PORT
+ARG REDIS_DB
 
 # 设置构建时环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV IS_BUILD=false
+# 将构建参数作为构建时环境变量（仅在 builder 阶段使用）
+ENV DATABASE_URL=${DATABASE_URL}
+ENV WX_APP_ID=${WX_APP_ID}
+ENV WX_APP_SECRET=${WX_APP_SECRET}
+ENV REDIS_HOST=${REDIS_HOST}
+ENV REDIS_PORT=${REDIS_PORT}
+ENV REDIS_DB=${REDIS_DB}
 
 # 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
 RUN pnpm prisma generate
