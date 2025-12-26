@@ -31,6 +31,7 @@ export default function PostListItem({ post }: PostListItemProps) {
               <Image
                 src={post.cover}
                 alt={post.title || ''}
+                unoptimized={true}
                 title={post.cover || ''}
                 fill
                 className="rounded-t-xl object-cover transition-all md:rounded-2xl md:hover:shadow-2xl md:group-even:rounded-l-none md:group-odd:rounded-r-none"

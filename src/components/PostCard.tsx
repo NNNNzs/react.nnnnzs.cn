@@ -2,14 +2,14 @@
  * 文章卡片组件
  */
 
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import dayjs from 'dayjs';
-import { EyeOutlined, HeartOutlined, TagOutlined } from '@ant-design/icons';
-import type { Post } from '@/types';
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import dayjs from "dayjs";
+import { EyeOutlined, HeartOutlined, TagOutlined } from "@ant-design/icons";
+import type { Post } from "@/types";
 
 interface PostCardProps {
   post: Post;
@@ -26,6 +26,7 @@ export default function PostCard({ post }: PostCardProps) {
               src={post.cover}
               alt={post.title as string}
               fill
+              unoptimized={true}
               className="object-cover transition-transform group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
@@ -66,7 +67,7 @@ export default function PostCard({ post }: PostCardProps) {
           {/* 元信息 */}
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <time dateTime={String(post.date)}>
-              {dayjs(post.date).format('YYYY-MM-DD')}
+              {dayjs(post.date).format("YYYY-MM-DD")}
             </time>
             <div className="flex items-center space-x-4">
               <span className="flex items-center">
@@ -84,4 +85,3 @@ export default function PostCard({ post }: PostCardProps) {
     </article>
   );
 }
-
