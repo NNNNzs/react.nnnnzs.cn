@@ -13,7 +13,7 @@ import { getAllTags } from '@/services/tag';
  * 也可以支持流式响应 (NDJSON)
  */
 class NextJsHttpTransport implements Transport {
-  private _onMessage: (message: JSONRPCMessage) => void = () => {};
+  private _onMessage: (message: JSONRPCMessage) => void = () => { };
   private messageQueue: JSONRPCMessage[] = [];
   private resolveResponse?: (value: JSONRPCMessage[] | PromiseLike<JSONRPCMessage[]>) => void;
   private isClosed = false;
@@ -56,14 +56,14 @@ class NextJsHttpTransport implements Transport {
           resolve([...this.messageQueue]);
           this.messageQueue = []; // Clear
         } else {
-           setTimeout(checkQueue, 50);
+          setTimeout(checkQueue, 50);
         }
       };
-      
+
       setTimeout(() => {
-          resolve([...this.messageQueue]);
+        resolve([...this.messageQueue]);
       }, 30000); // 30s timeout
-      
+
       checkQueue();
     });
   }
@@ -81,14 +81,14 @@ function createMcpServer(headers: Headers) {
     // 优先从 Header 获取，也可以保留环境变量作为兜底
     const account = headers.get('x-mcp-account') || process.env.MCP_USER_ACCOUNT;
     const password = headers.get('x-mcp-password') || process.env.MCP_USER_PASSWORD;
-    
+
     if (!account || !password) {
-        throw new Error("Missing authentication credentials. Please provide 'x-mcp-account' and 'x-mcp-password' headers.");
+      throw new Error("Missing authentication credentials. Please provide 'x-mcp-account' and 'x-mcp-password' headers.");
     }
-    
+
     const result = await login(account, password);
     if (!result) {
-        throw new Error("Authentication failed for MCP user");
+      throw new Error("Authentication failed for MCP user");
     }
     // 仅返回用户信息，后续用于 created_by 字段
     return result.userInfo;
@@ -98,12 +98,12 @@ function createMcpServer(headers: Headers) {
     "create_article",
     {
       title: "Create article",
-      description: "Create a new blog article",
+      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, then use matching tags or create new ones.",
       inputSchema: {
         title: z.string().describe("Article title"),
         content: z.string().describe("Article content (Markdown)"),
         category: z.string().optional().describe("Article category"),
-        tags: z.string().optional().describe("Comma separated tags"),
+        tags: z.string().optional().describe("Comma-separated tags. Check 'blog://tags' resource first for existing tags, then use matching ones or create new custom tags"),
         description: z.string().optional().describe("Short description"),
         cover: z.string().optional().describe("Cover image URL"),
         hide: z.string().optional().describe("'1' to hide, '0' to show")
@@ -232,22 +232,29 @@ function createMcpServer(headers: Headers) {
     }
   );
 
-  server.registerTool(
-    "list_tags",
+  // Register tags as a resource
+  server.registerResource(
+    "tags",
+    "blog://tags",
     {
-      title: "List tags",
-      description: "List all tags",
-      inputSchema: {}
+      title: "Available Blog Tags",
+      description: "List of all available tags with usage counts. Use this resource to check existing tags before creating new ones.",
+      mimeType: "application/json"
     },
     async () => {
       await ensureAuth();
       const tags = await getAllTags();
+      const tagsString = tags.map(tag => tag[0]).join(',');
       return {
-        content: [{ type: "text", text: JSON.stringify(tags, null, 2) }]
+        contents: [{
+          uri: "blog://tags",
+          mimeType: "application/json",
+          text: tagsString
+        }]
       };
     }
   );
-  
+
   return server;
 }
 
@@ -256,48 +263,48 @@ function createMcpServer(headers: Headers) {
  * 接收 JSON-RPC Request，返回 JSON-RPC Response (NDJSON or Array)
  */
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const transport = new NextJsHttpTransport();
-        
-        // 传递 Headers 给 Server 工厂
-        const server = createMcpServer(request.headers);
-        
-        await server.connect(transport);
-        
-        // 处理请求
-        const responses = await transport.handleRequest(body);
-        
-        // 如果只有一个响应且是 JSON，直接返回
-        // 如果有多个响应（如 progress），返回 NDJSON
-        if (responses.length === 1) {
-            return NextResponse.json(responses[0]);
-        } else {
-            // NDJSON format
-            const ndjson = responses.map(r => JSON.stringify(r)).join('\n');
-            return new Response(ndjson, {
-                headers: { 'Content-Type': 'application/x-ndjson' }
-            });
-        }
-        
-    } catch (error) {
-        console.error("MCP Error:", error);
-        return NextResponse.json({ 
-            jsonrpc: "2.0", 
-            error: { code: -32603, message: "Internal error" }, 
-            id: null 
-        }, { status: 500 });
+  try {
+    const body = await request.json();
+    const transport = new NextJsHttpTransport();
+
+    // 传递 Headers 给 Server 工厂
+    const server = createMcpServer(request.headers);
+
+    await server.connect(transport);
+
+    // 处理请求
+    const responses = await transport.handleRequest(body);
+
+    // 如果只有一个响应且是 JSON，直接返回
+    // 如果有多个响应（如 progress），返回 NDJSON
+    if (responses.length === 1) {
+      return NextResponse.json(responses[0]);
+    } else {
+      // NDJSON format
+      const ndjson = responses.map(r => JSON.stringify(r)).join('\n');
+      return new Response(ndjson, {
+        headers: { 'Content-Type': 'application/x-ndjson' }
+      });
     }
+
+  } catch (error) {
+    console.error("MCP Error:", error);
+    return NextResponse.json({
+      jsonrpc: "2.0",
+      error: { code: -32603, message: "Internal error" },
+      id: null
+    }, { status: 500 });
+  }
 }
 
 /**
  * GET Handler - 可用于健康检查或简单的 Server 信息
  */
 export async function GET() {
-    return NextResponse.json({
-        status: "active",
-        protocol: "mcp",
-        transport: "http-post",
-        note: "Send JSON-RPC requests via POST to this endpoint."
-    });
+  return NextResponse.json({
+    status: "active",
+    protocol: "mcp",
+    transport: "http-post",
+    note: "Send JSON-RPC requests via POST to this endpoint."
+  });
 }

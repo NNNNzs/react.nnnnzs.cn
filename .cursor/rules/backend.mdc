@@ -348,3 +348,204 @@ pnpm prisma studio
 # 数据库推送（开发环境）
 pnpm prisma db push
 ```
+
+## MCP 服务器规范
+
+### 概述
+MCP (Model Context Protocol) 服务器用于为 AI 助手提供标准化的上下文和工具访问。本项目在 `src/app/api/mcp/route.ts` 实现 MCP 服务器。
+
+### Resource vs Tool 原则
+
+#### 使用 Resource（资源）
+- **场景**：暴露静态或半静态数据供查询
+- **特点**：只读、可缓存、可订阅
+- **示例**：标签列表、分类、配置数据
+
+```typescript
+// ✅ 正确：标签作为资源
+server.registerResource(
+  "tags",
+  "blog://tags",
+  {
+    title: "Available Blog Tags",
+    description: "List of all available tags with usage counts",
+    mimeType: "application/json"
+  },
+  async () => {
+    const tags = await getAllTags();
+    return {
+      contents: [{
+        uri: "blog://tags",
+        mimeType: "application/json",
+        text: JSON.stringify(tags, null, 2)
+      }]
+    };
+  }
+);
+```
+
+#### 使用 Tool（工具）
+- **场景**：执行操作、修改状态、调用 API
+- **特点**：有副作用、动态操作
+- **示例**：创建文章、更新数据、删除记录
+
+```typescript
+// ✅ 正确：创建文章作为工具
+server.registerTool(
+  "create_article",
+  {
+    title: "Create article",
+    description: "Create a new blog article",
+    inputSchema: {
+      title: z.string(),
+      content: z.string(),
+      tags: z.string().optional()
+    }
+  },
+  async (args) => {
+    const result = await createPost(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result) }]
+    };
+  }
+);
+```
+
+### Resource 设计规范
+
+#### URI 格式
+```typescript
+// 使用自定义协议 + 资源名
+"blog://tags"           // 标签资源
+"blog://categories"     // 分类资源
+"blog://posts/{id}"     // 文章资源（模板）
+```
+
+#### 返回格式
+```typescript
+{
+  contents: [{
+    uri: string,
+    mimeType: string,  // "application/json" 或 "text/plain"
+    text?: string,     // 文本内容
+    blob?: string      // base64 编码的二进制内容
+  }]
+}
+```
+
+#### 认证处理
+```typescript
+// 所有 Resource 都需要认证
+async () => {
+  await ensureAuth();  // 验证请求头中的认证信息
+  const data = await getData();
+  return { contents: [...] };
+}
+```
+
+### Tool 设计规范
+
+#### 描述引用 Resource
+```typescript
+// ✅ 在描述中引用相关资源
+server.registerTool("create_article", {
+  description: "Create article. First read 'blog://tags' resource to check existing tags.",
+  // ...
+});
+```
+
+#### 参数说明
+```typescript
+inputSchema: {
+  tags: z.string().optional().describe(
+    "Comma-separated tags. Check 'blog://tags' resource first"
+  )
+}
+```
+
+### 常见模式
+
+#### 1. 查询 + 操作模式
+```typescript
+// LLM 流程：
+// 1. 读取 Resource: blog://tags
+// 2. 匹配/选择标签
+// 3. 调用 Tool: create_article
+```
+
+#### 2. 数据验证模式
+```typescript
+// Resource 提供参考数据
+// Tool 验证并执行操作
+```
+
+### 实现示例
+
+#### 完整的 MCP 服务器
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+function createMcpServer(headers: Headers) {
+  const server = new McpServer({
+    name: "React Blog MCP",
+    version: "1.0.0"
+  });
+
+  // 认证辅助函数
+  const ensureAuth = async () => {
+    const account = headers.get('x-mcp-account');
+    const password = headers.get('x-mcp-password');
+    // ... 认证逻辑
+  };
+
+  // 注册 Resource
+  server.registerResource("tags", "blog://tags", {
+    title: "Available Tags",
+    mimeType: "application/json"
+  }, async () => {
+    await ensureAuth();
+    const tags = await getAllTags();
+    return {
+      contents: [{
+        uri: "blog://tags",
+        mimeType: "application/json",
+        text: JSON.stringify(tags)
+      }]
+    };
+  });
+
+  // 注册 Tool
+  server.registerTool("create_article", {
+    description: "Create article. Check 'blog://tags' resource first.",
+    inputSchema: {
+      title: z.string(),
+      tags: z.string().optional()
+    }
+  }, async (args) => {
+    await ensureAuth();
+    const result = await createPost(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result) }]
+    };
+  });
+
+  return server;
+}
+```
+
+### 测试验证
+
+```bash
+# 检查代码质量
+pnpm lint src/app/api/mcp/route.ts
+
+# 验证实现
+pnpm dev
+# 发送测试请求到 /api/mcp
+```
+
+### 参考资料
+- [MCP 官方文档](https://modelcontextprotocol.io)
+- [MCP 规范](https://spec.modelcontextprotocol.io)
+- 项目文档：`docs/mcp_resources_tags.md`
