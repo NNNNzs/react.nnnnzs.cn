@@ -349,6 +349,251 @@ pnpm prisma studio
 pnpm prisma db push
 ```
 
+## 流式响应规范
+
+### 概述
+本项目默认使用**流式响应**处理 AI 相关的 API 请求，提供实时的打字机效果和更好的用户体验。
+
+### 流式响应原则
+1. **默认使用流式**：所有 AI 处理相关的 API 都应该使用流式响应
+2. **移除非流式代码**：删除冗余的非流式处理逻辑，减少代码复杂度
+3. **统一接口**：客户端调用方式保持一致，无需关心是否流式
+
+### 服务层实现
+
+#### 流式处理函数
+```typescript
+// src/services/ai-text-server.ts
+import { Anthropic } from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
+  baseURL: process.env.ANTHROPIC_BASE_URL,
+});
+
+/**
+ * AI文本处理（流式）
+ * @param params 处理参数
+ * @returns ReadableStream 流式响应
+ */
+export const processAITextStream = async (
+  params: AIProcessParams
+): Promise<ReadableStream> => {
+  const { text, action, context } = params;
+  
+  // 输入验证
+  if (!text || text.trim().length === 0) {
+    throw new Error('文本内容不能为空');
+  }
+  
+  if (text.length > 5000) {
+    throw new Error('文本长度超过限制（5000字符）');
+  }
+
+  // 调用 AI API 获取流
+  const stream = await anthropic.messages.stream({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2000,
+    temperature: 0.7,
+    messages: [
+      { role: 'assistant', content: 'always answer in Chinese' },
+      { role: 'user', content: fullPrompt }
+    ],
+  });
+
+  // 转换为标准 ReadableStream
+  return convertAnthropicStreamToReadableStream(stream);
+};
+
+/**
+ * 将 Anthropic 流转换为标准 ReadableStream
+ */
+export const convertAnthropicStreamToReadableStream = (
+  stream: MessageStream
+): ReadableStream => {
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        let hasSentData = false;
+        
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta') {
+            const delta = event.delta;
+            if (delta.type === 'text_delta' && delta.text) {
+              controller.enqueue(new TextEncoder().encode(delta.text));
+              hasSentData = true;
+            }
+          }
+          if (event.type === 'message_stop') {
+            break;
+          }
+        }
+        
+        if (!hasSentData) {
+          controller.enqueue(new TextEncoder().encode(''));
+        }
+        
+        controller.close();
+      } catch (error) {
+        console.error('流式响应错误:', error);
+        const errorMessage = error instanceof Error ? error.message : '处理失败';
+        controller.enqueue(new TextEncoder().encode(`错误: ${errorMessage}`));
+        controller.close();
+      }
+    },
+  });
+};
+```
+
+### API 路由实现
+
+#### 流式 API 路由
+```typescript
+// src/app/api/ai/process/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { processAITextStream } from '@/services/ai-text-server';
+
+/**
+ * 创建流式响应
+ */
+const createStreamResponse = (stream: ReadableStream): Response => {
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { text, action, context } = body;
+
+    // 验证参数...
+    
+    // 流式处理
+    const streamResponse = await processAITextStream({ text, action, context });
+    return createStreamResponse(streamResponse);
+  } catch (error) {
+    return NextResponse.json(
+      { status: false, message: error instanceof Error ? error.message : '处理失败' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 客户端调用
+
+#### 流式处理客户端
+```typescript
+// src/components/AITextProcessor/ProcessingModal.tsx
+const processText = useCallback(async () => {
+  setIsLoading(true);
+  setError(null);
+  setStreamText('');
+
+  try {
+    // 调用流式 API
+    const response = await callAIAPI({
+      text: originalText,
+      action: action,
+    });
+
+    // 读取流式响应
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      fullText += chunk;
+      setStreamText(fullText); // 实时更新显示
+    }
+
+    setResult(fullText);
+    setIsLoading(false);
+  } catch (error) {
+    setError(error.message);
+    setIsLoading(false);
+  }
+}, [originalText, action]);
+```
+
+### 客户端工具函数
+
+```typescript
+// src/services/ai-text.ts
+/**
+ * 调用AI处理API（流式）
+ * @param params 处理参数
+ * @returns Response 对象用于流式读取
+ */
+export const callAIAPI = async (
+  params: AIProcessParams
+): Promise<Response> => {
+  const response = await fetch('/api/ai/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params), // 不需要 stream 参数
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response; // 直接返回 Response 用于流式读取
+};
+```
+
+### 流式处理工具
+
+```typescript
+// src/lib/stream.ts
+/**
+ * 处理流式响应
+ */
+export const processStreamResponse = async (
+  response: Response,
+  options: StreamProcessOptions
+): Promise<string> => {
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let accumulatedText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    accumulatedText += chunk;
+    options.onChunk?.(chunk);
+  }
+
+  options.onComplete?.(accumulatedText);
+  return accumulatedText;
+};
+```
+
+### 优势
+
+1. **实时反馈**：用户可以立即看到 AI 生成的内容
+2. **更好的 UX**：打字机效果提供更好的用户体验
+3. **代码简化**：移除非流式逻辑，减少代码复杂度
+4. **统一接口**：所有 AI 处理都使用相同的模式
+
+### 注意事项
+
+- 所有 AI 相关 API 必须支持流式响应
+- 客户端需要正确处理流式读取和错误处理
+- 流式响应需要设置正确的 HTTP 头（`Cache-Control: no-cache`）
+- 错误信息也应该通过流式返回，避免客户端等待超时
+
 ## MCP 服务器规范
 
 ### 概述

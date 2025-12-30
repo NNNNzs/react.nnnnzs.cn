@@ -1,5 +1,13 @@
-import { Anthropic } from '@anthropic-ai/sdk';
+/**
+ * AI文本处理服务 - 服务器端
+ * 包含 Anthropic SDK 调用，只能在服务器端使用
+ * 默认使用流式响应
+ */
 
+import { Anthropic } from '@anthropic-ai/sdk';
+import type { AIProcessParams } from './ai-text';
+
+// 服务器端初始化 Anthropic 客户端
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
   baseURL: process.env.ANTHROPIC_BASE_URL,
@@ -65,7 +73,7 @@ export const convertAnthropicStreamToReadableStream = (stream: MessageStream): R
         controller.close();
       } catch (error) {
         console.error('流式响应错误:', error);
-        const errorMessage = error instanceof Error ? error.message : '生成描述失败';
+        const errorMessage = error instanceof Error ? error.message : 'AI处理失败';
         try {
           controller.enqueue(new TextEncoder().encode(`错误: ${errorMessage}`));
           controller.close();
@@ -83,19 +91,36 @@ export const convertAnthropicStreamToReadableStream = (stream: MessageStream): R
 };
 
 /**
- * 生成文章描述（流式）
- * @param content 文章内容
+ * AI文本处理（流式）
+ * @param params 处理参数
  * @returns ReadableStream 流式响应
  */
-export const generDescriptionStream = async (content: string): Promise<ReadableStream> => {
+export const processAITextStream = async (params: AIProcessParams): Promise<ReadableStream> => {
+  const { text, action, context } = params;
+  
+  // 输入验证
+  if (!text || text.trim().length === 0) {
+    throw new Error('文本内容不能为空');
+  }
+  
+  if (text.length > 5000) {
+    throw new Error('文本长度超过限制（5000字符）');
+  }
+
+  // 导入提示词模板
+  const { AI_PROMPTS } = await import('./ai-text');
+  const prompt = AI_PROMPTS[action];
+  const fullPrompt = context 
+    ? `${prompt}\n\n上下文信息：${context}\n\n需要处理的文本：${text}`
+    : `${prompt}\n\n${text}`;
+
   const stream = await anthropic.messages.stream({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1000,
-    temperature: 0.9,
+    max_tokens: 2000,
+    temperature: 0.7,
     messages: [
       { role: 'assistant', content: 'always answer in Chinese' },
-      { role: 'assistant', content: `你是一个文章描述生成器，请你以主人公第一人称的视角描述这篇文章的内容，简洁的描述，可以艺术加工而不是流水账，不要纯文本格式不要用Markdown语法，描述不超过100个字符` },
-      { role: 'user', content: content }
+      { role: 'user', content: fullPrompt }
     ],
   });
 

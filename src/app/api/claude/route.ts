@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generDescription, generDescriptionStream } from '@/services/claude';
-import { successResponse } from '@/dto/response.dto';
+import { generDescriptionStream } from '@/services/claude';
 
 /**
  * 创建流式响应
@@ -21,14 +20,12 @@ const createStreamResponse = (stream: ReadableStream): Response => {
  * Claude API 路由
  * POST /api/claude
  * 
- * 支持流式和非流式响应
- * - 如果请求中包含 `stream: true`，返回流式响应
- * - 否则返回 JSON 响应
+ * 仅支持流式响应
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { content, stream } = body;
+    const { content } = body;
 
     if (!content) {
       return NextResponse.json(
@@ -37,15 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 如果请求流式响应
-    if (stream) {
-      const streamResponse = await generDescriptionStream(content);
-      return createStreamResponse(streamResponse);
-    }
-
-    // 非流式响应
-    const response = await generDescription(content);
-    return NextResponse.json(successResponse(response));
+    // 流式响应
+    const streamResponse = await generDescriptionStream(content);
+    return createStreamResponse(streamResponse);
   } catch (error) {
     console.error('Claude API 错误:', error);
     return NextResponse.json(

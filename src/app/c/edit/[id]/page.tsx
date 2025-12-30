@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/types";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import { fetchAndProcessStream } from "@/lib/stream";
+import EnhancedMarkdownEditor from "@/components/AITextProcessor/EnhancedMarkdownEditor";
 
 /**
  * 生成文章路径 - 已移至服务端
@@ -140,7 +141,7 @@ export default function EditPostPage() {
         "/api/claude",
         {
           method: "POST",
-          body: JSON.stringify({ content, stream: true }),
+          body: JSON.stringify({ content }),
         },
         {
           onChunk: (chunk) => {
@@ -373,7 +374,7 @@ export default function EditPostPage() {
         className="flex-1 overflow-hidden flex flex-col"
         style={{ minHeight: 0 }}
       >
-        <MarkdownEditor
+        <EnhancedMarkdownEditor
           className="flex-1 overflow-hidden"
           value={form.getFieldValue("content") || ""}
           onChange={(value) => {
