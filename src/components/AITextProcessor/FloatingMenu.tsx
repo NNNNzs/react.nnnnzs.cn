@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { Button, Tooltip } from 'antd';
 import { 
   EditOutlined, 
@@ -37,8 +37,6 @@ const FloatingMenu: React.FC<FloatingMenuProps> = ({
   availableActions = ['refine', 'expand', 'summarize'],
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const [isVisible, setIsVisible] = useState(false);
 
   // 操作按钮配置
   const actionButtons = {
@@ -59,9 +57,9 @@ const FloatingMenu: React.FC<FloatingMenuProps> = ({
     },
   };
 
-  // 计算菜单位置
-  const calculatePosition = useCallback(() => {
-    if (!selectionRect) return;
+  // 直接计算位置，避免使用 state 和 effect
+  const position = useMemo(() => {
+    if (!selectionRect) return { top: 0, left: 0 };
 
     const menuWidth = 320; // 菜单预估宽度
     const menuHeight = 50; // 菜单高度
@@ -96,13 +94,10 @@ const FloatingMenu: React.FC<FloatingMenuProps> = ({
       top = selectionRect.bottom + offset;
     }
 
-    setPosition({ top, left });
-    setIsVisible(true);
+    return { top, left };
   }, [selectionRect]);
 
-  useEffect(() => {
-    calculatePosition();
-  }, [calculatePosition]);
+  const isVisible = !!selectionRect;
 
   // 点击外部关闭
   useEffect(() => {
