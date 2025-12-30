@@ -1,14 +1,20 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-  baseURL: process.env.ANTHROPIC_BASE_URL,
-});
+/**
+ * 获取 Anthropic 客户端实例
+ * 使用函数延迟初始化，避免构建时访问环境变量
+ */
+const getAnthropicClient = (): Anthropic => {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
+    baseURL: process.env.ANTHROPIC_BASE_URL,
+  });
+};
 
 /**
  * Anthropic MessageStream 类型
  */
-type MessageStream = Awaited<ReturnType<typeof anthropic.messages.stream>>;
+type MessageStream = Awaited<ReturnType<ReturnType<typeof getAnthropicClient>['messages']['stream']>>;
 
 
 /**
@@ -89,6 +95,7 @@ export const convertAnthropicStreamToReadableStream = (stream: MessageStream): R
  * @returns ReadableStream 流式响应
  */
 export const generDescriptionStream = async (content: string): Promise<ReadableStream> => {
+  const anthropic = getAnthropicClient();
   const stream = await anthropic.messages.stream({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1000,

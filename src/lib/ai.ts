@@ -150,4 +150,3 @@ export const createAIChain = <T extends Record<string, unknown>>(
 
   return prompt.pipe(model).pipe(outputParser) as Runnable<T, string>;
 };
-

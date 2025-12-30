@@ -31,21 +31,15 @@ const descriptionPrompt = createBasePrompt(
 
 /**
  * 文章描述生成模型配置
+ * 注意：使用函数获取配置，避免构建时访问环境变量
  */
-const descriptionModelConfig: AIModelConfig = {
-  model: process.env.ANTHROPIC_MODEL_NAME,
-  temperature: 0.9,
-  maxTokens: 1000,
+const getDescriptionModelConfig = (): AIModelConfig => {
+  return {
+    model: process.env.ANTHROPIC_MODEL_NAME || 'claude-haiku-4-5-20251001',
+    temperature: 0.9,
+    maxTokens: 1000,
+  };
 };
-
-/**
- * 创建文章描述生成链
- */
-const descriptionChain = createAIChain<DescriptionInput>(
-  descriptionPrompt,
-  descriptionModelConfig,
-  'anthropic'
-);
 
 /**
  * 生成文章描述（流式）
@@ -53,5 +47,12 @@ const descriptionChain = createAIChain<DescriptionInput>(
  * @returns ReadableStream 流式响应
  */
 export const generDescriptionStream = async (content: string): Promise<ReadableStream> => {
+  // 在运行时创建链，避免构建时访问环境变量
+  const descriptionChain = createAIChain<DescriptionInput>(
+    descriptionPrompt,
+    getDescriptionModelConfig(),
+    'anthropic'
+  );
+  
   return streamFromChain(descriptionChain, { content });
 };
