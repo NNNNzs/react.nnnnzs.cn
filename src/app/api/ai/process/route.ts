@@ -5,27 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  processAITextStream 
-} from '@/services/ai-text-server';
-import { 
-  validateTextForAI,
-  type AIActionType 
-} from '@/services/ai-text';
-
-/**
- * 创建流式响应
- */
-const createStreamResponse = (stream: ReadableStream): Response => {
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
-};
+import { processAITextStream } from '@/services/ai';
+import { validateTextForAI, type AIActionType } from '@/lib/ai-text';
+import { createStreamResponse } from '@/lib/stream';
 
 /**
  * 请求体类型定义
@@ -82,7 +64,7 @@ export async function POST(request: NextRequest) {
     // 流式处理
     try {
       const streamResponse = await processAITextStream({ text, action, context });
-      return createStreamResponse(streamResponse);
+      return createStreamResponse(streamResponse, { allowCORS: true });
     } catch (error) {
       console.error('流式处理错误:', error);
       return NextResponse.json(

@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generDescriptionStream } from '@/services/claude';
+import { generDescriptionStream } from '@/services/ai';
+import { createStreamResponse } from '@/lib/stream';
 
 /**
- * 创建流式响应
- * @param stream ReadableStream 对象
- * @returns Response 对象
- */
-const createStreamResponse = (stream: ReadableStream): Response => {
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
-};
-
-/**
- * Claude API 路由
- * POST /api/claude
+ * AI 生成描述 API 路由
+ * POST /api/ai/generate/description
  * 
  * 仅支持流式响应
  */

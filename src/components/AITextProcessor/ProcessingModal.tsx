@@ -9,8 +9,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Button, Spin, Space, message, Alert } from 'antd';
 import { CheckOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import type { AIActionType } from '@/services/ai-text';
-import { getAIActionLabel, callAIAPI } from '@/services/ai-text';
+import type { AIActionType } from '@/lib/ai-text';
+import { getAIActionLabel, callAIAPI } from '@/lib/ai-text';
 
 interface ProcessingModalProps {
   /** 是否显示弹窗 */

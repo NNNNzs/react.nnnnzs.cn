@@ -13,8 +13,8 @@ import {
   CompressOutlined, 
   CloseOutlined 
 } from '@ant-design/icons';
-import type { AIActionType } from '@/services/ai-text';
-import { getAIActionLabel } from '@/services/ai-text';
+import type { AIActionType } from '@/lib/ai-text';
+import { getAIActionLabel } from '@/lib/ai-text';
 
 interface FloatingMenuProps {
   /** 选区坐标信息 */

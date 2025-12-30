@@ -45,6 +45,11 @@ alwaysApply: true
 - `src/dto/` - 数据传输对象和类型定义
 - `src/lib/` - 工具函数、配置和数据库连接
 - `src/services/` - 业务逻辑和数据库操作
+  - `src/services/ai/` - AI 相关服务（文本处理、描述生成等）
+    - `text/` - AI 文本处理服务
+    - `description/` - 文章描述生成服务
+    - `utils/` - AI 服务共享工具函数
+    - `index.ts` - 统一导出接口
 - `src/contexts/` - React Context 提供者
 - `src/types/` - TypeScript 类型定义
 - `docs/` - 项目文档

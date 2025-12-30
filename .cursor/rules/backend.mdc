@@ -89,6 +89,35 @@ export function errorResponse(message = '操作失败', data: unknown = null): A
 - 命名：按业务模块命名（如 `post.ts`, `user.ts`）
 - 职责：封装业务逻辑和数据库操作
 
+#### AI 服务目录结构
+AI 相关服务统一组织在 `src/services/ai/` 目录下，按功能拆分：
+
+```
+src/services/ai/
+├── text/              # AI文本处理服务（润色、扩写、缩写）
+│   └── index.ts
+├── description/       # 文章描述生成服务
+│   └── index.ts
+├── utils/            # 共享工具函数（提示词模板创建等）
+│   └── prompt.ts
+└── index.ts          # 统一导出接口
+```
+
+**导入规范**：
+```typescript
+// ✅ 正确：从统一入口导入
+import { processAITextStream, generDescriptionStream } from '@/services/ai';
+
+// ❌ 错误：直接导入子模块（除非有特殊需求）
+import { processAITextStream } from '@/services/ai/text';
+```
+
+**目录职责**：
+- `text/` - AI 文本处理相关功能（如润色、扩写、缩写）
+- `description/` - 文章描述生成功能
+- `utils/` - 共享的工具函数，如提示词模板创建、配置管理等
+- `index.ts` - 统一导出所有核心接口，方便其他模块使用
+
 ```typescript
 // src/services/post.ts
 import { getPrisma } from '@/lib/prisma'
@@ -354,6 +383,40 @@ pnpm prisma db push
 ### 概述
 本项目默认使用**流式响应**处理 AI 相关的 API 请求，提供实时的打字机效果和更好的用户体验。
 
+### AI 服务技术栈
+- **LangChain.js**：使用 LangChain.js 作为统一的 AI 抽象层
+- **Anthropic Claude**：后端使用 Anthropic Claude 模型
+- **LCEL（LangChain Expression Language）**：使用 LCEL 规范构建处理链：`prompt.pipe(model).pipe(outputParser)`
+- **核心工具**：`@/lib/ai.ts` 提供统一的 AI 服务抽象层
+
+#### 核心抽象层使用
+所有 AI 服务都应通过 `@/lib/ai.ts` 提供的工具函数构建：
+
+```typescript
+import {
+  ChatPromptTemplate,
+  createAIChain,
+  streamFromChain,
+  type AIModelConfig
+} from '@/lib/ai';
+
+// 创建提示词模板
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', '系统指令'],
+  ['human', '{input}'],
+]);
+
+// 创建 AI 链（使用 LCEL）
+const chain = createAIChain<{ input: string }>(prompt, {
+  model: 'claude-haiku-4-5-20251001',
+  temperature: 0.7,
+  maxTokens: 2000,
+});
+
+// 执行流式响应
+const stream = await streamFromChain(chain, { input: '用户输入' });
+```
+
 ### 流式响应原则
 1. **默认使用流式**：所有 AI 处理相关的 API 都应该使用流式响应
 2. **移除非流式代码**：删除冗余的非流式处理逻辑，减少代码复杂度
@@ -361,15 +424,23 @@ pnpm prisma db push
 
 ### 服务层实现
 
-#### 流式处理函数
-```typescript
-// src/services/ai-text-server.ts
-import { Anthropic } from '@anthropic-ai/sdk';
+#### AI 服务目录结构
+AI 相关服务统一在 `src/services/ai/` 目录下，使用 LangChain.js 规范实现：
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-  baseURL: process.env.ANTHROPIC_BASE_URL,
-});
+```typescript
+// src/services/ai/text/index.ts - AI文本处理服务
+import { 
+  ChatPromptTemplate,
+  createAIChain,
+  streamFromChain,
+  type AIModelConfig
+} from '@/lib/ai';
+import { AI_PROMPTS, type AIProcessParams, type AIActionType } from '@/lib/ai-text';
+import { 
+  createBasePrompt, 
+  createPromptWithContext, 
+  createChineseSystemInstruction 
+} from '../utils/prompt';
 
 /**
  * AI文本处理（流式）
@@ -390,58 +461,56 @@ export const processAITextStream = async (
     throw new Error('文本长度超过限制（5000字符）');
   }
 
-  // 调用 AI API 获取流
-  const stream = await anthropic.messages.stream({
+  // 获取指令并创建提示词模板
+  const instruction = AI_PROMPTS[action];
+  const systemInstruction = createChineseSystemInstruction(instruction);
+  const hasContext = !!context;
+  
+  const prompt = hasContext 
+    ? createPromptWithContext(systemInstruction, '{context}', '{text}')
+    : createBasePrompt(systemInstruction, '{text}');
+  
+  // 创建 LCEL 链并执行流式响应
+  const chain = createAIChain<AITextInput>(prompt, {
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2000,
     temperature: 0.7,
-    messages: [
-      { role: 'assistant', content: 'always answer in Chinese' },
-      { role: 'user', content: fullPrompt }
-    ],
+    maxTokens: 2000,
   });
+  
+  return streamFromChain(chain, { instruction, text, ...(hasContext && { context }) });
+};
+```
 
-  // 转换为标准 ReadableStream
-  return convertAnthropicStreamToReadableStream(stream);
+#### 工具函数
+```typescript
+// src/services/ai/utils/prompt.ts - 提示词工具函数
+import { ChatPromptTemplate } from '@/lib/ai';
+
+/**
+ * 创建基础提示词模板
+ */
+export const createBasePrompt = (
+  systemInstruction: string,
+  userTemplate: string
+): ChatPromptTemplate => {
+  return ChatPromptTemplate.fromMessages([
+    ['system', systemInstruction],
+    ['human', userTemplate],
+  ]);
 };
 
 /**
- * 将 Anthropic 流转换为标准 ReadableStream
+ * 创建带上下文信息的提示词模板
  */
-export const convertAnthropicStreamToReadableStream = (
-  stream: MessageStream
-): ReadableStream => {
-  return new ReadableStream({
-    async start(controller) {
-      try {
-        let hasSentData = false;
-        
-        for await (const event of stream) {
-          if (event.type === 'content_block_delta') {
-            const delta = event.delta;
-            if (delta.type === 'text_delta' && delta.text) {
-              controller.enqueue(new TextEncoder().encode(delta.text));
-              hasSentData = true;
-            }
-          }
-          if (event.type === 'message_stop') {
-            break;
-          }
-        }
-        
-        if (!hasSentData) {
-          controller.enqueue(new TextEncoder().encode(''));
-        }
-        
-        controller.close();
-      } catch (error) {
-        console.error('流式响应错误:', error);
-        const errorMessage = error instanceof Error ? error.message : '处理失败';
-        controller.enqueue(new TextEncoder().encode(`错误: ${errorMessage}`));
-        controller.close();
-      }
-    },
-  });
+export const createPromptWithContext = (
+  systemInstruction: string,
+  contextPlaceholder: string,
+  userPlaceholder: string
+): ChatPromptTemplate => {
+  return ChatPromptTemplate.fromMessages([
+    ['system', systemInstruction],
+    ['human', `上下文信息：${contextPlaceholder}\n\n需要处理的文本：${userPlaceholder}`],
+  ]);
 };
 ```
 
@@ -451,7 +520,7 @@ export const convertAnthropicStreamToReadableStream = (
 ```typescript
 // src/app/api/ai/process/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { processAITextStream } from '@/services/ai-text-server';
+import { processAITextStream } from '@/services/ai';
 
 /**
  * 创建流式响应

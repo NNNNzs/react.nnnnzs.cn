@@ -130,15 +130,15 @@ export default function EditPostPage() {
 
     try {
       setLoading((prev) => ({ ...prev, generateDescription: true }));
-      
+
       // 先清空描述字段
       form.setFieldsValue({ description: "" });
-      
+
       let accumulatedText = "";
-      
+
       // 使用封装的流式处理函数
       await fetchAndProcessStream(
-        "/api/claude",
+        "/api/ai/generate/description",
         {
           method: "POST",
           body: JSON.stringify({ content }),
@@ -239,9 +239,7 @@ export default function EditPostPage() {
   }
 
   return (
-    <div
-      className="w-full h-full  overflow-hidden p-2 editor flex flex-col"
-    >
+    <div className="w-full h-full  overflow-hidden p-2 editor flex flex-col">
       <Form
         form={form}
         className="form mb-3"
@@ -298,7 +296,7 @@ export default function EditPostPage() {
           </Col>
           <Col flex="240px">
             <Space>
-              <Button 
+              <Button
                 onClick={genDescription}
                 loading={loading.generateDescription}
               >

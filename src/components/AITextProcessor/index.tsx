@@ -13,8 +13,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { message } from 'antd';
-import type { AIActionType } from '@/services/ai-text';
-import { validateTextForAI } from '@/services/ai-text';
+import type { AIActionType } from '@/lib/ai-text';
+import { validateTextForAI } from '@/lib/ai-text';
 import FloatingMenu from './FloatingMenu';
 import ProcessingModal from './ProcessingModal';
 
@@ -352,5 +352,5 @@ export default AITextProcessor;
 export { default as EnhancedMarkdownEditor } from './EnhancedMarkdownEditor';
 export { default as FloatingMenu } from './FloatingMenu';
 export { default as ProcessingModal } from './ProcessingModal';
-export type { AIActionType } from '@/services/ai-text';
-export { getAIActionLabel, getAIActionIcon, validateTextForAI } from '@/services/ai-text';
+export type { AIActionType } from '@/lib/ai-text';
+export { getAIActionLabel, getAIActionIcon, validateTextForAI } from '@/lib/ai-text';

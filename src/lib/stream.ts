@@ -1,6 +1,23 @@
 /**
  * 流式响应处理工具函数
+ * 包含客户端和服务端的流式响应处理
  */
+
+/**
+ * 创建流式响应的选项
+ */
+export interface CreateStreamResponseOptions {
+  /**
+   * 是否允许跨域访问
+   * @default false
+   */
+  allowCORS?: boolean;
+  
+  /**
+   * 额外的响应头
+   */
+  additionalHeaders?: Record<string, string>;
+}
 
 /**
  * 处理流式响应的选项
@@ -98,4 +115,32 @@ export const fetchAndProcessStream = async (
   });
 
   return processStreamResponse(response, streamOptions);
+};
+
+/**
+ * 创建流式响应（服务端使用）
+ * @param stream ReadableStream 对象
+ * @param options 创建选项
+ * @returns Response 对象
+ */
+export const createStreamResponse = (
+  stream: ReadableStream,
+  options: CreateStreamResponseOptions = {}
+): Response => {
+  const { allowCORS = false, additionalHeaders = {} } = options;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Transfer-Encoding': 'chunked',
+    ...additionalHeaders,
+  };
+  
+  if (allowCORS) {
+    headers['Access-Control-Allow-Origin'] = '*';
+  }
+  
+  return new Response(stream, { headers });
 };

@@ -8,7 +8,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import MarkdownEditor from '@/components/MarkdownEditor';
 import AITextProcessor from './index';
-import type { AIActionType } from '@/services/ai-text';
+import type { AIActionType } from '@/lib/ai-text';
 
 interface EnhancedMarkdownEditorProps {
   /** 编辑器值 */
@@ -138,4 +138,4 @@ const EnhancedMarkdownEditor: React.FC<EnhancedMarkdownEditorProps> = ({
 
 export default EnhancedMarkdownEditor;
 export { default as AITextProcessor } from './index';
-export type { AIActionType } from '@/services/ai-text';
+export type { AIActionType } from '@/lib/ai-text';
