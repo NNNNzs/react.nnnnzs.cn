@@ -33,9 +33,9 @@ const descriptionPrompt = createBasePrompt(
  * 文章描述生成模型配置
  */
 const descriptionModelConfig: AIModelConfig = {
-  model: process.env.OPENAI_MODEL_NAME,
+  model: process.env.ANTHROPIC_MODEL_NAME,
   temperature: 0.9,
-  maxTokens: 3000,
+  maxTokens: 1000,
 };
 
 /**
@@ -44,7 +44,7 @@ const descriptionModelConfig: AIModelConfig = {
 const descriptionChain = createAIChain<DescriptionInput>(
   descriptionPrompt,
   descriptionModelConfig,
-  'openai'
+  'anthropic'
 );
 
 /**
