@@ -198,9 +198,12 @@ export class StreamTagParser {
           continue;
         } else {
           // content 内容继续，流式输出当前缓冲区内容
-          if (this.buffer) {
-            onTag({ type: 'content', content: this.unescapeXml(this.buffer) });
-            this.buffer = '';
+          // 重要：立即输出缓冲区内容，不等待累积
+          if (this.buffer.length > 0) {
+            const contentToOutput = this.buffer;
+            this.buffer = ''; // 先清空缓冲区
+            console.log('📤 StreamTagParser: 输出 content 块，长度:', contentToOutput.length, '预览:', contentToOutput.substring(0, 50));
+            onTag({ type: 'content', content: this.unescapeXml(contentToOutput) });
           }
           break;
         }

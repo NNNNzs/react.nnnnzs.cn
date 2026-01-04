@@ -77,6 +77,7 @@ export default function Header() {
   const navItems = [
     { href: "/tags", label: "分类", type: "link" as const },
     { href: "/archives", label: "归档", type: "link" as const },
+    { href: "/chat", label: "聊天", type: "link" as const },
     {
       href: "https://github.com/NNNNzs/nnnnzs.cn",
       label: "GitHub",

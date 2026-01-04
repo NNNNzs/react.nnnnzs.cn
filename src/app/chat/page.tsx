@@ -12,11 +12,12 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { flushSync } from "react-dom";
 import { UserOutlined, RobotOutlined, ClearOutlined } from "@ant-design/icons";
 import { Bubble, Sender, Think } from "@ant-design/x";
-import XMarkdown, { type ComponentProps } from "@ant-design/x-markdown";
-import { Flex, Card, Typography, Button, message as antdMessage } from "antd";
-import { StreamTagParser, type StreamTag } from "@/lib/stream-tags";
+import XMarkdown from "@ant-design/x-markdown";
+import { Typography, Button, message as antdMessage } from "antd";
+import { fetchAndProcessStreamWithTags } from "@/lib/stream";
 
 const { Title } = Typography;
 
@@ -27,9 +28,73 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  think?: string; // 思考内容（独立字段）
   loading?: boolean;
   streamStatus?: "streaming" | "done";
 }
+
+/**
+ * MessageContent 组件属性
+ */
+interface MessageContentProps {
+  content: string;
+  think?: string; // 思考内容（独立字段）
+  streamStatus?: "streaming" | "done";
+}
+
+/**
+ * MessageContent 组件
+ * Think 组件包裹着 XMarkdown 组件
+ * 使用 key 强制在内容变化时重新渲染
+ */
+const MessageContent: React.FC<MessageContentProps> = ({
+  content,
+  think,
+  streamStatus,
+}) => {
+  const isLoading = streamStatus === "streaming";
+  const hasThink = !!think;
+
+  // 如果有思考内容，用 Think 组件包裹
+  if (hasThink) {
+    const title = isLoading ? "思考中..." : "思考完成";
+    return (
+      <>
+        <Think title={title} blink loading={isLoading}>
+          {/* 思考内容 */}
+          <div style={{ marginBottom: content ? 16 : 0 }}>
+            {think}
+          </div>
+        </Think>
+        {/* 实际内容 - 使用 streaming 属性启用流式渲染 */}
+        {content && (
+          <XMarkdown
+            content={content}
+            paragraphTag="div"
+            streaming={{ hasNextChunk: isLoading }}
+          />
+        )}
+      </>
+    );
+  }
+
+  // 没有思考内容时，直接显示内容
+  if (isLoading && !content) {
+    return <div>正在生成回答...</div>;
+  }
+
+  // 使用 streaming 属性启用流式渲染
+  return (
+    <XMarkdown
+      content={content}
+      paragraphTag="div"
+      streaming={{ hasNextChunk: isLoading }}
+    />
+  );
+};
+
+
+
 
 /**
  * 聊天页面组件
@@ -39,53 +104,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isRequesting, setIsRequesting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  // 使用 ref 存储每个消息的思考组件展开状态，避免重新渲染时丢失
-  const thinkExpandedRef = useRef<Map<string, boolean>>(new Map());
-  // 使用 ref 存储最新的 messages，供组件内部访问，避免闭包问题
-  const messagesRef = useRef<ChatMessage[]>([]);
-
-  // 同步 messages 到 ref
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  /**
-   * 解析文本流
-   * 使用标签解析器解析流式响应，实现逐字显示
-   */
-  const parseTextStream = useCallback(
-    async (
-      reader: ReadableStreamDefaultReader<Uint8Array>,
-      onTag: (tag: StreamTag) => void,
-      onComplete: () => void,
-      onError: (error: Error) => void
-    ) => {
-      const parser = new StreamTagParser();
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            // 完成解析，处理剩余数据
-            parser.finish(onTag);
-            onComplete();
-            break;
-          }
-
-          if (value) {
-            // 使用解析器解析数据块
-            parser.parseChunk(value, onTag);
-          }
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          onError(error);
-        }
-      }
-    },
-    []
-  );
 
   /**
    * 处理提交
@@ -141,118 +159,103 @@ export default function ChatPage() {
           }))
           .slice(-10); // 只使用最近10条消息
 
-        // 调用 API
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        // 使用封装的流式处理函数（带标签解析）
+        await fetchAndProcessStreamWithTags(
+          "/api/chat",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              message: text,
+              history: historyForRequest,
+            }),
+            signal: abortController.signal,
           },
-          body: JSON.stringify({
-            message: text,
-            history: historyForRequest,
-          }),
-          signal: abortController.signal,
-        });
+          {
+            onThink: (thinkContent) => {
+              // 立即更新消息，设置 think 字段（即使 content 还是空的）
+              // 使用 flushSync 强制立即渲染，避免 React 批处理延迟
+              console.log('🔵 onThink 回调被调用，内容长度:', thinkContent.length);
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) => {
+                    if (msg.id !== aiMessageId) return msg;
 
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ message: "请求失败" }));
-          throw new Error(errorData.message || "请求失败");
-        }
+                    return {
+                      ...msg,
+                      think: thinkContent, // 直接设置 think 字段
+                      loading: true,
+                      streamStatus: "streaming",
+                    };
+                  })
+                );
+              });
+              console.log('✅ onThink 状态已更新');
+            },
+            onContent: (contentChunk) => {
+              // content 标签内容，流式追加到 content 字段
+              // 使用 flushSync 强制立即渲染，实现真正的流式显示
+              // console.log('🟢 onContent 回调被调用，块长度:', contentChunk.length, '内容预览:', contentChunk.substring(0, 50));
 
-        if (!response.body) {
-          throw new Error("响应体为空");
-        }
+              // 直接更新状态，使用 flushSync 强制同步渲染
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) => {
+                    if (msg.id !== aiMessageId) return msg;
 
-        // 读取流式响应
-        const reader = response.body.getReader();
-        let thinkContent = "";
-        let hasThink = false;
+                    // 获取当前内容，流式追加
+                    const currentContent = msg.content || "";
+                    console.log('🟢 contentChunk:', contentChunk);
+                    const newContent = currentContent + contentChunk;
 
-        await parseTextStream(
-          reader,
-          (tag) => {
-            // 根据标签类型处理
-            if (tag.type === "think") {
-              // think 标签内容应该只设置一次，放在最前面
-              if (!hasThink) {
-                thinkContent = tag.content;
-                hasThink = true;
-              }
-            } else if (tag.type === "content") {
-              // content 标签内容，流式追加
-              // 使用函数式更新，确保获取最新的内容
+                    return {
+                      ...msg,
+                      content: newContent, // 只更新 content 字段
+                      loading: true,
+                      streamStatus: "streaming",
+                    };
+                  })
+                );
+              });
+
+            },
+            onComplete: () => {
+              // 完成
               setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== aiMessageId) return msg;
-
-                  // 获取当前内容，提取已有的 content 部分（去掉 think 标签）
-                  const currentContent = msg.content || "";
-                  let existingContent = "";
-
-                  if (currentContent.includes("</think>")) {
-                    // 如果已有 think 标签，提取 content 部分
-                    const contentStart = currentContent.indexOf("</think>") + 8;
-                    existingContent = currentContent
-                      .substring(contentStart)
-                      .replace(/^\n\n/, "");
-                  } else {
-                    // 如果没有 think 标签，使用全部内容
-                    existingContent = currentContent;
-                  }
-
-                  // 追加新的内容
-                  const newContent = existingContent + tag.content;
-
-                  // 构建完整内容：think + content
-                  const fullContent = hasThink
-                    ? `<think>${thinkContent}</think>\n\n${newContent}`
-                    : newContent;
-
-                  return {
-                    ...msg,
-                    content: fullContent,
-                    loading: true,
-                    streamStatus: "streaming",
-                  };
-                })
-              );
-            }
-          },
-          () => {
-            // 完成
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId
-                  ? {
+                prev.map((msg) =>
+                  msg.id === aiMessageId
+                    ? {
                       ...msg,
                       loading: false,
                       streamStatus: "done",
                     }
-                  : msg
-              )
-            );
-            setIsRequesting(false);
-          },
-          (error) => {
-            // 错误处理
-            console.error("流式响应错误:", error);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId
-                  ? {
+                    : msg
+                )
+              );
+              setIsRequesting(false);
+            },
+            onError: (error) => {
+              // 错误处理
+              if (error instanceof Error && error.name === "AbortError") {
+                // 请求被取消，不显示错误
+                return;
+              }
+              console.error("流式响应错误:", error);
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId
+                    ? {
                       ...msg,
                       content:
                         msg.content || "抱歉，处理请求时出现错误，请重试。",
                       loading: false,
                       streamStatus: "done",
                     }
-                  : msg
-              )
-            );
-            setIsRequesting(false);
-            antdMessage.error(error.message || "请求失败");
+                    : msg
+                )
+              );
+              setIsRequesting(false);
+              antdMessage.error(error.message || "请求失败");
+            },
           }
         );
       } catch (error) {
@@ -266,11 +269,11 @@ export default function ChatPage() {
           prev.map((msg) =>
             msg.id === aiMessageId
               ? {
-                  ...msg,
-                  content: error instanceof Error ? error.message : "请求失败",
-                  loading: false,
-                  streamStatus: "done",
-                }
+                ...msg,
+                content: error instanceof Error ? error.message : "请求失败",
+                loading: false,
+                streamStatus: "done",
+              }
               : msg
           )
         );
@@ -280,81 +283,9 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [isRequesting, messages, parseTextStream]
+    [isRequesting, messages]
   );
 
-  /**
-   * Think 组件自定义渲染
-   * 根据消息的 streamStatus 显示不同的状态
-   * 展开状态使用 ref 存储，避免重新渲染时丢失
-   */
-  const createThinkComponent = useCallback(
-    (messageId: string) => {
-      // 初始化展开状态：如果不存在，则设置为 true（默认展开）
-      if (!thinkExpandedRef.current.has(messageId)) {
-        thinkExpandedRef.current.set(messageId, true);
-      }
-
-      // 使用 ref 存储 messageId，避免依赖警告
-      const messageIdRef = { current: messageId };
-
-      const ThinkComponentForMessage = React.memo((props: ComponentProps) => {
-        const [title, setTitle] = React.useState("思考中...");
-        const [loading, setLoading] = React.useState(true);
-        const [expanded, setExpanded] = React.useState(() => {
-          // 从 ref 中读取初始展开状态
-          return thinkExpandedRef.current.get(messageIdRef.current) ?? true;
-        });
-
-        // 从 messages 状态中获取最新的 streamStatus
-        const currentMessage = messages.find(
-          (m) => m.id === messageIdRef.current
-        );
-        const streamStatus = currentMessage?.streamStatus || "done";
-
-        React.useEffect(() => {
-          // streamStatus 可能是 'done' | 'streaming' | undefined
-          if (streamStatus === "done") {
-            setTitle("思考完成");
-            setLoading(false);
-            // 完成时自动折叠（但保留用户手动展开的状态）
-            const currentExpanded = thinkExpandedRef.current.get(
-              messageIdRef.current
-            );
-            if (currentExpanded === undefined || currentExpanded === true) {
-              // 只有在未手动设置过或当前为展开状态时才自动折叠
-              setExpanded(false);
-              thinkExpandedRef.current.set(messageIdRef.current, false);
-            }
-          } else if (streamStatus === "streaming") {
-            setTitle("思考中...");
-            setLoading(true);
-          }
-        }, [streamStatus]);
-
-        const handleToggle = React.useCallback(() => {
-          const newExpanded = !expanded;
-          setExpanded(newExpanded);
-          thinkExpandedRef.current.set(messageIdRef.current, newExpanded);
-        }, [expanded]);
-
-        return (
-          <Think
-            title={title}
-            loading={loading}
-            expanded={expanded}
-            onClick={handleToggle}
-          >
-            {props.children}
-          </Think>
-        );
-      });
-
-      ThinkComponentForMessage.displayName = `ThinkComponent-${messageId}`;
-      return ThinkComponentForMessage;
-    },
-    [messages]
-  );
 
   /**
    * 消息角色配置
@@ -388,46 +319,29 @@ export default function ChatPage() {
   }, []);
 
   /**
-   * 为每个消息创建稳定的 ThinkComponent 引用
-   * 使用 Map 缓存，避免每次重新创建导致状态丢失
-   */
-  const thinkComponentCacheRef = useRef<
-    Map<string, React.ComponentType<ComponentProps>>
-  >(new Map());
-
-  /**
    * 转换消息为 Bubble.List 需要的格式
+   * 不使用 useMemo，直接计算，确保每次 messages 更新时都重新计算
    */
-  const bubbleItems = useMemo(() => {
-    return messages.map((msg) => {
-      const isLoading = msg.loading || msg.streamStatus === "streaming";
+  const bubbleItems = messages.map((msg) => {
+    const isLoading = msg.loading || msg.streamStatus === "streaming";
 
-      // 为每个消息创建稳定的 ThinkComponent 引用
-      // 使用缓存避免重新创建，每个消息只创建一次
-      let ThinkComponentForMessage = thinkComponentCacheRef.current.get(msg.id);
-      if (!ThinkComponentForMessage) {
-        ThinkComponentForMessage = createThinkComponent(msg.id);
-        thinkComponentCacheRef.current.set(msg.id, ThinkComponentForMessage);
-      }
-
-      return {
-        key: msg.id,
-        loading: isLoading,
-        role: msg.role,
-        // 使用 XMarkdown 渲染助手消息，用户消息保持纯文本
-        content:
-          msg.role === "user" ? (
-            msg.content
-          ) : (
-            <XMarkdown
-              content={msg.content || "正在思考..."}
-              components={{ think: ThinkComponentForMessage }}
-              paragraphTag="div"
-            />
-          ),
-      };
-    });
-  }, [messages, createThinkComponent]);
+    return {
+      key: msg.id,
+      loading: isLoading,
+      role: msg.role,
+      // 使用 MessageContent 组件渲染助手消息，用户消息保持纯文本
+      content:
+        msg.role === "user" ? (
+          msg.content
+        ) : (
+          <MessageContent
+            content={msg.content}
+            think={msg.think}
+            streamStatus={msg.streamStatus}
+          />
+        ),
+    };
+  });
 
   /**
    * 设置 Markdown 中的链接在新标签页打开
@@ -464,7 +378,21 @@ export default function ChatPage() {
     return () => {
       observer.disconnect();
     };
-  }, [bubbleItems]);
+  }, [messages]); // 改为依赖 messages，确保每次消息更新时都执行
+
+  /**
+   * 自动滚动到底部（流式响应时）
+   */
+  useEffect(() => {
+    if (messageContainerRef.current && isRequesting) {
+      // 使用 requestAnimationFrame 确保在 DOM 更新后滚动
+      requestAnimationFrame(() => {
+        if (messageContainerRef.current) {
+          messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [messages, isRequesting]);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl h-[calc(100vh-var(--header-height))] flex flex-col overflow-hidden">
@@ -499,7 +427,10 @@ export default function ChatPage() {
               </Typography.Text>
             </div>
           ) : (
-            <Bubble.List role={roles} items={bubbleItems} />
+            <Bubble.List
+              role={roles}
+              items={bubbleItems}
+            />
           )}
         </div>
       </div>

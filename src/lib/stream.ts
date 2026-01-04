@@ -3,6 +3,8 @@
  * 包含客户端和服务端的流式响应处理
  */
 
+import { StreamTagParser, type StreamTag } from './stream-tags';
+
 /**
  * 创建流式响应的选项
  */
@@ -32,6 +34,31 @@ export interface StreamProcessOptions {
    * 完成回调函数，流处理完成时调用
    */
   onComplete?: (fullText: string) => void;
+  
+  /**
+   * 错误回调函数，处理错误时调用
+   */
+  onError?: (error: Error) => void;
+}
+
+/**
+ * 处理带标签的流式响应选项
+ */
+export interface StreamTagProcessOptions {
+  /**
+   * think 标签回调函数，收到 think 标签时调用
+   */
+  onThink?: (content: string) => void;
+  
+  /**
+   * content 标签回调函数，每次收到 content 标签内容时调用（流式）
+   */
+  onContent?: (content: string) => void;
+  
+  /**
+   * 完成回调函数，流处理完成时调用
+   */
+  onComplete?: () => void;
   
   /**
    * 错误回调函数，处理错误时调用
@@ -115,6 +142,92 @@ export const fetchAndProcessStream = async (
   });
 
   return processStreamResponse(response, streamOptions);
+};
+
+/**
+ * 处理带标签的流式响应
+ * 使用缓冲区解析 <think></think><content></content> 标签
+ * @param response Fetch Response 对象
+ * @param options 处理选项
+ * @returns Promise<void>
+ */
+export const processStreamResponseWithTags = async (
+  response: Response,
+  options: StreamTagProcessOptions = {}
+): Promise<void> => {
+  const { onThink, onContent, onComplete, onError } = options;
+
+  if (!response.ok) {
+    const error = new Error(`HTTP error! status: ${response.status}`);
+    onError?.(error);
+    throw error;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const error = new Error('无法读取响应流');
+    onError?.(error);
+    throw error;
+  }
+
+  const parser = new StreamTagParser();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        // 完成解析，处理剩余数据
+        parser.finish((tag: StreamTag) => {
+          if (tag.type === 'think') {
+            onThink?.(tag.content);
+          } else if (tag.type === 'content') {
+            onContent?.(tag.content);
+          }
+        });
+        onComplete?.();
+        break;
+      }
+
+      if (value) {
+        // 使用解析器解析数据块
+        parser.parseChunk(value, (tag: StreamTag) => {
+          if (tag.type === 'think') {
+            onThink?.(tag.content);
+          } else if (tag.type === 'content') {
+            onContent?.(tag.content);
+          }
+        });
+      }
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error('处理流式响应时发生未知错误');
+    onError?.(err);
+    throw err;
+  }
+};
+
+/**
+ * 从 API 获取带标签的流式响应并处理
+ * @param url API 地址
+ * @param options 请求选项
+ * @param streamOptions 流处理选项
+ * @returns Promise<void>
+ */
+export const fetchAndProcessStreamWithTags = async (
+  url: string,
+  options: RequestInit = {},
+  streamOptions: StreamTagProcessOptions = {}
+): Promise<void> => {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  return processStreamResponseWithTags(response, streamOptions);
 };
 
 /**
