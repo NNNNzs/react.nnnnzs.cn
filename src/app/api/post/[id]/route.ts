@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
+import { embedPost } from '@/services/embedding';
 import {
   getTokenFromRequest,
   validateToken,
@@ -105,6 +106,20 @@ export async function PUT(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
+    // 如果更新了标题或内容，异步执行向量化
+    const hasContentUpdate = validationResult.data.content !== undefined;
+    const hasTitleUpdate = validationResult.data.title !== undefined;
+    if ((hasContentUpdate || hasTitleUpdate) && updatedPost.title && updatedPost.content) {
+      embedPost({
+        postId: updatedPost.id,
+        title: updatedPost.title,
+        content: updatedPost.content,
+      }).catch((error) => {
+        console.error('文章向量化失败（异步）:', error);
+        // 向量化失败不影响文章更新，只记录错误
+      });
+    }
+
     return NextResponse.json(successResponse(updatedPost));
   } catch (error) {
     console.error('更新文章失败:', error);
@@ -157,6 +172,20 @@ export async function PATCH(
 
     if (!updatedPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    // 如果更新了标题或内容，异步执行向量化
+    const hasContentUpdate = validationResult.data.content !== undefined;
+    const hasTitleUpdate = validationResult.data.title !== undefined;
+    if ((hasContentUpdate || hasTitleUpdate) && updatedPost.title && updatedPost.content) {
+      embedPost({
+        postId: updatedPost.id,
+        title: updatedPost.title,
+        content: updatedPost.content,
+      }).catch((error) => {
+        console.error('文章向量化失败（异步）:', error);
+        // 向量化失败不影响文章更新，只记录错误
+      });
     }
 
     return NextResponse.json(successResponse(updatedPost));

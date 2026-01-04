@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Table, Button, Input, Space, Tag, message, Modal, Select } from 'antd';
+import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
@@ -16,6 +16,7 @@ import {
   EyeOutlined,
   PlusOutlined,
   SearchOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -116,6 +117,13 @@ function AdminPageContent() {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   // 表格滚动高度（基于flex-1容器动态计算，减去分页器高度）
   const [tableScrollHeight, setTableScrollHeight] = useState<number | undefined>(undefined);
+  // 批量更新向量相关状态
+  const [embeddingLoading, setEmbeddingLoading] = useState(false);
+  const [embeddingProgress, setEmbeddingProgress] = useState<{
+    total: number;
+    success: number;
+    failed: number;
+  } | null>(null);
   
   // 直接使用 URL 状态，不维护本地 state
   const hideFilter = urlState.hideFilter;
@@ -281,6 +289,58 @@ function AdminPageContent() {
   };
 
   /**
+   * 批量更新所有文章的向量
+   */
+  const handleBatchUpdateEmbeddings = () => {
+    confirm({
+      title: '确认批量更新向量',
+      content: '确定要更新所有文章的向量数据吗？此操作可能需要较长时间。',
+      okText: '确定',
+      okType: 'primary',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setEmbeddingLoading(true);
+          setEmbeddingProgress({ total: 0, success: 0, failed: 0 });
+
+          const response = await axios.post('/api/post/embed/batch', {});
+
+          if (response.data.status) {
+            const data = response.data.data;
+            setEmbeddingProgress({
+              total: data.total,
+              success: data.success,
+              failed: data.failed,
+            });
+
+            if (data.failed === 0) {
+              message.success(`批量更新完成：成功更新 ${data.success} 篇文章的向量数据`);
+            } else {
+              message.warning(
+                `批量更新完成：成功 ${data.success} 篇，失败 ${data.failed} 篇`
+              );
+            }
+
+            // 3秒后清除进度显示
+            setTimeout(() => {
+              setEmbeddingProgress(null);
+            }, 3000);
+          } else {
+            message.error(response.data.message || '批量更新失败');
+            setEmbeddingProgress(null);
+          }
+        } catch (error) {
+          console.error('批量更新向量失败:', error);
+          message.error('批量更新向量失败');
+          setEmbeddingProgress(null);
+        } finally {
+          setEmbeddingLoading(false);
+        }
+      },
+    });
+  };
+
+  /**
    * 统一的查询参数更新方法
    * @param updates - 要更新的查询参数部分对象
    */
@@ -396,15 +456,56 @@ function AdminPageContent() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="mb-6 flex items-center justify-between shrink-0">
           <h1 className="text-2xl font-bold">文章管理</h1>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreate}
-            size="large"
-          >
-            创建新文章
-          </Button>
+          <Space>
+            <Button
+              icon={<SyncOutlined />}
+              onClick={handleBatchUpdateEmbeddings}
+              loading={embeddingLoading}
+              size="large"
+            >
+              批量更新向量
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+              size="large"
+            >
+              创建新文章
+            </Button>
+          </Space>
         </div>
+
+        {/* 批量更新进度显示 */}
+        {embeddingProgress && (
+          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-medium text-blue-700">批量更新向量进度</span>
+              <span className="text-sm text-blue-600">
+                成功: {embeddingProgress.success} / 失败: {embeddingProgress.failed} / 总计: {embeddingProgress.total}
+              </span>
+            </div>
+            <Progress
+              percent={
+                embeddingProgress.total > 0
+                  ? Math.round(
+                      ((embeddingProgress.success + embeddingProgress.failed) /
+                        embeddingProgress.total) *
+                        100
+                    )
+                  : 0
+              }
+              status={
+                embeddingProgress.failed > 0 ? 'exception' : 'success'
+              }
+              strokeColor={
+                embeddingProgress.failed > 0
+                  ? '#ff4d4f'
+                  : '#52c41a'
+              }
+            />
+          </div>
+        )}
 
         {/* 搜索和筛选 */}
         <div className="mb-4 flex gap-4 shrink-0">

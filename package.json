@@ -12,6 +12,7 @@
     "prisma:studio": "npx prisma studio",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:push": "npx prisma db push",
+    "qdrant:init": "tsx scripts/init-qdrant.ts",
     "build:docker": "./scripts/build-docker.sh",
     "start:docker": "docker-compose -f docker-compose.local.yml up -d ",
     "local:image:push": "./scripts/push-docker.sh"
@@ -27,6 +28,7 @@
     "@langchain/openai": "^1.2.0",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@prisma/client": "6.2.1",
+    "@qdrant/js-client-rest": "^1.16.2",
     "@types/multer": "^2.0.0",
     "antd": "6.1.1",
     "axios": "^1.13.2",
@@ -64,6 +66,7 @@
     "eslint-config-next": "16.0.8",
     "prisma": "6.2.1",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

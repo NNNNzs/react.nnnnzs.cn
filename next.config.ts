@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   /* config options here */
   reactCompiler: true,
+  // instrumentation hook 在 Next.js 16 中默认启用，无需配置
   turbopack: {
     root: __dirname,
   },

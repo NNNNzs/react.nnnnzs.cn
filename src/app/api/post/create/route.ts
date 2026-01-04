@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPost } from '@/services/post';
+import { embedPost } from '@/services/embedding';
 import {
   getTokenFromRequest,
   validateToken,
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
       // 创建人使用当前登录用户
       created_by: user.id,
     });
+
+    // 异步执行向量化（不阻塞响应）
+    if (result.id && result.title && result.content) {
+      embedPost({
+        postId: result.id,
+        title: result.title,
+        content: result.content,
+      }).catch((error) => {
+        console.error('文章向量化失败（异步）:', error);
+        // 向量化失败不影响文章创建，只记录错误
+      });
+    }
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {
