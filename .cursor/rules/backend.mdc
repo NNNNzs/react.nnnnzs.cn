@@ -94,28 +94,39 @@ AI 相关服务统一组织在 `src/services/ai/` 目录下，按功能拆分：
 
 ```
 src/services/ai/
-├── text/              # AI文本处理服务（润色、扩写、缩写）
+├── anthropic/        # Anthropic 官方 SDK 工具类（新建）
+│   ├── client.ts     # 客户端和配置
+│   ├── stream.ts     # 流式响应处理
+│   └── index.ts      # 统一导出
+├── text/              # AI文本处理服务（使用 Anthropic）
 │   └── index.ts
-├── description/       # 文章描述生成服务
+├── description/       # 文章描述生成服务（使用 Anthropic）
 │   └── index.ts
-├── utils/            # 共享工具函数（提示词模板创建等）
+├── utils/            # 共享工具函数（提示词模板创建等，用于 OpenAI）
 │   └── prompt.ts
 └── index.ts          # 统一导出接口
 ```
 
 **导入规范**：
 ```typescript
-// ✅ 正确：从统一入口导入
+// ✅ 正确：从统一入口导入服务
 import { processAITextStream, generDescriptionStream } from '@/services/ai';
 
-// ❌ 错误：直接导入子模块（除非有特殊需求）
-import { processAITextStream } from '@/services/ai/text';
+// ✅ 正确：直接导入 Anthropic 工具类（需要直接调用时）
+import { streamAnthropicMessagesWithSystem } from '@/services/ai/anthropic';
+
+// ✅ 正确：导入 OpenAI LangChain 工具（需要 OpenAI 时）
+import { createAIChain, streamFromChain } from '@/lib/ai';
+
+// ❌ 错误：不要混用两套工具
+// 不要用 LangChain 调用 Anthropic，不要用官方 SDK 调用 OpenAI
 ```
 
 **目录职责**：
-- `text/` - AI 文本处理相关功能（如润色、扩写、缩写）
-- `description/` - 文章描述生成功能
-- `utils/` - 共享的工具函数，如提示词模板创建、配置管理等
+- `anthropic/` - Anthropic 官方 SDK 工具类，提供直接调用接口
+- `text/` - AI 文本处理相关功能（使用 Anthropic）
+- `description/` - 文章描述生成功能（使用 Anthropic）
+- `utils/` - 共享的工具函数（主要用于 OpenAI 的 LangChain 提示词模板）
 - `index.ts` - 统一导出所有核心接口，方便其他模块使用
 
 ```typescript
@@ -383,21 +394,58 @@ pnpm prisma db push
 ### 概述
 本项目默认使用**流式响应**处理 AI 相关的 API 请求，提供实时的打字机效果和更好的用户体验。
 
-### AI 服务技术栈
-- **LangChain.js**：使用 LangChain.js 作为统一的 AI 抽象层
-- **Anthropic Claude**：后端使用 Anthropic Claude 模型
-- **LCEL（LangChain Expression Language）**：使用 LCEL 规范构建处理链：`prompt.pipe(model).pipe(outputParser)`
-- **核心工具**：`@/lib/ai.ts` 提供统一的 AI 服务抽象层
+### AI 服务技术栈（两套独立工具）
 
-#### 核心抽象层使用
-所有 AI 服务都应通过 `@/lib/ai.ts` 提供的工具函数构建：
+本项目使用**两套独立的 AI 工具**，根据不同的模型提供商选择：
+
+#### 1. Anthropic Claude（官方 SDK）
+- **位置**：`@/services/ai/anthropic`
+- **SDK**：`@anthropic-ai/sdk` 官方 SDK
+- **特点**：直接调用，支持中转服务，无需 LangChain 包装
+- **使用场景**：所有 Anthropic Claude 模型调用
+
+#### 2. OpenAI（LangChain 包装）
+- **位置**：`@/lib/ai.ts`
+- **SDK**：`@langchain/openai` + LangChain.js
+- **特点**：使用 LangChain LCEL 规范，统一的链式调用接口
+- **使用场景**：所有 OpenAI 模型调用
+
+### 工具选择规范
+
+**重要：必须根据模型提供商明确选择使用哪套工具**
+
+#### Anthropic Claude 使用规范
 
 ```typescript
+// ✅ 正确：使用官方 SDK 工具
+import {
+  streamAnthropicMessagesWithSystem,
+  type AnthropicModelConfig,
+} from '@/services/ai/anthropic';
+
+// 调用方式
+const stream = await streamAnthropicMessagesWithSystem(
+  systemInstruction,  // 系统消息（字符串）
+  messages,           // 消息数组 [{ role: 'user' | 'assistant', content: string }]
+  config              // AnthropicModelConfig
+);
+```
+
+**特点**：
+- 直接返回 `ReadableStream<Uint8Array>`
+- 流式数据是**纯文本**，直接解码即可
+- 支持中转服务（通过 baseURL 配置）
+- 消息格式：使用 `system` 参数传递系统消息，`messages` 数组传递对话消息
+
+#### OpenAI 使用规范
+
+```typescript
+// ✅ 正确：使用 LangChain 工具
 import {
   ChatPromptTemplate,
   createAIChain,
   streamFromChain,
-  type AIModelConfig
+  type AIModelConfig,
 } from '@/lib/ai';
 
 // 创建提示词模板
@@ -408,7 +456,7 @@ const prompt = ChatPromptTemplate.fromMessages([
 
 // 创建 AI 链（使用 LCEL）
 const chain = createAIChain<{ input: string }>(prompt, {
-  model: 'claude-haiku-4-5-20251001',
+  model: 'gpt-4o-mini',
   temperature: 0.7,
   maxTokens: 2000,
 });
@@ -417,6 +465,92 @@ const chain = createAIChain<{ input: string }>(prompt, {
 const stream = await streamFromChain(chain, { input: '用户输入' });
 ```
 
+**特点**：
+- 使用 LangChain LCEL 规范：`prompt.pipe(model).pipe(outputParser)`
+- 返回 `ReadableStream<Uint8Array>`
+- 流式数据是**纯文本**，直接解码即可
+- 支持提示词模板和链式调用
+
+### 前端解析方案
+
+**重要：两套工具返回的流式数据格式相同，但解析方式需要统一处理**
+
+#### 统一的前端解析方案
+
+```typescript
+/**
+ * 处理流式响应（适用于 Anthropic 和 OpenAI）
+ * @param response Response 对象
+ * @param onChunk 每个数据块的回调
+ * @param onComplete 完成回调
+ */
+const handleStreamResponse = async (
+  response: Response,
+  onChunk: (text: string) => void,
+  onComplete?: (fullText: string) => void
+) => {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('无法读取响应流');
+  }
+
+  const decoder = new TextDecoder('utf-8');
+  let fullText = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        onComplete?.(fullText);
+        break;
+      }
+
+      if (value) {
+        // 直接解码为文本（两套工具都返回纯文本）
+        const text = decoder.decode(value, { stream: true });
+        fullText += text;
+        onChunk(text);
+      }
+    }
+  } catch (error) {
+    console.error('处理流式响应错误:', error);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+};
+```
+
+#### 使用示例
+
+```typescript
+// 调用 Anthropic API
+const response = await fetch('/api/ai/description', {
+  method: 'POST',
+  body: JSON.stringify({ content: '文章内容' }),
+});
+
+// 使用统一的解析方案
+await handleStreamResponse(
+  response,
+  (chunk) => {
+    // 实时更新显示
+    setContent((prev) => prev + chunk);
+  },
+  (fullText) => {
+    // 完成处理
+    console.log('完整内容:', fullText);
+  }
+);
+```
+
+**注意**：
+- 两套工具返回的都是 `ReadableStream<Uint8Array>`
+- 流式数据都是**纯文本**，使用 `TextDecoder` 直接解码
+- 不需要区分是哪个工具返回的，统一使用相同的解析方案
+- HTTP 响应头都是 `text/plain; charset=utf-8` 或 `text/event-stream; charset=utf-8`
+
 ### 流式响应原则
 1. **默认使用流式**：所有 AI 处理相关的 API 都应该使用流式响应
 2. **移除非流式代码**：删除冗余的非流式处理逻辑，减少代码复杂度
@@ -424,23 +558,15 @@ const stream = await streamFromChain(chain, { input: '用户输入' });
 
 ### 服务层实现
 
-#### AI 服务目录结构
-AI 相关服务统一在 `src/services/ai/` 目录下，使用 LangChain.js 规范实现：
+#### Anthropic 服务实现示例
 
 ```typescript
-// src/services/ai/text/index.ts - AI文本处理服务
-import { 
-  ChatPromptTemplate,
-  createAIChain,
-  streamFromChain,
-  type AIModelConfig
-} from '@/lib/ai';
+// src/services/ai/text/index.ts - AI文本处理服务（使用 Anthropic）
+import {
+  streamAnthropicMessagesWithSystem,
+  type AnthropicModelConfig,
+} from '../anthropic';
 import { AI_PROMPTS, type AIProcessParams, type AIActionType } from '@/lib/ai-text';
-import { 
-  createBasePrompt, 
-  createPromptWithContext, 
-  createChineseSystemInstruction 
-} from '../utils/prompt';
 
 /**
  * AI文本处理（流式）
@@ -461,34 +587,79 @@ export const processAITextStream = async (
     throw new Error('文本长度超过限制（5000字符）');
   }
 
-  // 获取指令并创建提示词模板
+  // 获取指令
   const instruction = AI_PROMPTS[action];
-  const systemInstruction = createChineseSystemInstruction(instruction);
-  const hasContext = !!context;
   
-  const prompt = hasContext 
-    ? createPromptWithContext(systemInstruction, '{context}', '{text}')
-    : createBasePrompt(systemInstruction, '{text}');
-  
-  // 创建 LCEL 链并执行流式响应
-  const chain = createAIChain<AITextInput>(prompt, {
-    model: 'claude-haiku-4-5-20251001',
-    temperature: 0.7,
-    maxTokens: 2000,
-  });
-  
-  return streamFromChain(chain, { instruction, text, ...(hasContext && { context }) });
+  // 构建系统指令
+  const systemInstruction = `请使用中文回复。
+
+${instruction}`;
+
+  // 构建用户消息
+  let userContent = '';
+  if (context) {
+    userContent = `上下文信息：${context}\n\n需要处理的文本：${text}`;
+  } else {
+    userContent = text;
+  }
+
+  const messages = [
+    {
+      role: 'user' as const,
+      content: userContent,
+    },
+  ];
+
+  // 使用 Anthropic 官方 SDK
+  return streamAnthropicMessagesWithSystem(
+    systemInstruction,
+    messages,
+    {
+      model: 'claude-haiku-4-5-20251001',
+      temperature: 0.7,
+      maxTokens: 2000,
+    }
+  );
 };
 ```
 
-#### 工具函数
+#### OpenAI 服务实现示例
+
 ```typescript
-// src/services/ai/utils/prompt.ts - 提示词工具函数
+// src/app/api/chat/route.ts - 聊天API（使用 OpenAI LangChain）
+import {
+  ChatPromptTemplate,
+  createAIChain,
+  streamFromChain,
+  type AIModelConfig,
+} from '@/lib/ai';
+
+// 创建提示词模板
+const prompt = ChatPromptTemplate.fromMessages([
+  ['system', systemInstruction],
+  ['human', userTemplate],
+]);
+
+// 创建 AI 链（使用 LCEL）
+const chain = createAIChain<{ message: string }>(prompt, {
+  model: 'gpt-4o-mini',
+  temperature: 0.7,
+  maxTokens: 2000,
+});
+
+// 执行流式响应
+const stream = await streamFromChain(chain, { message });
+```
+
+#### 工具函数说明
+
+**注意**：`src/services/ai/utils/prompt.ts` 中的工具函数主要用于 OpenAI 的 LangChain 提示词模板创建。对于 Anthropic，直接使用字符串构建系统指令和消息即可。
+
+```typescript
+// src/services/ai/utils/prompt.ts - 提示词工具函数（主要用于 OpenAI）
 import { ChatPromptTemplate } from '@/lib/ai';
 
-/**
- * 创建基础提示词模板
- */
+// 这些函数返回 ChatPromptTemplate，用于 OpenAI 的 LangChain 链
 export const createBasePrompt = (
   systemInstruction: string,
   userTemplate: string
@@ -498,27 +669,23 @@ export const createBasePrompt = (
     ['human', userTemplate],
   ]);
 };
+```
 
-/**
- * 创建带上下文信息的提示词模板
- */
-export const createPromptWithContext = (
-  systemInstruction: string,
-  contextPlaceholder: string,
-  userPlaceholder: string
-): ChatPromptTemplate => {
-  return ChatPromptTemplate.fromMessages([
-    ['system', systemInstruction],
-    ['human', `上下文信息：${contextPlaceholder}\n\n需要处理的文本：${userPlaceholder}`],
-  ]);
-};
+**Anthropic 不需要这些工具函数**，直接构建字符串即可：
+
+```typescript
+// ✅ Anthropic 方式：直接使用字符串
+const systemInstruction = `请使用中文回复。
+
+你是一个AI助手。`;
+const messages = [{ role: 'user' as const, content: '用户输入' }];
 ```
 
 ### API 路由实现
 
-#### 流式 API 路由
+#### Anthropic 流式 API 路由
 ```typescript
-// src/app/api/ai/process/route.ts
+// src/app/api/ai/process/route.ts（使用 Anthropic）
 import { NextRequest, NextResponse } from 'next/server';
 import { processAITextStream } from '@/services/ai';
 
@@ -542,7 +709,7 @@ export async function POST(request: NextRequest) {
 
     // 验证参数...
     
-    // 流式处理
+    // 流式处理（内部使用 Anthropic 官方 SDK）
     const streamResponse = await processAITextStream({ text, action, context });
     return createStreamResponse(streamResponse);
   } catch (error) {
@@ -554,9 +721,55 @@ export async function POST(request: NextRequest) {
 }
 ```
 
+#### OpenAI 流式 API 路由
+```typescript
+// src/app/api/chat/route.ts（使用 OpenAI LangChain）
+import { NextRequest, NextResponse } from 'next/server';
+import { createAIChain, streamFromChain, ChatPromptTemplate } from '@/lib/ai';
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { message, history } = body;
+
+    // 创建提示词模板
+    const prompt = ChatPromptTemplate.fromMessages([
+      ['system', '系统指令'],
+      ['human', '{message}'],
+    ]);
+
+    // 创建 AI 链（使用 LCEL）
+    const chain = createAIChain<{ message: string }>(prompt, {
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      maxTokens: 2000,
+    });
+
+    // 执行流式响应
+    const stream = await streamFromChain(chain, { message });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { status: false, message: error instanceof Error ? error.message : '处理失败' },
+      { status: 500 }
+    );
+  }
+}
+```
+
 ### 客户端调用
 
-#### 流式处理客户端
+#### 统一的流式处理客户端
+
+**重要**：两套工具返回的流式数据格式相同，前端使用统一的解析方案。
+
 ```typescript
 // src/components/AITextProcessor/ProcessingModal.tsx
 const processText = useCallback(async () => {
@@ -565,14 +778,18 @@ const processText = useCallback(async () => {
   setStreamText('');
 
   try {
-    // 调用流式 API
+    // 调用流式 API（无论是 Anthropic 还是 OpenAI）
     const response = await callAIAPI({
       text: originalText,
       action: action,
     });
 
-    // 读取流式响应
+    // 统一的流式响应解析（适用于两套工具）
     const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('无法读取响应流');
+    }
+
     const decoder = new TextDecoder('utf-8');
     let fullText = '';
 
@@ -580,6 +797,7 @@ const processText = useCallback(async () => {
       const { done, value } = await reader.read();
       if (done) break;
       
+      // 直接解码为文本（两套工具都返回纯文本）
       const chunk = decoder.decode(value, { stream: true });
       fullText += chunk;
       setStreamText(fullText); // 实时更新显示
@@ -588,11 +806,17 @@ const processText = useCallback(async () => {
     setResult(fullText);
     setIsLoading(false);
   } catch (error) {
-    setError(error.message);
+    setError(error instanceof Error ? error.message : '处理失败');
     setIsLoading(false);
   }
 }, [originalText, action]);
 ```
+
+**关键点**：
+- 两套工具返回的都是 `ReadableStream<Uint8Array>`
+- 流式数据都是**纯文本**，使用 `TextDecoder` 直接解码
+- **不需要区分**是哪个工具返回的，统一使用相同的解析方案
+- HTTP 响应头都是 `text/plain; charset=utf-8` 或 `text/event-stream; charset=utf-8`
 
 ### 客户端工具函数
 
@@ -656,12 +880,40 @@ export const processStreamResponse = async (
 3. **代码简化**：移除非流式逻辑，减少代码复杂度
 4. **统一接口**：所有 AI 处理都使用相同的模式
 
+### 工具选择决策树
+
+**如何选择使用哪套工具？**
+
+```
+需要调用 AI 模型
+├── 模型提供商是 Anthropic Claude？
+│   └── 是 → 使用 @/services/ai/anthropic（官方SDK）
+│       └── 支持中转服务，直接调用
+│
+└── 模型提供商是 OpenAI？
+    └── 是 → 使用 @/lib/ai（LangChain 包装）
+        └── 使用 LCEL 链式调用
+```
+
+**明确指定工具的使用方式**：
+
+1. **Anthropic 场景**：
+   - 文章描述生成 → 使用 `@/services/ai/anthropic`
+   - AI 文本处理 → 使用 `@/services/ai/anthropic`
+   - 需要支持中转服务 → 使用 `@/services/ai/anthropic`
+
+2. **OpenAI 场景**：
+   - 聊天对话（知识库检索） → 使用 `@/lib/ai`（LangChain）
+   - 需要 LCEL 链式调用 → 使用 `@/lib/ai`（LangChain）
+
 ### 注意事项
 
-- 所有 AI 相关 API 必须支持流式响应
-- 客户端需要正确处理流式读取和错误处理
-- 流式响应需要设置正确的 HTTP 头（`Cache-Control: no-cache`）
-- 错误信息也应该通过流式返回，避免客户端等待超时
+- **工具选择**：必须根据模型提供商明确选择工具，不要混用
+- **流式响应**：所有 AI 相关 API 必须支持流式响应
+- **统一格式**：两套工具返回的流式数据格式相同，前端使用统一解析方案
+- **HTTP 头**：流式响应需要设置正确的 HTTP 头（`Cache-Control: no-cache`）
+- **错误处理**：错误信息也应该通过流式返回，避免客户端等待超时
+- **中转服务**：Anthropic 使用官方 SDK 可以支持中转服务，LangChain 包装可能不支持
 
 ## MCP 服务器规范
 

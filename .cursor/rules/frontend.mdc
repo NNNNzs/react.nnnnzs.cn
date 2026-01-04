@@ -140,6 +140,37 @@ export function LikeButton({ initialLikes, postId }) {
 ## UI 组件库使用
 
 ### Ant Design 规范
+
+**重要：项目使用 Ant Design 6.1.1 版本**
+
+#### 版本信息
+- **antd**: `6.1.1`（固定版本，不要使用其他版本）
+- **@ant-design/icons**: `^6.1.0`
+- **@ant-design/nextjs-registry**: `^1.3.0`
+
+#### API 变更注意事项（Ant Design 6.x）
+
+**⚠️ 重要：Ant Design 6.x 有 API 变更，必须使用新 API**
+
+1. **Space 组件**：
+   - ❌ **已废弃**：`direction="vertical"` 或 `direction="horizontal"`
+   - ✅ **正确**：`orientation="vertical"` 或 `orientation="horizontal"`
+   ```typescript
+   // ❌ 错误 - 旧 API
+   <Space direction="vertical">...</Space>
+   
+   // ✅ 正确 - 新 API
+   <Space orientation="vertical">...</Space>
+   ```
+
+2. **其他常见 API 变更**：
+   - 使用组件前请查阅 [Ant Design 6.x 迁移指南](https://ant.design/docs/react/migration-v6-cn)
+   - 遇到警告时，优先检查是否为 API 变更导致
+3. **更新规范**:
+   -  如果遇到使用了错误的api，并且修正的情况，更新这份说明文档的示例
+
+
+#### 基础使用规范
 - 使用 `ConfigProvider` 全局配置
 - 中文语言包：`zhCN`
 - 按需导入组件
@@ -271,6 +302,193 @@ export default function PostList() {
   return <div>{posts.map(post => <PostCard key={post.id} post={post} />)}</div>
 }
 ```
+
+## AI 流式响应处理
+
+### 概述
+本项目使用流式响应处理 AI 相关的 API 请求。**重要**：无论是 Anthropic 还是 OpenAI，返回的流式数据格式相同，前端使用统一的解析方案。
+
+### 统一的流式响应解析
+
+**关键点**：
+- 两套工具（Anthropic 官方 SDK 和 OpenAI LangChain）都返回 `ReadableStream<Uint8Array>`
+- 流式数据都是**纯文本**，使用 `TextDecoder` 直接解码
+- **不需要区分**是哪个工具返回的，统一使用相同的解析方案
+
+#### 基础流式处理
+```typescript
+'use client'
+
+import { useState, useCallback } from 'react'
+
+/**
+ * 处理流式响应（适用于 Anthropic 和 OpenAI）
+ * @param response Response 对象
+ * @param onChunk 每个数据块的回调
+ * @param onComplete 完成回调
+ */
+const handleStreamResponse = async (
+  response: Response,
+  onChunk: (text: string) => void,
+  onComplete?: (fullText: string) => void
+) => {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('无法读取响应流')
+  }
+
+  const decoder = new TextDecoder('utf-8')
+  let fullText = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      
+      if (done) {
+        onComplete?.(fullText)
+        break
+      }
+
+      if (value) {
+        // 直接解码为文本（两套工具都返回纯文本）
+        const text = decoder.decode(value, { stream: true })
+        fullText += text
+        onChunk(text)
+      }
+    }
+  } catch (error) {
+    console.error('处理流式响应错误:', error)
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+// 使用示例
+const [content, setContent] = useState('')
+const [loading, setLoading] = useState(false)
+
+const processText = useCallback(async () => {
+  setLoading(true)
+  setContent('')
+
+  try {
+    const response = await fetch('/api/ai/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: '输入文本', action: 'polish' }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    // 使用统一的解析方案
+    await handleStreamResponse(
+      response,
+      (chunk) => {
+        // 实时更新显示
+        setContent((prev) => prev + chunk)
+      },
+      (fullText) => {
+        // 完成处理
+        console.log('完整内容:', fullText)
+        setLoading(false)
+      }
+    )
+  } catch (error) {
+    console.error('处理失败:', error)
+    setLoading(false)
+  }
+}, [])
+```
+
+#### SSE 格式流式处理（特殊场景）
+某些 API 可能使用 SSE（Server-Sent Events）格式，需要特殊处理：
+
+```typescript
+/**
+ * 处理 SSE 格式的流式响应
+ * 用于处理包含元数据（如思维链）的响应
+ */
+const handleSSEStreamResponse = async (
+  response: Response,
+  onContent: (text: string) => void,
+  onMetadata?: (data: unknown) => void
+) => {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('无法读取响应流')
+  }
+
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      
+      if (done) break
+
+      if (value) {
+        buffer += decoder.decode(value, { stream: true })
+        
+        // 处理 SSE 格式的数据
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || '' // 保留最后一个不完整的行
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.type === 'content') {
+                // 内容数据
+                onContent(typeof data.data === 'string' ? data.data : '')
+              } else if (data.type === 'thought_chain') {
+                // 元数据（如思维链）
+                onMetadata?.(data.data)
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('处理 SSE 流式响应错误:', error)
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
+}
+```
+
+### 使用场景说明
+
+#### 场景 1：纯文本流式响应（Anthropic 和 OpenAI 通用）
+```typescript
+// API 返回：纯文本流
+// Content-Type: text/plain; charset=utf-8
+// 使用：handleStreamResponse（基础方案）
+```
+
+#### 场景 2：SSE 格式流式响应（带元数据）
+```typescript
+// API 返回：SSE 格式
+// Content-Type: text/event-stream; charset=utf-8
+// 格式：data: {"type": "content", "data": "文本内容"}
+// 使用：handleSSEStreamResponse（SSE 方案）
+```
+
+### 注意事项
+
+1. **统一解析方案**：两套工具返回的流式数据格式相同，前端不需要区分
+2. **错误处理**：确保在 `finally` 中释放 reader，避免资源泄漏
+3. **编码格式**：始终使用 `utf-8` 编码解码
+4. **流式特性**：使用 `{ stream: true }` 选项确保正确处理多字节字符
+5. **性能优化**：实时更新 UI，提供打字机效果，提升用户体验
 
 ## 路由和导航
 

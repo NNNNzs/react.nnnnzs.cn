@@ -20,7 +20,11 @@ alwaysApply: true
 - 包管理器：pnpm
 
 ### UI 和样式
-- Ant Design 6.1.1
+- **Ant Design 6.1.1**（固定版本，注意 6.x API 变更）
+  - `antd`: `6.1.1`
+  - `@ant-design/icons`: `^6.1.0`
+  - `@ant-design/nextjs-registry`: `^1.3.0`
+  - **重要**：使用新 API，如 `Space` 组件的 `orientation` 而非 `direction`
 - Tailwind CSS 4.1.17
 - CSS Modules 支持
 
@@ -28,6 +32,11 @@ alwaysApply: true
 - 数据库：MySQL 5.7+
 - ORM：Prisma 6.2.1（不使用 Prisma Migrate，手写 SQL 迁移）
 - 缓存：Redis (ioredis)
+
+### AI 工具库
+- **Anthropic**：`@anthropic-ai/sdk` - 官方 SDK，用于 Anthropic Claude 模型
+- **OpenAI**：`@langchain/openai` + `@langchain/core` - LangChain 包装，用于 OpenAI 模型
+- **注意**：两套工具独立使用，根据模型提供商选择
 
 ### 其他工具库
 - Axios：HTTP 客户端
@@ -46,10 +55,13 @@ alwaysApply: true
 - `src/lib/` - 工具函数、配置和数据库连接
 - `src/services/` - 业务逻辑和数据库操作
   - `src/services/ai/` - AI 相关服务（文本处理、描述生成等）
-    - `text/` - AI 文本处理服务
-    - `description/` - 文章描述生成服务
-    - `utils/` - AI 服务共享工具函数
+    - `anthropic/` - Anthropic 官方 SDK 工具类（直接调用，支持中转服务）
+    - `text/` - AI 文本处理服务（使用 Anthropic）
+    - `description/` - 文章描述生成服务（使用 Anthropic）
+    - `utils/` - AI 服务共享工具函数（主要用于 OpenAI 的 LangChain 提示词模板）
     - `index.ts` - 统一导出接口
+- `src/lib/` - 工具函数、配置和数据库连接
+  - `src/lib/ai.ts` - OpenAI LangChain 服务抽象层（仅支持 OpenAI）
 - `src/contexts/` - React Context 提供者
 - `src/types/` - TypeScript 类型定义
 - `docs/` - 项目文档

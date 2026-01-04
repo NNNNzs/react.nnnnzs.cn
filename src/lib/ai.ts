@@ -1,10 +1,9 @@
 /**
- * 统一的 AI 服务抽象层
- * 使用 LangChain.js 规范，支持 Anthropic
- * 提供流式响应处理功能
+ * OpenAI LangChain 服务抽象层
+ * 使用 LangChain.js 规范，仅支持 OpenAI
+ * Anthropic 请使用 @/services/ai/anthropic
  */
 
-import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -13,10 +12,9 @@ import type { Runnable } from '@langchain/core/runnables';
 // 导出 LangChain 核心类型和工具，方便其他模块使用
 export { ChatPromptTemplate } from '@langchain/core/prompts';
 export { StringOutputParser } from '@langchain/core/output_parsers';
-export type { ChatAnthropic } from '@langchain/anthropic';
 
 /**
- * AI 模型配置接口
+ * OpenAI 模型配置接口
  */
 export interface AIModelConfig {
   /** 模型名称 */
@@ -31,29 +29,9 @@ export interface AIModelConfig {
  * 默认模型配置
  */
 const DEFAULT_MODEL_CONFIG: AIModelConfig = {
-  model: 'claude-haiku-4-5-20251001',
+  model: 'gpt-4o-mini',
   temperature: 0.7,
   maxTokens: 2000,
-};
-
-/**
- * 创建 Anthropic 模型实例
- * @param config 模型配置
- * @returns ChatAnthropic 实例
- */
-export const createAnthropicModel = (config: AIModelConfig = {}): ChatAnthropic => {
-  const mergedConfig = { ...DEFAULT_MODEL_CONFIG, ...config };
-
-  return new ChatAnthropic({
-    anthropicApiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-    clientOptions: {
-      baseURL: process.env.ANTHROPIC_BASE_URL,
-    },
-    streaming: true,
-    model: mergedConfig.model,
-    temperature: mergedConfig.temperature,
-    maxTokens: mergedConfig.maxTokens,
-  });
 };
 
 export const createOpenAIModel = (config: AIModelConfig = {}): ChatOpenAI => {
@@ -94,25 +72,42 @@ export const convertLangChainStreamToReadableStream = (
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
+        let chunkCount = 0;
+        console.log('🔄 LangChain 流式响应开始读取...');
+        
         while (true) {
           const { done, value } = await iterator.next();
           
           if (done) {
+            console.log(`✅ LangChain 流式响应完成，共处理 ${chunkCount} 个数据块`);
             controller.close();
             break;
           }
           
           if (value) {
-            controller.enqueue(encoder.encode(value));
+            chunkCount++;
+            const encoded = encoder.encode(value);
+            controller.enqueue(encoded);
+            
+            // 前几个块输出日志
+            if (chunkCount <= 3 || chunkCount % 20 === 0) {
+              console.log(`📤 LangChain 第 ${chunkCount} 个数据块，长度: ${value.length}，内容预览: ${value.substring(0, 50)}...`);
+            }
+          } else {
+            console.warn(`⚠️ LangChain 第 ${chunkCount + 1} 次读取到空值`);
           }
         }
       } catch (error) {
-        console.error('流式响应错误:', error);
+        console.error('❌ LangChain 流式响应错误:', error);
+        if (error instanceof Error) {
+          console.error('错误堆栈:', error.stack);
+        }
         const errorMessage = error instanceof Error ? error.message : 'AI处理失败';
         controller.error(new Error(errorMessage));
       }
     },
     cancel() {
+      console.log('⚠️ LangChain 流式响应被取消');
       // 当客户端取消时清理资源
       iterator.return?.();
     },
@@ -134,19 +129,18 @@ export const streamFromChain = async <T extends Record<string, unknown>>(
 };
 
 /**
- * 创建 AI 处理链
+ * 创建 OpenAI AI 处理链
  * 使用 LCEL 规范：prompt.pipe(model).pipe(outputParser)
+ * 注意：Anthropic 请使用 @/services/ai/anthropic
  * @param prompt ChatPromptTemplate 提示词模板
  * @param config 模型配置
  * @returns Runnable 链
  */
-export const createAIChain = <T extends Record<string, unknown>>(
+export function createAIChain<T extends Record<string, unknown>>(
   prompt: ChatPromptTemplate,
-  config: AIModelConfig = {},
-  provider: 'anthropic' | 'openai' = 'anthropic'
-): Runnable<T, string> => {
-  const model = provider === 'anthropic' ? createAnthropicModel(config) : createOpenAIModel(config);
+  config: AIModelConfig = {}
+): Runnable<T, string> {
+  const model = createOpenAIModel(config);
   const outputParser = createStringOutputParser();
-
   return prompt.pipe(model).pipe(outputParser) as Runnable<T, string>;
-};
+}

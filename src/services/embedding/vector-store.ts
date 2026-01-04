@@ -229,6 +229,43 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
 }
 
 /**
+ * 检查文章是否已经向量化
+ * 
+ * @param postId 文章ID
+ * @returns 如果存在向量数据返回 true，否则返回 false
+ */
+export async function hasVectorsByPostId(postId: number): Promise<boolean> {
+  const client = getQdrantClient();
+  const { COLLECTION_NAME, POST_ID_FIELD } = QDRANT_COLLECTION_CONFIG;
+
+  try {
+    // 使用 scroll 查询匹配的数据点（只查询一条即可）
+    const result = await client.scroll(COLLECTION_NAME, {
+      filter: {
+        must: [
+          {
+            key: POST_ID_FIELD,
+            match: {
+              value: postId,
+            },
+          },
+        ],
+      },
+      limit: 1,
+      with_payload: true,
+      with_vector: false,
+    });
+
+    // 如果返回了数据点，说明已存在向量
+    return result.points.length > 0;
+  } catch (error) {
+    console.error(`❌ 检查文章 ${postId} 的向量数据失败:`, error);
+    // 如果查询出错，为了安全起见返回 false，允许重新向量化
+    return false;
+  }
+}
+
+/**
  * 删除文章的所有向量数据
  * 
  * @param postId 文章ID

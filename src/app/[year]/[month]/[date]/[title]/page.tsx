@@ -71,7 +71,6 @@ const getPost = cache(
       console.log("🔍 数据库查询执行 - 文章路径:", path);
 
       const post = await getPostByPath(path);
-      console.log('post from server:', post);
 
       return post;
     } catch (error) {

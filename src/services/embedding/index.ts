@@ -8,6 +8,7 @@ import { embedTexts } from './embedding';
 import {
   insertVectors,
   deleteVectorsByPostId,
+  hasVectorsByPostId,
   type VectorDataItem,
 } from './vector-store';
 
@@ -21,6 +22,8 @@ export interface EmbedPostParams {
   title: string;
   /** 文章内容（Markdown 格式） */
   content: string;
+  /** 是否强制更新（默认 false，如果已存在向量则跳过） */
+  force?: boolean;
 }
 
 /**
@@ -31,16 +34,19 @@ export interface EmbedPostResult {
   insertedCount: number;
   /** 生成的文本片段数量 */
   chunkCount: number;
+  /** 是否因为已存在向量而跳过 */
+  skipped?: boolean;
 }
 
 /**
  * 将文章向量化并存储到 Qdrant
  * 
  * 流程：
- * 1. 将 Markdown 内容按语义切片
- * 2. 批量生成向量嵌入
- * 3. 删除该文章的旧向量数据（如果存在）
- * 4. 插入新的向量数据
+ * 1. 检查是否已存在向量（如果 force=false）
+ * 2. 将 Markdown 内容按语义切片
+ * 3. 批量生成向量嵌入
+ * 4. 删除该文章的旧向量数据（如果存在且 force=true）
+ * 5. 插入新的向量数据
  * 
  * @param params 文章向量化参数
  * @returns 向量化结果
@@ -48,7 +54,7 @@ export interface EmbedPostResult {
 export async function embedPost(
   params: EmbedPostParams
 ): Promise<EmbedPostResult> {
-  const { postId, title, content } = params;
+  const { postId, title, content, force = false } = params;
 
   if (!content || content.trim().length === 0) {
     console.warn(`⚠️ 文章 ${postId} 内容为空，跳过向量化`);
@@ -59,6 +65,18 @@ export async function embedPost(
   }
 
   try {
+    // 如果不是强制更新，先检查是否已存在向量
+    if (!force) {
+      const hasVectors = await hasVectorsByPostId(postId);
+      if (hasVectors) {
+        console.log(`⏭️ 文章 ${postId} 已存在向量数据，跳过向量化（使用 force=true 可强制更新）`);
+        return {
+          insertedCount: 0,
+          chunkCount: 0,
+          skipped: true,
+        };
+      }
+    }
     // 1. 文本切片
     console.log(`📝 开始对文章 ${postId} 进行语义切片...`);
     const chunks = splitMarkdownIntoChunks(content, {
@@ -90,7 +108,7 @@ export async function embedPost(
 
     console.log(`✅ 文章 ${postId} 向量嵌入生成完成`);
 
-    // 3. 删除旧向量数据
+    // 3. 删除旧向量数据（强制更新时或确保清理旧数据）
     console.log(`🗑️ 删除文章 ${postId} 的旧向量数据...`);
     await deleteVectorsByPostId(postId);
 
