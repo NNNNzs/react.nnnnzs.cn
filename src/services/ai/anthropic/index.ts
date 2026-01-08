@@ -13,4 +13,5 @@ export {
   convertAnthropicStreamToReadableStream,
   streamAnthropicMessages,
   streamAnthropicMessagesWithSystem,
+  getAnthropicMessageWithSystem,
 } from './stream';

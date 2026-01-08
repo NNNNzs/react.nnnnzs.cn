@@ -1,20 +1,27 @@
 /**
  * 聊天 API 路由
  * POST /api/chat
- * 支持知识库检索和流式响应
+ * 支持工具调用（ReAct 模式）和流式响应
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { embedText } from '@/services/embedding/embedding';
-import { searchSimilarVectors } from '@/services/embedding/vector-store';
-import { getPostById } from '@/services/post';
 import { getBaseUrl, getUserFromToken } from '@/lib/auth';
 import {
-  streamAnthropicMessagesWithSystem,
+  getAnthropicMessageWithSystem,
   type AnthropicModelConfig,
 } from '@/services/ai/anthropic';
 import { StreamTagGenerator } from '@/lib/stream-tags';
+import {
+  toolRegistry,
+  parseToolCalls,
+  executeToolCall,
+  formatToolResult,
+} from '@/services/ai/tools';
+import { searchArticlesTool } from '@/services/ai/tools/search-articles';
 import dayjs from 'dayjs';
+
+// 注册工具
+toolRegistry.register(searchArticlesTool);
 
 /**
  * 请求体类型定义
@@ -28,151 +35,66 @@ interface ChatRequest {
 }
 
 /**
- * 检索过程信息类型（用于展示检索步骤，而非AI思考过程）
+ * 工具调用步骤信息（用于展示工具调用过程）
  */
-interface RetrievalStep {
-  step: string;
-  content: string;
+interface ToolCallStep {
+  toolName: string;
+  status: 'calling' | 'success' | 'error';
+  message: string;
   timestamp: number;
 }
 
 /**
- * 创建检索过程流式响应
- * 使用标签生成器生成符合规范的标签格式
+ * 格式化工具搜索结果，生成包含文章链接的上下文
  */
-function createRetrievalStepsStream(
-  retrievalSteps: RetrievalStep[],
-  aiResponse: ReadableStream
-): ReadableStream {
-  const tagGenerator = new StreamTagGenerator();
-  const decoder = new TextDecoder();
+function formatSearchResults(
+  searchData: {
+    query: string;
+    results: Array<{
+      postId: number;
+      title: string;
+      url: string | null;
+      chunks: Array<{
+        chunkIndex: number;
+        chunkText: string;
+        score: number;
+      }>;
+    }>;
+  },
+  baseUrl: string
+): string {
+  if (!searchData.results || searchData.results.length === 0) {
+    return '未找到相关文章。';
+  }
 
-  // 将检索过程转换为 think 标签格式
-  const thinkContent = retrievalSteps
-    .map((step) => `${step.step}: ${step.content}`)
-    .join('\n');
-
-  console.log('📤 发送检索过程信息（think 标签格式），共', retrievalSteps.length, '步');
-
-  // 然后转发 AI 响应
-  const reader = aiResponse.getReader();
-
-  return new ReadableStream({
-    async start(controller) {
-      try {
-        // 先发送检索过程（think 标签）
-        const thinkTag = tagGenerator.generateThink(thinkContent);
-        controller.enqueue(thinkTag);
-        console.log('✅ 检索过程信息已发送（think 标签格式）');
-
-        // 发送 content 标签开始
-        controller.enqueue(tagGenerator.startContent());
-
-        // 然后直接转发 AI 流式响应内容，同时过滤掉 think 标签
-        let chunkCount = 0;
-        let totalBytes = 0;
-        let buffer = ''; // 用于处理跨块的 think 标签
-        let inThinkTag = false; // 标记是否在 think 标签内
-        console.log('🔄 开始读取 AI 流式响应...');
-        
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            // 处理剩余的缓冲区（不在 think 标签内的内容）
-            if (buffer && !inThinkTag) {
-              controller.enqueue(tagGenerator.generateContent(buffer));
-            }
-            
-            // 发送 content 标签结束
-            controller.enqueue(tagGenerator.endContent());
-            console.log(`✅ AI 流式响应完成，共处理 ${chunkCount} 个数据块，总字节数: ${totalBytes}`);
-            if (chunkCount === 0) {
-              console.warn('⚠️ 警告：AI 流式响应没有返回任何数据！');
-            }
-            controller.close();
-            break;
-          }
-
-          if (value) {
-            chunkCount++;
-            totalBytes += value.length;
-            
-            // 解码数据
-            const text = decoder.decode(value, { stream: true });
-            buffer += text;
-            
-            // 处理 think 标签
-            while (true) {
-              if (!inThinkTag) {
-                // 查找 <think> 标签开始
-                const thinkStart = buffer.indexOf('<think>');
-                if (thinkStart !== -1) {
-                  // 发送 think 标签之前的内容
-                  if (thinkStart > 0) {
-                    controller.enqueue(tagGenerator.generateContent(buffer.substring(0, thinkStart)));
-                  }
-                  // 移除已处理的部分和 <think> 标签
-                  buffer = buffer.substring(thinkStart + 7);
-                  inThinkTag = true;
-                  console.log('🔍 检测到 think 标签开始，已过滤');
-                  continue;
-                }
-              }
-              
-              if (inThinkTag) {
-                // 查找 </think> 标签结束
-                const thinkEnd = buffer.indexOf('</think>');
-                if (thinkEnd !== -1) {
-                  // 移除 think 标签内容（包括 </think>）
-                  buffer = buffer.substring(thinkEnd + 8);
-                  inThinkTag = false;
-                  console.log('🔍 检测到 think 标签结束，已过滤');
-                  continue;
-                }
-              }
-              
-              // 如果没有找到更多标签，发送可以安全发送的内容
-              if (!inThinkTag && buffer.length > 0) {
-                // 如果 buffer 中可能还有未完成的 <think>，保留最后几个字符
-                const safeLength = buffer.length > 7 ? buffer.length - 7 : 0;
-                if (safeLength > 0) {
-                  controller.enqueue(tagGenerator.generateContent(buffer.substring(0, safeLength)));
-                  buffer = buffer.substring(safeLength);
-                }
-              }
-              
-              break;
-            }
-            
-            // 前几个块和每 50 个块输出一次日志（减少日志频率）
-            if (chunkCount <= 3 || chunkCount % 50 === 0) {
-              const preview = text.substring(0, Math.min(50, text.length));
-              console.log(`📤 已发送 ${chunkCount} 个数据块，当前块长度: ${text.length}，内容预览: ${preview}...`);
-            }
+  const contextChunks = searchData.results.flatMap((result, resultIndex) => {
+    // 构建文章链接（如果有 URL，使用完整 URL；否则只显示标题）
+    let postUrl: string | null = null;
+    if (result.url) {
+      // 如果 URL 已经是完整 URL（以 http:// 或 https:// 开头），直接使用
+      if (result.url.startsWith('http://') || result.url.startsWith('https://')) {
+        postUrl = result.url;
           } else {
-            console.warn(`⚠️ 第 ${chunkCount + 1} 次读取到空值`);
-          }
-        }
-      } catch (error) {
-        console.error('❌ 流式响应错误:', error);
-        if (error instanceof Error) {
-          console.error('错误堆栈:', error.stack);
-        }
-        const errorMessage = error instanceof Error ? error.message : 'AI处理失败';
-        controller.error(new Error(errorMessage));
+        // 否则拼接 baseUrl
+        postUrl = `${baseUrl}${result.url}`;
       }
-    },
-    cancel() {
-      console.log('⚠️ 流式响应被取消');
-      reader.cancel();
-    },
+    }
+    const titleWithLink = postUrl
+      ? `[${result.title}](${postUrl})`
+      : result.title;
+
+    return result.chunks.map((chunk, chunkIndex) => {
+      return `[片段 ${resultIndex + 1}-${chunkIndex + 1}] 来自文章《${titleWithLink}》（相似度: ${(chunk.score * 100).toFixed(1)}%）\n${chunk.chunkText}`;
+    });
   });
+
+  return `以下是从知识库中检索到的相关内容（查询: "${searchData.query}"）：\n\n${contextChunks.join('\n\n')}\n\n请基于以上内容回答用户的问题。如果相关内容不足以回答问题，可以结合你的通用知识进行补充。`;
 }
 
 /**
  * 聊天 API
  * POST /api/chat
+ * 支持工具调用（ReAct 模式）
  */
 export async function POST(request: NextRequest) {
   try {
@@ -192,161 +114,19 @@ export async function POST(request: NextRequest) {
     const user = await getUserFromToken(request);
     const currentTime = dayjs().format('YYYY年MM月DD日 HH:mm:ss');
     const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'NNNNzs';
-    
-    // 检索过程信息（用于前端展示）
-    const retrievalSteps: RetrievalStep[] = [];
 
-    // 步骤1: 分析用户问题
-    retrievalSteps.push({
-      step: '分析',
-      content: `正在分析用户问题：「${message}」`,
-      timestamp: Date.now(),
-    });
-
-    // 步骤2: 将用户消息转换为向量
-    retrievalSteps.push({
-      step: '向量化',
-      content: '正在将问题转换为向量表示...',
-      timestamp: Date.now(),
-    });
-
-    let queryVector: number[];
-    try {
-      queryVector = await embedText(message);
-      retrievalSteps.push({
-        step: '向量化',
-        content: '✅ 向量化完成',
-        timestamp: Date.now(),
-      });
-    } catch (error) {
-      console.error('向量化失败:', error);
-      return NextResponse.json(
-        {
-          status: false,
-          message: error instanceof Error ? error.message : '向量化失败',
-        },
-        { status: 500 }
-      );
-    }
-
-    // 步骤3: 从知识库检索相关文章
-    retrievalSteps.push({
-      step: '检索',
-      content: '正在从知识库检索相关文章...',
-      timestamp: Date.now(),
-    });
-
-    let searchResults: Array<{
-      postId: number;
-      chunkIndex: number;
-      chunkText: string;
-      title: string;
-      score: number;
-    }> = [];
-
-    try {
-      searchResults = await searchSimilarVectors(queryVector, 5); // 检索前5个最相关的结果
-
-      if (searchResults.length > 0) {
-        retrievalSteps.push({
-          step: '检索',
-          content: `✅ 找到 ${searchResults.length} 篇相关文章片段`,
-          timestamp: Date.now(),
-        });
-
-        // 记录检索到的文章信息（包含链接）
-        const uniquePostIds = [...new Set(searchResults.map(r => r.postId))];
-        const postInfos = await Promise.all(
-          uniquePostIds.map(async (postId) => {
-            const post = await getPostById(postId);
-            if (post) {
-              const postUrl = post.path ? `${baseUrl}${post.path}` : null;
-              return {
-                title: post.title || `文章 ${postId}`,
-                url: postUrl,
-              };
-            }
-            return {
-              title: `文章 ${postId}`,
-              url: null,
-            };
-          })
-        );
-
-        const postTitles = postInfos.map(info => info.title).join('、');
-        retrievalSteps.push({
-          step: '检索',
-          content: `相关文章：${postTitles}`,
-          timestamp: Date.now(),
-        });
-      } else {
-        retrievalSteps.push({
-          step: '检索',
-          content: '⚠️ 未找到相关文章，将使用通用知识回答',
-          timestamp: Date.now(),
-        });
-      }
-    } catch (error) {
-      console.error('检索失败:', error);
-      retrievalSteps.push({
-        step: '检索',
-        content: '⚠️ 检索失败，将使用通用知识回答',
-        timestamp: Date.now(),
-      });
-    }
-
-    // 步骤4: 准备生成回答
-    retrievalSteps.push({
-      step: '生成',
-      content: '正在生成回答...',
-      timestamp: Date.now(),
-    });
-
-    // 构建上下文信息（包含文章链接）
-    let contextText = '';
-    if (searchResults.length > 0) {
-      // 获取所有相关文章的完整信息（包括 URL）
-      const postInfoMap = new Map<number, { title: string; url: string | null }>();
-      
-      const uniquePostIds = [...new Set(searchResults.map(r => r.postId))];
-      await Promise.all(
-        uniquePostIds.map(async (postId) => {
-          const post = await getPostById(postId);
-          if (post) {
-            const postUrl = post.path ? `${baseUrl}${post.path}` : null;
-            postInfoMap.set(postId, {
-              title: post.title || `文章 ${postId}`,
-              url: postUrl,
-            });
-          }
-        })
-      );
-
-      // 构建包含链接的上下文
-      const contextChunks = searchResults.map((result, index) => {
-        const postInfo = postInfoMap.get(result.postId);
-        const postTitle = postInfo?.title || result.title;
-        const postUrl = postInfo?.url;
-        
-        // 如果有 URL，使用 Markdown 链接格式
-        const titleWithLink = postUrl 
-          ? `[${postTitle}](${postUrl})`
-          : postTitle;
-        
-        return `[片段 ${index + 1}] 来自文章《${titleWithLink}》\n${result.chunkText}`;
-      }).join('\n\n');
-
-      contextText = `以下是从知识库中检索到的相关内容：\n\n${contextChunks}\n\n请基于以上内容回答用户的问题。如果相关内容不足以回答问题，可以结合你的通用知识进行回答。`;
-    }
-
-    console.log('🤖 开始生成 AI 回答，上下文长度:', contextText.length);
+    // 工具调用步骤信息（用于前端展示）
+    const toolSteps: ToolCallStep[] = [];
 
     // 构建通用信息
-    const userInfo = user 
+    const userInfo = user
       ? `用户已登录，昵称：${user.nickname || user.account}${user.role ? `（${user.role}）` : ''}`
       : '用户未登录（游客模式）';
 
-    // 构建系统指令（包含通用信息）
+    // 获取工具描述
+    const toolsDescription = toolRegistry.getToolsDescription();
+
+    // 构建系统指令（包含工具说明）
     const systemInstruction = `你是一个智能助手，擅长基于知识库内容回答用户问题。
 
 **当前上下文信息：**
@@ -355,16 +135,19 @@ export async function POST(request: NextRequest) {
 - 用户状态：${userInfo}
 - 网站地址：${baseUrl}
 
+**工具使用说明：**
+${toolsDescription}
+
 **回答要求：**
-1. **优先使用知识库**：优先使用知识库中检索到的相关内容回答问题
-2. **结合通用知识**：如果知识库内容不足以回答问题，可以结合你的通用知识进行补充
+1. **智能使用工具**：当用户询问关于博客文章、技术文档或知识库内容的问题时，使用 search_articles 工具检索相关信息
+2. **结合通用知识**：如果工具返回的结果不足以回答问题，可以结合你的通用知识进行补充
 3. **回答质量**：回答要准确、清晰、有帮助，逻辑清晰
 4. **引用格式**：**重要：当引用知识库中的文章时，必须使用 Markdown 链接格式 [文章标题](文章URL) 来引用**
    - 例如：更多信息请参考[这篇文章](https://example.com/2024/12/25/article-title)
    - 链接会在新标签页打开，用户可以直接点击访问
 5. **来源说明**：如果引用了知识库内容，应该说明来源并附上链接
 6. **语言要求**：使用中文回答
-7. **重要：不要使用 <think> 标签**：检索过程已经通过系统展示，你只需要直接回答问题即可
+7. **重要：不要使用 <think> 标签**：工具调用过程已经通过系统展示，你只需要直接回答问题即可
 
 **回答格式建议：**
 1. 直接给出主要答案（不要使用 think 标签）
@@ -388,17 +171,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 构建当前用户消息（包含上下文）
-    let userMessageContent = '';
-    if (contextText) {
-      userMessageContent = `${contextText}\n\n用户问题：${message}`;
-    } else {
-      userMessageContent = message;
-    }
-
+    // 添加当前用户消息
     messages.push({
       role: 'user',
-      content: userMessageContent,
+      content: message,
     });
 
     // 创建 Anthropic 模型配置
@@ -407,26 +183,190 @@ export async function POST(request: NextRequest) {
       maxTokens: 2000,
     };
 
-    // 生成流式响应
-    console.log('🔄 调用 Anthropic API 生成流式响应...');
-    console.log('📝 系统指令长度:', systemInstruction.length);
-    console.log('📝 消息数量:', messages.length);
-    console.log('📝 最后一条消息长度:', messages[messages.length - 1]?.content.length || 0);
-    
-    try {
-      const aiStream = await streamAnthropicMessagesWithSystem(
+    // ReAct 循环：最多执行 3 轮工具调用
+    const maxToolRounds = 3;
+    let finalResponse = '';
+    let toolCallCount = 0;
+
+    for (let round = 0; round < maxToolRounds; round++) {
+      console.log(`🔄 ReAct 循环第 ${round + 1} 轮...`);
+
+      // 调用 AI（非流式，用于检测工具调用）
+      const aiResponse = await getAnthropicMessageWithSystem(
         systemInstruction,
         messages,
         aiModelConfig
       );
-      console.log('✅ AI 流式响应已创建，类型:', typeof aiStream, 'locked:', aiStream.locked);
-      
-      // 创建包含检索过程的流式响应
-      const streamWithRetrievalSteps = createRetrievalStepsStream(retrievalSteps, aiStream);
-      console.log('✅ 包含检索过程的流式响应已创建');
-      
-      // 直接返回文本流（不再是 SSE 格式）
-      return new Response(streamWithRetrievalSteps, {
+
+      console.log(`✅ AI 响应完成，长度: ${aiResponse.length}`);
+
+      // 检查是否有工具调用
+      const toolCalls = parseToolCalls(aiResponse);
+
+      if (toolCalls.length === 0) {
+        // 没有工具调用，这是最终响应
+        finalResponse = aiResponse;
+        console.log('✅ 没有工具调用，使用最终响应');
+        break;
+      }
+
+      // 有工具调用，执行工具
+      console.log(`🔧 检测到 ${toolCalls.length} 个工具调用`);
+      toolCallCount += toolCalls.length;
+
+      // 移除工具调用标签，保留其他内容作为思考过程
+      let responseWithoutTools = aiResponse;
+      for (const toolCall of toolCalls) {
+        responseWithoutTools = responseWithoutTools.replace(toolCall.fullMatch, '');
+        // 记录工具调用步骤
+        toolSteps.push({
+          toolName: toolCall.name,
+          status: 'calling',
+          message: `正在调用工具...`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // 执行所有工具调用
+      const toolResults: string[] = [];
+      for (const toolCall of toolCalls) {
+        const result = await executeToolCall(toolCall);
+
+        // 更新工具调用步骤状态
+        const stepIndex = toolSteps.findIndex(
+          (s) => s.toolName === toolCall.name && s.status === 'calling'
+        );
+        if (stepIndex !== -1) {
+          toolSteps[stepIndex].status = result.success ? 'success' : 'error';
+          if (result.success) {
+            // 对于 search_articles，显示找到的文章数量
+            if (toolCall.name === 'search_articles' && result.data) {
+              const searchData = result.data as {
+                results: Array<{ title: string }>;
+                totalResults: number;
+              };
+              toolSteps[stepIndex].message = `找到 ${searchData.totalResults || 0} 篇相关文章`;
+            } else {
+              toolSteps[stepIndex].message = `执行成功`;
+            }
+          } else {
+            toolSteps[stepIndex].message = `执行失败: ${result.error}`;
+          }
+        }
+
+        // 格式化工具结果
+        if (toolCall.name === 'search_articles' && result.success && result.data) {
+          // 对于搜索工具，格式化结果为包含链接的上下文
+          const formattedContext = formatSearchResults(
+            result.data as {
+              query: string;
+              results: Array<{
+                postId: number;
+                title: string;
+                url: string | null;
+                chunks: Array<{
+                  chunkIndex: number;
+                  chunkText: string;
+                  score: number;
+                }>;
+              }>;
+            },
+            baseUrl
+          );
+          toolResults.push(formattedContext);
+        } else {
+          // 其他工具使用 XML 格式
+          const toolResultXml = formatToolResult(toolCall.name, result);
+          toolResults.push(toolResultXml);
+        }
+      }
+
+      // 将 AI 响应（包含思考过程）和工具结果添加到消息历史
+      if (responseWithoutTools.trim()) {
+        messages.push({
+          role: 'assistant',
+          content: responseWithoutTools.trim(),
+        });
+      }
+
+      // 添加工具结果作为用户消息（让 AI 继续处理）
+      const toolResultsText = toolResults.join('\n\n');
+      messages.push({
+        role: 'user',
+        content: toolResultsText + '\n\n请基于以上信息继续回答用户的问题。',
+      });
+
+      console.log(`✅ 工具执行完成，继续下一轮对话`);
+    }
+
+    // 如果达到最大轮数，使用最后一轮响应
+    if (!finalResponse && messages.length > 0) {
+      const lastAssistantMessage = messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === 'assistant');
+      if (lastAssistantMessage) {
+        finalResponse = lastAssistantMessage.content;
+      }
+    }
+
+    // 如果没有最终响应，使用默认消息
+    if (!finalResponse) {
+      finalResponse = '抱歉，我无法回答这个问题。';
+    }
+
+    console.log(`✅ ReAct 循环完成，工具调用次数: ${toolCallCount}，最终响应长度: ${finalResponse.length}`);
+
+    // 创建流式响应（模拟流式输出最终响应）
+    const tagGenerator = new StreamTagGenerator();
+
+    // 创建流式响应
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // 发送工具调用过程（think 标签）
+          if (toolSteps.length > 0) {
+            const thinkContent = toolSteps
+              .map((step) => {
+                const statusIcon =
+                  step.status === 'success'
+                    ? '✅'
+                    : step.status === 'error'
+                      ? '❌'
+                      : '🔧';
+                return `${statusIcon} ${step.toolName}: ${step.message}`;
+              })
+              .join('\n');
+            const thinkTag = tagGenerator.generateThink(thinkContent);
+            controller.enqueue(thinkTag);
+          }
+
+          // 发送 content 标签开始
+          controller.enqueue(tagGenerator.startContent());
+
+          // 流式输出最终响应（模拟打字机效果）
+          const chunkSize = 50; // 每次输出 50 个字符
+          for (let i = 0; i < finalResponse.length; i += chunkSize) {
+            const chunk = finalResponse.substring(i, i + chunkSize);
+            controller.enqueue(tagGenerator.generateContent(chunk));
+            // 添加小延迟，模拟流式效果
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+
+          // 发送 content 标签结束
+          controller.enqueue(tagGenerator.endContent());
+          controller.close();
+        } catch (error) {
+          console.error('❌ 流式响应错误:', error);
+          controller.error(error instanceof Error ? error : new Error('流式响应失败'));
+        }
+      },
+      cancel() {
+        console.log('⚠️ 流式响应被取消');
+      },
+    });
+
+    return new Response(stream, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
           'Cache-Control': 'no-cache, no-transform',
@@ -436,13 +376,6 @@ export async function POST(request: NextRequest) {
           'X-Content-Type-Options': 'nosniff',
         },
       });
-    } catch (streamError) {
-      console.error('❌ 创建 AI 流式响应失败:', streamError);
-      if (streamError instanceof Error) {
-        console.error('错误堆栈:', streamError.stack);
-      }
-      throw streamError;
-    }
   } catch (error) {
     console.error('聊天 API 错误:', error);
     return NextResponse.json(

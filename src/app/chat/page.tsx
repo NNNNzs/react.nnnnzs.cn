@@ -44,8 +44,8 @@ interface MessageContentProps {
 
 /**
  * MessageContent 组件
- * Think 组件包裹着 XMarkdown 组件
- * 使用 key 强制在内容变化时重新渲染
+ * 根据 demo，XMarkdown 支持通过 components 自定义 think 标签的渲染
+ * 使用 <think> 标签包裹思考内容，XMarkdown 会自动识别并渲染
  */
 const MessageContent: React.FC<MessageContentProps> = ({
   content,
@@ -53,48 +53,44 @@ const MessageContent: React.FC<MessageContentProps> = ({
   streamStatus,
 }) => {
   const isLoading = streamStatus === "streaming";
-  const hasThink = !!think;
 
-  // 如果有思考内容，用 Think 组件包裹
-  if (hasThink) {
-    const title = isLoading ? "思考中..." : "思考完成";
-    return (
-      <>
-        <Think title={title} blink loading={isLoading}>
-          {/* 思考内容 */}
-          <div style={{ marginBottom: content ? 16 : 0 }}>
-            {think}
-          </div>
-        </Think>
-        {/* 实际内容 - 使用 streaming 属性启用流式渲染 */}
-        {content && (
-          <XMarkdown
-            content={content}
-            paragraphTag="div"
-            streaming={{ hasNextChunk: isLoading }}
-          />
-        )}
-      </>
-    );
+  // 构建完整的 markdown 内容（包含 think 标签）
+  // 根据 demo，XMarkdown 识别 <think> 标签，不是 <think>
+  let fullContent = "";
+  if (think) {
+    // 如果有思考内容，使用 <think> 标签包裹（XMarkdown 识别的格式）
+    fullContent = `<think>${think}</think>\n\n${content}`;
+  } else {
+    fullContent = content;
   }
 
-  // 没有思考内容时，直接显示内容
-  if (isLoading && !content) {
+  // 如果没有内容且正在加载，显示加载提示
+  if (isLoading && !content && !think) {
     return <div>正在生成回答...</div>;
   }
 
-  // 使用 streaming 属性启用流式渲染
+  // 使用 XMarkdown 渲染，通过 components 传递 Think 组件
+  // 注意：XMarkdown 会自动识别 <think> 标签并使用我们提供的组件渲染
+  // 关键：每次 content 变化时，XMarkdown 应该重新渲染
   return (
     <XMarkdown
-      content={content}
+      key={`markdown-${content.length}`} // 使用内容长度作为 key，确保内容变化时重新渲染
       paragraphTag="div"
-      streaming={{ hasNextChunk: isLoading }}
-    />
+      components={{
+        think: ({ children: thinkChildren }) => {
+          const title = isLoading ? "思考中..." : "思考完成";
+          return (
+            <Think title={title} blink loading={isLoading}>
+              {thinkChildren}
+            </Think>
+          );
+        },
+      }}
+    >
+      {fullContent}
+    </XMarkdown>
   );
 };
-
-
-
 
 /**
  * 聊天页面组件
@@ -174,7 +170,6 @@ export default function ChatPage() {
             onThink: (thinkContent) => {
               // 立即更新消息，设置 think 字段（即使 content 还是空的）
               // 使用 flushSync 强制立即渲染，避免 React 批处理延迟
-              console.log('🔵 onThink 回调被调用，内容长度:', thinkContent.length);
               flushSync(() => {
                 setMessages((prev) =>
                   prev.map((msg) => {
@@ -189,14 +184,11 @@ export default function ChatPage() {
                   })
                 );
               });
-              console.log('✅ onThink 状态已更新');
             },
             onContent: (contentChunk) => {
-              // content 标签内容，流式追加到 content 字段
-              // 使用 flushSync 强制立即渲染，实现真正的流式显示
-              // console.log('🟢 onContent 回调被调用，块长度:', contentChunk.length, '内容预览:', contentChunk.substring(0, 50));
-
               // 直接更新状态，使用 flushSync 强制同步渲染
+              // 注意：flushSync 会强制 React 同步更新 DOM，确保流式内容能立即显示
+              console.log("onContent", contentChunk);
               flushSync(() => {
                 setMessages((prev) =>
                   prev.map((msg) => {
@@ -204,19 +196,17 @@ export default function ChatPage() {
 
                     // 获取当前内容，流式追加
                     const currentContent = msg.content || "";
-                    console.log('🟢 contentChunk:', contentChunk);
                     const newContent = currentContent + contentChunk;
 
                     return {
                       ...msg,
-                      content: newContent, // 只更新 content 字段
+                      content: newContent, // 更新 content 字段
                       loading: true,
                       streamStatus: "streaming",
                     };
                   })
                 );
               });
-
             },
             onComplete: () => {
               // 完成
@@ -224,10 +214,10 @@ export default function ChatPage() {
                 prev.map((msg) =>
                   msg.id === aiMessageId
                     ? {
-                      ...msg,
-                      loading: false,
-                      streamStatus: "done",
-                    }
+                        ...msg,
+                        loading: false,
+                        streamStatus: "done",
+                      }
                     : msg
                 )
               );
@@ -239,17 +229,16 @@ export default function ChatPage() {
                 // 请求被取消，不显示错误
                 return;
               }
-              console.error("流式响应错误:", error);
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === aiMessageId
                     ? {
-                      ...msg,
-                      content:
-                        msg.content || "抱歉，处理请求时出现错误，请重试。",
-                      loading: false,
-                      streamStatus: "done",
-                    }
+                        ...msg,
+                        content:
+                          msg.content || "抱歉，处理请求时出现错误，请重试。",
+                        loading: false,
+                        streamStatus: "done",
+                      }
                     : msg
                 )
               );
@@ -264,16 +253,15 @@ export default function ChatPage() {
           return;
         }
 
-        console.error("请求错误:", error);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === aiMessageId
               ? {
-                ...msg,
-                content: error instanceof Error ? error.message : "请求失败",
-                loading: false,
-                streamStatus: "done",
-              }
+                  ...msg,
+                  content: error instanceof Error ? error.message : "请求失败",
+                  loading: false,
+                  streamStatus: "done",
+                }
               : msg
           )
         );
@@ -285,7 +273,6 @@ export default function ChatPage() {
     },
     [isRequesting, messages]
   );
-
 
   /**
    * 消息角色配置
@@ -320,16 +307,17 @@ export default function ChatPage() {
 
   /**
    * 转换消息为 Bubble.List 需要的格式
-   * 不使用 useMemo，直接计算，确保每次 messages 更新时都重新计算
+   * 不使用 useMemo，确保每次 messages 更新时都重新计算，实现流式渲染
+   * 关键：每次都要创建新的 MessageContent 组件实例，确保 React 能检测到变化
    */
   const bubbleItems = messages.map((msg) => {
-    const isLoading = msg.loading || msg.streamStatus === "streaming";
-
+    // const isLoading = msg.loading || msg.streamStatus === "streaming";
+    console.log("🟢 bubbleItems msg", msg);
     return {
       key: msg.id,
-      loading: isLoading,
       role: msg.role,
       // 使用 MessageContent 组件渲染助手消息，用户消息保持纯文本
+      // 关键：不使用 key，让 React 根据内容变化自然更新
       content:
         msg.role === "user" ? (
           msg.content
@@ -388,7 +376,8 @@ export default function ChatPage() {
       // 使用 requestAnimationFrame 确保在 DOM 更新后滚动
       requestAnimationFrame(() => {
         if (messageContainerRef.current) {
-          messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+          messageContainerRef.current.scrollTop =
+            messageContainerRef.current.scrollHeight;
         }
       });
     }
@@ -427,10 +416,7 @@ export default function ChatPage() {
               </Typography.Text>
             </div>
           ) : (
-            <Bubble.List
-              role={roles}
-              items={bubbleItems}
-            />
+            <Bubble.List role={roles} items={bubbleItems} />
           )}
         </div>
       </div>

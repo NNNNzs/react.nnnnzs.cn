@@ -178,3 +178,43 @@ export const streamAnthropicMessagesWithSystem = async (
 
   return convertAnthropicStreamToReadableStream(stream);
 };
+
+/**
+ * 调用 Anthropic API 生成完整响应（非流式，带 system 消息）
+ * 用于需要完整响应内容的场景（如工具调用检测）
+ * @param system 系统消息
+ * @param messages 消息数组
+ * @param config 模型配置
+ * @returns 完整响应文本
+ */
+export const getAnthropicMessageWithSystem = async (
+  system: string,
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>,
+  config: AnthropicModelConfig = {}
+): Promise<string> => {
+  const anthropic = getAnthropicClient();
+  const mergedConfig = {
+    model: config.model || 'claude-haiku-4-5-20251001',
+    temperature: config.temperature ?? 0.7,
+    max_tokens: config.maxTokens ?? 2000,
+  };
+
+  const response = await anthropic.messages.create({
+    ...mergedConfig,
+    system,
+    messages,
+  });
+
+  // 提取文本内容
+  let text = '';
+  for (const block of response.content) {
+    if (block.type === 'text') {
+      text += block.text;
+    }
+  }
+
+  return text;
+};
