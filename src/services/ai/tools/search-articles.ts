@@ -65,9 +65,36 @@ export const searchArticlesTool: Tool = {
       const queryVector = await embedText(query);
       console.log(`✅ 查询向量化完成，维度: ${queryVector.length}`);
 
-      // 2. 搜索相似向量
-      const searchResults = await searchSimilarVectors(queryVector, limit);
-      console.log(`✅ 找到 ${searchResults.length} 个相关片段`);
+      // 2. 搜索相似向量（带重试机制）
+      let searchResults: Array<{
+        postId: number;
+        chunkIndex: number;
+        chunkText: string;
+        title: string;
+        score: number;
+      }>;
+      
+      try {
+        searchResults = await searchSimilarVectors(queryVector, limit, undefined, 2);
+        console.log(`✅ 找到 ${searchResults.length} 个相关片段`);
+      } catch (searchError) {
+        // 向量搜索失败时的降级处理
+        const errorMessage = searchError instanceof Error ? searchError.message : String(searchError);
+        const isTimeoutError = errorMessage.includes('timeout') || 
+                               errorMessage.includes('TIMEOUT') ||
+                               errorMessage.includes('Connect Timeout');
+        
+        if (isTimeoutError) {
+          console.error('❌ 向量搜索超时，可能是 Qdrant 服务不可用或网络问题');
+          return {
+            success: false,
+            error: '向量搜索服务暂时不可用，请稍后重试。如果问题持续，请检查 Qdrant 服务状态。',
+          };
+        }
+        
+        // 其他错误直接抛出
+        throw searchError;
+      }
 
       if (searchResults.length === 0) {
         return {

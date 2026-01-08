@@ -312,7 +312,7 @@ export default function ChatPage() {
    */
   const bubbleItems = messages.map((msg) => {
     // const isLoading = msg.loading || msg.streamStatus === "streaming";
-    console.log("🟢 bubbleItems msg", msg);
+    // console.log("🟢 bubbleItems msg", msg);
     return {
       key: msg.id,
       role: msg.role,

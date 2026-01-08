@@ -202,7 +202,7 @@ export class StreamTagParser {
           if (this.buffer.length > 0) {
             const contentToOutput = this.buffer;
             this.buffer = ''; // 先清空缓冲区
-            console.log('📤 StreamTagParser: 输出 content 块，长度:', contentToOutput.length, '预览:', contentToOutput.substring(0, 50));
+            // console.log('📤 StreamTagParser: 输出 content 块，长度:', contentToOutput.length, '预览:', contentToOutput.substring(0, 50));
             onTag({ type: 'content', content: this.unescapeXml(contentToOutput) });
           }
           break;

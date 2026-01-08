@@ -13,11 +13,62 @@ declare global {
 }
 
 /**
+ * 解析 Qdrant URL，提取 host、port 和协议
+ * 这样可以避免 Qdrant 客户端库在 URL 中使用标准端口时自动添加 6333 端口
+ * 
+ * @param url 原始 URL
+ * @returns 解析后的配置对象
+ */
+function parseQdrantUrl(url: string): {
+  host?: string;
+  port?: number;
+  https?: boolean;
+  url?: string;
+} {
+  try {
+    const urlObj = new URL(url);
+    
+    // 提取协议
+    const isHttps = urlObj.protocol === 'https:';
+    
+    // 提取端口号
+    // 注意：如果 URL 中没有显式端口，urlObj.port 为空字符串
+    // 对于标准端口（80/443），即使 URL 中写了 :80，port 也可能是空字符串
+    // 所以我们需要从 URL 字符串中手动提取端口，或者根据协议推断
+    let port: number | undefined;
+    
+    // 尝试从 URL 字符串中提取端口（更可靠）
+    const portMatch = url.match(/:(\d+)(?:\/|$)/);
+    if (portMatch) {
+      port = parseInt(portMatch[1], 10);
+    } else {
+      // 如果没有显式端口，根据协议使用标准端口
+      port = isHttps ? 443 : 80;
+    }
+    
+    return {
+      host: urlObj.hostname,
+      port: port,
+      https: isHttps,
+    };
+  } catch (error) {
+    // 如果 URL 格式无效，返回原 URL 让库自己处理
+    console.warn('⚠️ QDRANT_URL 格式可能无效，将使用 url 参数:', url, error);
+    return { url };
+  }
+}
+
+/**
  * Qdrant 客户端配置
  */
+const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
 const QDRANT_CONFIG = {
-  url: process.env.QDRANT_URL || 'http://localhost:6333',
+  ...parseQdrantUrl(QDRANT_URL),
   apiKey: process.env.QDRANT_API_KEY || undefined,
+  // 超时时间（毫秒），默认 30 秒，可通过环境变量 QDRANT_TIMEOUT 配置
+  timeout: process.env.QDRANT_TIMEOUT 
+    ? parseInt(process.env.QDRANT_TIMEOUT, 10) 
+    : 30000,
 };
 
 /**
@@ -50,20 +101,45 @@ export function getQdrantClient(): QdrantClient {
     return global.qdrant;
   }
 
+  // 优先使用 host + port 参数，避免库自动添加 6333 端口
   const clientConfig: {
-    url: string;
+    url?: string;
+    host?: string;
+    port?: number;
+    https?: boolean;
     apiKey?: string;
     checkCompatibility?: boolean;
+    timeout?: number;
   } = {
-    url: QDRANT_CONFIG.url,
     // 禁用版本兼容性检查
     checkCompatibility: false,
+    // 设置超时时间
+    timeout: QDRANT_CONFIG.timeout,
   };
+
+  // 如果解析出了 host 和 port，使用这些参数（更可靠）
+  if (QDRANT_CONFIG.host && QDRANT_CONFIG.port !== undefined) {
+    clientConfig.host = QDRANT_CONFIG.host;
+    clientConfig.port = QDRANT_CONFIG.port;
+    if (QDRANT_CONFIG.https !== undefined) {
+      clientConfig.https = QDRANT_CONFIG.https;
+    }
+    console.log(`🔗 初始化 Qdrant 客户端，Host: ${clientConfig.host}, Port: ${clientConfig.port}, HTTPS: ${clientConfig.https || false}`);
+  } else if (QDRANT_CONFIG.url) {
+    // 如果解析失败，回退到使用 url 参数
+    clientConfig.url = QDRANT_CONFIG.url;
+    console.log(`🔗 初始化 Qdrant 客户端，URL: ${clientConfig.url}`);
+  } else {
+    // 兜底：使用默认配置
+    clientConfig.url = QDRANT_URL;
+    console.log(`🔗 初始化 Qdrant 客户端（使用默认配置），URL: ${clientConfig.url}`);
+  }
 
   // 如果配置了 API key，则添加认证
   if (QDRANT_CONFIG.apiKey) {
     clientConfig.apiKey = QDRANT_CONFIG.apiKey;
   }
+  console.log("🟢 clientConfig", clientConfig);
 
   const client = new QdrantClient(clientConfig);
 

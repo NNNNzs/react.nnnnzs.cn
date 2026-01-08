@@ -302,17 +302,19 @@ export async function deleteVectorsByPostId(postId: number): Promise<number> {
 }
 
 /**
- * 向量相似度搜索
+ * 向量相似度搜索（带重试机制）
  * 
  * @param queryVector 查询向量
  * @param limit 返回结果数量限制
  * @param filter 过滤条件（可选，Qdrant filter 格式）
+ * @param maxRetries 最大重试次数，默认 2
  * @returns 搜索结果数组
  */
 export async function searchSimilarVectors(
   queryVector: number[],
   limit: number = 10,
-  filter?: unknown
+  filter?: unknown,
+  maxRetries: number = 2
 ): Promise<Array<{
   postId: number;
   chunkIndex: number;
@@ -328,32 +330,71 @@ export async function searchSimilarVectors(
     CHUNK_TEXT_FIELD,
   } = QDRANT_COLLECTION_CONFIG;
 
-  try {
-    const searchResult = await client.search(COLLECTION_NAME, {
-      vector: queryVector,
-      limit: limit,
-      filter: filter as {
-        must?: Array<{
-          key: string;
-          match: { value: unknown };
-        }>;
-      },
-      with_payload: true,
-      with_vector: false,
-    });
+  let lastError: Error | unknown;
+  
+  // 重试逻辑
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        // 指数退避：第 1 次重试等待 1 秒，第 2 次等待 2 秒
+        const delay = attempt * 1000;
+        console.log(`🔄 向量搜索重试第 ${attempt} 次，等待 ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
 
-    // 转换结果格式
-    const results = searchResult.map((hit) => ({
-      postId: Number(hit.payload?.[POST_ID_FIELD]),
-      chunkIndex: Number(hit.payload?.[CHUNK_INDEX_FIELD]),
-      chunkText: String(hit.payload?.[CHUNK_TEXT_FIELD] || ''),
-      title: String(hit.payload?.title || ''),
-      score: hit.score || 0,
-    }));
+      const searchResult = await client.search(COLLECTION_NAME, {
+        vector: queryVector,
+        limit: limit,
+        filter: filter as {
+          must?: Array<{
+            key: string;
+            match: { value: unknown };
+          }>;
+        },
+        with_payload: true,
+        with_vector: false,
+      });
 
-    return results;
-  } catch (error) {
-    console.error('❌ 向量搜索失败:', error);
-    throw error;
+      // 转换结果格式
+      const results = searchResult.map((hit) => ({
+        postId: Number(hit.payload?.[POST_ID_FIELD]),
+        chunkIndex: Number(hit.payload?.[CHUNK_INDEX_FIELD]),
+        chunkText: String(hit.payload?.[CHUNK_TEXT_FIELD] || ''),
+        title: String(hit.payload?.title || ''),
+        score: hit.score || 0,
+      }));
+
+      if (attempt > 0) {
+        console.log(`✅ 向量搜索重试成功（第 ${attempt} 次重试）`);
+      }
+
+      return results;
+    } catch (error) {
+      lastError = error;
+      
+      // 检查是否是连接超时或网络错误
+      const isNetworkError = 
+        error instanceof Error && (
+          error.message.includes('timeout') ||
+          error.message.includes('TIMEOUT') ||
+          error.message.includes('fetch failed') ||
+          error.message.includes('Connect Timeout') ||
+          error.message.includes('UND_ERR_CONNECT_TIMEOUT')
+        );
+
+      // 如果是网络错误且还有重试机会，继续重试
+      if (isNetworkError && attempt < maxRetries) {
+        console.warn(`⚠️ 向量搜索网络错误（尝试 ${attempt + 1}/${maxRetries + 1}）:`, error instanceof Error ? error.message : String(error));
+        continue;
+      }
+
+      // 如果不是网络错误，或者已经重试完，直接抛出错误
+      console.error('❌ 向量搜索失败:', error);
+      throw error;
+    }
   }
+
+  // 所有重试都失败，抛出最后一次的错误
+  console.error('❌ 向量搜索失败，已重试', maxRetries, '次');
+  throw lastError || new Error('向量搜索失败：未知错误');
 }
