@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBaseUrl, getUserFromToken } from '@/lib/auth';
 import {
   getAnthropicMessageWithSystem,
+  streamAnthropicMessagesWithSystem,
   type AnthropicModelConfig,
 } from '@/services/ai/anthropic';
 import { StreamTagGenerator } from '@/lib/stream-tags';
@@ -32,16 +33,6 @@ interface ChatRequest {
     role: 'user' | 'assistant';
     content: string;
   }>;
-}
-
-/**
- * 工具调用步骤信息（用于展示工具调用过程）
- */
-interface ToolCallStep {
-  toolName: string;
-  status: 'calling' | 'success' | 'error';
-  message: string;
-  timestamp: number;
 }
 
 /**
@@ -115,9 +106,6 @@ export async function POST(request: NextRequest) {
     const currentTime = dayjs().format('YYYY年MM月DD日 HH:mm:ss');
     const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'NNNNzs';
 
-    // 工具调用步骤信息（用于前端展示）
-    const toolSteps: ToolCallStep[] = [];
-
     // 构建通用信息
     const userInfo = user
       ? `用户已登录，昵称：${user.nickname || user.account}${user.role ? `（${user.role}）` : ''}`
@@ -183,178 +171,194 @@ ${toolsDescription}
       maxTokens: 2000,
     };
 
-    // ReAct 循环：最多执行 3 轮工具调用
-    const maxToolRounds = 3;
-    let finalResponse = '';
-    let toolCallCount = 0;
-
-    for (let round = 0; round < maxToolRounds; round++) {
-      console.log(`🔄 ReAct 循环第 ${round + 1} 轮...`);
-
-      // 调用 AI（非流式，用于检测工具调用）
-      const aiResponse = await getAnthropicMessageWithSystem(
-        systemInstruction,
-        messages,
-        aiModelConfig
-      );
-
-      console.log(`✅ AI 响应完成，长度: ${aiResponse.length}`);
-
-      // 检查是否有工具调用
-      const toolCalls = parseToolCalls(aiResponse);
-
-      if (toolCalls.length === 0) {
-        // 没有工具调用，这是最终响应
-        finalResponse = aiResponse;
-        console.log('✅ 没有工具调用，使用最终响应');
-        break;
-      }
-
-      // 有工具调用，执行工具
-      console.log(`🔧 检测到 ${toolCalls.length} 个工具调用`);
-      toolCallCount += toolCalls.length;
-
-      // 移除工具调用标签，保留其他内容作为思考过程
-      let responseWithoutTools = aiResponse;
-      for (const toolCall of toolCalls) {
-        responseWithoutTools = responseWithoutTools.replace(toolCall.fullMatch, '');
-        // 记录工具调用步骤
-        toolSteps.push({
-          toolName: toolCall.name,
-          status: 'calling',
-          message: `正在调用工具...`,
-          timestamp: Date.now(),
-        });
-      }
-
-      // 执行所有工具调用
-      const toolResults: string[] = [];
-      for (const toolCall of toolCalls) {
-        const result = await executeToolCall(toolCall);
-
-        // 更新工具调用步骤状态
-        const stepIndex = toolSteps.findIndex(
-          (s) => s.toolName === toolCall.name && s.status === 'calling'
-        );
-        if (stepIndex !== -1) {
-          toolSteps[stepIndex].status = result.success ? 'success' : 'error';
-          if (result.success) {
-            // 对于 search_articles，显示找到的文章数量
-            if (toolCall.name === 'search_articles' && result.data) {
-              const searchData = result.data as {
-                results: Array<{ title: string }>;
-                totalResults: number;
-              };
-              toolSteps[stepIndex].message = `找到 ${searchData.totalResults || 0} 篇相关文章`;
-            } else {
-              toolSteps[stepIndex].message = `执行成功`;
-            }
-          } else {
-            toolSteps[stepIndex].message = `执行失败: ${result.error}`;
-          }
-        }
-
-        // 格式化工具结果
-        if (toolCall.name === 'search_articles' && result.success && result.data) {
-          // 对于搜索工具，格式化结果为包含链接的上下文
-          const formattedContext = formatSearchResults(
-            result.data as {
-              query: string;
-              results: Array<{
-                postId: number;
-                title: string;
-                url: string | null;
-                chunks: Array<{
-                  chunkIndex: number;
-                  chunkText: string;
-                  score: number;
-                }>;
-              }>;
-            },
-            baseUrl
-          );
-          toolResults.push(formattedContext);
-        } else {
-          // 其他工具使用 XML 格式
-          const toolResultXml = formatToolResult(toolCall.name, result);
-          toolResults.push(toolResultXml);
-        }
-      }
-
-      // 将 AI 响应（包含思考过程）和工具结果添加到消息历史
-      if (responseWithoutTools.trim()) {
-        messages.push({
-          role: 'assistant',
-          content: responseWithoutTools.trim(),
-        });
-      }
-
-      // 添加工具结果作为用户消息（让 AI 继续处理）
-      const toolResultsText = toolResults.join('\n\n');
-      messages.push({
-        role: 'user',
-        content: toolResultsText + '\n\n请基于以上信息继续回答用户的问题。',
-      });
-
-      console.log(`✅ 工具执行完成，继续下一轮对话`);
-    }
-
-    // 如果达到最大轮数，使用最后一轮响应
-    if (!finalResponse && messages.length > 0) {
-      const lastAssistantMessage = messages
-        .slice()
-        .reverse()
-        .find((m) => m.role === 'assistant');
-      if (lastAssistantMessage) {
-        finalResponse = lastAssistantMessage.content;
-      }
-    }
-
-    // 如果没有最终响应，使用默认消息
-    if (!finalResponse) {
-      finalResponse = '抱歉，我无法回答这个问题。';
-    }
-
-    console.log(`✅ ReAct 循环完成，工具调用次数: ${toolCallCount}，最终响应长度: ${finalResponse.length}`);
-
-    // 创建流式响应（模拟流式输出最终响应）
+    // 创建流式响应（提前创建，以便在 ReAct 循环中实时发送）
     const tagGenerator = new StreamTagGenerator();
 
     // 创建流式响应
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // 发送工具调用过程（think 标签）
-          if (toolSteps.length > 0) {
-            const thinkContent = toolSteps
-              .map((step) => {
-                const statusIcon =
-                  step.status === 'success'
-                    ? '✅'
-                    : step.status === 'error'
-                      ? '❌'
-                      : '🔧';
-                return `${statusIcon} ${step.toolName}: ${step.message}`;
-              })
-              .join('\n');
-            const thinkTag = tagGenerator.generateThink(thinkContent);
-            controller.enqueue(thinkTag);
+          // ReAct 循环：最多执行 3 轮工具调用
+          const maxToolRounds = 3;
+          let toolCallCount = 0;
+          let hasFinalResponse = false;
+
+          for (let round = 0; round < maxToolRounds; round++) {
+            console.log(`🔄 ReAct 循环第 ${round + 1} 轮...`);
+
+            // 调用 AI（非流式，用于检测工具调用）
+            const aiResponse = await getAnthropicMessageWithSystem(
+              systemInstruction,
+              messages,
+              aiModelConfig
+            );
+
+            console.log(`✅ AI 响应完成，长度: ${aiResponse.length}`);
+
+            // 检查是否有工具调用
+            const toolCalls = parseToolCalls(aiResponse);
+
+            if (toolCalls.length === 0) {
+              // 没有工具调用，这是最终响应
+              // 使用真正的流式调用生成最终响应
+              console.log('✅ 没有工具调用，使用流式响应');
+              
+              // 发送 content 标签开始
+              controller.enqueue(tagGenerator.startContent());
+
+              // 使用流式调用并实时转发给前端
+              const streamResponse = await streamAnthropicMessagesWithSystem(
+                systemInstruction,
+                messages,
+                aiModelConfig
+              );
+
+              // 读取流式响应并实时转发
+              const reader = streamResponse.getReader();
+              const decoder = new TextDecoder();
+              
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  
+                  // 解码并发送内容块
+                  const text = decoder.decode(value, { stream: true });
+                  if (text) {
+                    controller.enqueue(tagGenerator.generateContent(text));
+                  }
+                }
+              } finally {
+                reader.releaseLock();
+              }
+
+              // 发送 content 标签结束
+              controller.enqueue(tagGenerator.endContent());
+              hasFinalResponse = true;
+              break;
+            }
+
+            // 有工具调用，执行工具
+            console.log(`🔧 检测到 ${toolCalls.length} 个工具调用`);
+            toolCallCount += toolCalls.length;
+
+            // 移除工具调用标签，保留其他内容作为思考过程
+            let responseWithoutTools = aiResponse;
+            for (const toolCall of toolCalls) {
+              responseWithoutTools = responseWithoutTools.replace(toolCall.fullMatch, '');
+              
+              // 实时发送工具调用开始（think 标签）
+              const thinkContentStart = `🔧 ${toolCall.name}: 正在调用工具...`;
+              controller.enqueue(tagGenerator.generateThink(thinkContentStart));
+            }
+
+            // 执行所有工具调用
+            const toolResults: string[] = [];
+            for (const toolCall of toolCalls) {
+              const result = await executeToolCall(toolCall);
+
+              // 实时发送工具调用结果（think 标签）
+              let thinkContentResult: string;
+              if (result.success) {
+                // 对于 search_articles，显示找到的文章数量
+                if (toolCall.name === 'search_articles' && result.data) {
+                  const searchData = result.data as {
+                    results: Array<{ title: string }>;
+                    totalResults: number;
+                  };
+                  thinkContentResult = `✅ ${toolCall.name}: 找到 ${searchData.totalResults || 0} 篇相关文章`;
+                } else {
+                  thinkContentResult = `✅ ${toolCall.name}: 执行成功`;
+                }
+              } else {
+                thinkContentResult = `❌ ${toolCall.name}: 执行失败: ${result.error}`;
+              }
+              controller.enqueue(tagGenerator.generateThink(thinkContentResult));
+
+              // 格式化工具结果
+              if (toolCall.name === 'search_articles' && result.success && result.data) {
+                // 对于搜索工具，格式化结果为包含链接的上下文
+                const formattedContext = formatSearchResults(
+                  result.data as {
+                    query: string;
+                    results: Array<{
+                      postId: number;
+                      title: string;
+                      url: string | null;
+                      chunks: Array<{
+                        chunkIndex: number;
+                        chunkText: string;
+                        score: number;
+                      }>;
+                    }>;
+                  },
+                  baseUrl
+                );
+                toolResults.push(formattedContext);
+              } else {
+                // 其他工具使用 XML 格式
+                const toolResultXml = formatToolResult(toolCall.name, result);
+                toolResults.push(toolResultXml);
+              }
+            }
+
+            // 将 AI 响应（包含思考过程）和工具结果添加到消息历史
+            if (responseWithoutTools.trim()) {
+              messages.push({
+                role: 'assistant',
+                content: responseWithoutTools.trim(),
+              });
+            }
+
+            // 添加工具结果作为用户消息（让 AI 继续处理）
+            const toolResultsText = toolResults.join('\n\n');
+            messages.push({
+              role: 'user',
+              content: toolResultsText + '\n\n请基于以上信息继续回答用户的问题。',
+            });
+
+            console.log(`✅ 工具执行完成，继续下一轮对话`);
           }
 
-          // 发送 content 标签开始
-          controller.enqueue(tagGenerator.startContent());
+          // 如果达到最大轮数且还没有最终响应，使用流式调用生成最后一轮响应
+          if (!hasFinalResponse) {
+            console.log('⚠️ 达到最大轮数，使用流式调用生成最终响应');
+            
+            // 发送 content 标签开始
+            controller.enqueue(tagGenerator.startContent());
 
-          // 流式输出最终响应（模拟打字机效果）
-          const chunkSize = 50; // 每次输出 50 个字符
-          for (let i = 0; i < finalResponse.length; i += chunkSize) {
-            const chunk = finalResponse.substring(i, i + chunkSize);
-            controller.enqueue(tagGenerator.generateContent(chunk));
-            // 添加小延迟，模拟流式效果
-            await new Promise((resolve) => setTimeout(resolve, 10));
+            // 使用流式调用生成最终响应
+            const streamResponse = await streamAnthropicMessagesWithSystem(
+              systemInstruction,
+              messages,
+              aiModelConfig
+            );
+
+            // 读取流式响应并实时转发
+            const reader = streamResponse.getReader();
+            const decoder = new TextDecoder();
+            
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                // 解码并发送内容块
+                const text = decoder.decode(value, { stream: true });
+                if (text) {
+                  controller.enqueue(tagGenerator.generateContent(text));
+                }
+              }
+            } finally {
+              reader.releaseLock();
+            }
+
+            // 发送 content 标签结束
+            controller.enqueue(tagGenerator.endContent());
           }
 
-          // 发送 content 标签结束
-          controller.enqueue(tagGenerator.endContent());
+          console.log(`✅ ReAct 循环完成，工具调用次数: ${toolCallCount}`);
+
           controller.close();
         } catch (error) {
           console.error('❌ 流式响应错误:', error);
