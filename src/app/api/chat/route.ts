@@ -65,7 +65,7 @@ function formatSearchResults(
       // 如果 URL 已经是完整 URL（以 http:// 或 https:// 开头），直接使用
       if (result.url.startsWith('http://') || result.url.startsWith('https://')) {
         postUrl = result.url;
-          } else {
+      } else {
         // 否则拼接 baseUrl
         postUrl = `${baseUrl}${result.url}`;
       }
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     // 获取工具描述
     const toolsDescription = toolRegistry.getToolsDescription();
+    console.log('toolsDescription', toolsDescription);
 
     // 构建系统指令（包含工具说明）
     const systemInstruction = `你是一个智能助手，擅长基于知识库内容回答用户问题。
@@ -202,7 +203,7 @@ ${toolsDescription}
               // 没有工具调用，这是最终响应
               // 使用真正的流式调用生成最终响应
               console.log('✅ 没有工具调用，使用流式响应');
-              
+
               // 发送 content 标签开始
               controller.enqueue(tagGenerator.startContent());
 
@@ -216,12 +217,12 @@ ${toolsDescription}
               // 读取流式响应并实时转发
               const reader = streamResponse.getReader();
               const decoder = new TextDecoder();
-              
+
               try {
                 while (true) {
                   const { done, value } = await reader.read();
                   if (done) break;
-                  
+
                   // 解码并发送内容块
                   const text = decoder.decode(value, { stream: true });
                   if (text) {
@@ -246,7 +247,7 @@ ${toolsDescription}
             let responseWithoutTools = aiResponse;
             for (const toolCall of toolCalls) {
               responseWithoutTools = responseWithoutTools.replace(toolCall.fullMatch, '');
-              
+
               // 实时发送工具调用开始（think 标签）
               const thinkContentStart = `🔧 ${toolCall.name}: 正在调用工具...`;
               controller.enqueue(tagGenerator.generateThink(thinkContentStart));
@@ -323,7 +324,7 @@ ${toolsDescription}
           // 如果达到最大轮数且还没有最终响应，使用流式调用生成最后一轮响应
           if (!hasFinalResponse) {
             console.log('⚠️ 达到最大轮数，使用流式调用生成最终响应');
-            
+
             // 发送 content 标签开始
             controller.enqueue(tagGenerator.startContent());
 
@@ -337,12 +338,12 @@ ${toolsDescription}
             // 读取流式响应并实时转发
             const reader = streamResponse.getReader();
             const decoder = new TextDecoder();
-            
+
             try {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                
+
                 // 解码并发送内容块
                 const text = decoder.decode(value, { stream: true });
                 if (text) {
@@ -371,15 +372,15 @@ ${toolsDescription}
     });
 
     return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache, no-transform',
-          'Connection': 'keep-alive',
-          'X-Accel-Buffering': 'no',
-          'Access-Control-Allow-Origin': '*',
-          'X-Content-Type-Options': 'nosniff',
-        },
-      });
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+        'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
   } catch (error) {
     console.error('聊天 API 错误:', error);
     return NextResponse.json(
