@@ -10,12 +10,16 @@ on:
       - 'v*.*.*'  # 也支持推送版本标签触发
 
 env:
-  # 镜像名称（与 docker-compose.prod.yml 中的镜像名称保持一致）
-  IMAGE_NAME: nnnnzs/react-nnnnzs-cn
+  # 阿里云 ACR 相关配置（需要在 GitHub Secrets 中设置）
+  ACR_REGISTRY: crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com
+  ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+  ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+  # 镜像名称（格式：registry/namespace/repo）
+  IMAGE_NAME: crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com/nnnnzs/react-nnnnzs.cn
 
 jobs:
-  build-and-deploy:
-    name: 构建并部署 Docker 镜像
+  build-and-push:
+    name: 构建并推送 Docker 镜像
     runs-on: ubuntu-latest
     
     steps:
@@ -45,18 +49,35 @@ jobs:
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 构建 Docker 镜像（不推送）
-        id: build
+      - name: 登录阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+
+      - name: 提取 Docker 元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # 始终标记为 latest
+            type=raw,value=latest
+            # 使用计算的版本号
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+
+      - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.prod
           platforms: linux/amd64
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
@@ -74,98 +95,9 @@ jobs:
             OPENAI_BASE_URL_PROXY=${{ secrets.OPENAI_BASE_URL_PROXY }}
             OPENAI_MODEL_NAME=${{ secrets.OPENAI_MODEL_NAME }}
 
-      - name: 验证镜像是否存在
-        run: |
-          IMAGE_TAG="${{ env.IMAGE_NAME }}:latest"
-          echo "🔍 检查镜像: ${IMAGE_TAG}"
-          docker images | grep -E "${{ env.IMAGE_NAME }}.*latest" || docker images
-          if ! docker image inspect "${IMAGE_TAG}" > /dev/null 2>&1; then
-            echo "❌ 镜像不存在: ${IMAGE_TAG}"
-            echo "可用镜像列表:"
-            docker images
-            exit 1
-          fi
-          echo "✅ 镜像存在: ${IMAGE_TAG}"
-
-      - name: 导出 Docker 镜像
-        run: |
-          IMAGE_TAG="${{ env.IMAGE_NAME }}:latest"
-          IMAGE_FILE="react-nnnnzs-cn-${{ steps.version.outputs.VERSION }}.tar"
-          
-          echo "📦 导出镜像: ${IMAGE_TAG} -> ${IMAGE_FILE}"
-          docker save -o "${IMAGE_FILE}" "${IMAGE_TAG}"
-          
-          if [ ! -f "${IMAGE_FILE}" ]; then
-            echo "❌ 镜像导出失败: ${IMAGE_FILE} 不存在"
-            exit 1
-          fi
-          
-          echo "IMAGE_FILE=${IMAGE_FILE}" >> $GITHUB_ENV
-          
-          # 显示文件大小
-          ls -lh "${IMAGE_FILE}"
-          echo "✅ 镜像导出成功: ${IMAGE_FILE}"
-
-      - name: 配置 SSH 密钥
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          DEPLOY_PORT="${{ secrets.DEPLOY_PORT }}"
-          DEPLOY_PORT=${DEPLOY_PORT:-22}
-          ssh-keyscan -p ${DEPLOY_PORT} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-
-      - name: 传输镜像到服务器
-        run: |
-          echo "🚀 传输镜像到服务器..."
-          DEPLOY_PORT="${{ secrets.DEPLOY_PORT }}"
-          DEPLOY_PORT=${DEPLOY_PORT:-22}
-          scp -i ~/.ssh/deploy_key \
-              -P ${DEPLOY_PORT} \
-              "${IMAGE_FILE}" \
-              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_DIR }}/"${IMAGE_FILE}"
-          echo "✅ 镜像传输完成"
-
-      - name: 在服务器上加载镜像并部署
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          script: |
-            cd ${{ secrets.DEPLOY_DIR }}
-            
-            IMAGE_FILE="react-nnnnzs-cn-${{ steps.version.outputs.VERSION }}.tar"
-            IMAGE_TAG="nnnnzs/react-nnnnzs-cn:latest"
-            
-            echo "📥 加载镜像: ${IMAGE_FILE}"
-            docker load -i "${IMAGE_FILE}"
-            
-            echo "🗑️  删除镜像文件: ${IMAGE_FILE}"
-            rm -f "${IMAGE_FILE}"
-            
-            echo "🔄 执行部署..."
-            # 执行部署脚本
-            if [ -f "${{ secrets.DEPLOY_SCRIPT }}" ]; then
-              bash "${{ secrets.DEPLOY_SCRIPT }}" deploy
-            else
-              ${{ secrets.DEPLOY_SCRIPT }} deploy
-            fi
-            
-            echo "✅ 部署完成！"
-
-      - name: 清理本地镜像文件
-        if: always()
-        run: |
-          if [ -f "${IMAGE_FILE}" ]; then
-            echo "🗑️  清理本地镜像文件..."
-            rm -f "${IMAGE_FILE}"
-          fi
-
       - name: 生成构建摘要
         run: |
-          echo "## 🐳 Docker 镜像构建并部署成功！" >> $GITHUB_STEP_SUMMARY
+          echo "## 🐳 Docker 镜像构建成功！" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 镜像信息" >> $GITHUB_STEP_SUMMARY
           echo "- **版本号**: \`${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
@@ -173,22 +105,60 @@ jobs:
           echo "- **Commit SHA**: \`${{ steps.version.outputs.SHORT_SHA }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **构建时间**: \`${{ steps.version.outputs.BUILD_DATE }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 部署方式" >> $GITHUB_STEP_SUMMARY
-          echo "镜像已通过 scp 传输到服务器并加载完成。" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 使用方法" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# 登录阿里云 ACR" >> $GITHUB_STEP_SUMMARY
+          echo "docker login --username=\$ACR_USERNAME ${{ env.ACR_REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 拉取最新镜像" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 或拉取指定版本" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: 发送部署成功通知
-        if: success()
-        run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
-
-      - name: 发送部署失败通知
-        if: failure()
-        run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
-
-      - name: 构建失败通知
+      - name: 推送失败通知
         if: failure()
         run: |
           echo "## ❌ Docker 镜像构建失败！" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "请检查构建日志以获取详细错误信息。" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: 部署到服务器
+    runs-on: ubuntu-latest
+    needs: build-and-push  # 等待构建完成
+    # 只在构建成功时执行部署
+    if: success()
+    
+    steps:
+      - name: SSH 连接到服务器并执行部署脚本
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            # 切换到部署目录
+            cd ${{ secrets.DEPLOY_DIR }}
+            
+            # 执行指定的部署脚本
+            if [ -f "${{ secrets.DEPLOY_SCRIPT }}" ]; then
+              bash "${{ secrets.DEPLOY_SCRIPT }}"
+            else
+              ${{ secrets.DEPLOY_SCRIPT }}
+            fi
+            
+            echo "✅ 部署完成！"
+
+      - name: 发送部署成功通知
+        if: success()
+        run: |
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
+
+      - name: 发送部署失败通知
+        if: failure()
+        run: |
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"

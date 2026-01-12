@@ -33,4 +33,4 @@ jobs:
         run: |
           echo "## ✅ Docker 镜像构建测试成功！" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "镜像可以正常构建，合并后将自动推送到 DockerHub。" >> $GITHUB_STEP_SUMMARY
+          echo "镜像可以正常构建，合并后将自动推送到阿里云 ACR。" >> $GITHUB_STEP_SUMMARY
