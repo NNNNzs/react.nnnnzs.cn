@@ -53,6 +53,7 @@ jobs:
           file: ./Dockerfile.prod
           platforms: linux/amd64
           push: false
+          load: true
           tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -73,6 +74,19 @@ jobs:
             OPENAI_BASE_URL_PROXY=${{ secrets.OPENAI_BASE_URL_PROXY }}
             OPENAI_MODEL_NAME=${{ secrets.OPENAI_MODEL_NAME }}
 
+      - name: 验证镜像是否存在
+        run: |
+          IMAGE_TAG="${{ env.IMAGE_NAME }}:latest"
+          echo "🔍 检查镜像: ${IMAGE_TAG}"
+          docker images | grep -E "${{ env.IMAGE_NAME }}.*latest" || docker images
+          if ! docker image inspect "${IMAGE_TAG}" > /dev/null 2>&1; then
+            echo "❌ 镜像不存在: ${IMAGE_TAG}"
+            echo "可用镜像列表:"
+            docker images
+            exit 1
+          fi
+          echo "✅ 镜像存在: ${IMAGE_TAG}"
+
       - name: 导出 Docker 镜像
         run: |
           IMAGE_TAG="${{ env.IMAGE_NAME }}:latest"
@@ -81,10 +95,16 @@ jobs:
           echo "📦 导出镜像: ${IMAGE_TAG} -> ${IMAGE_FILE}"
           docker save -o "${IMAGE_FILE}" "${IMAGE_TAG}"
           
+          if [ ! -f "${IMAGE_FILE}" ]; then
+            echo "❌ 镜像导出失败: ${IMAGE_FILE} 不存在"
+            exit 1
+          fi
+          
           echo "IMAGE_FILE=${IMAGE_FILE}" >> $GITHUB_ENV
           
           # 显示文件大小
           ls -lh "${IMAGE_FILE}"
+          echo "✅ 镜像导出成功: ${IMAGE_FILE}"
 
       - name: 配置 SSH 密钥
         run: |
@@ -159,12 +179,12 @@ jobs:
       - name: 发送部署成功通知
         if: success()
         run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
 
       - name: 发送部署失败通知
         if: failure()
         run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
 
       - name: 构建失败通知
         if: failure()
