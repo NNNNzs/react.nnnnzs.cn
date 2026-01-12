@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: "NNNNzs",
   description: "记录技术，分享生活",
 };
+export const experimental = {
+  scrollRestoration: true,
+};
 
 export default function RootLayout({
   children,
@@ -26,37 +29,37 @@ export default function RootLayout({
         <CurrentPostProvider>
           <HeaderStyleProvider>
             <AntdRegistry>
-            <ConfigProvider 
-              locale={zhCN}
-              theme={{
-                token: {
-                  colorPrimary: '#1677ff',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  lineHeight: 1.5715,
-                  controlHeight: 32,
-                  controlHeightLG: 40,
-                  controlHeightSM: 24,
-                },
-                components: {
-                  Button: {
-                    controlHeightLG: 40,
+              <ConfigProvider
+                locale={zhCN}
+                theme={{
+                  token: {
+                    colorPrimary: "#1677ff",
+                    borderRadius: 6,
+                    fontSize: 14,
+                    lineHeight: 1.5715,
                     controlHeight: 32,
+                    controlHeightLG: 40,
                     controlHeightSM: 24,
                   },
-                  Input: {
-                    controlHeightLG: 40,
-                    controlHeight: 32,
-                    controlHeightSM: 24,
+                  components: {
+                    Button: {
+                      controlHeightLG: 40,
+                      controlHeight: 32,
+                      controlHeightSM: 24,
+                    },
+                    Input: {
+                      controlHeightLG: 40,
+                      controlHeight: 32,
+                      controlHeightSM: 24,
+                    },
                   },
-                }
-              }}
-            >
-              <body className="antialiased">
-                <Header />
-                {children}
-                <Script id="baidu-analytics" strategy="afterInteractive">
-                  {`
+                }}
+              >
+                <body className="antialiased">
+                  <Header />
+                  {children}
+                  <Script id="baidu-analytics" strategy="afterInteractive">
+                    {`
                   var _hmt = _hmt || [];
                   (function() {
                     var hm = document.createElement("script");
@@ -65,11 +68,11 @@ export default function RootLayout({
                     s.parentNode.insertBefore(hm, s);
                   })();
                   `}
-                </Script>
-              </body>
-            </ConfigProvider>
-          </AntdRegistry>
-        </HeaderStyleProvider>
+                  </Script>
+                </body>
+              </ConfigProvider>
+            </AntdRegistry>
+          </HeaderStyleProvider>
         </CurrentPostProvider>
       </AuthProvider>
     </html>

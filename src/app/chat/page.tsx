@@ -388,10 +388,10 @@ export default function ChatPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <Title level={2} style={{ marginBottom: 16 }}>
-            💬 知识库智能对话
+            💬 网站百事通
           </Title>
           <Typography.Text type="secondary" className="block">
-            基于知识库检索的智能对话，支持展示思考过程和检索结果
+            基于网站知识库，检索相关文章，回答您的问题，你可以询问作者公开的信息
           </Typography.Text>
         </div>
         {messages.length > 0 && (
@@ -427,7 +427,7 @@ export default function ChatPage() {
           value={content}
           onChange={setContent}
           onSubmit={handleSubmit}
-          placeholder="输入您的问题，我会从知识库中检索相关内容并回答..."
+          placeholder="输入您的问题，我会从知识库中检索相关内容并回答...例如作者去过哪些地方旅游"
         />
       </div>
     </div>

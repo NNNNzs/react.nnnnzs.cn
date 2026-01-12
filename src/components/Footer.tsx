@@ -31,12 +31,22 @@ export default function Footer() {
               快速链接
             </h3>
             <ul className="space-y-2 text-sm">
+              {/* 归档 */}
               <li>
                 <Link
-                  href="/"
+                  href="/archives"
                   className="text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
                 >
-                  首页
+                  归档
+                </Link>
+              </li>
+              {/* 分类 */}
+              <li>
+                <Link
+                  href="/tags"
+                  className="text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+                >
+                  分类
                 </Link>
               </li>
               <li>
@@ -67,11 +77,20 @@ export default function Footer() {
               联系我
             </h3>
             <ul className="space-y-2 text-sm">
+              <li></li>
+
               <li className="text-slate-600 dark:text-slate-400">
                 Email: nnnnzs@vip.qq.com
               </li>
               <li className="text-slate-600 dark:text-slate-400">
-                GitHub: @NNNNzs
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-full align-middle flex items-center hover:opacity-70 transition-opacity"
+                  href="https://github.com/NNNNzs"
+                >
+                  GitHub: @NNNNzs
+                </a>
               </li>
             </ul>
           </div>

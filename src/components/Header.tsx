@@ -53,10 +53,7 @@ export default function Header() {
   // 根据滚动进度与透明度更新 CSS 变量
   useEffect(() => {
     if (scrollBarRef.current) {
-      scrollBarRef.current.style.setProperty(
-        "--percent",
-        `${scrollProgress}%`
-      );
+      scrollBarRef.current.style.setProperty("--percent", `${scrollProgress}%`);
     }
     if (headerRef.current) {
       headerRef.current.style.setProperty(
@@ -75,15 +72,7 @@ export default function Header() {
 
   // 统一的导航菜单配置 - 只维护一份数据
   const navItems = [
-    { href: "/tags", label: "分类", type: "link" as const },
-    { href: "/archives", label: "归档", type: "link" as const },
     { href: "/chat", label: "聊天", type: "link" as const },
-    {
-      href: "https://github.com/NNNNzs/react.nnnnzs.cn",
-      label: "GitHub",
-      type: "external" as const,
-      icon: "github" as const,
-    },
   ];
 
   // Algolia 配置 - 使用通用配置 Hook 获取
@@ -212,16 +201,7 @@ export default function Header() {
                   </svg>
                 )}
               </button>
-
-              {/* GitHub 链接 - 桌面端显示 */}
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-full align-middle flex items-center hover:opacity-70 transition-opacity"
-                href="https://github.com/NNNNzs/nnnnzs.cn"
-              >
-                <GithubOutlined className="text-[1.5rem]" />
-              </a>
+            
 
               {/* 用户信息 */}
               <Suspense fallback={<div className="w-20 h-8" />}>
@@ -260,21 +240,6 @@ export default function Header() {
         <div className="flex flex-col space-y-4">
           {/* 所有导航项 - 使用统一的数据源 */}
           {navItems.map((item) => {
-            if (item.type === "external") {
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-black dark:text-white mb-2 flex items-center gap-2"
-                  onClick={() => setDrawerOpen(false)}
-                >
-                  <GithubOutlined />
-                  {item.label}
-                </a>
-              );
-            }
             return (
               <Link
                 key={item.href}

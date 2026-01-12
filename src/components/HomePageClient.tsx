@@ -1,161 +1,30 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import React, { useEffect, useRef } from 'react';
 import Banner from '@/components/Banner';
 import PostListItem from '@/components/PostListItem';
-import type { Post, PageQueryRes } from '@/types';
+import type { Post } from '@/types';
 
 interface HomePageClientProps {
-  initialPosts: Post[];
-  initialTotal: number;
+  posts: Post[];
+  hasMore: boolean;
+  onLoadMore: () => void;
 }
 
-// 缓存键名常量
-const CACHE_KEYS = {
-  POSTS: 'home_posts_cache',
-  PAGE_NUM: 'home_page_num_cache',
-  TOTAL: 'home_total_cache',
-  SCROLL: 'home_scroll_position',
-} as const;
-
-// 缓存过期时间（毫秒），10分钟
-const CACHE_EXPIRY = 10 * 60 * 1000;
+// 滚动位置缓存键名
+const SCROLL_CACHE_KEY = 'home_scroll_position';
 
 /**
- * 从缓存加载数据
+ * 首页客户端组件（受控组件）
+ * 只负责展示和触发加载更多的回调
  */
-const loadFromCache = (): { posts: Post[]; pageNum: number; total: number } | null => {
-  try {
-    const cachedPosts = sessionStorage.getItem(CACHE_KEYS.POSTS);
-    const cachedPageNum = sessionStorage.getItem(CACHE_KEYS.PAGE_NUM);
-    const cachedTotal = sessionStorage.getItem(CACHE_KEYS.TOTAL);
-
-    if (cachedPosts && cachedPageNum && cachedTotal) {
-      const posts = JSON.parse(cachedPosts);
-      const pageNum = parseInt(cachedPageNum, 10);
-      const total = parseInt(cachedTotal, 10);
-      
-      // 检查缓存是否过期
-      const lastUpdate = posts[0]?._timestamp || Date.now();
-      if (Date.now() - lastUpdate > CACHE_EXPIRY) {
-        console.log('缓存已过期');
-        clearCache();
-        return null;
-      }
-
-      return { posts, pageNum, total };
-    }
-  } catch (error) {
-    console.error('读取缓存失败:', error);
-    clearCache();
-  }
-  return null;
-};
-
-/**
- * 保存数据到缓存
- */
-const saveToCache = (posts: Post[], pageNum: number, total: number) => {
-  try {
-    // 为每篇文章添加时间戳，用于过期检查
-    const postsWithTimestamp = posts.map(post => ({
-      ...post,
-      _timestamp: Date.now(),
-    }));
-
-    sessionStorage.setItem(CACHE_KEYS.POSTS, JSON.stringify(postsWithTimestamp));
-    sessionStorage.setItem(CACHE_KEYS.PAGE_NUM, String(pageNum));
-    sessionStorage.setItem(CACHE_KEYS.TOTAL, String(total));
-  } catch (error) {
-    console.error('保存缓存失败:', error);
-  }
-};
-
-/**
- * 清除缓存
- */
-const clearCache = () => {
-  sessionStorage.removeItem(CACHE_KEYS.POSTS);
-  sessionStorage.removeItem(CACHE_KEYS.PAGE_NUM);
-  sessionStorage.removeItem(CACHE_KEYS.TOTAL);
-};
-
-export default function HomePageClient({ initialPosts, initialTotal }: HomePageClientProps) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [pageNum, setPageNum] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const pageSize = 20;
+export default function HomePageClient({ 
+  posts,
+  hasMore,
+  onLoadMore,
+}: HomePageClientProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
-  const isRestoringRef = useRef(false);
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
-
-  /**
-   * 加载文章列表
-   */
-  const loadPosts = useCallback(async (page: number) => {
-    try {
-      setLoadingMore(true);
-
-      const response = await axios.get<{
-        status: boolean;
-        data: PageQueryRes<Post>;
-      }>('/api/post/list', {
-        params: { pageNum: page, pageSize, hide: '0' },
-      });
-
-      if (response.data.status) {
-        const { record, total } = response.data.data;
-        const newPosts = [...posts, ...record];
-        
-        setPosts(newPosts);
-        setHasMore(newPosts.length < total);
-        
-        // 保存到缓存
-        saveToCache(newPosts, page, total);
-      }
-    } catch (error) {
-      console.error('加载文章失败:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [posts]);
-
-  /**
-   * 加载更多
-   */
-  const handleLoadMore = useCallback(() => {
-    const nextPage = pageNum + 1;
-    setPageNum(nextPage);
-    loadPosts(nextPage);
-  }, [pageNum, loadPosts]);
-
-  /**
-   * 恢复缓存数据
-   */
-  useEffect(() => {
-    if (isRestoringRef.current) return;
-    isRestoringRef.current = true;
-
-    const cached = loadFromCache();
-    if (cached) {
-      console.log('恢复缓存数据:', {
-        posts: cached.posts.length,
-        pageNum: cached.pageNum,
-        total: cached.total,
-      });
-      
-      setPosts(cached.posts);
-      setPageNum(cached.pageNum);
-      setHasMore(cached.posts.length < cached.total);
-    } else {
-      // 没有缓存，使用初始数据
-      setPosts(initialPosts);
-      setPageNum(1);
-      setHasMore(initialPosts.length < initialTotal);
-    }
-  }, [initialPosts, initialTotal]);
 
   /**
    * 保存滚动位置 - 实时监听
@@ -172,7 +41,7 @@ export default function HomePageClient({ initialPosts, initialTotal }: HomePageC
       // 延迟保存，避免频繁操作
       scrollTimeout = setTimeout(() => {
         if (window.location.pathname === '/') {
-          sessionStorage.setItem(CACHE_KEYS.SCROLL, String(window.scrollY));
+          sessionStorage.setItem(SCROLL_CACHE_KEY, String(window.scrollY));
           console.log('保存滚动位置:', window.scrollY);
         }
       }, 100);
@@ -180,13 +49,13 @@ export default function HomePageClient({ initialPosts, initialTotal }: HomePageC
 
     // 页面卸载前保存
     const handleBeforeUnload = () => {
-      sessionStorage.setItem(CACHE_KEYS.SCROLL, String(window.scrollY));
+      sessionStorage.setItem(SCROLL_CACHE_KEY, String(window.scrollY));
     };
 
     // 页面可见性变化时保存（用户切换标签页）
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && window.location.pathname === '/') {
-        sessionStorage.setItem(CACHE_KEYS.SCROLL, String(window.scrollY));
+        sessionStorage.setItem(SCROLL_CACHE_KEY, String(window.scrollY));
       }
     };
 
@@ -215,7 +84,7 @@ export default function HomePageClient({ initialPosts, initialTotal }: HomePageC
       // 检查是否在首页
       if (window.location.pathname !== '/') return;
 
-      const savedScroll = sessionStorage.getItem(CACHE_KEYS.SCROLL);
+      const savedScroll = sessionStorage.getItem(SCROLL_CACHE_KEY);
       if (savedScroll) {
         const scrollY = parseInt(savedScroll, 10);
         
@@ -298,9 +167,9 @@ export default function HomePageClient({ initialPosts, initialTotal }: HomePageC
         {hasMore && posts.length > 0 && (
           <div
             className="cursor-pointer py-8 text-center text-slate-950 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            onClick={handleLoadMore}
+            onClick={onLoadMore}
           >
-            {loadingMore ? '加载中...' : '加载更多'}
+            加载更多
           </div>
         )}
 
