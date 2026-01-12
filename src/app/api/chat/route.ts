@@ -20,6 +20,8 @@ import {
 } from '@/services/ai/tools';
 import { searchArticlesTool } from '@/services/ai/tools/search-articles';
 import dayjs from 'dayjs';
+import { getAllTags } from '@/services/tag';
+
 
 // 注册工具
 toolRegistry.register(searchArticlesTool);
@@ -113,10 +115,13 @@ export async function POST(request: NextRequest) {
 
     // 获取工具描述
     const toolsDescription = toolRegistry.getToolsDescription();
+
+    const articleTags = await getAllTags();
     console.log('toolsDescription', toolsDescription);
+    console.log('articleTags', articleTags);
 
     // 构建系统指令（包含工具说明）
-    const systemInstruction = `你是一个智能助手，擅长基于知识库内容回答用户问题。
+    const systemInstruction = `你是一个智能助手，被设定为擅长基于网站的博客内容构建的知识库，回答用户问题。
 
 **当前上下文信息：**
 - 网站名称：${siteName}
@@ -124,11 +129,14 @@ export async function POST(request: NextRequest) {
 - 用户状态：${userInfo}
 - 网站地址：${baseUrl}
 
+**知识库相关的文章标签包括:**
+${articleTags.map(tag => tag[0]).join(',')}
+
 **工具使用说明：**
 ${toolsDescription}
 
 **回答要求：**
-1. **智能使用工具**：当用户询问关于博客文章、技术文档或知识库内容的问题时，使用 search_articles 工具检索相关信息
+1. **智能使用工具**：当用户询问关于博客文章、技术文档、作者个人信息，知识库内容的问题时，使用 search_articles 工具检索相关信息
 2. **结合通用知识**：如果工具返回的结果不足以回答问题，可以结合你的通用知识进行补充
 3. **回答质量**：回答要准确、清晰、有帮助，逻辑清晰
 4. **引用格式**：**重要：当引用知识库中的文章时，必须使用 Markdown 链接格式 [文章标题](文章URL) 来引用**
@@ -295,6 +303,7 @@ ${toolsDescription}
                   },
                   baseUrl
                 );
+                console.log('formattedContext', formattedContext);
                 toolResults.push(formattedContext);
               } else {
                 // 其他工具使用 XML 格式
