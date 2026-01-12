@@ -6,6 +6,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -44,6 +45,17 @@ export default function Footer() {
                   className="text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
                 >
                   标签
+                </Link>
+              </li>
+              <li>
+                <Link href="https://github.com/NNNNzs/react.nnnnzs.cn/actions/workflows/docker-release.yml">
+                  <Image
+                    src="https://github.com/NNNNzs/react.nnnnzs.cn/actions/workflows/docker-release.yml/badge.svg"
+                    alt="Docker Release"
+                    width={180}
+                    height={200}
+                    unoptimized={true}
+                  ></Image>
                 </Link>
               </li>
             </ul>

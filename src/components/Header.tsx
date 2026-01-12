@@ -79,7 +79,7 @@ export default function Header() {
     { href: "/archives", label: "归档", type: "link" as const },
     { href: "/chat", label: "聊天", type: "link" as const },
     {
-      href: "https://github.com/NNNNzs/nnnnzs.cn",
+      href: "https://github.com/NNNNzs/react.nnnnzs.cn",
       label: "GitHub",
       type: "external" as const,
       icon: "github" as const,

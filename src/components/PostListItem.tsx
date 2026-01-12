@@ -3,21 +3,24 @@
  * 参考 nnnnzs.cn/components/Post/CardItem.vue 的设计
  */
 
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import dayjs from 'dayjs';
-import { EyeOutlined, HeartOutlined, TagOutlined } from '@ant-design/icons';
-import type { Post } from '@/types';
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import dayjs from "dayjs";
+import { EyeOutlined, HeartOutlined, TagOutlined } from "@ant-design/icons";
+import type { Post } from "@/types";
 
 interface PostListItemProps {
   post: Post;
 }
-const target = '';
+const target = "";
 
 export default function PostListItem({ post }: PostListItemProps) {
+  const optimizeImageUrl = (url: string) => {
+    return url + "?imageMogr2/thumbnail/600x";
+  };
   return (
     <li
       className="post group m-auto my-8 flex w-5/6 max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all hover:shadow-2xl dark:bg-slate-800 md:h-auto md:flex-row md:even:flex-row-reverse"
@@ -25,14 +28,14 @@ export default function PostListItem({ post }: PostListItemProps) {
     >
       {/* 封面图片 */}
       <div className="post-cover w-full bg-transparent text-center md:w-3/5">
-        <Link href={post.path || '#'} target='_blank'>
+        <Link href={post.path || "#"} target="_blank">
           <div className="relative h-48 w-full md:h-full md:max-h-96">
             {post.cover ? (
               <Image
-                src={post.cover}
-                alt={post.title || ''}
+                src={optimizeImageUrl(post.cover)}
+                alt={post.title || ""}
                 unoptimized={true}
-                title={post.cover || ''}
+                title={post.cover || ""}
                 fill
                 className="rounded-t-xl object-cover transition-all md:rounded-2xl md:hover:shadow-2xl md:group-even:rounded-l-none md:group-odd:rounded-r-none"
                 sizes="(max-width: 768px) 100vw, 60vw"
@@ -50,15 +53,15 @@ export default function PostListItem({ post }: PostListItemProps) {
       <div className="post-text w-full border-t-0 bg-white p-4 text-left dark:border-none dark:bg-slate-800 md:relative md:w-2/5 md:border md:border-gray-300 md:even:border-l-0 md:odd:border-r-0 lg:even:border-l-0 lg:odd:border-r-0">
         {/* 时间 */}
         <p className="post-time text-gray-300">
-          {dayjs(post.date).format('YYYY-MM-DD')}
+          {dayjs(post.date).format("YYYY-MM-DD")}
         </p>
 
         {/* 标题 */}
         <h2 className="post-title my-4 bg-white text-2xl text-slate-950 dark:bg-slate-800 dark:text-white md:line-clamp-1">
           <Link
-            href={post.path || '#'}
+            href={post.path || "#"}
             className="hover:text-blue-600"
-            title={post.title || ''}
+            title={post.title || ""}
             target={target}
           >
             {post.title}
@@ -103,4 +106,3 @@ export default function PostListItem({ post }: PostListItemProps) {
     </li>
   );
 }
-
