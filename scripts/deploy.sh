@@ -12,8 +12,8 @@ NC='\033[0m' # No Color
 
 # 配置
 COMPOSE_FILE="docker-compose.prod.yml"
-ACR_REGISTRY="crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com"
-IMAGE_NAME="${ACR_REGISTRY}/nnnnzs/react-nnnnzs.cn"
+ACR_REGISTRY="ccr.ccs.tencentyun.com"
+IMAGE_NAME="${ACR_REGISTRY}/nnnnzs/react.nnnnzs.cn"
 CONTAINER_NAME="react-nnnnzs-cn-prod"
 
 # 打印带颜色的消息

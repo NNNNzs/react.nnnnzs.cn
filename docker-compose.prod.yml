@@ -8,7 +8,7 @@ version: "3.8"
 services:
   react-nnnnzs-cn:
     # 使用阿里云 ACR 上的镜像
-    image: crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com/nnnnzs/react-nnnnzs.cn:latest
+    image: ccr.ccs.tencentyun.com/nnnnzs/react.nnnnzs.cn:latest
     container_name: react-nnnnzs-cn-prod
     restart: unless-stopped
     ports:

@@ -11,11 +11,11 @@ on:
 
 env:
   # 阿里云 ACR 相关配置（需要在 GitHub Secrets 中设置）
-  ACR_REGISTRY: crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com
+  ACR_REGISTRY: ccr.ccs.tencentyun.com
   ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
   ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
   # 镜像名称（格式：registry/namespace/repo）
-  IMAGE_NAME: crpi-qmro9b00jz9zoqqx.cn-hangzhou.personal.cr.aliyuncs.com/nnnnzs/react-nnnnzs.cn
+  IMAGE_NAME: ccr.ccs.tencentyun.com/nnnnzs/react.nnnnzs.cn
 
 jobs:
   build-and-push:
