@@ -62,10 +62,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # 始终标记为 latest
+            # 只标记为 latest
             type=raw,value=latest
-            # 使用计算的版本号
-            type=raw,value=${{ steps.version.outputs.VERSION }}
 
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v5
@@ -77,7 +75,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
@@ -112,9 +109,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# 拉取最新镜像" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# 或拉取指定版本" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: 推送失败通知
