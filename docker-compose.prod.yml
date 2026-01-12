@@ -1,7 +1,9 @@
 version: "3.8"
 
 # 生产环境 Docker Compose 配置
-# 用于从 DockerHub 拉取并运行镜像
+# 镜像通过 GitHub Actions 构建后，使用 docker save 导出为 tar 包
+# 通过 scp 传输到服务器，使用 docker load 加载到本地
+# 不再从 DockerHub 拉取镜像
 
 services:
   react-nnnnzs-cn:

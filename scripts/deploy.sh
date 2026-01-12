@@ -49,10 +49,10 @@ check_env() {
     fi
 }
 
-# 拉取最新镜像
+# 拉取最新镜像（已弃用：现在使用 docker load 加载镜像）
 pull_image() {
-    print_info "正在拉取最新镜像..."
-    docker-compose -f $COMPOSE_FILE pull
+    print_info "跳过镜像拉取（镜像已通过 docker load 加载）..."
+    # docker-compose -f $COMPOSE_FILE pull
 }
 
 # 停止旧容器
