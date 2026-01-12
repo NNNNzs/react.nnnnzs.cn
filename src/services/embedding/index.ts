@@ -3,7 +3,7 @@
  * 提供文章向量化的完整流程
  */
 
-import { splitMarkdownIntoChunks, type TextChunk } from './text-splitter';
+import { splitMarkdownIntoChunks } from './text-splitter';
 import { embedTexts } from './embedding';
 import {
   insertVectors,
@@ -24,6 +24,8 @@ export interface EmbedPostParams {
   content: string;
   /** 是否强制更新（默认 false，如果已存在向量则跳过） */
   force?: boolean;
+  /** 是否隐藏（'0' 表示不隐藏，'1' 表示隐藏，默认为 '0'） */
+  hide?: string;
 }
 
 /**
@@ -54,7 +56,7 @@ export interface EmbedPostResult {
 export async function embedPost(
   params: EmbedPostParams
 ): Promise<EmbedPostResult> {
-  const { postId, title, content, force = false } = params;
+  const { postId, title, content, force = false, hide = '0' } = params;
 
   if (!content || content.trim().length === 0) {
     console.warn(`⚠️ 文章 ${postId} 内容为空，跳过向量化`);
@@ -77,6 +79,7 @@ export async function embedPost(
         };
       }
     }
+
     // 1. 文本切片
     console.log(`📝 开始对文章 ${postId} 进行语义切片...`);
     const chunks = splitMarkdownIntoChunks(content, {
@@ -95,35 +98,54 @@ export async function embedPost(
 
     console.log(`✅ 文章 ${postId} 切片完成，共 ${chunks.length} 个片段`);
 
-    // 2. 批量生成向量嵌入
+    // 2. 过滤空文本并同步过滤 chunks，确保一一对应
+    const validChunks: Array<{ chunk: typeof chunks[0]; index: number }> = [];
+    chunks.forEach((chunk, originalIndex) => {
+      if (chunk.text && chunk.text.trim().length > 0) {
+        validChunks.push({ chunk, index: originalIndex });
+      }
+    });
+
+    if (validChunks.length === 0) {
+      console.warn(`⚠️ 文章 ${postId} 过滤空文本后无有效片段，跳过向量化`);
+      return {
+        insertedCount: 0,
+        chunkCount: 0,
+      };
+    }
+
+    // 3. 批量生成向量嵌入（只对有效文本生成）
     console.log(`🔢 开始生成文章 ${postId} 的向量嵌入...`);
-    const texts = chunks.map((chunk) => chunk.text);
+    const texts = validChunks.map((item) => item.chunk.text);
     const embeddings = await embedTexts(texts);
 
-    if (embeddings.length !== chunks.length) {
+    if (embeddings.length !== validChunks.length) {
       throw new Error(
-        `向量嵌入数量 (${embeddings.length}) 与文本片段数量 (${chunks.length}) 不匹配`
+        `向量嵌入数量 (${embeddings.length}) 与有效文本片段数量 (${validChunks.length}) 不匹配`
       );
     }
 
     console.log(`✅ 文章 ${postId} 向量嵌入生成完成`);
 
-    // 3. 删除旧向量数据（强制更新时或确保清理旧数据）
-    console.log(`🗑️ 删除文章 ${postId} 的旧向量数据...`);
-    await deleteVectorsByPostId(postId);
+    // 4. 删除旧向量数据（只在需要更新时删除）
+    if (force) {
+      console.log(`🗑️ 删除文章 ${postId} 的旧向量数据...`);
+      await deleteVectorsByPostId(postId);
+    }
 
-    // 4. 准备向量数据
+    // 5. 准备向量数据
     const now = Date.now();
-    const vectorItems: VectorDataItem[] = chunks.map((chunk, index) => ({
+    const vectorItems: VectorDataItem[] = validChunks.map((item, index) => ({
       postId,
-      chunkIndex: chunk.index,
-      chunkText: chunk.text,
+      chunkIndex: item.chunk.index,
+      chunkText: item.chunk.text,
       title,
+      hide,
       embedding: embeddings[index],
       createdAt: now,
     }));
 
-    // 5. 插入新向量数据
+    // 6. 插入新向量数据
     console.log(`💾 插入文章 ${postId} 的向量数据到 Qdrant...`);
     const insertedCount = await insertVectors(vectorItems);
 
@@ -133,7 +155,7 @@ export async function embedPost(
 
     return {
       insertedCount,
-      chunkCount: chunks.length,
+      chunkCount: validChunks.length,
     };
   } catch (error) {
     console.error(`❌ 文章 ${postId} 向量化失败:`, error);

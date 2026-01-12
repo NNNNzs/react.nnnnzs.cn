@@ -172,7 +172,7 @@ export function splitMarkdownIntoChunks(
   }
 
   // 移除 Markdown 语法，保留文本内容
-  let plainText = markdown
+  const plainText = markdown
     // 移除代码块
     .replace(/```[\s\S]*?```/g, '')
     // 移除行内代码

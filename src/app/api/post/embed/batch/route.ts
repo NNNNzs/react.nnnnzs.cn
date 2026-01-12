@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
           id: true,
           title: true,
           content: true,
+          hide: true,
         },
       });
     } else {
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
           id: true,
           title: true,
           content: true,
+          hide: true,
         },
         orderBy: {
           id: 'asc',
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
           postId: post.id,
           title: post.title || '无标题',
           content: post.content,
+          hide: post.hide || '0',
           force: Boolean(force),
         });
 

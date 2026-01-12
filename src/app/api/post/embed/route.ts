@@ -19,6 +19,7 @@ const embedPostSchema = z.object({
   postId: z.number().int().positive('文章ID必须为正整数'),
   title: z.string().min(1, '标题不能为空'),
   content: z.string().min(1, '内容不能为空'),
+  hide: z.enum(['0', '1']).optional(),
 });
 
 /**
@@ -48,13 +49,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { postId, title, content } = validationResult.data;
+    const { postId, title, content, hide } = validationResult.data;
 
     // 执行向量化
     const result = await embedPost({
       postId,
       title,
       content,
+      hide: hide || '0',
     });
 
     return NextResponse.json(

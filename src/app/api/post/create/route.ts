@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
         postId: result.id,
         title: result.title,
         content: result.content,
+        hide: result.hide || '0',
       }).catch((error) => {
         console.error('文章向量化失败（异步）:', error);
         // 向量化失败不影响文章创建，只记录错误

@@ -106,14 +106,17 @@ export async function PUT(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 如果更新了标题或内容，异步执行向量化
+    // 如果更新了标题、内容或隐藏状态，异步执行向量化
     const hasContentUpdate = validationResult.data.content !== undefined;
     const hasTitleUpdate = validationResult.data.title !== undefined;
-    if ((hasContentUpdate || hasTitleUpdate) && updatedPost.title && updatedPost.content) {
+    const hasHideUpdate = validationResult.data.hide !== undefined;
+    if ((hasContentUpdate || hasTitleUpdate || hasHideUpdate) && updatedPost.title && updatedPost.content) {
       embedPost({
         postId: updatedPost.id,
         title: updatedPost.title,
         content: updatedPost.content,
+        hide: updatedPost.hide || '0',
+        force: true, // 强制更新，因为内容或状态可能已改变
       }).catch((error) => {
         console.error('文章向量化失败（异步）:', error);
         // 向量化失败不影响文章更新，只记录错误
@@ -174,14 +177,17 @@ export async function PATCH(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 如果更新了标题或内容，异步执行向量化
+    // 如果更新了标题、内容或隐藏状态，异步执行向量化
     const hasContentUpdate = validationResult.data.content !== undefined;
     const hasTitleUpdate = validationResult.data.title !== undefined;
-    if ((hasContentUpdate || hasTitleUpdate) && updatedPost.title && updatedPost.content) {
+    const hasHideUpdate = validationResult.data.hide !== undefined;
+    if ((hasContentUpdate || hasTitleUpdate || hasHideUpdate) && updatedPost.title && updatedPost.content) {
       embedPost({
         postId: updatedPost.id,
         title: updatedPost.title,
         content: updatedPost.content,
+        hide: updatedPost.hide || '0',
+        force: true, // 强制更新，因为内容或状态可能已改变
       }).catch((error) => {
         console.error('文章向量化失败（异步）:', error);
         // 向量化失败不影响文章更新，只记录错误

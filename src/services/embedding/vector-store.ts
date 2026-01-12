@@ -18,6 +18,8 @@ export interface VectorDataItem {
   chunkText: string;
   /** 文章标题 */
   title: string;
+  /** 是否隐藏（'0' 表示不隐藏，'1' 表示隐藏） */
+  hide: string;
   /** 向量嵌入 */
   embedding: number[];
   /** 创建时间戳 */
@@ -110,6 +112,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
           [QDRANT_COLLECTION_CONFIG.CHUNK_INDEX_FIELD]: Number(item.chunkIndex), // 确保是数字类型
           [QDRANT_COLLECTION_CONFIG.CHUNK_TEXT_FIELD]: String(item.chunkText),
           title: String(item.title),
+          [QDRANT_COLLECTION_CONFIG.HIDE_FIELD]: String(item.hide), // 确保是字符串类型
           created_at: Number(item.createdAt), // 确保是数字类型
         },
       };
@@ -306,7 +309,7 @@ export async function deleteVectorsByPostId(postId: number): Promise<number> {
  * 
  * @param queryVector 查询向量
  * @param limit 返回结果数量限制
- * @param filter 过滤条件（可选，Qdrant filter 格式）
+ * @param filter 过滤条件（可选，Qdrant filter 格式，会与默认的 hide='0' 过滤条件合并）
  * @param maxRetries 最大重试次数，默认 2
  * @returns 搜索结果数组
  */
@@ -328,7 +331,40 @@ export async function searchSimilarVectors(
     POST_ID_FIELD,
     CHUNK_INDEX_FIELD,
     CHUNK_TEXT_FIELD,
+    HIDE_FIELD,
   } = QDRANT_COLLECTION_CONFIG;
+
+  // 构建默认过滤条件：只搜索 hide='0' 的向量
+  // 如果提供了自定义 filter，需要合并过滤条件
+  const defaultHideFilter = {
+    key: HIDE_FIELD,
+    match: {
+      value: '0',
+    },
+  };
+
+  let combinedFilter: {
+    must?: Array<{
+      key: string;
+      match: { value: unknown };
+    }>;
+  };
+
+  if (filter && typeof filter === 'object' && 'must' in filter) {
+    // 如果提供了自定义 filter，合并过滤条件
+    const customFilter = filter as { must?: Array<{ key: string; match: { value: unknown } }> };
+    combinedFilter = {
+      must: [
+        defaultHideFilter,
+        ...(customFilter.must || []),
+      ],
+    };
+  } else {
+    // 只使用默认的 hide='0' 过滤条件
+    combinedFilter = {
+      must: [defaultHideFilter],
+    };
+  }
 
   let lastError: Error | unknown;
   
@@ -345,12 +381,7 @@ export async function searchSimilarVectors(
       const searchResult = await client.search(COLLECTION_NAME, {
         vector: queryVector,
         limit: limit,
-        filter: filter as {
-          must?: Array<{
-            key: string;
-            match: { value: unknown };
-          }>;
-        },
+        filter: combinedFilter,
         with_payload: true,
         with_vector: false,
       });

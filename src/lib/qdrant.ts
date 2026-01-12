@@ -89,8 +89,10 @@ export const QDRANT_COLLECTION_CONFIG = {
   CHUNK_INDEX_FIELD: 'chunk_index',
   /** 片段内容字段名 */
   CHUNK_TEXT_FIELD: 'chunk_text',
+  /** 隐藏字段名 */
+  HIDE_FIELD: 'hide',
   /** 元数据字段 */
-  METADATA_FIELDS: ['post_id', 'chunk_index', 'chunk_text', 'title', 'created_at'] as const,
+  METADATA_FIELDS: ['post_id', 'chunk_index', 'chunk_text', 'title', 'created_at', 'hide'] as const,
 };
 
 /**
@@ -191,6 +193,18 @@ export async function initQdrantCollection(): Promise<void> {
         field_schema: 'integer',
       });
       console.log(`🔍 创建 payload 索引: ${QDRANT_COLLECTION_CONFIG.POST_ID_FIELD}`);
+    } catch (indexError) {
+      // 索引可能已存在，忽略错误
+      console.warn('⚠️ 创建 payload 索引失败（可能已存在）:', indexError);
+    }
+
+    // 为 hide 字段创建 payload 索引（keyword 类型，因为值是字符串 '0' 或 '1'）
+    try {
+      await client.createPayloadIndex(COLLECTION_NAME, {
+        field_name: QDRANT_COLLECTION_CONFIG.HIDE_FIELD,
+        field_schema: 'keyword',
+      });
+      console.log(`🔍 创建 payload 索引: ${QDRANT_COLLECTION_CONFIG.HIDE_FIELD}`);
     } catch (indexError) {
       // 索引可能已存在，忽略错误
       console.warn('⚠️ 创建 payload 索引失败（可能已存在）:', indexError);
