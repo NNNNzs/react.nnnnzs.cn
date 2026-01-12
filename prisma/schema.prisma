@@ -25,7 +25,7 @@ model TbPost {
   updated        DateTime? @db.DateTime(0)
   cover          String?   @db.VarChar(255)
   layout         String?   @db.VarChar(255)
-  content        String?   @db.Text
+  content        String   @db.Text
   description    String?   @db.VarChar(500)
   visitors       Int?      @default(0)
   likes          Int?      @default(0)
@@ -37,6 +37,8 @@ model TbPost {
 
   // 关联关系
   creator        TbUser?   @relation(fields: [created_by], references: [id])
+  versions       TbPostVersion[]
+  chunks         TbPostChunk[]
 
   @@map("tb_post")
 }
@@ -80,4 +82,37 @@ model TbConfig {
   remark       String?   @db.Text
 
   @@map("tb_config")
+}
+
+// 文章版本表
+model TbPostVersion {
+  id          Int       @id @default(autoincrement())
+  post_id     Int
+  version     Int
+  content     String    @db.LongText
+  created_at  DateTime  @default(now())
+  created_by  Int?
+
+  post        TbPost    @relation(fields: [post_id], references: [id])
+
+  @@index([post_id, version])
+  @@map("tb_post_version")
+}
+
+// 文章内容块表
+model TbPostChunk {
+  id           String   @id @db.VarChar(191) // 稳定 Chunk ID（191 字符，兼容 MySQL 5.7 索引键长度限制）
+  post_id      Int
+  version      Int
+  type         String   @db.VarChar(50)  // section | code | list | paragraph
+  content      String   @db.Text
+  hash         String   @db.VarChar(64)  // 内容 hash (SHA256)
+  embedding_id String?  @db.VarChar(191) // 向量库中的 ID（191 字符，兼容 MySQL 5.7）
+  created_at   DateTime @default(now())
+
+  post         TbPost   @relation(fields: [post_id], references: [id])
+
+  @@index([post_id])
+  @@index([post_id, version])
+  @@map("tb_post_chunk")
 }

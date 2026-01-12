@@ -156,8 +156,124 @@ export function splitTextIntoChunks(
 }
 
 /**
+ * 基于标题（##）的语义分块（MVP 方案）
+ * 兼容处理无标题的大段文字
+ * 
+ * @param markdown Markdown 格式的文本
+ * @param config 切片配置
+ * @returns 文本片段数组
+ */
+export function splitMarkdownByHeadings(
+  markdown: string,
+  config: TextSplitterConfig = {}
+): TextChunk[] {
+  if (!markdown || markdown.trim().length === 0) {
+    return [];
+  }
+
+  // 查找所有二级标题的位置
+  const headingPattern = /^##\s+(.+)$/gm;
+  const headingMatches: Array<{ index: number; title: string }> = [];
+  let match;
+
+  // 重置 lastIndex 以确保从开头搜索
+  headingPattern.lastIndex = 0;
+  while ((match = headingPattern.exec(markdown)) !== null) {
+    headingMatches.push({
+      index: match.index,
+      title: match[1].trim(),
+    });
+  }
+
+  // 如果没有找到标题，返回空数组（让调用者使用其他方法）
+  if (headingMatches.length === 0) {
+    return [];
+  }
+
+  const chunks: TextChunk[] = [];
+  let chunkIndex = 0;
+
+  // 处理每个标题区块
+  for (let i = 0; i < headingMatches.length; i++) {
+    const currentHeading = headingMatches[i];
+    const nextHeadingIndex = i < headingMatches.length - 1 
+      ? headingMatches[i + 1].index 
+      : markdown.length;
+
+    // 提取标题后的内容（从标题行结束到下一个标题开始）
+    const headingLineEnd = markdown.indexOf('\n', currentHeading.index);
+    const contentStart = headingLineEnd >= 0 ? headingLineEnd + 1 : currentHeading.index + currentHeading.title.length + 3;
+    const content = markdown.substring(contentStart, nextHeadingIndex).trim();
+
+    if (!content) {
+      continue;
+    }
+
+    // 移除 Markdown 语法，保留文本内容
+    const plainText = content
+      // 移除代码块
+      .replace(/```[\s\S]*?```/g, '')
+      // 移除行内代码
+      .replace(/`[^`]+`/g, '')
+      // 移除链接，保留链接文本
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+      // 移除图片
+      .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '')
+      // 移除标题标记（处理三级及以下标题）
+      .replace(/^#{1,6}\s+/gm, '')
+      // 移除粗体和斜体标记
+      .replace(/\*\*([^\*]+)\*\*/g, '$1')
+      .replace(/\*([^\*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      // 移除删除线
+      .replace(/~~([^~]+)~~/g, '$1')
+      // 移除引用标记
+      .replace(/^>\s+/gm, '')
+      // 移除列表标记
+      .replace(/^[\*\-\+]\s+/gm, '')
+      .replace(/^\d+\.\s+/gm, '')
+      // 清理多余空白（保留换行）
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    if (!plainText) {
+      continue;
+    }
+
+    // 如果区块内容太长，使用普通文本切片进一步分割
+    const { chunkSize = 500 } = config;
+    
+    if (plainText.length > chunkSize) {
+      // 使用普通文本切片进一步分割大块内容
+      const subChunks = splitTextIntoChunks(plainText, config);
+      for (const subChunk of subChunks) {
+        chunks.push({
+          text: subChunk.text,
+          index: chunkIndex++,
+          startIndex: contentStart + subChunk.startIndex,
+          endIndex: contentStart + subChunk.endIndex,
+        });
+      }
+    } else {
+      // 区块大小合适，直接作为一个 chunk
+      chunks.push({
+        text: plainText,
+        index: chunkIndex++,
+        startIndex: contentStart,
+        endIndex: contentStart + content.length,
+      });
+    }
+  }
+
+  return chunks;
+}
+
+/**
  * 从 Markdown 文本中提取纯文本并切片
  * 移除 Markdown 语法，保留文本内容
+ * 兼容处理非标准 Markdown 格式和老文章
  * 
  * @param markdown Markdown 格式的文本
  * @param config 切片配置
@@ -171,7 +287,16 @@ export function splitMarkdownIntoChunks(
     return [];
   }
 
-  // 移除 Markdown 语法，保留文本内容
+  // 尝试使用基于标题的分块（如果文章有标题结构）
+  const headingChunks = splitMarkdownByHeadings(markdown, config);
+  
+  // 如果基于标题的分块产生了多个区块，使用它
+  // 否则使用原来的纯文本分块方法（兼容无标题的大段文字）
+  if (headingChunks.length > 1 || (headingChunks.length === 1 && headingChunks[0].text.length > 2000)) {
+    return headingChunks;
+  }
+
+  // 回退到原来的方法：移除 Markdown 语法，保留文本内容
   const plainText = markdown
     // 移除代码块
     .replace(/```[\s\S]*?```/g, '')
@@ -195,8 +320,9 @@ export function splitMarkdownIntoChunks(
     // 移除列表标记
     .replace(/^[\*\-\+]\s+/gm, '')
     .replace(/^\d+\.\s+/gm, '')
-    // 清理多余空白
-    .replace(/\s+/g, ' ')
+    // 清理多余空白（保留换行，兼容大段文字）
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
   // 使用普通文本切片

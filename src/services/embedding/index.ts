@@ -181,3 +181,20 @@ export async function removePostEmbeddings(postId: number): Promise<void> {
 // 导出类型
 export type { TextChunk } from './text-splitter';
 export type { VectorDataItem } from './vector-store';
+
+// 导出增量向量化服务
+export { incrementalEmbedPost } from './incremental-embedder';
+export type {
+  IncrementalEmbedParams,
+  IncrementalEmbedResult,
+  ChunkData,
+} from './incremental-embedder';
+
+// 导出内容规范化工具
+export { normalizeContent, hashContent } from './chunk-normalizer';
+
+// 导出 Chunk ID 生成器
+export { generateChunkId, generateStableChunkId, buildHeadingPath } from './chunk-id-generator';
+
+// 导出向量删除函数
+export { deleteVectorsByChunkIds } from './vector-store';

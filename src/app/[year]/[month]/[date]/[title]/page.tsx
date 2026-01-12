@@ -23,6 +23,7 @@ import PostVisitorTracker from "./PostVisitorTracker";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import CommentSection from "@/components/CommentSection";
 import SetCurrentPost from "@/components/SetCurrentPost";
+import PostVersionHistory from "@/components/PostVersionHistory";
 import type { Post } from "@/types";
 
 interface PageProps {
@@ -214,9 +215,10 @@ export default async function PostDetail({ params }: PageProps) {
             <MarkdownPreview content={post.content || ""} />
           </div>
 
-          {/* 点赞按钮 */}
-          <div className="mt-8 flex justify-center border-t pt-8">
+          {/* 点赞按钮和版本历史 */}
+          <div className="mt-8 flex items-center justify-center gap-4 border-t pt-8">
             <PostLikeButton postId={post.id} initialLikes={post.likes || 0} />
+            <PostVersionHistory postId={post.id} />
           </div>
         </article>
 

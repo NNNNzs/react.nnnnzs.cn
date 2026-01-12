@@ -2,6 +2,8 @@ import { getPrisma } from '@/lib/prisma';
 import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dto/post.dto';
 import { TbPost } from '@/generated/prisma-client';
 import dayjs from 'dayjs';
+import { createPostVersion } from '@/services/post-version';
+import { incrementalEmbedPost } from '@/services/embedding';
 
 /**
  * 将字符串标签转换为数组
@@ -268,7 +270,7 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
       path,
       cover,
       layout: data.layout || null,
-      content: data.content || null,
+      content: data.content || '', // content 字段不允许为 null
       description: data.description || null,
       date: dateValue,
       updated: now,
@@ -290,8 +292,13 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
  * 说明：
  * - tags: 接收数组或字符串，手动转换为逗号分隔的字符串存储
  * - date: 接收 Date 对象
+ * - createdBy: 创建人ID（可选，用于版本管理）
  */
-export async function updatePost(id: number, data: Partial<TbPost>): Promise<SerializedPost | null> {
+export async function updatePost(
+  id: number,
+  data: Partial<TbPost>,
+  createdBy?: number
+): Promise<SerializedPost | null> {
   const prisma = await getPrisma();
   const now = new Date();
 
@@ -307,6 +314,10 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
   const updateData: Record<string, unknown> = {
     updated: now,
   };
+
+  // 检查内容是否有更新
+  const hasContentUpdate = data.content !== undefined && data.content !== existingPost.content;
+  console.log(`🔍 文章 ${id} 更新检查: content=${data.content !== undefined ? '有值' : 'undefined'}, hasContentUpdate=${hasContentUpdate}`);
 
   // 处理 tags: 手动转换为字符串格式
   if (data.tags !== undefined) {
@@ -354,16 +365,54 @@ export async function updatePost(id: number, data: Partial<TbPost>): Promise<Ser
   // 添加其他字段
   if (data.category !== undefined) updateData.category = data.category;
   if (data.layout !== undefined) updateData.layout = data.layout;
-  if (data.content !== undefined) updateData.content = data.content;
+  if (data.content !== undefined) {
+    updateData.content = data.content;
+    console.log(`📝 文章 ${id} 将更新content字段，长度: ${data.content?.length || 0}`);
+  } else {
+    console.log(`⚠️ 文章 ${id} 更新请求中没有content字段`);
+  }
   if (data.description !== undefined) updateData.description = data.description;
   if (data.hide !== undefined) updateData.hide = data.hide;
   if (data.visitors !== undefined) updateData.visitors = data.visitors;
   if (data.likes !== undefined) updateData.likes = data.likes;
 
+  console.log(`📋 文章 ${id} 更新数据字段: ${Object.keys(updateData).join(', ')}`);
+
   const updatedPost = await prisma.tbPost.update({
     where: { id },
     data: updateData,
   });
+
+  console.log(`📝 文章 ${id} 更新完成，内容长度: ${updatedPost.content?.length || 0}`);
+
+  // 如果内容有更新，创建版本记录并执行增量向量化（异步执行，不阻塞响应）
+  if (hasContentUpdate && updatedPost.content) {
+    console.log(`📌 检测到内容更新，开始创建版本记录和增量向量化...`);
+    // 异步执行，不阻塞响应
+    (async () => {
+      try {
+        // 先创建版本记录
+        const version = await createPostVersion(id, updatedPost.content!, createdBy);
+        console.log(`✅ 文章 ${id} 版本记录已创建，版本号: ${version.version}`);
+        
+        // 然后执行增量向量化（创建chunk记录）
+        const result = await incrementalEmbedPost({
+          postId: id,
+          title: updatedPost.title || '',
+          content: updatedPost.content || '',
+          version: version.version,
+          hide: updatedPost.hide || '0',
+        });
+        
+        console.log(
+          `✅ 文章 ${id} 增量向量化完成：插入 ${result.insertedCount} 个向量，复用 ${result.reusedChunkCount} 个，创建 ${result.chunkCount} 个chunks`
+        );
+      } catch (error) {
+        console.error(`❌ 文章 ${id} 版本记录或增量向量化失败:`, error);
+        // 失败不影响文章更新
+      }
+    })();
+  }
 
   return serializePost(updatedPost);
 }

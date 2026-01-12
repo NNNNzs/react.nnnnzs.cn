@@ -108,3 +108,8 @@ body {
 .dark .DocSearch .DocSearch-Button .DocSearch-Button-Key {
   box-shadow: unset;
 }
+
+.md-editor-preview .md-editor-code .md-editor-code-head {
+  z-index: 20 !important;
+  top: var(--header-height) !important;
+}

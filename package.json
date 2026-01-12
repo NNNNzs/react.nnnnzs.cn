@@ -49,6 +49,7 @@
     "next-auth": "^4.24.13",
     "react": "19.2.1",
     "react-cropper": "^2.3.3",
+    "react-diff-viewer-continued": "^3.4.0",
     "react-dom": "19.2.1",
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",

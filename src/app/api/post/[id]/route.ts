@@ -9,7 +9,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
-import { embedPost } from '@/services/embedding';
 import {
   getTokenFromRequest,
   validateToken,
@@ -80,7 +79,9 @@ export async function PUT(
   try {
     // 验证Token
     const token = getTokenFromRequest(request.headers);
-    if (!token || !(await validateToken(token))) {
+    const user = token ? await validateToken(token) : null;
+    
+    if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
     }
 
@@ -100,28 +101,18 @@ export async function PUT(
 
     const { id } = await context.params;
 
-    const updatedPost = await updatePost(Number(id), validationResult.data as Partial<import('@/generated/prisma-client').TbPost>);
+    const updatedPost = await updatePost(
+      Number(id),
+      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
+      user?.id
+    );
 
     if (!updatedPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 如果更新了标题、内容或隐藏状态，异步执行向量化
-    const hasContentUpdate = validationResult.data.content !== undefined;
-    const hasTitleUpdate = validationResult.data.title !== undefined;
-    const hasHideUpdate = validationResult.data.hide !== undefined;
-    if ((hasContentUpdate || hasTitleUpdate || hasHideUpdate) && updatedPost.title && updatedPost.content) {
-      embedPost({
-        postId: updatedPost.id,
-        title: updatedPost.title,
-        content: updatedPost.content,
-        hide: updatedPost.hide || '0',
-        force: true, // 强制更新，因为内容或状态可能已改变
-      }).catch((error) => {
-        console.error('文章向量化失败（异步）:', error);
-        // 向量化失败不影响文章更新，只记录错误
-      });
-    }
+    // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
+    // 这里不再需要单独调用 embedPost
 
     return NextResponse.json(successResponse(updatedPost));
   } catch (error) {
@@ -140,7 +131,9 @@ export async function PATCH(
   try {
     // 验证Token
     const token = getTokenFromRequest(request.headers);
-    if (!token || !(await validateToken(token))) {
+    const user = token ? await validateToken(token) : null;
+    
+    if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
     }
 
@@ -170,29 +163,16 @@ export async function PATCH(
 
     const updatedPost = await updatePost(
       Number(id),
-      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>
+      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
+      user.id
     );
 
     if (!updatedPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 如果更新了标题、内容或隐藏状态，异步执行向量化
-    const hasContentUpdate = validationResult.data.content !== undefined;
-    const hasTitleUpdate = validationResult.data.title !== undefined;
-    const hasHideUpdate = validationResult.data.hide !== undefined;
-    if ((hasContentUpdate || hasTitleUpdate || hasHideUpdate) && updatedPost.title && updatedPost.content) {
-      embedPost({
-        postId: updatedPost.id,
-        title: updatedPost.title,
-        content: updatedPost.content,
-        hide: updatedPost.hide || '0',
-        force: true, // 强制更新，因为内容或状态可能已改变
-      }).catch((error) => {
-        console.error('文章向量化失败（异步）:', error);
-        // 向量化失败不影响文章更新，只记录错误
-      });
-    }
+    // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
+    // 这里不再需要单独调用 embedPost
 
     return NextResponse.json(successResponse(updatedPost));
   } catch (error) {

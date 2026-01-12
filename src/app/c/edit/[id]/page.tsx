@@ -40,6 +40,8 @@ export default function EditPostPage() {
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const [form] = Form.useForm();
+  // 使用 useState 管理 content，确保组件响应式更新
+  const [content, setContent] = useState<string>("");
   // 统一的loading状态管理
   const [loading, setLoading] = useState({
     submit: false, // 提交表单
@@ -100,6 +102,8 @@ export default function EditPostPage() {
           date: postData.date ? dayjs(postData.date) : dayjs(),
           updated: postData.updated ? dayjs(postData.updated) : dayjs(),
         });
+        // 同步更新 content 状态
+        setContent(postData.content || "");
       }
     } catch (error) {
       console.error("加载文章失败:", error);
@@ -122,7 +126,7 @@ export default function EditPostPage() {
    * 参考 nnnnzs.cn/components/Post/Edit.vue 的 genDescription
    */
   const genDescription = async () => {
-    const content = form.getFieldValue("content") || "";
+    const currentContent = content || form.getFieldValue("content") || "";
     if (!content.trim()) {
       message.warning("请先输入文章内容");
       return;
@@ -141,7 +145,7 @@ export default function EditPostPage() {
         "/api/ai/generate/description",
         {
           method: "POST",
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content: currentContent }),
         },
         {
           onChunk: (chunk) => {
@@ -191,8 +195,10 @@ export default function EditPostPage() {
       // });
 
       // 处理标签：直接使用表单的 tags 字段（已经是数组）
+      // 注意：content 字段不在 Form.Item 中，需要手动获取
       const postData = {
         ...values,
+        content: form.getFieldValue("content") || "", // 手动获取 content 字段
         tags: values.tags || [], // 确保 tags 是数组
         date: dayjs(values.date).format("YYYY-MM-DD HH:mm:ss"),
         updated: dayjs().format("YYYY-MM-DD HH:mm:ss"),
@@ -250,6 +256,7 @@ export default function EditPostPage() {
           visitors: 0,
           likes: 0,
           tags: [], // 初始化 tags 为空数组
+          content: "", // 初始化 content 为空字符串
         }}
       >
         {/* 第一行：标题、标签、发布状态、按钮 */}
@@ -374,9 +381,10 @@ export default function EditPostPage() {
       >
         <MarkdownEditor
           className="flex-1 overflow-hidden"
-          value={form.getFieldValue("content") || ""}
+          value={content}
           onChange={(value) => {
-            form.setFieldsValue({ content: value });
+            setContent(value); // 更新本地状态
+            form.setFieldsValue({ content: value }); // 同步到表单
           }}
           placeholder="支持 Markdown 格式，可以直接粘贴图片..."
         />

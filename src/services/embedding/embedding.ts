@@ -59,11 +59,16 @@ export async function embedText(text: string): Promise<number[]> {
 
 /**
  * 批量生成多个文本的向量嵌入
+ * 自动分批处理，避免请求体过大（413 错误）
  * 
  * @param texts 要嵌入的文本数组
+ * @param batchSize 每批处理的文本数量（默认 50，避免 413 错误）
  * @returns 向量数组（每个文本对应一个 1024 维向量）
  */
-export async function embedTexts(texts: string[]): Promise<number[][]> {
+export async function embedTexts(
+  texts: string[],
+  batchSize: number = 50
+): Promise<number[][]> {
   if (!texts || texts.length === 0) {
     return [];
   }
@@ -74,8 +79,46 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
     return [];
   }
 
-  const embeddings = getEmbeddingModel();
-  const vectors = await embeddings.embedDocuments(validTexts);
+  // 如果文本数量小于批次大小，直接处理
+  if (validTexts.length <= batchSize) {
+    const embeddings = getEmbeddingModel();
+    const vectors = await embeddings.embedDocuments(validTexts);
+    return vectors;
+  }
 
-  return vectors;
+  // 分批处理
+  const embeddings = getEmbeddingModel();
+  const allVectors: number[][] = [];
+
+  for (let i = 0; i < validTexts.length; i += batchSize) {
+    const batch = validTexts.slice(i, i + batchSize);
+    console.log(
+      `📦 批量嵌入第 ${Math.floor(i / batchSize) + 1} 批，共 ${batch.length} 个文本（总计 ${validTexts.length} 个）`
+    );
+
+    try {
+      const vectors = await embeddings.embedDocuments(batch);
+      allVectors.push(...vectors);
+    } catch (error) {
+      // 如果遇到 413 错误，减小批次大小重试
+      if (
+        error instanceof Error &&
+        (error.message.includes('413') ||
+          error.message.includes('Request Entity Too Large') ||
+          (error as { status?: number }).status === 413)
+      ) {
+        console.warn(
+          `⚠️ 遇到 413 错误，减小批次大小从 ${batchSize} 到 ${Math.max(10, Math.floor(batchSize / 2))} 重试`
+        );
+        // 递归调用，使用更小的批次大小
+        const smallerBatchSize = Math.max(10, Math.floor(batchSize / 2));
+        const retryVectors = await embedTexts(batch, smallerBatchSize);
+        allVectors.push(...retryVectors);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return allVectors;
 }

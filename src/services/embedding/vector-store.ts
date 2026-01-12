@@ -12,6 +12,8 @@ import type { TextChunk } from './text-splitter';
 export interface VectorDataItem {
   /** 文章ID */
   postId: number;
+  /** 稳定的 Chunk ID（用于一致性标识） */
+  chunkId?: string;
   /** 片段索引 */
   chunkIndex: number;
   /** 片段文本 */
@@ -114,6 +116,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
           title: String(item.title),
           [QDRANT_COLLECTION_CONFIG.HIDE_FIELD]: String(item.hide), // 确保是字符串类型
           created_at: Number(item.createdAt), // 确保是数字类型
+          chunk_id: item.chunkId || String(pointId), // 保存 Chunk ID 用于删除
         },
       };
     });
@@ -428,4 +431,69 @@ export async function searchSimilarVectors(
   // 所有重试都失败，抛出最后一次的错误
   console.error('❌ 向量搜索失败，已重试', maxRetries, '次');
   throw lastError || new Error('向量搜索失败：未知错误');
+}
+
+/**
+ * 根据 Chunk ID 列表删除向量数据
+ * 
+ * @param chunkIds Chunk ID 列表（与 embedding_id 对应）
+ * @returns 删除成功的数量
+ */
+export async function deleteVectorsByChunkIds(chunkIds: string[]): Promise<number> {
+  if (!chunkIds || chunkIds.length === 0) {
+    return 0;
+  }
+
+  const client = getQdrantClient();
+  const { COLLECTION_NAME } = QDRANT_COLLECTION_CONFIG;
+
+  try {
+    // 将 chunkId 转换为数字 ID（如果是旧格式的数字 ID）
+    // 新格式的 chunkId 是字符串，需要通过 payload 过滤删除
+    const numericIds: number[] = [];
+    const stringIds: string[] = [];
+
+    for (const id of chunkIds) {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId) && String(numId) === id) {
+        numericIds.push(numId);
+      } else {
+        stringIds.push(id);
+      }
+    }
+
+    let deletedCount = 0;
+
+    // 删除数字 ID 的向量（旧格式）
+    if (numericIds.length > 0) {
+      await client.delete(COLLECTION_NAME, {
+        wait: true,
+        points: numericIds,
+      });
+      deletedCount += numericIds.length;
+      console.log(`✅ 成功删除 ${numericIds.length} 个数字 ID 的向量`);
+    }
+
+    // 删除字符串 ID 的向量（新格式，通过 chunk_id payload 过滤）
+    if (stringIds.length > 0) {
+      // Qdrant 不支持批量按 payload 删除，需要逐个删除
+      // 或者使用 filter 条件删除
+      await client.delete(COLLECTION_NAME, {
+        wait: true,
+        filter: {
+          should: stringIds.map((id) => ({
+            key: 'chunk_id',
+            match: { value: id },
+          })),
+        },
+      });
+      deletedCount += stringIds.length;
+      console.log(`✅ 成功删除 ${stringIds.length} 个字符串 ID 的向量`);
+    }
+
+    return deletedCount;
+  } catch (error) {
+    console.error('❌ 删除向量数据失败:', error);
+    throw error;
+  }
 }
