@@ -172,7 +172,7 @@ export default async function PostDetail({ params }: PageProps) {
           }}
         />
 
-        <article className="mx-auto max-w-4xl px-4 py-8">
+        <article className="mx-auto max-w-4xl px-4 py-8 relative">
           {/* 文章头部 */}
           <header className="mb-8 border-b pb-8">
             <h1 className="mb-4 text-4xl font-bold text-slate-950 dark:text-white">
@@ -212,7 +212,7 @@ export default async function PostDetail({ params }: PageProps) {
 
           {/* 文章内容 */}
           <div className="prose prose-lg dark:prose-invert max-w-none">
-            <MarkdownPreview content={post.content || ""} />
+            <MarkdownPreview showMdCatalog={true} content={post.content || ""} />
           </div>
 
           {/* 点赞按钮和版本历史 */}
