@@ -3,6 +3,7 @@
 /**
  * 聊天页面
  * 使用 Ant Design X 组件实现知识库检索对话
+ * 支持 ReAct Agent 和 SSE 流式响应
  */
 
 import React, {
@@ -13,13 +14,52 @@ import React, {
   useMemo,
 } from "react";
 import { flushSync } from "react-dom";
-import { UserOutlined, RobotOutlined, ClearOutlined } from "@ant-design/icons";
-import { Bubble, Sender, Think } from "@ant-design/x";
+import { 
+  UserOutlined, 
+  RobotOutlined, 
+  ClearOutlined,
+  ToolOutlined,
+  EyeOutlined 
+} from "@ant-design/icons";
+import { Bubble, Sender } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
-import { Typography, Button, message as antdMessage } from "antd";
-import { fetchAndProcessStreamWithTags } from "@/lib/stream";
+import { Typography, Button, message as antdMessage, Collapse } from "antd";
+import { parseSSEStream } from "@/lib/sse";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+const { Panel } = Collapse;
+
+/**
+ * 工具调用信息
+ */
+interface ToolCall {
+  method: string;
+  params: Record<string, unknown>;
+  id: string | number;
+}
+
+/**
+ * 工具结果信息
+ */
+interface ToolResult {
+  jsonrpc: string;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+  };
+  id: string | number;
+}
+
+/**
+ * ReAct 步骤
+ */
+interface ReactStep {
+  type: 'thought' | 'action' | 'observation';
+  content: string;
+  toolCall?: ToolCall;
+  toolResult?: ToolResult;
+}
 
 /**
  * 消息类型定义
@@ -28,7 +68,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  think?: string; // 思考内容（独立字段）
+  reactSteps?: ReactStep[]; // ReAct 步骤
   loading?: boolean;
   streamStatus?: "streaming" | "done";
 }
@@ -38,57 +78,95 @@ interface ChatMessage {
  */
 interface MessageContentProps {
   content: string;
-  think?: string; // 思考内容（独立字段）
+  reactSteps?: ReactStep[];
   streamStatus?: "streaming" | "done";
 }
 
 /**
  * MessageContent 组件
- * 根据 demo，XMarkdown 支持通过 components 自定义 think 标签的渲染
- * 使用 <think> 标签包裹思考内容，XMarkdown 会自动识别并渲染
+ * 展示 ReAct 步骤和最终答案
  */
 const MessageContent: React.FC<MessageContentProps> = ({
   content,
-  think,
+  reactSteps = [],
   streamStatus,
 }) => {
   const isLoading = streamStatus === "streaming";
 
-  // 构建完整的 markdown 内容（包含 think 标签）
-  // 根据 demo，XMarkdown 识别 <think> 标签，不是 <think>
-  let fullContent = "";
-  if (think) {
-    // 如果有思考内容，使用 <think> 标签包裹（XMarkdown 识别的格式）
-    fullContent = `<think>${think}</think>\n\n${content}`;
-  } else {
-    fullContent = content;
-  }
-
   // 如果没有内容且正在加载，显示加载提示
-  if (isLoading && !content && !think) {
-    return <div>正在生成回答...</div>;
+  if (isLoading && !content && reactSteps.length === 0) {
+    return <div>正在思考...</div>;
   }
 
-  // 使用 XMarkdown 渲染，通过 components 传递 Think 组件
-  // 注意：XMarkdown 会自动识别 <think> 标签并使用我们提供的组件渲染
-  // 关键：每次 content 变化时，XMarkdown 应该重新渲染
   return (
-    <XMarkdown
-      key={`markdown-${content.length}`} // 使用内容长度作为 key，确保内容变化时重新渲染
-      paragraphTag="div"
-      components={{
-        think: ({ children: thinkChildren }) => {
-          const title = isLoading ? "思考中..." : "思考完成";
-          return (
-            <Think title={title} blink loading={isLoading}>
-              {thinkChildren}
-            </Think>
-          );
-        },
-      }}
-    >
-      {fullContent}
-    </XMarkdown>
+    <div className="space-y-4">
+      {/* ReAct 步骤 */}
+      {reactSteps.length > 0 && (
+        <Collapse
+          defaultActiveKey={isLoading ? ['steps'] : []}
+          className="react-steps-collapse"
+          size="small"
+        >
+          <Panel 
+            header={<Text type="secondary">🔍 思考过程 ({reactSteps.length} 步)</Text>} 
+            key="steps"
+          >
+            <div className="space-y-3">
+              {reactSteps.map((step, index) => (
+                <div key={index} className="react-step">
+                  {step.type === 'thought' && (
+                    <div className="bg-blue-50 p-3 rounded">
+                      <Text type="secondary" className="text-xs block mb-1">
+                        💭 思考
+                      </Text>
+                      <XMarkdown>{step.content}</XMarkdown>
+                    </div>
+                  )}
+                  {step.type === 'action' && step.toolCall && (
+                    <div className="bg-green-50 p-3 rounded">
+                      <Text type="secondary" className="text-xs block mb-1">
+                        <ToolOutlined /> 工具调用
+                      </Text>
+                      <div className="text-sm">
+                        <strong>方法：</strong> {step.toolCall.method}
+                      </div>
+                      <div className="text-sm mt-1">
+                        <strong>参数：</strong>
+                        <pre className="mt-1 text-xs bg-white p-2 rounded overflow-x-auto">
+                          {JSON.stringify(step.toolCall.params, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                  {step.type === 'observation' && step.toolResult && (
+                    <div className="bg-yellow-50 p-3 rounded">
+                      <Text type="secondary" className="text-xs block mb-1">
+                        <EyeOutlined /> 观察结果
+                      </Text>
+                      <pre className="text-xs bg-white p-2 rounded overflow-x-auto max-h-40">
+                        {JSON.stringify(step.toolResult, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </Collapse>
+      )}
+
+      {/* 最终答案 */}
+      {content && (
+        <div>
+          {reactSteps.length > 0 && (
+            <Text type="secondary" className="text-xs block mb-2">
+              ✅ 最终答案
+            </Text>
+          )}
+          <XMarkdown>{content}</XMarkdown>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -133,6 +211,7 @@ export default function ChatPage() {
         id: aiMessageId,
         role: "assistant",
         content: "",
+        reactSteps: [],
         loading: true,
         streamStatus: "streaming",
       };
@@ -142,8 +221,7 @@ export default function ChatPage() {
       setContent("");
 
       try {
-        // 构建历史记录（只包含用户和助手的内容，不包括当前消息）
-        // 注意：这里使用 messages 状态，因为我们在添加新消息之前构建历史
+        // 构建历史记录
         const historyForRequest = messages
           .filter(
             (msg) =>
@@ -155,98 +233,201 @@ export default function ChatPage() {
           }))
           .slice(-10); // 只使用最近10条消息
 
-        // 使用封装的流式处理函数（带标签解析）
-        await fetchAndProcessStreamWithTags(
-          "/api/chat",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              message: text,
-              history: historyForRequest,
-            }),
-            signal: abortController.signal,
+        // 发起 SSE 请求
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-          {
-            onThink: (thinkContent) => {
-              // 立即更新消息，设置 think 字段（即使 content 还是空的）
-              // 使用 flushSync 强制立即渲染，避免 React 批处理延迟
-              flushSync(() => {
-                setMessages((prev) =>
-                  prev.map((msg) => {
-                    if (msg.id !== aiMessageId) return msg;
+          body: JSON.stringify({
+            message: text,
+            history: historyForRequest,
+          }),
+          signal: abortController.signal,
+        });
 
-                    return {
-                      ...msg,
-                      think: thinkContent, // 直接设置 think 字段
-                      loading: true,
-                      streamStatus: "streaming",
-                    };
-                  })
-                );
-              });
-            },
-            onContent: (contentChunk) => {
-              // 直接更新状态，使用 flushSync 强制同步渲染
-              // 注意：flushSync 会强制 React 同步更新 DOM，确保流式内容能立即显示
-              console.log("onContent", contentChunk);
-              flushSync(() => {
-                setMessages((prev) =>
-                  prev.map((msg) => {
-                    if (msg.id !== aiMessageId) return msg;
-
-                    // 获取当前内容，流式追加
-                    const currentContent = msg.content || "";
-                    const newContent = currentContent + contentChunk;
-
-                    return {
-                      ...msg,
-                      content: newContent, // 更新 content 字段
-                      loading: true,
-                      streamStatus: "streaming",
-                    };
-                  })
-                );
-              });
-            },
-            onComplete: () => {
-              // 完成
+        // 当前思考内容缓冲区（按轮次维护）
+        let currentThoughtBuffer = '';
+        
+        // 解析 SSE 流
+        await parseSSEStream(response, {
+          onThought: (data) => {
+            // 累积当前轮的思考内容
+            currentThoughtBuffer += data;
+            console.log('💭 onThought 累积长度:', currentThoughtBuffer.length, '新增:', data.length);
+            
+            // 使用 flushSync 立即更新
+            flushSync(() => {
               setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === aiMessageId
-                    ? {
-                        ...msg,
-                        loading: false,
-                        streamStatus: "done",
-                      }
-                    : msg
-                )
+                prev.map((msg) => {
+                  if (msg.id !== aiMessageId) return msg;
+
+                  // 更新或添加思考步骤
+                  const steps = [...(msg.reactSteps || [])];
+                  const lastStep = steps[steps.length - 1];
+                  
+                  if (lastStep && lastStep.type === 'thought') {
+                    // 更新最后一个思考步骤
+                    lastStep.content = currentThoughtBuffer;
+                  } else {
+                    // 添加新的思考步骤
+                    steps.push({
+                      type: 'thought',
+                      content: currentThoughtBuffer,
+                    });
+                  }
+
+                  return {
+                    ...msg,
+                    reactSteps: steps,
+                    loading: true,
+                    streamStatus: "streaming",
+                  };
+                })
               );
-              setIsRequesting(false);
-            },
-            onError: (error) => {
-              // 错误处理
-              if (error instanceof Error && error.name === "AbortError") {
-                // 请求被取消，不显示错误
-                return;
-              }
+            });
+          },
+
+          onAction: (data) => {
+            // 开始新的思考轮次（不清空，保留上一轮的思考）
+            // 下一轮 onThought 会创建新的思考步骤
+            
+            // 添加工具调用步骤
+            flushSync(() => {
               setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === aiMessageId
-                    ? {
-                        ...msg,
-                        content:
-                          msg.content || "抱歉，处理请求时出现错误，请重试。",
-                        loading: false,
-                        streamStatus: "done",
-                      }
-                    : msg
-                )
+                prev.map((msg) => {
+                  if (msg.id !== aiMessageId) return msg;
+
+                  const steps = [...(msg.reactSteps || [])];
+                  steps.push({
+                    type: 'action',
+                    content: '',
+                    toolCall: data as ToolCall,
+                  });
+
+                  return {
+                    ...msg,
+                    reactSteps: steps,
+                  };
+                })
               );
-              setIsRequesting(false);
-              antdMessage.error(error.message || "请求失败");
-            },
-          }
-        );
+            });
+            
+            // 重置当前轮的思考缓冲区，准备下一轮
+            currentThoughtBuffer = '';
+          },
+
+          onObservation: (data) => {
+            // 添加观察步骤
+            flushSync(() => {
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id !== aiMessageId) return msg;
+
+                  const steps = [...(msg.reactSteps || [])];
+                  steps.push({
+                    type: 'observation',
+                    content: '',
+                    toolResult: data as ToolResult,
+                  });
+
+                  return {
+                    ...msg,
+                    reactSteps: steps,
+                  };
+                })
+              );
+            });
+          },
+
+          onAnswer: (data) => {
+            // 设置最终答案
+            // 优先使用 data，如果为空则使用当前轮的思考内容
+            let finalAnswer = data || currentThoughtBuffer;
+            
+            // 如果还是为空，尝试从 reactSteps 中获取最后一个思考步骤的内容
+            if (!finalAnswer || !finalAnswer.trim()) {
+              setMessages((prev) => {
+                const msg = prev.find(m => m.id === aiMessageId);
+                if (msg?.reactSteps) {
+                  const lastThought = [...msg.reactSteps].reverse().find(s => s.type === 'thought');
+                  if (lastThought?.content) {
+                    finalAnswer = lastThought.content;
+                  }
+                }
+                return prev;
+              });
+            }
+            
+            console.log('📌 onAnswer 接收:', {
+              data: data?.substring(0, 100),
+              currentThoughtBuffer: currentThoughtBuffer?.substring(0, 100),
+              finalAnswer: finalAnswer?.substring(0, 100),
+            });
+            
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId
+                  ? {
+                      ...msg,
+                      content: finalAnswer || '(无响应)',
+                      loading: false,
+                      streamStatus: "done",
+                    }
+                  : msg
+              )
+            );
+            setIsRequesting(false);
+          },
+
+          onError: (data) => {
+            // 错误处理
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId
+                  ? {
+                      ...msg,
+                      content: `错误：${data.message}`,
+                      loading: false,
+                      streamStatus: "done",
+                    }
+                  : msg
+              )
+            );
+            setIsRequesting(false);
+            antdMessage.error(data.message);
+          },
+
+          onDone: () => {
+            // 完成
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== aiMessageId) return msg;
+                
+                // 如果没有内容，尝试从多个来源获取
+                let finalContent = msg.content || currentThoughtBuffer;
+                
+                // 如果还是为空，从 reactSteps 中获取最后一个思考步骤
+                if (!finalContent || !finalContent.trim()) {
+                  if (msg.reactSteps) {
+                    const lastThought = [...msg.reactSteps].reverse().find(s => s.type === 'thought');
+                    if (lastThought?.content) {
+                      finalContent = lastThought.content;
+                    }
+                  }
+                }
+                
+                return {
+                  ...msg,
+                  content: finalContent || '(无响应)',
+                  loading: false,
+                  streamStatus: "done",
+                };
+              })
+            );
+            setIsRequesting(false);
+          },
+        });
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           // 请求被取消，不显示错误
@@ -308,23 +489,18 @@ export default function ChatPage() {
   /**
    * 转换消息为 Bubble.List 需要的格式
    * 不使用 useMemo，确保每次 messages 更新时都重新计算，实现流式渲染
-   * 关键：每次都要创建新的 MessageContent 组件实例，确保 React 能检测到变化
    */
   const bubbleItems = messages.map((msg) => {
-    // const isLoading = msg.loading || msg.streamStatus === "streaming";
-    // console.log("🟢 bubbleItems msg", msg);
     return {
       key: msg.id,
       role: msg.role,
-      // 使用 MessageContent 组件渲染助手消息，用户消息保持纯文本
-      // 关键：不使用 key，让 React 根据内容变化自然更新
       content:
         msg.role === "user" ? (
           msg.content
         ) : (
           <MessageContent
             content={msg.content}
-            think={msg.think}
+            reactSteps={msg.reactSteps}
             streamStatus={msg.streamStatus}
           />
         ),

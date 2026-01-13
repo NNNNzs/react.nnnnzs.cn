@@ -312,9 +312,14 @@ export async function deleteVectorsByPostId(postId: number): Promise<number> {
  * 
  * @param queryVector 查询向量
  * @param limit 返回结果数量限制
- * @param filter 过滤条件（可选，Qdrant filter 格式，会与默认的 hide='0' 过滤条件合并）
+ * @param filter 过滤条件（可选，Qdrant filter 格式，会与默认的 hide !== '0' 过滤条件合并）
  * @param maxRetries 最大重试次数，默认 2
  * @returns 搜索结果数组
+ * 
+ * @remarks
+ * 默认过滤条件会排除 hide='0' 的向量，即只搜索：
+ * - hide 字段不等于 '0' 的向量
+ * - hide 字段不存在的向量（兼容未重新构建的文章）
  */
 export async function searchSimilarVectors(
   queryVector: number[],
@@ -337,35 +342,41 @@ export async function searchSimilarVectors(
     HIDE_FIELD,
   } = QDRANT_COLLECTION_CONFIG;
 
-  // 构建默认过滤条件：只搜索 hide='0' 的向量
+  // 构建默认过滤条件：搜索 hide !== '0' 或 hide 字段不存在的向量
+  // 使用 must_not 排除 hide === '0' 的情况，这样会匹配：
+  // 1. hide 字段不等于 '0' 的所有值
+  // 2. hide 字段不存在的情况
   // 如果提供了自定义 filter，需要合并过滤条件
   const defaultHideFilter = {
-    key: HIDE_FIELD,
-    match: {
-      value: '0',
-    },
+    must_not: [
+      {
+        key: HIDE_FIELD,
+        match: {
+          value: '0',
+        },
+      },
+    ],
   };
 
   let combinedFilter: {
-    must?: Array<{
-      key: string;
-      match: { value: unknown };
-    }>;
+    must?: Array<unknown>;
+    must_not?: Array<unknown>;
   };
 
-  if (filter && typeof filter === 'object' && 'must' in filter) {
+  if (filter && typeof filter === 'object') {
     // 如果提供了自定义 filter，合并过滤条件
-    const customFilter = filter as { must?: Array<{ key: string; match: { value: unknown } }> };
+    const customFilter = filter as { must?: Array<unknown>; must_not?: Array<unknown> };
     combinedFilter = {
-      must: [
-        defaultHideFilter,
-        ...(customFilter.must || []),
+      must: customFilter.must || [],
+      must_not: [
+        ...(defaultHideFilter.must_not || []),
+        ...(customFilter.must_not || []),
       ],
     };
   } else {
-    // 只使用默认的 hide='0' 过滤条件
+    // 只使用默认的 hide 过滤条件
     combinedFilter = {
-      must: [defaultHideFilter],
+      must_not: defaultHideFilter.must_not,
     };
   }
 

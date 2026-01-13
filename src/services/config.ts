@@ -12,7 +12,7 @@ import { TbConfig } from '@/generated/prisma-client';
  */
 export async function getConfigList(params: QueryConfigCondition): Promise<PageQueryRes<TbConfig>> {
   const { pageNum = 1, pageSize = 10, query = '', status } = params;
-  
+
   const prisma = await getPrisma();
 
   // 构建查询条件
@@ -55,7 +55,7 @@ export async function getConfigById(id: number, updateReadTime = false): Promise
   const config = await prisma.tbConfig.findUnique({
     where: { id },
   });
-  
+
   // 如果需要更新读取时间
   if (config && updateReadTime) {
     const updated = await prisma.tbConfig.update({
@@ -66,7 +66,7 @@ export async function getConfigById(id: number, updateReadTime = false): Promise
     });
     return updated;
   }
-  
+
   return config;
 }
 
@@ -79,13 +79,27 @@ export async function getConfigByKey(key: string): Promise<TbConfig | null> {
     where: { key },
   });
 }
+export async function configByKeys(keys: string[]): Promise<Record<string, TbConfig>> {
+  const prisma = await getPrisma();
+  const configs = await prisma.tbConfig.findMany({
+    where: {
+      key: { in: keys },
+    },
+  });
+  return configs.reduce((acc, config) => {
+    if (config) {
+      acc[config.key as string] = config;
+    }
+    return acc;
+  }, {} as Record<string, TbConfig>);
+}
 
 /**
  * 创建配置
  */
 export async function createConfig(dto: CreateConfigDto): Promise<TbConfig> {
   const prisma = await getPrisma();
-  
+
   // 检查 key 是否已存在
   if (dto.key) {
     const existing = await prisma.tbConfig.findFirst({
@@ -112,7 +126,7 @@ export async function createConfig(dto: CreateConfigDto): Promise<TbConfig> {
  */
 export async function updateConfig(id: number, dto: UpdateConfigDto): Promise<TbConfig> {
   const prisma = await getPrisma();
-  
+
   // 检查配置是否存在
   const config = await prisma.tbConfig.findUnique({
     where: { id },
@@ -149,7 +163,7 @@ export async function updateConfig(id: number, dto: UpdateConfigDto): Promise<Tb
  */
 export async function deleteConfig(id: number): Promise<void> {
   const prisma = await getPrisma();
-  
+
   const config = await prisma.tbConfig.findUnique({
     where: { id },
   });

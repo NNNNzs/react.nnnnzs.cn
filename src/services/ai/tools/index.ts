@@ -1,7 +1,7 @@
 /**
  * AI 工具系统
  * 支持可扩展的工具注册和调用
- * 使用 XML 标签格式进行工具调用和结果返回
+ * 使用 JSON-RPC 2.0 格式进行工具调用和结果返回
  */
 
 /**
@@ -31,6 +31,30 @@ export interface Tool {
   };
   /** 工具执行函数 */
   execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+}
+
+/**
+ * JSON-RPC 请求格式
+ */
+export interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  method: string;
+  params?: Record<string, unknown>;
+  id: string | number;
+}
+
+/**
+ * JSON-RPC 响应格式
+ */
+export interface JsonRpcResponse {
+  jsonrpc: '2.0';
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+  id: string | number;
 }
 
 /**
@@ -66,6 +90,7 @@ class ToolRegistry {
 
   /**
    * 获取工具列表描述（用于 AI 理解可用工具）
+   * 使用 JSON-RPC 2.0 格式
    */
   getToolsDescription(): string {
     const tools = this.getAll();
@@ -91,21 +116,30 @@ ${params || '  无参数'}`;
 
 ${descriptions.join('\n\n')}
 
-**工具调用格式：**
-当你需要调用工具时，请使用以下 XML 标签格式：
+**工具调用格式（JSON-RPC 2.0）：**
+当你需要调用工具时，请使用以下 JSON-RPC 格式，包裹在 \`\`\`json-rpc 代码块中：
 
-<tool_call name="工具名称">
-{
-  "参数名1": "参数值1",
-  "参数名2": "参数值2"
-}
-</tool_call>
+示例格式（注意：实际使用时不要包含注释）：
+\`\`\`json-rpc
+{{
+  "jsonrpc": "2.0",
+  "method": "工具名称",
+  "params": {{
+    "参数名1": "参数值1",
+    "参数名2": "参数值2"
+  }},
+  "id": 1
+}}
+\`\`\`
 
 **重要说明：**
-1. 工具调用必须使用 JSON 格式传递参数
-2. 参数值必须是有效的 JSON 类型（字符串、数字、布尔值、对象、数组）
-3. 只有在需要查询知识库或执行特定操作时才调用工具
-4. 如果问题可以通过通用知识回答，不需要调用工具`;
+1. 必须使用标准的 JSON-RPC 2.0 格式
+2. method 字段为工具名称
+3. params 字段为参数对象
+4. id 字段可以是任意数字或字符串
+5. 必须包裹在 \`\`\`json-rpc 代码块中
+6. 只有在需要查询知识库或执行特定操作时才调用工具
+7. 如果问题可以通过通用知识回答，不需要调用工具`;
   }
 }
 
@@ -115,37 +149,53 @@ ${descriptions.join('\n\n')}
 export const toolRegistry = new ToolRegistry();
 
 /**
- * 解析工具调用
+ * 解析工具调用（JSON-RPC 格式）
+ * 从文本中提取 ```json-rpc 代码块中的 JSON-RPC 调用
  * @param text 包含工具调用的文本
  * @returns 工具调用信息数组
  */
 export function parseToolCalls(text: string): Array<{
   name: string;
   args: Record<string, unknown>;
+  id: string | number;
   fullMatch: string;
 }> {
   const toolCalls: Array<{
     name: string;
     args: Record<string, unknown>;
+    id: string | number;
     fullMatch: string;
   }> = [];
 
-  // 匹配 <tool_call name="工具名">参数JSON</tool_call>
-  const toolCallRegex = /<tool_call\s+name="([^"]+)">\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
+  // 匹配 ```json-rpc ... ``` 代码块
+  const jsonRpcRegex = /```json-rpc\s*([\s\S]*?)```/g;
   let match;
 
-  while ((match = toolCallRegex.exec(text)) !== null) {
-    const [, name, argsJson] = match;
+  while ((match = jsonRpcRegex.exec(text)) !== null) {
+    const [fullMatch, jsonContent] = match;
     try {
-      const args = JSON.parse(argsJson.trim());
+      const jsonRpcRequest = JSON.parse(jsonContent.trim()) as JsonRpcRequest;
+      
+      // 验证 JSON-RPC 格式
+      if (jsonRpcRequest.jsonrpc !== '2.0') {
+        console.error('❌ 无效的 JSON-RPC 版本:', jsonRpcRequest.jsonrpc);
+        continue;
+      }
+      
+      if (!jsonRpcRequest.method) {
+        console.error('❌ JSON-RPC 请求缺少 method 字段');
+        continue;
+      }
+      
       toolCalls.push({
-        name,
-        args,
-        fullMatch: match[0],
+        name: jsonRpcRequest.method,
+        args: jsonRpcRequest.params || {},
+        id: jsonRpcRequest.id,
+        fullMatch,
       });
     } catch (error) {
-      console.error(`❌ 解析工具调用参数失败 (${name}):`, error);
-      console.error('参数 JSON:', argsJson);
+      console.error('❌ 解析 JSON-RPC 请求失败:', error);
+      console.error('JSON 内容:', jsonContent);
     }
   }
 
@@ -160,12 +210,19 @@ export function parseToolCalls(text: string): Array<{
 export async function executeToolCall(toolCall: {
   name: string;
   args: Record<string, unknown>;
-}): Promise<ToolResult> {
+  id: string | number;
+}): Promise<{
+  result: ToolResult;
+  id: string | number;
+}> {
   const tool = toolRegistry.get(toolCall.name);
   if (!tool) {
     return {
-      success: false,
-      error: `工具 ${toolCall.name} 不存在`,
+      result: {
+        success: false,
+        error: `工具 ${toolCall.name} 不存在`,
+      },
+      id: toolCall.id,
     };
   }
 
@@ -174,8 +231,11 @@ export async function executeToolCall(toolCall: {
     for (const [key, param] of Object.entries(tool.parameters)) {
       if (param.required !== false && !(key in toolCall.args)) {
         return {
-          success: false,
-          error: `缺少必需参数: ${key}`,
+          result: {
+            success: false,
+            error: `缺少必需参数: ${key}`,
+          },
+          id: toolCall.id,
         };
       }
     }
@@ -184,28 +244,46 @@ export async function executeToolCall(toolCall: {
     console.log(`🔧 执行工具: ${toolCall.name}`, toolCall.args);
     const result = await tool.execute(toolCall.args);
     console.log(`✅ 工具执行完成: ${toolCall.name}`, result.success ? '成功' : '失败');
-    return result;
+    return {
+      result,
+      id: toolCall.id,
+    };
   } catch (error) {
     console.error(`❌ 工具执行错误 (${toolCall.name}):`, error);
     return {
-      success: false,
-      error: error instanceof Error ? error.message : '工具执行失败',
+      result: {
+        success: false,
+        error: error instanceof Error ? error.message : '工具执行失败',
+      },
+      id: toolCall.id,
     };
   }
 }
 
 /**
- * 生成工具结果 XML 标签
- * @param toolName 工具名称
+ * 格式化 JSON-RPC 响应
+ * @param id 请求ID
  * @param result 工具执行结果
- * @returns XML 格式的工具结果
+ * @returns JSON-RPC 格式的响应
  */
-export function formatToolResult(toolName: string, result: ToolResult): string {
-  const resultContent = result.success
-    ? JSON.stringify(result.data, null, 2)
-    : `错误: ${result.error}`;
-
-  return `<tool_result name="${toolName}">
-${resultContent}
-</tool_result>`;
+export function formatJsonRpcResponse(
+  id: string | number,
+  result: ToolResult
+): JsonRpcResponse {
+  if (result.success) {
+    return {
+      jsonrpc: '2.0',
+      result: result.data,
+      id,
+    };
+  } else {
+    return {
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: result.error || '工具执行失败',
+      },
+      id,
+    };
+  }
 }

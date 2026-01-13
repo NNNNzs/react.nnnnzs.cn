@@ -36,7 +36,7 @@ export const searchArticlesTool: Tool = {
     },
     limit: {
       type: 'number',
-      description: '返回结果数量限制，默认为 5',
+      description: '返回结果数量限制，默认为 5，可适当调整',
       required: false,
     },
   },

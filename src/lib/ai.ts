@@ -8,6 +8,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import type { Runnable } from '@langchain/core/runnables';
+import { RunnableLambda } from '@langchain/core/runnables';
 
 // 导出 LangChain 核心类型和工具，方便其他模块使用
 export { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -29,7 +30,7 @@ export interface AIModelConfig {
  * 默认模型配置
  */
 const DEFAULT_MODEL_CONFIG: AIModelConfig = {
-  model: 'gpt-4o-mini',
+  model: process.env.SILICONFLOW_FREE_QWEN,
   temperature: 0.7,
   maxTokens: 2000,
 };
@@ -37,10 +38,9 @@ const DEFAULT_MODEL_CONFIG: AIModelConfig = {
 export const createOpenAIModel = (config: AIModelConfig = {}): ChatOpenAI => {
   const mergedConfig = { ...DEFAULT_MODEL_CONFIG, ...config };
   return new ChatOpenAI({
-    apiKey: process.env.OPENAI_AUTH_TOKEN,
-    openAIApiKey: process.env.OPENAI_AUTH_TOKEN,
+    apiKey: process.env.SILICONFLOW_API_KEY,
     configuration: {
-      baseURL: process.env.OPENAI_BASE_URL_PROXY,
+      baseURL: process.env.SILICONFLOW_BASE_URL,
     },
     streaming: true,
     model: mergedConfig.model,
@@ -129,8 +129,77 @@ export const streamFromChain = async <T extends Record<string, unknown>>(
 };
 
 /**
+ * 从消息块中提取文本内容
+ * 处理 LangChain 的消息对象，提取文本内容，忽略元数据
+ */
+const extractTextFromMessage = (message: unknown): string => {
+  if (typeof message === 'string') {
+    return message;
+  }
+  
+  if (message && typeof message === 'object') {
+    // 处理 LangChain 的消息块格式
+    // AIMessageChunk 或类似对象
+    if ('content' in message) {
+      const content = message.content;
+      if (typeof content === 'string') {
+        return content;
+      }
+      // 如果 content 是数组（多部分消息），提取文本部分
+      if (Array.isArray(content)) {
+        return content
+          .map((part) => {
+            if (typeof part === 'string') return part;
+            if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+              return part.text;
+            }
+            return '';
+          })
+          .join('');
+      }
+    }
+    
+    // 处理 lc_kwargs 格式（LangChain 内部格式）
+    if ('lc_kwargs' in message && typeof message.lc_kwargs === 'object') {
+      const kwargs = message.lc_kwargs as Record<string, unknown>;
+      if (kwargs.content) {
+        if (typeof kwargs.content === 'string') {
+          return kwargs.content;
+        }
+        if (Array.isArray(kwargs.content)) {
+          return kwargs.content
+            .map((part) => {
+              if (typeof part === 'string') return part;
+              if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+                return part.text;
+              }
+              return '';
+            })
+            .join('');
+        }
+      }
+    }
+  }
+  
+  return '';
+};
+
+/**
+ * 创建文本提取器（用于流式响应）
+ * 从模型的消息块中提取文本，忽略元数据
+ */
+const createTextExtractor = () => {
+  return new RunnableLambda({
+    func: async (input: unknown) => {
+      return extractTextFromMessage(input);
+    },
+  });
+};
+
+/**
  * 创建 OpenAI AI 处理链
- * 使用 LCEL 规范：prompt.pipe(model).pipe(outputParser)
+ * 使用 LCEL 规范：prompt.pipe(model).pipe(textExtractor)
+ * 注意：不使用 StringOutputParser，因为它无法处理包含元数据的流式响应
  * 注意：Anthropic 请使用 @/services/ai/anthropic
  * @param prompt ChatPromptTemplate 提示词模板
  * @param config 模型配置
@@ -141,6 +210,8 @@ export function createAIChain<T extends Record<string, unknown>>(
   config: AIModelConfig = {}
 ): Runnable<T, string> {
   const model = createOpenAIModel(config);
-  const outputParser = createStringOutputParser();
-  return prompt.pipe(model).pipe(outputParser) as Runnable<T, string>;
+  const textExtractor = createTextExtractor();
+  // 使用自定义的文本提取器，而不是 StringOutputParser
+  // 这样可以正确处理包含元数据的流式响应
+  return prompt.pipe(model).pipe(textExtractor) as Runnable<T, string>;
 }
