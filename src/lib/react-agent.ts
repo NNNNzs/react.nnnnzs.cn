@@ -120,7 +120,6 @@ export class ReactAgent {
             const lastMsg = messages[messages.length - 1];
             console.log(`📋 最后一条消息类型: ${lastMsg.constructor.name}`);
             console.log(`📋 最后一条消息内容长度: ${lastMsg.content.length}`);
-            console.log(`📋 最后一条消息内容预览: ${lastMsg.content.substring(0, 200)}...`);
           }
         }
 
