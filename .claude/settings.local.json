@@ -4,7 +4,10 @@
       "Bash(tree:*)",
       "Bash(mkdir:*)",
       "Bash(wc:*)",
-      "WebFetch(domain:cursor.com)"
+      "WebFetch(domain:cursor.com)",
+      "WebFetch(domain:localhost)",
+      "Bash(node analyze-performance.js:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,7 @@
   "name": "react.nnnnzs.cn",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "npx prisma generate && next build",
@@ -15,7 +16,14 @@
     "qdrant:init": "tsx scripts/init-qdrant.ts",
     "build:docker": "./scripts/build-docker.sh",
     "start:docker": "docker-compose -f docker-compose.local.yml up -d ",
-    "local:image:push": "./scripts/push-docker.sh"
+    "local:image:push": "./scripts/push-docker.sh",
+    "analyze": "node performance/index.js all",
+    "analyze:code": "node performance/index.js code",
+    "analyze:bundle": "node performance/index.js bundle",
+    "analyze:render": "node performance/index.js render",
+    "analyze:quick": "node performance/index.js quick",
+    "perf": "node performance/index.js all",
+    "perf:quick": "node performance/index.js quick"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
