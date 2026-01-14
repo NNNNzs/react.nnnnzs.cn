@@ -12,10 +12,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
 
+/** Token Cookie 名称，与服务端保持一致 */
+const TOKEN_KEY = 'blog-token';
+
 function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, register } = useAuth();
+  const { login, register, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loginForm] = Form.useForm();
   const [registerForm] = Form.useForm();
@@ -105,8 +108,11 @@ function LoginPage() {
       });
       
       if (response.data.status && response.data.data) {
-        // 存储 token 到 cookie 或 localStorage
-        document.cookie = `token=${token}; path=/; max-age=2592000`; // 30 天
+        // 存储 token 到 cookie（使用正确的 cookie 名称）
+        document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=2592000`; // 30 天
+        
+        // 刷新 AuthContext 中的用户状态
+        await refreshUser();
         
         message.success('微信登录成功！');
         
