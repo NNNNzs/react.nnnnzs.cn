@@ -1111,7 +1111,113 @@ pnpm dev
 # 发送测试请求到 /api/mcp
 ```
 
-### 参考资料
+### MCP 认证规范
+
+#### ⚠️ 认证方式改造计划
+
+**当前状态**: 使用自定义头部 `x-mcp-account`/`x-mcp-password` 进行认证
+**目标状态**: 使用标准 `Authorization: Bearer <token>` 方式
+
+**问题**: 当前实现**不兼容**官方 MCP 客户端，因为：
+1. 官方客户端只支持标准 OAuth 2.0 Bearer Token
+2. MCP SDK 通过 `req.auth` 传递 `AuthInfo` 对象
+3. 自定义头部无法被标准客户端识别
+
+**详细计划**: `docs/MCP_AUTH_REFACTOR_PLAN.md`
+
+#### 当前实现（待改造）
+```typescript
+// src/app/api/mcp/route.ts:82-83
+const account = headers.get('x-mcp-account') || process.env.MCP_USER_ACCOUNT;
+const password = headers.get('x-mcp-password') || process.env.MCP_USER_PASSWORD;
+```
+
+#### 目标实现
+```typescript
+// 1. 创建认证适配器
+// src/services/mcpAuth.ts
+import { validateToken } from '@/lib/auth';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider';
+
+export const mcpAuthVerifier: OAuthTokenVerifier = {
+  async verifyAccessToken(token: string): Promise<AuthInfo> {
+    const user = await validateToken(token);
+    if (!user) throw new Error("Invalid token");
+
+    return {
+      token,
+      clientId: `mcp-client-${user.id}`,
+      scopes: ['read', 'write'],
+      expiresAt: undefined,
+      extra: { userId: user.id, role: user.role }
+    };
+  }
+};
+
+// 2. 更新 MCP 路由认证逻辑
+// src/app/api/mcp/route.ts
+const ensureAuth = async () => {
+  const authHeader = headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw new Error("Use 'Authorization: Bearer <token>'");
+  }
+
+  const token = authHeader.substring(7);
+  const user = await validateToken(token);
+  if (!user) throw new Error("Invalid token");
+
+  return user;
+};
+```
+
+#### 迁移步骤
+
+1. **准备阶段**
+   - 备份当前 `src/app/api/mcp/route.ts`
+   - 确认测试环境可用
+
+2. **实施阶段**
+   - 创建 `src/services/mcpAuth.ts`
+   - 更新 MCP 路由认证逻辑
+   - 保持所有工具功能不变
+
+3. **验证阶段**
+   - 测试 Bearer token 认证
+   - 验证所有 MCP 工具
+   - 确认错误处理
+
+4. **客户端改造**
+   ```typescript
+   // 改造前
+   fetch('/api/mcp', {
+     headers: {
+       'x-mcp-account': 'admin',
+       'x-mcp-password': 'password'
+     }
+   })
+
+   // 改造后
+   const token = await login(); // 先登录获取 token
+   fetch('/api/mcp', {
+     headers: {
+       'Authorization': `Bearer ${token}`
+     }
+   })
+   ```
+
+#### 预计工作量
+- 核心改造: 2-3 小时
+- 测试验证: 1-2 小时
+- 文档更新: 30 分钟
+- **总计**: 3.5-5.5 小时
+
+#### 相关文件
+- `src/app/api/mcp/route.ts` - 主要改造文件
+- `src/services/mcpAuth.ts` - 新增认证适配器（待创建）
+- `src/lib/auth.ts` - 现有 Token 验证函数（可复用）
+- `docs/MCP_AUTH_REFACTOR_PLAN.md` - 完整计划文档
+
+#### 参考资料
 - [MCP 官方文档](https://modelcontextprotocol.io)
 - [MCP 规范](https://spec.modelcontextprotocol.io)
 - 项目文档：`docs/mcp_resources_tags.md`

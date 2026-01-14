@@ -7,7 +7,10 @@
       "WebFetch(domain:cursor.com)",
       "WebFetch(domain:localhost)",
       "Bash(node analyze-performance.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebSearch",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
