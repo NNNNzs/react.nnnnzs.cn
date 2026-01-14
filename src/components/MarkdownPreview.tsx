@@ -52,16 +52,33 @@ export default function MarkdownPreview({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={wrapperRef} className="markdown-preview-wrapper">
+    <div ref={wrapperRef} className="markdown-preview-wrapper relative">
       <MdPreview editorId={editorId} modelValue={content} {...props} />
       {showMdCatalog && (
-        <div className="fixed left-[10%] top-[50%]  translate-y-[-50%] h-[60vh] overflow-y-auto w-[30vh]">
+        <aside 
+          className="
+            fixed top-1/2 -translate-y-1/2
+            h-[60vh] overflow-y-auto
+            w-48 max-w-[200px]
+            hidden xl:block
+            bg-white/80 dark:bg-gray-900/80
+            backdrop-blur-sm
+            rounded-lg shadow-lg
+            p-3
+            border border-gray-200/50 dark:border-gray-700/50
+          "
+          style={{
+            // 使用 calc 计算位置：距离视口左边 16px
+            // 在大屏幕上会显示在内容左侧
+            left: 'max(16px, calc((100vw - 896px) / 2 - 220px))',
+          }}
+        >
           <MdCatalog
             editorId={editorId}
             scrollElement="html"
-            className="w-full h-auto"
+            className="w-full h-auto text-sm"
           />
-        </div>
+        </aside>
       )}
     </div>
   );
