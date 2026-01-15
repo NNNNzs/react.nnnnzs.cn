@@ -10,7 +10,15 @@
       "Bash(node:*)",
       "WebSearch",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next build:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma format:*)",
+      "Bash(curl:*)",
+      "mcp__MyBlog__create_article"
     ],
     "deny": [],
     "ask": []

@@ -390,6 +390,104 @@ const posts = await postRepository.find({ where: { hide: '0' } });
 
 详细的配置说明请参考 [COS_UPLOAD.md](./COS_UPLOAD.md)
 
+## 📝 Git 提交规范
+
+本项目采用规范化的 Git 提交信息格式，以提高代码库的可维护性和可追溯性。
+
+### 提交格式
+
+```
+<类型>(<scope>): <描述>
+
+<body>
+
+<footer>
+```
+
+### 提交类型
+
+| 类型 | 描述 | 使用场景 |
+|------|------|----------|
+| **feat** | 新功能 | 新增 API、UI 组件、业务功能 |
+| **fix** | Bug 修复 | 修复功能缺陷、错误处理 |
+| **docs** | 文档更新 | README、API 文档、注释 |
+| **style** | 代码格式 | 代码格式化、命名规范 |
+| **refactor** | 重构 | 代码结构调整，不影响功能 |
+| **perf** | 性能优化 | 性能提升、内存优化 |
+| **test** | 测试相关 | 新增测试、修复测试 |
+| **chore** | 构建/工具 | 依赖更新、配置修改 |
+| **ci** | CI/CD | GitHub Actions、部署脚本 |
+| **build** | 构建系统 | Webpack、Vite 配置 |
+| **revert** | 回退提交 | 回退之前的提交 |
+
+### 常用 Scope
+
+- `api`: API 路由和接口
+- `auth`: 认证授权相关
+- `components`: UI 组件
+- `services`: 业务服务层
+- `lib`: 工具库和配置
+- `docker`: Docker 相关配置
+- `ci`: CI/CD 流程
+- `docs`: 文档相关
+- `test`: 测试相关
+- `react-agent`: AI 聊天代理相关
+
+### 提交示例
+
+```bash
+# 功能开发
+feat(auth): 添加 OAuth 2.0 认证支持
+
+# Bug 修复
+fix(api): 修复文章列表分页问题
+
+# 重构
+refactor(components): 优化 MarkdownPreview 组件
+
+# 构建/工具
+chore(deps): 更新依赖版本
+
+# CI/CD
+ci(docker): 优化 Docker 构建流程
+```
+
+### 复杂提交示例
+
+```bash
+feat: 重构聊天 API 以支持流式响应
+
+- 添加 SSE 流式响应支持
+- 实现 ReAct Agent 模式
+- 优化工具调用可视化反馈
+
+BREAKING CHANGE: API 响应格式变更，需要更新前端处理逻辑
+Closes #123
+```
+
+### 提交规范要点
+
+1. **标题行**: 必填，长度 ≤ 72 字符
+2. **空行**: 标题和正文之间必须有空行
+3. **正文**: 可选，详细描述变更内容
+4. **页脚**: 可选，用于引用 issue、BREAKING CHANGE 等
+5. **语言**: 使用中文描述，动词开头，首字母小写
+6. **标点**: 结尾不加标点
+
+### 使用模板
+
+项目已配置 `.gitmessage` 提交模板，使用以下命令：
+
+```bash
+# 配置 Git 使用模板（已配置，无需重复执行）
+git config --global commit.template .gitmessage
+
+# 提交时会自动打开模板
+git commit
+```
+
+详细的提交历史分析和规范制定过程，请参考 git-commit-standardizer 代理的分析结果。
+
 ## 📄 License
 
 MIT

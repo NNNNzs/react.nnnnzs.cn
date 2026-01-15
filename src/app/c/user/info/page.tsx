@@ -34,6 +34,8 @@ import type { RcFile } from "antd/es/upload";
 import AvatarCropper from "@/components/AvatarCropper";
 import WechatBindCard from "@/components/WechatBindCard";
 import GithubBindCard from "@/components/GithubBindCard";
+import LongTermTokenCard from "@/components/LongTermTokenCard";
+import OAuthTokenCard from "@/components/OAuthTokenCard";
 
 const { Title, Text } = Typography;
 
@@ -398,6 +400,16 @@ export default function UserInfoPage() {
           githubUsername={userInfo?.github_username || undefined}
           onStatusChange={handleWechatStatusChange}
         />
+      </div>
+
+      {/* 长期Token管理 */}
+      <div className="mt-6">
+        <LongTermTokenCard userId={userInfo?.id?.toString()} />
+      </div>
+
+      {/* OAuth授权管理 */}
+      <div className="mt-6">
+        <OAuthTokenCard userId={userInfo?.id?.toString()} />
       </div>
 
       {/* 头像裁剪弹窗 */}

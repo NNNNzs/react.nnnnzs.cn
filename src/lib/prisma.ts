@@ -70,6 +70,7 @@ export async function getPrisma(): Promise<PrismaClient> {
       tbPost: createMockModel(),
       tbUser: createMockModel(),
       tbConfig: createMockModel(),
+      longTermToken: createMockModel(),
       $connect: async () => {},
       $disconnect: async () => {},
       $executeRaw: async () => 0,
@@ -80,12 +81,14 @@ export async function getPrisma(): Promise<PrismaClient> {
         tbPost: ReturnType<typeof createMockModel>;
         tbUser: ReturnType<typeof createMockModel>;
         tbConfig: ReturnType<typeof createMockModel>;
+        longTermToken: ReturnType<typeof createMockModel>;
       }) => Promise<T>) | unknown[]): Promise<T | unknown[]> => {
         if (typeof fn === 'function') {
           return fn({
             tbPost: createMockModel(),
             tbUser: createMockModel(),
             tbConfig: createMockModel(),
+            longTermToken: createMockModel(),
           });
         }
         return fn as unknown[];

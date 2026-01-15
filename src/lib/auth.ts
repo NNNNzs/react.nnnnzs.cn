@@ -59,15 +59,42 @@ export async function storeToken(token: string, user: User): Promise<void> {
 
 /**
  * 验证Token并获取用户信息
+ * 支持两种 Token 格式：
+ * 1. 登录生成的 Token：存储在 user:${token}
+ * 2. OAuth 生成的 Token：存储在 token:${token}
  */
 export async function validateToken(token: string): Promise<User | null> {
   try {
-    const redisKey = `user:${token}`;
-    const userStr = await RedisService.get(redisKey);
-    if (!userStr) {
-      return null;
+    // 先尝试登录 Token 格式
+    let redisKey = `user:${token}`;
+    let userStr = await RedisService.get(redisKey);
+    
+    if (userStr) {
+      return JSON.parse(userStr) as User;
     }
-    return JSON.parse(userStr) as User;
+    
+    // 再尝试 OAuth Token 格式
+    redisKey = `token:${token}`;
+    const tokenDataStr = await RedisService.get(redisKey);
+    
+    if (tokenDataStr) {
+      const tokenData = JSON.parse(tokenDataStr);
+      // OAuth token 数据包含 userId，需要根据 userId 获取用户信息
+      if (tokenData.userId) {
+        const { getUserById } = await import('@/services/user');
+        // userId可能是string或number，统一转为number
+        const userId = typeof tokenData.userId === 'string' 
+          ? parseInt(tokenData.userId, 10) 
+          : tokenData.userId;
+        const user = await getUserById(userId);
+        if (user) {
+          // UserInfo 已经移除了密码字段，直接返回
+          return user as User;
+        }
+      }
+    }
+    
+    return null;
   } catch (error) {
     console.error('验证Token失败:', error);
     return null;

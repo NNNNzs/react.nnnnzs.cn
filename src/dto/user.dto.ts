@@ -75,6 +75,27 @@ export interface QueryUserCondition {
 }
 
 /**
+ * 长期Token申请DTO
+ */
+export interface LongTermTokenDto {
+  duration: number; // 7, 30, 0(永久)
+  description?: string;
+}
+
+/**
+ * 长期Token记录
+ */
+export interface LongTermTokenRecord {
+  id: string;
+  token: string;
+  userId: string;
+  expiresAt: string | null;
+  createdAt: string;
+  description: string;
+  lastUsed: string | null;
+}
+
+/**
  * 分页查询响应
  */
 export interface PageQueryRes<T> {

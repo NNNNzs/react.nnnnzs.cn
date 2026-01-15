@@ -166,6 +166,8 @@ export async function getPostList(params: {
 ## 认证和授权
 
 ### Token 认证
+
+#### 基础 Token 认证
 ```typescript
 // src/lib/auth.ts
 import { NextRequest } from 'next/server'
@@ -200,6 +202,82 @@ export async function checkPermission(
   return user.role === requiredRole || user.role === 'admin'
 }
 ```
+
+#### 使用 withAuth 中间件（推荐）
+
+**推荐方式**：使用 `withAuth` 中间件可以简化认证逻辑，同时支持普通Token和长期Token。
+
+```typescript
+// src/app/api/example/protected/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/long-term-token-auth';
+import { successResponse } from '@/dto/response.dto';
+
+/**
+ * GET /api/example/protected - 需要认证的API示例
+ * 支持两种认证方式：
+ * 1. 普通Token: Authorization: Bearer <token> (7天有效期)
+ * 2. 长期Token: Authorization: Bearer <LTK_xxx> (30天或永久)
+ */
+export const GET = withAuth(async (userId, request) => {
+  // 在这里处理业务逻辑，userId是已验证的用户ID
+  // 可以访问 userId 来获取用户特定的数据
+
+  return NextResponse.json(
+    successResponse({
+      message: '认证成功！',
+      userId,
+      timestamp: new Date().toISOString(),
+      data: {
+        note: '这是一个受保护的API示例',
+        supportedAuth: ['regular token', 'long-term token'],
+      },
+    })
+  );
+});
+
+/**
+ * POST /api/example/protected - 需要认证的POST示例
+ */
+export const POST = withAuth(async (userId, request) => {
+  try {
+    const body = await request.json();
+
+    // 处理业务逻辑
+    // userId 是已验证的用户ID
+
+    return NextResponse.json(
+      successResponse({
+        message: '数据处理成功！',
+        userId,
+        receivedData: body,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    // 如果JSON解析失败
+    return NextResponse.json(
+      successResponse({
+        message: '处理成功（无请求体数据）',
+        userId,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }
+});
+```
+
+**withAuth 中间件的特点**：
+- ✅ 自动处理认证逻辑，减少重复代码
+- ✅ 同时支持普通Token和长期Token（以 `LTK_` 开头）
+- ✅ 自动返回 401 未授权错误
+- ✅ 处理函数自动接收已验证的 `userId` 参数
+- ✅ 统一错误处理
+
+**使用场景**：
+- 需要认证的API端点
+- 同时支持短期和长期Token的场景
+- 简化认证代码，提高可维护性
 
 ## 数据验证
 

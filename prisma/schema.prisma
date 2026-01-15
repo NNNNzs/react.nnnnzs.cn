@@ -2,9 +2,9 @@
 // 文档: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // 自定义输出路径，避免被 pnpm prune 删除
-  output   = "../src/generated/prisma-client"
+  output        = "../src/generated/prisma-client"
   // 支持多架构部署
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
@@ -16,55 +16,56 @@ datasource db {
 
 // 文章表
 model TbPost {
-  id             Int       @id @default(autoincrement())
-  path           String?   @db.VarChar(255)
-  title          String?   @db.VarChar(255)
-  category       String?   @db.VarChar(255)
-  tags           String?   @db.VarChar(255) // 逗号分隔的标签字符串
-  date           DateTime? @db.DateTime(0)
-  updated        DateTime? @db.DateTime(0)
-  cover          String?   @db.VarChar(255)
-  layout         String?   @db.VarChar(255)
-  content        String   @db.Text
-  description    String?   @db.VarChar(500)
-  visitors       Int?      @default(0)
-  likes          Int?      @default(0)
-  hide           String?   @default("0") @db.VarChar(255)
-  is_delete      Int       @default(0)
-  github_issue_number Int?  // GitHub Issue 编号
-  github_issue_id     Int?  // GitHub Issue ID
-  created_by     Int?      // 创建人ID，关联用户表
+  id                  Int       @id @default(autoincrement())
+  path                String?   @db.VarChar(255)
+  title               String?   @db.VarChar(255)
+  category            String?   @db.VarChar(255)
+  tags                String?   @db.VarChar(255) // 逗号分隔的标签字符串
+  date                DateTime? @db.DateTime(0)
+  updated             DateTime? @db.DateTime(0)
+  cover               String?   @db.VarChar(255)
+  layout              String?   @db.VarChar(255)
+  content             String    @db.Text
+  description         String?   @db.VarChar(500)
+  visitors            Int?      @default(0)
+  likes               Int?      @default(0)
+  hide                String?   @default("0") @db.VarChar(255)
+  is_delete           Int       @default(0)
+  github_issue_number Int? // GitHub Issue 编号
+  github_issue_id     Int? // GitHub Issue ID
+  created_by          Int? // 创建人ID，关联用户表
 
   // 关联关系
-  creator        TbUser?   @relation(fields: [created_by], references: [id])
-  versions       TbPostVersion[]
-  chunks         TbPostChunk[]
+  creator  TbUser?         @relation(fields: [created_by], references: [id])
+  versions TbPostVersion[]
+  chunks   TbPostChunk[]
 
   @@map("tb_post")
 }
 
 // 用户表
 model TbUser {
-  id                 Int       @id @default(autoincrement())
-  role               String?   @db.VarChar(255)
-  account            String    @db.VarChar(16)
-  avatar             String?   @db.VarChar(255)
-  password           String    @db.VarChar(255)
-  nickname           String    @db.VarChar(16)
-  mail               String?   @db.VarChar(30)
-  phone              String?   @db.VarChar(11)
-  registered_ip      String?   @db.VarChar(16)
-  registered_time    DateTime? @db.DateTime(0)
-  dd_id              String?   @db.VarChar(30)
-  github_id          String?   @db.VarChar(255)
-  github_username    String?   @db.VarChar(255) // GitHub 用户名
-  github_access_token String?  @db.Text // GitHub Access Token
-  work_wechat_id     String?   @db.VarChar(255)
-  wx_open_id         String?   @db.VarChar(255) // 微信小程序 openID
-  status             Int       @default(1)
+  id                  Int       @id @default(autoincrement())
+  role                String?   @db.VarChar(255)
+  account             String    @db.VarChar(16)
+  avatar              String?   @db.VarChar(255)
+  password            String    @db.VarChar(255)
+  nickname            String    @db.VarChar(16)
+  mail                String?   @db.VarChar(30)
+  phone               String?   @db.VarChar(11)
+  registered_ip       String?   @db.VarChar(16)
+  registered_time     DateTime? @db.DateTime(0)
+  dd_id               String?   @db.VarChar(30)
+  github_id           String?   @db.VarChar(255)
+  github_username     String?   @db.VarChar(255) // GitHub 用户名
+  github_access_token String?   @db.Text // GitHub Access Token
+  work_wechat_id      String?   @db.VarChar(255)
+  wx_open_id          String?   @db.VarChar(255) // 微信小程序 openID
+  status              Int       @default(1)
 
   // 关联关系
-  posts              TbPost[]  // 创建的文章
+  posts          TbPost[] // 创建的文章
+  longTermTokens LongTermToken[] // 长期Token
 
   @@map("tb_user")
 }
@@ -86,14 +87,14 @@ model TbConfig {
 
 // 文章版本表
 model TbPostVersion {
-  id          Int       @id @default(autoincrement())
-  post_id     Int
-  version     Int
-  content     String    @db.LongText
-  created_at  DateTime  @default(now())
-  created_by  Int?
+  id         Int      @id @default(autoincrement())
+  post_id    Int
+  version    Int
+  content    String   @db.LongText
+  created_at DateTime @default(now())
+  created_by Int?
 
-  post        TbPost    @relation(fields: [post_id], references: [id])
+  post TbPost @relation(fields: [post_id], references: [id])
 
   @@index([post_id, version])
   @@map("tb_post_version")
@@ -104,15 +105,32 @@ model TbPostChunk {
   id           String   @id @db.VarChar(191) // 稳定 Chunk ID（191 字符，兼容 MySQL 5.7 索引键长度限制）
   post_id      Int
   version      Int
-  type         String   @db.VarChar(50)  // section | code | list | paragraph
+  type         String   @db.VarChar(50) // section | code | list | paragraph
   content      String   @db.Text
-  hash         String   @db.VarChar(64)  // 内容 hash (SHA256)
+  hash         String   @db.VarChar(64) // 内容 hash (SHA256)
   embedding_id String?  @db.VarChar(191) // 向量库中的 ID（191 字符，兼容 MySQL 5.7）
   created_at   DateTime @default(now())
 
-  post         TbPost   @relation(fields: [post_id], references: [id])
+  post TbPost @relation(fields: [post_id], references: [id])
 
   @@index([post_id])
   @@index([post_id, version])
   @@map("tb_post_chunk")
+}
+
+// 长期Token表
+model LongTermToken {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  token       String    @unique @db.VarChar(191) // Token字符串，LTK_开头，191字符兼容MySQL索引限制
+  userId      Int // 关联用户ID
+  expiresAt   DateTime? // 过期时间，null表示永久
+  description String    @db.VarChar(255) // Token用途描述
+  createdAt   DateTime  @default(now())
+  lastUsed    DateTime? // 最后使用时间
+
+  user TbUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([token])
+  @@map("long_term_token")
 }

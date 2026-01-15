@@ -17,6 +17,7 @@ function createMockRedisClient(): Redis {
   console.log('🚧 构建环境，使用 Mock Redis Client');
   return {
     set: async () => 'OK',
+    setex: async () => 'OK',
     get: async () => null,
     del: async () => 1,
     exists: async () => 0,
@@ -137,6 +138,16 @@ export class RedisService {
       return 0;
     }
     return this.client.exists(key);
+  }
+
+  /**
+   * 设置键值并指定过期时间（秒）
+   */
+  async setex(key: string, seconds: number, value: string): Promise<string | null> {
+    if (process.env.IS_BUILD === 'true') {
+      return 'OK';
+    }
+    return this.client.setex(key, seconds, value);
   }
 
   /**
