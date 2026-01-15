@@ -80,17 +80,11 @@ jobs:
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
             COMMIT_SHA=${{ steps.version.outputs.SHORT_SHA }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
-            WX_APP_ID=${{ secrets.WX_APP_ID }}
-            WX_APP_SECRET=${{ secrets.WX_APP_SECRET }}
             REDIS_HOST=${{ secrets.REDIS_HOST }}
             REDIS_PORT=${{ secrets.REDIS_PORT }}
             REDIS_DB=${{ secrets.REDIS_DB }}
-            ANTHROPIC_AUTH_TOKEN=${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-            ANTHROPIC_BASE_URL=${{ secrets.ANTHROPIC_BASE_URL }}
-            ANTHROPIC_MODEL_NAME=${{ secrets.ANTHROPIC_MODEL_NAME }}
-            OPENAI_AUTH_TOKEN=${{ secrets.OPENAI_AUTH_TOKEN }}
-            OPENAI_BASE_URL_PROXY=${{ secrets.OPENAI_BASE_URL_PROXY }}
-            OPENAI_MODEL_NAME=${{ secrets.OPENAI_MODEL_NAME }}
+            WX_APP_ID=${{ secrets.WX_APP_ID }}
+            WX_APP_SECRET=${{ secrets.WX_APP_SECRET }}
 
       - name: 生成构建摘要
         run: |
