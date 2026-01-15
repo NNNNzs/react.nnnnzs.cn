@@ -4,7 +4,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   Button,
@@ -50,7 +50,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
   const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
 
   // 加载token列表
-  const loadTokens = async () => {
+  const loadTokens = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get("/api/user/token/oauth");
@@ -65,12 +65,12 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // 组件挂载时加载token列表
   useEffect(() => {
     loadTokens();
-  }, []);
+  }, [loadTokens]);
 
   // 切换Token显示/隐藏
   const toggleTokenVisibility = (token: string) => {
@@ -101,7 +101,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
   };
 
   // 删除Token
-  const handleDelete = async (token: string) => {
+  const handleDelete = useCallback(async (token: string) => {
     Modal.confirm({
       title: "确认删除",
       content: "确定要删除这个OAuth Token吗？删除后对应的应用将无法继续使用此Token访问您的账户。",
@@ -125,7 +125,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
         }
       },
     });
-  };
+  }, [loadTokens]);
 
   // 获取过期时间显示
   const getExpiryText = (expires_at: number | null, is_permanent: boolean) => {

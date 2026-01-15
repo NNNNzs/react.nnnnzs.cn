@@ -2,18 +2,30 @@
  * 认证上下文
  */
 
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
-import type { User } from '@/types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from "react";
+import axios from "axios";
+import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (account: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (account: string, password: string, nickname: string) => Promise<void>;
+  register: (
+    account: string,
+    password: string,
+    nickname: string
+  ) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -29,9 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 获取用户信息
    */
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
-      const response = await axios.get('/api/user/info');
+      const response = await axios.get("/api/user/info");
       if (response.data.status) {
         setUser(response.data.data);
       }
@@ -40,59 +52,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   /**
    * 登录
    */
-  const login = async (account: string, password: string) => {
-    const response = await axios.post('/api/user/login', { account, password });
+  const login = useCallback(async (account: string, password: string) => {
+    const response = await axios.post("/api/user/login", { account, password });
     if (response.data.status) {
       setUser(response.data.data.userInfo);
     } else {
       throw new Error(response.data.message);
     }
-  };
+  }, []);
 
   /**
    * 退出登录
    */
-  const logout = async () => {
-    await axios.post('/api/user/logout');
+  const logout = useCallback(async () => {
+    await axios.post("/api/user/logout");
     setUser(null);
-  };
+  }, []);
 
   /**
    * 注册
    */
-  const register = async (account: string, password: string, nickname: string) => {
-    const response = await axios.post('/api/user/register', {
-      account,
-      password,
-      nickname,
-    });
-    if (response.data.status) {
-      setUser(response.data.data.userInfo);
-    } else {
-      throw new Error(response.data.message);
-    }
-  };
+  const register = useCallback(
+    async (account: string, password: string, nickname: string) => {
+      const response = await axios.post("/api/user/register", {
+        account,
+        password,
+        nickname,
+      });
+      if (response.data.status) {
+        setUser(response.data.data.userInfo);
+      } else {
+        throw new Error(response.data.message);
+      }
+    },
+    []
+  );
 
   /**
    * 初始化时获取用户信息
    */
   useEffect(() => {
     refreshUser();
-  }, []);
+  }, [refreshUser]);
 
-  const value = {
-    user,
-    loading,
-    login,
-    logout,
-    register,
-    refreshUser,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+      register,
+      refreshUser,
+    }),
+    [user, loading, login, logout, register, refreshUser]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -103,8 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth必须在AuthProvider内部使用');
+    throw new Error("useAuth必须在AuthProvider内部使用");
   }
   return context;
 }
-

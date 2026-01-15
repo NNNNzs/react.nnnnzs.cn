@@ -114,12 +114,8 @@ export class ReactAgent {
         iteration++;
         
         if (this.verbose) {
-          console.log(`\n🔄 ReAct 迭代 ${iteration}/${this.maxIterations}`);
-          console.log(`📋 当前消息历史长度: ${messages.length}`);
           if (messages.length > 0) {
             const lastMsg = messages[messages.length - 1];
-            console.log(`📋 最后一条消息类型: ${lastMsg.constructor.name}`);
-            console.log(`📋 最后一条消息内容长度: ${lastMsg.content.length}`);
           }
         }
 
@@ -142,12 +138,10 @@ export class ReactAgent {
               data: content,
             });
           } else if (this.verbose && chunkCount <= 5) {
-            console.log(`⚠️ 第 ${chunkCount} 个 chunk 没有提取到内容:`, chunk);
           }
         }
 
         if (this.verbose) {
-          console.log(`💭 收到 ${chunkCount} 个 chunks`);
           console.log(`💭 模型响应长度: ${responseText.length}`);
           console.log(`💭 模型响应内容: ${responseText.substring(0, 300)}...`);
         }
@@ -204,7 +198,6 @@ export class ReactAgent {
           
           if (this.verbose) {
             console.log(`📤 已添加工具结果到消息历史，准备下一轮迭代`);
-            console.log(`📤 当前消息历史长度: ${messages.length}`);
           }
           
           // 继续下一轮迭代

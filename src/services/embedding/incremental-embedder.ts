@@ -214,9 +214,8 @@ export async function incrementalEmbedPost(
 
   try {
     // 1. 解析 Markdown 为 Chunks
-    console.log(`📝 开始解析文章 ${postId} 版本 ${version} 为 Chunks...`);
     const currentChunks = parseMarkdownToChunks(postId, content);
-    
+
     if (currentChunks.length === 0) {
       console.warn(`⚠️ 文章 ${postId} 版本 ${version} 解析后为空，跳过向量化`);
       return {
@@ -227,12 +226,8 @@ export async function incrementalEmbedPost(
       };
     }
 
-    console.log(`✅ 文章 ${postId} 版本 ${version} 解析完成，共 ${currentChunks.length} 个 Chunks`);
-
     // 2. 加载上一版本的 Chunks
-    console.log(`📥 加载文章 ${postId} 上一版本的 Chunks...`);
     const previousChunksMap = await loadPreviousChunks(postId, version);
-    console.log(`✅ 加载完成，上一版本有 ${previousChunksMap.size} 个 Chunks`);
 
     // 3. 对比 Hash，识别变更
     const changedChunks: ChunkData[] = [];
@@ -241,7 +236,7 @@ export async function incrementalEmbedPost(
 
     for (const currentChunk of currentChunks) {
       const previousChunk = previousChunksMap.get(currentChunk.id);
-      
+
       if (!previousChunk) {
         // 新 Chunk
         changedChunks.push(currentChunk);
@@ -262,22 +257,16 @@ export async function incrementalEmbedPost(
       }
     }
 
-    console.log(
-      `📊 变更统计：新增/修改 ${changedChunks.length} 个，复用 ${unchangedChunkIds.length} 个，删除 ${deletedChunkIds.length} 个`
-    );
-
     // 4. 仅对变更的 Chunks 调用 embedding 模型
     let embeddings: number[][] = [];
     if (changedChunks.length > 0) {
-      console.log(`🔢 开始生成 ${changedChunks.length} 个变更 Chunks 的向量嵌入...`);
       const texts = changedChunks.map((c) => c.normalizedContent);
       embeddings = await embedTexts(texts);
-      console.log(`✅ 向量嵌入生成完成`);
     }
 
     // 5. 保存 Chunks 到数据库
     const prisma = await getPrisma();
-    
+
     // 删除已移除的 Chunks（同时从数据库和向量库删除）
     if (deletedChunkIds.length > 0) {
       // 获取要删除的 Chunks 的 embedding_id
@@ -295,11 +284,10 @@ export async function incrementalEmbedPost(
       const embeddingIdsToDelete = deletedChunks
         .map((c) => c.embedding_id)
         .filter((id): id is string => id !== null);
-      
+
       if (embeddingIdsToDelete.length > 0) {
         try {
           await deleteVectorsByChunkIds(embeddingIdsToDelete);
-          console.log(`🗑️ 从向量库删除 ${embeddingIdsToDelete.length} 个向量`);
         } catch (error) {
           console.error(`❌ 从向量库删除向量失败:`, error);
           // 向量删除失败不影响后续流程
@@ -313,7 +301,6 @@ export async function incrementalEmbedPost(
           id: { in: deletedChunkIds },
         },
       });
-      console.log(`🗑️ 从数据库删除 ${deletedChunkIds.length} 个 Chunks`);
     }
 
     // 准备chunk数据，包括从上一版本复用的embedding_id
@@ -323,7 +310,7 @@ export async function incrementalEmbedPost(
       const embeddingId = unchangedChunkIds.includes(chunk.id) && previousChunk
         ? previousChunk.embeddingId || null
         : null; // 新chunk或变更chunk的embedding_id将在向量存储后更新
-      
+
       return {
         id: chunk.id,
         post_id: postId,
@@ -340,7 +327,6 @@ export async function incrementalEmbedPost(
       data: chunkDataToInsert,
       skipDuplicates: true,
     });
-    console.log(`💾 保存 ${currentChunks.length} 个 Chunks 到数据库`);
 
     // 6. 准备向量数据（仅包含变更的 Chunks）
     const now = Date.now();
@@ -358,15 +344,12 @@ export async function incrementalEmbedPost(
     // 7. 向量库 upsert（仅更新变更的 Chunks）
     let insertedCount = 0;
     if (vectorItems.length > 0) {
-      console.log(`💾 插入 ${vectorItems.length} 个变更 Chunks 的向量数据到 Qdrant...`);
       insertedCount = await insertVectors(vectorItems);
-      console.log(`✅ 向量数据插入完成`);
     }
 
     // 8. 更新变更 chunks 的 embedding_id
     // 使用稳定的 Chunk ID 作为 embedding_id
     if (changedChunks.length > 0) {
-      console.log(`🔄 更新 ${changedChunks.length} 个变更 Chunks 的 embedding_id...`);
       for (const chunk of changedChunks) {
         // 使用 chunk.id 作为 embedding_id，保持一致性
         await prisma.tbPostChunk.updateMany({
@@ -380,12 +363,7 @@ export async function incrementalEmbedPost(
           },
         });
       }
-      console.log(`✅ embedding_id 更新完成`);
     }
-
-    console.log(
-      `✅ 文章 ${postId} 版本 ${version} 增量向量化完成：插入 ${insertedCount} 个向量，复用 ${unchangedChunkIds.length} 个`
-    );
 
     return {
       insertedCount,

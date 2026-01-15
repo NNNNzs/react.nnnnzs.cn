@@ -384,12 +384,6 @@ async function handleAuthorizationCodeGrant(
       JSON.stringify(tokenData)
     );
 
-    console.log('✅ [OAuth] 授权码换取 Token 成功:', {
-      client_id,
-      user_id: authCodeData.user_id,
-      duration: duration === 0 ? '永久' : `${duration}天`,
-      token: access_token.substring(0, 20) + '...'
-    });
 
     // 返回 OAuth 2.0 标准响应
     const response: OAuthTokens = {

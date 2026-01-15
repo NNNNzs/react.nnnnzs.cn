@@ -4,7 +4,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Card,
   Button,
@@ -54,8 +54,20 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
   const [copied, setCopied] = useState(false);
   const [tokens, setTokens] = useState<TokenRecord[]>([]);
 
+  // 加载token列表
+  const loadTokens = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/user/token/long-term");
+      if (response.data.status) {
+        setTokens(response.data.data);
+      }
+    } catch (error) {
+      console.error("加载Token列表失败:", error);
+    }
+  }, []);
+
   // 生成Token
-  const handleGenerateToken = async () => {
+  const handleGenerateToken = useCallback(async () => {
     if (duration === null || duration === undefined) {
       message.error("请选择有效期");
       return;
@@ -82,19 +94,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // 加载token列表
-  const loadTokens = async () => {
-    try {
-      const response = await axios.get("/api/user/token/long-term");
-      if (response.data.status) {
-        setTokens(response.data.data);
-      }
-    } catch (error) {
-      console.error("加载Token列表失败:", error);
-    }
-  };
+  }, [duration, description, loadTokens]);
 
   // 复制Token
   const handleCopy = () => {
@@ -137,7 +137,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
   };
 
   // 删除Token
-  const handleDelete = async (tokenId: string) => {
+  const handleDelete = useCallback(async (tokenId: string) => {
     Modal.confirm({
       title: "确认删除",
       content: "确定要删除这个Token吗？删除后将无法恢复。",
@@ -161,7 +161,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
         }
       },
     });
-  };
+  }, [loadTokens]);
 
   // 获取有效期标签
   const getDurationLabel = (days: number) => {
@@ -207,7 +207,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
   // 组件挂载时加载token列表
   React.useEffect(() => {
     loadTokens();
-  }, []);
+  }, [loadTokens]);
 
   return (
     <Card

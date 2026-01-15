@@ -3,9 +3,10 @@
  * 使用 Playwright 进行 Lighthouse 性能分析
  */
 
-const { chromium } = require('playwright');
-const fs = require('fs');
-const path = require('path');
+import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 性能测试配置
 const TEST_CONFIG = {
@@ -59,11 +60,11 @@ class PerformanceCollector {
 
     // 收集网络信息
     const client = await page.context().newCDPSession(page);
-    const performanceMetrics = await client.send('Performance.getMetrics');
+    const browserMetrics = await client.send('Performance.getMetrics');
 
     return {
       ...performanceMetrics,
-      browser: performanceMetrics
+      browser: browserMetrics
     };
   }
 
@@ -285,6 +286,9 @@ async function main() {
       analysis
     };
 
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
     fs.writeFileSync(
       path.join(__dirname, 'performance-report.json'),
       JSON.stringify(report, null, 2)
@@ -299,8 +303,8 @@ async function main() {
 }
 
 // 检查是否安装了 playwright
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-module.exports = { runPerformanceTest, analyzeResults };
+export { runPerformanceTest, analyzeResults };

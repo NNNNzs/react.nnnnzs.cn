@@ -45,17 +45,10 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
   // 验证集合是否存在并检查配置
   try {
     const collectionInfo = await client.getCollection(COLLECTION_NAME);
-    console.log('📊 集合信息:', JSON.stringify(collectionInfo, null, 2));
     
     const collectionDimension = collectionInfo.config.params.vectors?.size;
     const vectorConfig = collectionInfo.config.params.vectors;
     
-    console.log('📐 集合向量配置:', {
-      dimension: collectionDimension,
-      distance: vectorConfig?.distance,
-      configType: typeof vectorConfig,
-      fullConfig: vectorConfig,
-    });
     
     if (collectionDimension !== DIMENSION) {
       throw new Error(
@@ -121,17 +114,10 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
       };
     });
 
-    console.log(`📤 准备插入 ${points.length} 条向量数据，向量维度: ${expectedDimension}`);
     
     // 调试：输出第一条数据的示例
     if (points.length > 0) {
       const firstPoint = points[0];
-      console.log('📋 第一条数据示例:', {
-        id: firstPoint.id,
-        idType: typeof firstPoint.id,
-        vectorLength: firstPoint.vector.length,
-        payload: firstPoint.payload,
-      });
     }
 
     // 批量插入数据（Qdrant 支持批量操作）
@@ -141,20 +127,10 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
 
     for (let i = 0; i < points.length; i += BATCH_SIZE) {
       const batch = points.slice(i, i + BATCH_SIZE);
-      console.log(`📦 插入第 ${Math.floor(i / BATCH_SIZE) + 1} 批，共 ${batch.length} 条数据...`);
       
       // 调试：输出要发送的数据格式（仅第一条）
       if (i === 0 && batch.length > 0) {
         const samplePoint = batch[0];
-        console.log('📤 发送的数据示例:', {
-          id: samplePoint.id,
-          idType: typeof samplePoint.id,
-          idValue: samplePoint.id,
-          vectorLength: samplePoint.vector?.length,
-          vectorType: Array.isArray(samplePoint.vector) ? 'array' : typeof samplePoint.vector,
-          payload: samplePoint.payload,
-          payloadKeys: Object.keys(samplePoint.payload || {}),
-        });
       }
       
       try {
@@ -174,19 +150,12 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
       }
     }
 
-    console.log(`✅ 成功插入 ${insertedCount} 条向量数据到 Qdrant`);
 
     return insertedCount;
   } catch (error) {
     // 输出详细的错误信息
-    console.error('❌ 插入向量数据失败');
     
     if (error instanceof Error) {
-      console.error('错误消息:', error.message);
-      console.error('错误名称:', error.name);
-      if (error.stack) {
-        console.error('错误堆栈:', error.stack);
-      }
     }
 
     // 尝试提取 Qdrant 返回的详细错误信息
@@ -198,36 +167,18 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
         // 检查是否有 response 属性（Axios 错误格式）
         if ('response' in errorObj) {
           const response = errorObj.response as Record<string, unknown>;
-          console.error('📡 HTTP 响应状态:', response.status);
-          console.error('📡 HTTP 响应状态文本:', response.statusText);
           
           if (response.data) {
-            console.error('📡 Qdrant 错误响应数据:');
-            if (typeof response.data === 'string') {
-              console.error(response.data);
-            } else {
-              console.error(JSON.stringify(response.data, null, 2));
-            }
           }
         }
         
         // 检查是否有 data 属性（直接错误格式）
         if ('data' in errorObj && errorObj.data) {
-          console.error('📡 错误数据:');
-          if (typeof errorObj.data === 'string') {
-            console.error(errorObj.data);
-          } else {
-            console.error(JSON.stringify(errorObj.data, null, 2));
-          }
         }
         
         // 输出所有可枚举属性
-        console.error('🔍 错误对象的所有属性:', Object.keys(errorObj));
-        console.error('🔍 错误对象完整内容:', JSON.stringify(errorObj, null, 2));
       }
     } catch (logError) {
-      console.error('⚠️ 无法解析错误信息:', logError);
-      console.error('原始错误:', error);
     }
 
     throw error;
@@ -297,7 +248,6 @@ export async function deleteVectorsByPostId(postId: number): Promise<number> {
       },
     });
 
-    console.log(`✅ 成功删除文章 ${postId} 的向量数据`);
 
     // Qdrant 的 delete 操作不返回删除数量，返回 1 表示操作成功
     return 1;
@@ -388,7 +338,6 @@ export async function searchSimilarVectors(
       if (attempt > 0) {
         // 指数退避：第 1 次重试等待 1 秒，第 2 次等待 2 秒
         const delay = attempt * 1000;
-        console.log(`🔄 向量搜索重试第 ${attempt} 次，等待 ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
@@ -409,9 +358,6 @@ export async function searchSimilarVectors(
         score: hit.score || 0,
       }));
 
-      if (attempt > 0) {
-        console.log(`✅ 向量搜索重试成功（第 ${attempt} 次重试）`);
-      }
 
       return results;
     } catch (error) {
@@ -429,18 +375,15 @@ export async function searchSimilarVectors(
 
       // 如果是网络错误且还有重试机会，继续重试
       if (isNetworkError && attempt < maxRetries) {
-        console.warn(`⚠️ 向量搜索网络错误（尝试 ${attempt + 1}/${maxRetries + 1}）:`, error instanceof Error ? error.message : String(error));
         continue;
       }
 
       // 如果不是网络错误，或者已经重试完，直接抛出错误
-      console.error('❌ 向量搜索失败:', error);
       throw error;
     }
   }
 
   // 所有重试都失败，抛出最后一次的错误
-  console.error('❌ 向量搜索失败，已重试', maxRetries, '次');
   throw lastError || new Error('向量搜索失败：未知错误');
 }
 
@@ -482,7 +425,6 @@ export async function deleteVectorsByChunkIds(chunkIds: string[]): Promise<numbe
         points: numericIds,
       });
       deletedCount += numericIds.length;
-      console.log(`✅ 成功删除 ${numericIds.length} 个数字 ID 的向量`);
     }
 
     // 删除字符串 ID 的向量（新格式，通过 chunk_id payload 过滤）
@@ -499,12 +441,10 @@ export async function deleteVectorsByChunkIds(chunkIds: string[]): Promise<numbe
         },
       });
       deletedCount += stringIds.length;
-      console.log(`✅ 成功删除 ${stringIds.length} 个字符串 ID 的向量`);
     }
 
     return deletedCount;
   } catch (error) {
-    console.error('❌ 删除向量数据失败:', error);
     throw error;
   }
 }

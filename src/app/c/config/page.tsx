@@ -238,7 +238,7 @@ function ConfigPageContent() {
         setLoading(false);
       }
     },
-    [urlState]
+    [urlState.current, urlState.pageSize, urlState.searchText, urlState.statusFilter]
   );
 
   /**
@@ -350,13 +350,11 @@ function ConfigPageContent() {
     if (user && isAdmin(user.role)) {
       loadConfigs(urlState.current, urlState.pageSize);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     user,
+    loadConfigs,
     urlState.current,
     urlState.pageSize,
-    urlState.statusFilter,
-    urlState.searchText,
   ]);
 
   /**

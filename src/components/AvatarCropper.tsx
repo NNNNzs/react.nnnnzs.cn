@@ -54,13 +54,16 @@ export default function AvatarCropper({
 
     if (typeof imageSrc === "string") {
       setImageUrl(imageSrc);
-    } else {
-      const url = URL.createObjectURL(imageSrc);
-      setImageUrl(url);
-      return () => {
-        URL.revokeObjectURL(url);
-      };
+      return;
     }
+
+    // 对于 File 对象创建 URL，并在清理时释放
+    const url = URL.createObjectURL(imageSrc);
+    setImageUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
   }, [imageSrc]);
 
   /**

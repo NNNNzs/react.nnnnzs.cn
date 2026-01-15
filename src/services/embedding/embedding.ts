@@ -26,8 +26,6 @@ function getEmbeddingModel(): OpenAIEmbeddings {
     console.warn('⚠️ API key 格式可能不正确，SiliconFlow API key 通常以 "sk-" 开头');
   }
 
-  console.log(`🔑 使用嵌入模型: ${model}, BaseURL: ${baseURL}, API Key: ${apiKey.substring(0, 10)}...`);
-
   return new OpenAIEmbeddings({
     apiKey: apiKey,
     openAIApiKey: apiKey, // 同时设置两个参数以确保兼容性
@@ -92,9 +90,6 @@ export async function embedTexts(
 
   for (let i = 0; i < validTexts.length; i += batchSize) {
     const batch = validTexts.slice(i, i + batchSize);
-    console.log(
-      `📦 批量嵌入第 ${Math.floor(i / batchSize) + 1} 批，共 ${batch.length} 个文本（总计 ${validTexts.length} 个）`
-    );
 
     try {
       const vectors = await embeddings.embedDocuments(batch);

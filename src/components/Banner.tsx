@@ -25,24 +25,26 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
   /**
    * 滚动到文章列表
    */
-  const scrollIntoPost = () => {
+  const scrollIntoPost = React.useCallback(() => {
     if (anchorRef?.current) {
       anchorRef.current.scrollIntoView({
         behavior: "smooth",
       });
     }
-  };
+  }, [anchorRef]);
 
   /**
    * 自动滚动
    */
   useEffect(() => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (window.scrollY === 0) {
         scrollIntoPost();
       }
     }, 1000);
-  });
+
+    return () => clearTimeout(timer);
+  }, [scrollIntoPost]);
 
   return (
     <div className="relative snap-start">

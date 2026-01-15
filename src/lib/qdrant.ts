@@ -126,22 +126,18 @@ export function getQdrantClient(): QdrantClient {
     if (QDRANT_CONFIG.https !== undefined) {
       clientConfig.https = QDRANT_CONFIG.https;
     }
-    console.log(`🔗 初始化 Qdrant 客户端，Host: ${clientConfig.host}, Port: ${clientConfig.port}, HTTPS: ${clientConfig.https || false}`);
   } else if (QDRANT_CONFIG.url) {
     // 如果解析失败，回退到使用 url 参数
     clientConfig.url = QDRANT_CONFIG.url;
-    console.log(`🔗 初始化 Qdrant 客户端，URL: ${clientConfig.url}`);
   } else {
     // 兜底：使用默认配置
     clientConfig.url = QDRANT_URL;
-    console.log(`🔗 初始化 Qdrant 客户端（使用默认配置），URL: ${clientConfig.url}`);
   }
 
   // 如果配置了 API key，则添加认证
   if (QDRANT_CONFIG.apiKey) {
     clientConfig.apiKey = QDRANT_CONFIG.apiKey;
   }
-  console.log("🟢 clientConfig", clientConfig);
 
   const client = new QdrantClient(clientConfig);
 
@@ -173,7 +169,6 @@ export async function initQdrantCollection(): Promise<void> {
 
   if (!collectionExists) {
     // 创建集合
-    console.log(`📦 创建 Qdrant 集合: ${COLLECTION_NAME}`);
 
     await client.createCollection(COLLECTION_NAME, {
       vectors: {
@@ -192,7 +187,6 @@ export async function initQdrantCollection(): Promise<void> {
         field_name: QDRANT_COLLECTION_CONFIG.POST_ID_FIELD,
         field_schema: 'integer',
       });
-      console.log(`🔍 创建 payload 索引: ${QDRANT_COLLECTION_CONFIG.POST_ID_FIELD}`);
     } catch (indexError) {
       // 索引可能已存在，忽略错误
       console.warn('⚠️ 创建 payload 索引失败（可能已存在）:', indexError);
@@ -204,15 +198,12 @@ export async function initQdrantCollection(): Promise<void> {
         field_name: QDRANT_COLLECTION_CONFIG.HIDE_FIELD,
         field_schema: 'keyword',
       });
-      console.log(`🔍 创建 payload 索引: ${QDRANT_COLLECTION_CONFIG.HIDE_FIELD}`);
     } catch (indexError) {
       // 索引可能已存在，忽略错误
       console.warn('⚠️ 创建 payload 索引失败（可能已存在）:', indexError);
     }
 
-    console.log(`✅ Qdrant 集合初始化完成: ${COLLECTION_NAME}`);
   } else {
-    console.log(`✅ Qdrant 集合已存在: ${COLLECTION_NAME}`);
 
     // 验证集合配置
     const collectionInfo = await client.getCollection(COLLECTION_NAME);
@@ -249,6 +240,5 @@ export async function disconnectQdrant(): Promise<void> {
   if (global.qdrant) {
     // Qdrant REST 客户端不需要显式关闭连接
     global.qdrant = undefined;
-    console.log('✅ Qdrant 连接已关闭');
   }
 }

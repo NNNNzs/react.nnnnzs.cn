@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import Banner from '@/components/Banner';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
@@ -42,7 +42,6 @@ export default function HomePageClient({
       scrollTimeout = setTimeout(() => {
         if (window.location.pathname === '/') {
           sessionStorage.setItem(SCROLL_CACHE_KEY, String(window.scrollY));
-          console.log('保存滚动位置:', window.scrollY);
         }
       }, 100);
     };
@@ -76,31 +75,30 @@ export default function HomePageClient({
   /**
    * 恢复滚动位置 - 只执行一次
    */
+  const restoreScroll = useCallback(() => {
+    // 检查是否在首页
+    if (window.location.pathname !== '/') return;
+
+    const savedScroll = sessionStorage.getItem(SCROLL_CACHE_KEY);
+    if (savedScroll) {
+      const scrollY = parseInt(savedScroll, 10);
+
+      // 使用 requestAnimationFrame 确保在浏览器绘制后执行
+      requestAnimationFrame(() => {
+        // 额外延迟确保所有内容都已渲染
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          scrollRestoreRef.current = true;
+        }, 50);
+      });
+    } else {
+      scrollRestoreRef.current = true;
+    }
+  }, []);
+
   useEffect(() => {
     // 如果已经恢复过，不再执行
     if (scrollRestoreRef.current) return;
-
-    const restoreScroll = () => {
-      // 检查是否在首页
-      if (window.location.pathname !== '/') return;
-
-      const savedScroll = sessionStorage.getItem(SCROLL_CACHE_KEY);
-      if (savedScroll) {
-        const scrollY = parseInt(savedScroll, 10);
-        
-        // 使用 requestAnimationFrame 确保在浏览器绘制后执行
-        requestAnimationFrame(() => {
-          // 额外延迟确保所有内容都已渲染
-          setTimeout(() => {
-            window.scrollTo(0, scrollY);
-            console.log('已恢复滚动位置:', scrollY);
-            scrollRestoreRef.current = true;
-          }, 50);
-        });
-      } else {
-        scrollRestoreRef.current = true;
-      }
-    };
 
     // 多种时机尝试恢复
     // 1. 立即尝试（可能内容已准备好）
@@ -108,7 +106,7 @@ export default function HomePageClient({
 
     // 2. 延迟恢复（确保内容渲染完成）
     const timer1 = setTimeout(restoreScroll, 100);
-    
+
     // 3. 图片加载完成后恢复
     const handleLoad = () => {
       setTimeout(restoreScroll, 50);
@@ -145,7 +143,7 @@ export default function HomePageClient({
       clearTimeout(timer1);
       window.removeEventListener('load', handleLoad);
     };
-  }, [posts]); // 依赖 posts，当文章列表变化时也尝试恢复
+  }, [restoreScroll]);
 
   return (
     <div className="snap-y snap-mandatory">

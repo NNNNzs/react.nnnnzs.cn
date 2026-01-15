@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Form, Input, Button, Card, Space, Typography, Alert, Spin, Select } from 'antd';
 import { LockOutlined, UserOutlined, SafetyOutlined, ClockCircleOutlined } from '@ant-design/icons';
@@ -31,25 +31,25 @@ function AuthorizePageContent() {
   const codeChallengeMethod = searchParams.get('code_challenge_method');
   const scope = searchParams.get('scope') || 'read';
 
-  useEffect(() => {
-    checkLoginStatus();
-  }, []);
-
   /**
    * 检查用户登录状态
    */
-  const checkLoginStatus = async () => {
+  const checkLoginStatus = useCallback(async () => {
     try {
       const response = await axios.get('/api/user/info');
       if (response.data.status) {
         setIsLoggedIn(true);
       }
-    } catch (err) {
+    } catch {
       setIsLoggedIn(false);
     } finally {
       setChecking(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkLoginStatus();
+  }, [checkLoginStatus]);
 
   /**
    * 处理用户登录

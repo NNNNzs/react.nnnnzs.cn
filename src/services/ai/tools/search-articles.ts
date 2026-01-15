@@ -59,11 +59,9 @@ export const searchArticlesTool: Tool = {
         };
       }
 
-      console.log(`🔍 开始搜索文章: "${query}", limit: ${limit}`);
 
       // 1. 将查询文本转换为向量
       const queryVector = await embedText(query);
-      console.log(`✅ 查询向量化完成，维度: ${queryVector.length}`);
 
       // 2. 搜索相似向量（带重试机制）
       let searchResults: Array<{
@@ -76,7 +74,6 @@ export const searchArticlesTool: Tool = {
       
       try {
         searchResults = await searchSimilarVectors(queryVector, limit, undefined, 2);
-        console.log(`✅ 找到 ${searchResults.length} 个相关片段`);
       } catch (searchError) {
         // 向量搜索失败时的降级处理
         const errorMessage = searchError instanceof Error ? searchError.message : String(searchError);
