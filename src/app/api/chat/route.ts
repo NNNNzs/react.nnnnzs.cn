@@ -99,8 +99,9 @@ ${toolsDescription}
 - 工具调用完成后会收到结果，基于结果继续推理
 - 如果问题可以直接回答，不需要调用工具`;
 
-    // 创建模型
-    const model = createOpenAIModel({
+    // 创建模型（从数据库读取 chat.* 配置）
+    const model = await createOpenAIModel({
+      scenario: 'chat',
       temperature: 0.7,
       maxTokens: 2000,
     });

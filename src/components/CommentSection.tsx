@@ -23,7 +23,6 @@ dayjs.locale('zh-cn');
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
-const { Panel } = Collapse;
 
 interface Comment {
   id: number;
@@ -250,11 +249,14 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           defaultActiveKey={[]}
           bordered={false}
           className="mb-6"
-        >
-          <Panel header="写评论" key="comment-editor">
-            {renderCommentInput()}
-          </Panel>
-        </Collapse>
+          items={[
+            {
+              key: 'comment-editor',
+              label: '写评论',
+              children: renderCommentInput(),
+            },
+          ]}
+        />
         
         {loading ? (
           <div className="py-12 text-center">

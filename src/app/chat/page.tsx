@@ -13,7 +13,6 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { flushSync } from "react-dom";
 import { 
   UserOutlined, 
   RobotOutlined, 
@@ -27,7 +26,6 @@ import { Typography, Button, message as antdMessage, Collapse } from "antd";
 import { parseSSEStream } from "@/lib/sse";
 
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
 
 /**
  * 工具调用信息
@@ -103,56 +101,71 @@ const MessageContent: React.FC<MessageContentProps> = ({
       {/* ReAct 步骤 */}
       {reactSteps.length > 0 && (
         <Collapse
-          defaultActiveKey={isLoading ? ['steps'] : []}
+          defaultActiveKey={isLoading ? ["steps"] : []}
           className="react-steps-collapse"
           size="small"
-        >
-          <Panel 
-            header={<Text type="secondary">🔍 思考过程 ({reactSteps.length} 步)</Text>} 
-            key="steps"
-          >
-            <div className="space-y-3">
-              {reactSteps.map((step, index) => (
-                <div key={index} className="react-step">
-                  {step.type === 'thought' && (
-                    <div className="bg-blue-50 p-3 rounded">
-                      <Text type="secondary" className="text-xs block mb-1">
-                        💭 思考
-                      </Text>
-                      <XMarkdown>{step.content}</XMarkdown>
+          items={[
+            {
+              key: "steps",
+              label: (
+                <Text type="secondary">
+                  🔍 思考过程 ({reactSteps.length} 步)
+                </Text>
+              ),
+              children: (
+                <div className="space-y-3">
+                  {reactSteps.map((step, index) => (
+                    <div key={index} className="react-step">
+                      {step.type === "thought" && (
+                        <div className="bg-blue-50 p-3 rounded">
+                          <Text
+                            type="secondary"
+                            className="text-xs block mb-1"
+                          >
+                            💭 思考
+                          </Text>
+                          <XMarkdown>{step.content}</XMarkdown>
+                        </div>
+                      )}
+                      {step.type === "action" && step.toolCall && (
+                        <div className="bg-green-50 p-3 rounded">
+                          <Text
+                            type="secondary"
+                            className="text-xs block mb-1"
+                          >
+                            <ToolOutlined /> 工具调用
+                          </Text>
+                          <div className="text-sm">
+                            <strong>方法：</strong> {step.toolCall.method}
+                          </div>
+                          <div className="text-sm mt-1">
+                            <strong>参数：</strong>
+                            <pre className="mt-1 text-xs bg-white p-2 rounded overflow-x-auto">
+                              {JSON.stringify(step.toolCall.params, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                      {step.type === "observation" && step.toolResult && (
+                        <div className="bg-yellow-50 p-3 rounded">
+                          <Text
+                            type="secondary"
+                            className="text-xs block mb-1"
+                          >
+                            <EyeOutlined /> 观察结果
+                          </Text>
+                          <pre className="text-xs bg-white p-2 rounded overflow-x-auto max-h-40">
+                            {JSON.stringify(step.toolResult, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {step.type === 'action' && step.toolCall && (
-                    <div className="bg-green-50 p-3 rounded">
-                      <Text type="secondary" className="text-xs block mb-1">
-                        <ToolOutlined /> 工具调用
-                      </Text>
-                      <div className="text-sm">
-                        <strong>方法：</strong> {step.toolCall.method}
-                      </div>
-                      <div className="text-sm mt-1">
-                        <strong>参数：</strong>
-                        <pre className="mt-1 text-xs bg-white p-2 rounded overflow-x-auto">
-                          {JSON.stringify(step.toolCall.params, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-                  {step.type === 'observation' && step.toolResult && (
-                    <div className="bg-yellow-50 p-3 rounded">
-                      <Text type="secondary" className="text-xs block mb-1">
-                        <EyeOutlined /> 观察结果
-                      </Text>
-                      <pre className="text-xs bg-white p-2 rounded overflow-x-auto max-h-40">
-                        {JSON.stringify(step.toolResult, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
-        </Collapse>
+              ),
+            },
+          ]}
+        />
       )}
 
       {/* 最终答案 */}
@@ -254,38 +267,41 @@ export default function ChatPage() {
           onThought: (data) => {
             // 累积当前轮的思考内容
             currentThoughtBuffer += data;
-            console.log('💭 onThought 累积长度:', currentThoughtBuffer.length, '新增:', data.length);
-            
-            // 使用 flushSync 立即更新
-            flushSync(() => {
-              setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== aiMessageId) return msg;
+            console.log(
+              "💭 onThought 累积长度:",
+              currentThoughtBuffer.length,
+              "新增:",
+              data.length
+            );
 
-                  // 更新或添加思考步骤
-                  const steps = [...(msg.reactSteps || [])];
-                  const lastStep = steps[steps.length - 1];
-                  
-                  if (lastStep && lastStep.type === 'thought') {
-                    // 更新最后一个思考步骤
-                    lastStep.content = currentThoughtBuffer;
-                  } else {
-                    // 添加新的思考步骤
-                    steps.push({
-                      type: 'thought',
-                      content: currentThoughtBuffer,
-                    });
-                  }
+            // 普通异步更新，避免 flushSync 嵌套导致最大更新深度错误
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== aiMessageId) return msg;
 
-                  return {
-                    ...msg,
-                    reactSteps: steps,
-                    loading: true,
-                    streamStatus: "streaming",
-                  };
-                })
-              );
-            });
+                // 更新或添加思考步骤
+                const steps = [...(msg.reactSteps || [])];
+                const lastStep = steps[steps.length - 1];
+
+                if (lastStep && lastStep.type === "thought") {
+                  // 更新最后一个思考步骤
+                  lastStep.content = currentThoughtBuffer;
+                } else {
+                  // 添加新的思考步骤
+                  steps.push({
+                    type: "thought",
+                    content: currentThoughtBuffer,
+                  });
+                }
+
+                return {
+                  ...msg,
+                  reactSteps: steps,
+                  loading: true,
+                  streamStatus: "streaming",
+                };
+              })
+            );
           },
 
           onAction: (data) => {
@@ -293,25 +309,23 @@ export default function ChatPage() {
             // 下一轮 onThought 会创建新的思考步骤
             
             // 添加工具调用步骤
-            flushSync(() => {
-              setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== aiMessageId) return msg;
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== aiMessageId) return msg;
 
-                  const steps = [...(msg.reactSteps || [])];
-                  steps.push({
-                    type: 'action',
-                    content: '',
-                    toolCall: data as ToolCall,
-                  });
+                const steps = [...(msg.reactSteps || [])];
+                steps.push({
+                  type: "action",
+                  content: "",
+                  toolCall: data as ToolCall,
+                });
 
-                  return {
-                    ...msg,
-                    reactSteps: steps,
-                  };
-                })
-              );
-            });
+                return {
+                  ...msg,
+                  reactSteps: steps,
+                };
+              })
+            );
             
             // 重置当前轮的思考缓冲区，准备下一轮
             currentThoughtBuffer = '';
@@ -319,25 +333,23 @@ export default function ChatPage() {
 
           onObservation: (data) => {
             // 添加观察步骤
-            flushSync(() => {
-              setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== aiMessageId) return msg;
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== aiMessageId) return msg;
 
-                  const steps = [...(msg.reactSteps || [])];
-                  steps.push({
-                    type: 'observation',
-                    content: '',
-                    toolResult: data as ToolResult,
-                  });
+                const steps = [...(msg.reactSteps || [])];
+                steps.push({
+                  type: "observation",
+                  content: "",
+                  toolResult: data as ToolResult,
+                });
 
-                  return {
-                    ...msg,
-                    reactSteps: steps,
-                  };
-                })
-              );
-            });
+                return {
+                  ...msg,
+                  reactSteps: steps,
+                };
+              })
+            );
           },
 
           onAnswer: (data) => {

@@ -1,7 +1,7 @@
 /**
  * OpenAI LangChain 服务抽象层
- * 使用 LangChain.js 规范，仅支持 OpenAI
- * Anthropic 请使用 @/services/ai/anthropic
+ * 使用 LangChain.js 规范，支持从数据库读取配置
+ * 配置场景：chat（对话）、ai_text（文本处理）、description（描述生成）
  */
 
 import { ChatOpenAI } from '@langchain/openai';
@@ -9,6 +9,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import type { Runnable } from '@langchain/core/runnables';
 import { RunnableLambda } from '@langchain/core/runnables';
+import { getAIConfig, type AIConfigScenario } from './ai-config';
 
 // 导出 LangChain 核心类型和工具，方便其他模块使用
 export { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -24,30 +25,41 @@ export interface AIModelConfig {
   temperature?: number;
   /** 最大 token 数 */
   maxTokens?: number;
+  /** 配置场景（用于从数据库读取配置） */
+  scenario?: AIConfigScenario;
 }
 
 /**
- * 默认模型配置
+ * 创建 OpenAI 模型实例（从数据库读取配置）
+ * @param config 模型配置（会与数据库配置合并）
+ * @returns ChatOpenAI 实例
  */
-const DEFAULT_MODEL_CONFIG: AIModelConfig = {
-  model: process.env.SILICONFLOW_FREE_QWEN,
-  temperature: 0.7,
-  maxTokens: 2000,
-};
+export async function createOpenAIModel(
+  config: AIModelConfig = {}
+): Promise<ChatOpenAI> {
+  const scenario = config.scenario || 'chat';
 
-export const createOpenAIModel = (config: AIModelConfig = {}): ChatOpenAI => {
-  const mergedConfig = { ...DEFAULT_MODEL_CONFIG, ...config };
+  // 从数据库读取配置（如果配置缺失会直接抛错）
+  const dbConfig = await getAIConfig(scenario);
+
+  // 合并配置：数据库配置作为基础，传入的 config 可以覆盖
+  const mergedConfig: AIModelConfig = {
+    model: config.model || dbConfig.model,
+    temperature: config.temperature ?? dbConfig.temperature ?? 0.7,
+    maxTokens: config.maxTokens ?? dbConfig.max_tokens ?? 2000,
+  };
+
   return new ChatOpenAI({
-    apiKey: process.env.SILICONFLOW_API_KEY,
+    apiKey: dbConfig.api_key,
     configuration: {
-      baseURL: process.env.SILICONFLOW_BASE_URL,
+      baseURL: dbConfig.base_url,
     },
     streaming: true,
-    model: mergedConfig.model,
+    model: mergedConfig.model!,
     temperature: mergedConfig.temperature,
     maxTokens: mergedConfig.maxTokens,
   });
-};
+}
 
 /**
  * 创建 StringOutputParser 实例
@@ -84,14 +96,18 @@ export const convertLangChainStreamToReadableStream = (
             break;
           }
           
-          if (value) {
+          if (value !== undefined && value !== null) {
             chunkCount++;
-            const encoded = encoder.encode(value);
+            // 兼容非字符串的输出（例如某些模型返回对象/消息块）
+            const text = typeof value === 'string' ? value : JSON.stringify(value);
+            const encoded = encoder.encode(text);
             controller.enqueue(encoded);
             
             // 前几个块输出日志
             if (chunkCount <= 3 || chunkCount % 20 === 0) {
-              console.log(`📤 LangChain 第 ${chunkCount} 个数据块，长度: ${value.length}，内容预览: ${value.substring(0, 50)}...`);
+              console.log(
+                `📤 LangChain 第 ${chunkCount} 个数据块，长度: ${text.length}，内容预览: ${text.substring(0, 50)}...`,
+              );
             }
           } else {
             console.warn(`⚠️ LangChain 第 ${chunkCount + 1} 次读取到空值`);
@@ -200,16 +216,16 @@ const createTextExtractor = () => {
  * 创建 OpenAI AI 处理链
  * 使用 LCEL 规范：prompt.pipe(model).pipe(textExtractor)
  * 注意：不使用 StringOutputParser，因为它无法处理包含元数据的流式响应
- * 注意：Anthropic 请使用 @/services/ai/anthropic
+ * 注意：Anthropic 请使用 @/services/ai/anthropic（已废弃，逐步迁移）
  * @param prompt ChatPromptTemplate 提示词模板
- * @param config 模型配置
- * @returns Runnable 链
+ * @param config 模型配置（包含 scenario 用于指定配置场景）
+ * @returns Promise<Runnable> 链（异步创建）
  */
-export function createAIChain<T extends Record<string, unknown>>(
+export async function createAIChain<T extends Record<string, unknown>>(
   prompt: ChatPromptTemplate,
   config: AIModelConfig = {}
-): Runnable<T, string> {
-  const model = createOpenAIModel(config);
+): Promise<Runnable<T, string>> {
+  const model = await createOpenAIModel(config);
   const textExtractor = createTextExtractor();
   // 使用自定义的文本提取器，而不是 StringOutputParser
   // 这样可以正确处理包含元数据的流式响应

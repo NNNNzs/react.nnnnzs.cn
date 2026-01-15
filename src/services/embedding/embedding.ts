@@ -1,40 +1,33 @@
 /**
  * 向量嵌入服务
  * 使用 LangChain OpenAI SDK 调用嵌入模型 API
+ * 从数据库读取配置
  */
 
 import { OpenAIEmbeddings } from '@langchain/openai';
+import { getAIConfig } from '@/lib/ai-config';
 
 /**
  * 获取嵌入模型实例
  */
-function getEmbeddingModel(): OpenAIEmbeddings {
-  const apiKey = process.env.BLOG_EMBEDDING_API_KEY;
-  const baseURL = process.env.BLOG_EMBEDDING_BASE_URL;
-  const model = process.env.BLOG_EMBEDDING_MODEL || 'BAAI/bge-large-zh-v1.5';
-
-  if (!apiKey) {
-    throw new Error('BLOG_EMBEDDING_API_KEY 环境变量未设置');
-  }
-
-  if (!baseURL) {
-    throw new Error('BLOG_EMBEDDING_BASE_URL 环境变量未设置');
-  }
+async function getEmbeddingModel(): Promise<OpenAIEmbeddings> {
+  // 从数据库读取配置（如果配置缺失会直接抛错）
+  const config = await getAIConfig('embedding');
 
   // 验证 API key 格式（SiliconFlow API key 通常以 sk- 开头）
-  if (!apiKey.startsWith('sk-')) {
+  if (!config.api_key.startsWith('sk-')) {
     console.warn('⚠️ API key 格式可能不正确，SiliconFlow API key 通常以 "sk-" 开头');
   }
 
   return new OpenAIEmbeddings({
-    apiKey: apiKey,
-    openAIApiKey: apiKey, // 同时设置两个参数以确保兼容性
-    model: model,
+    apiKey: config.api_key,
+    openAIApiKey: config.api_key, // 同时设置两个参数以确保兼容性
+    model: config.model,
     configuration: {
-      baseURL: baseURL,
+      baseURL: config.base_url,
     },
-    // BAAI/bge-large-zh-v1.5 的维度是 1024
-    dimensions: 1024,
+    // 使用配置中的维度，默认 1024
+    dimensions: config.dimensions || 1024,
   });
 }
 
@@ -49,7 +42,7 @@ export async function embedText(text: string): Promise<number[]> {
     throw new Error('文本不能为空');
   }
 
-  const embeddings = getEmbeddingModel();
+  const embeddings = await getEmbeddingModel();
   const vector = await embeddings.embedQuery(text);
 
   return vector;
@@ -79,13 +72,13 @@ export async function embedTexts(
 
   // 如果文本数量小于批次大小，直接处理
   if (validTexts.length <= batchSize) {
-    const embeddings = getEmbeddingModel();
+    const embeddings = await getEmbeddingModel();
     const vectors = await embeddings.embedDocuments(validTexts);
     return vectors;
   }
 
   // 分批处理
-  const embeddings = getEmbeddingModel();
+  const embeddings = await getEmbeddingModel();
   const allVectors: number[][] = [];
 
   for (let i = 0; i < validTexts.length; i += batchSize) {

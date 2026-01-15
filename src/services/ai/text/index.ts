@@ -1,23 +1,12 @@
 /**
  * AI文本处理服务
- * 使用官方 @anthropic-ai/sdk
+ * 使用 OpenAI + LangChain，从数据库读取配置
  * 默认使用流式响应
  */
 
-import {
-  streamAnthropicMessagesWithSystem,
-  type AnthropicModelConfig,
-} from '../anthropic';
+import { ChatPromptTemplate } from '@/lib/ai';
+import { createOpenAIModel, streamFromChain } from '@/lib/ai';
 import { AI_PROMPTS, type AIProcessParams, type AIActionType } from '@/lib/ai-text';
-
-/**
- * AI 文本处理模型配置
- */
-const aiTextModelConfig: AnthropicModelConfig = {
-  model: 'claude-haiku-4-5-20251001',
-  temperature: 0.7,
-  maxTokens: 2000,
-};
 
 /**
  * 获取指定 action 的提示词指令
@@ -63,16 +52,19 @@ ${instruction}`;
     userContent = text;
   }
 
-  const messages = [
-    {
-      role: 'user' as const,
-      content: userContent,
-    },
-  ];
+  // 创建提示词模板
+  const prompt = ChatPromptTemplate.fromMessages([
+    ['system', systemInstruction],
+    ['human', '{userContent}'],
+  ]);
 
-  return streamAnthropicMessagesWithSystem(
-    systemInstruction,
-    messages,
-    aiTextModelConfig
-  );
+  // 创建模型（从数据库读取 ai_text.* 配置）
+  const model = await createOpenAIModel({
+    scenario: 'ai_text',
+  });
+
+  // 创建链并流式执行
+  const chain = prompt.pipe(model);
+  
+  return streamFromChain(chain, { userContent });
 };
