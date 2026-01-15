@@ -19,7 +19,10 @@
       "Bash(npx prisma format:*)",
       "Bash(curl:*)",
       "mcp__MyBlog__create_article",
-      "Bash(pnpm run lint)"
+      "Bash(pnpm run lint)",
+      "Bash(pnpm run typecheck:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint:*)"
     ],
     "deny": [],
     "ask": []

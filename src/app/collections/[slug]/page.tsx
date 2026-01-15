@@ -1,0 +1,93 @@
+/**
+ * 合集详情页
+ */
+
+import React from 'react';
+import { notFound } from 'next/navigation';
+import { BookOutlined, EyeOutlined, HeartOutlined } from '@ant-design/icons';
+import Banner from '@/components/Banner';
+import ArticleInCollectionItem from '@/components/ArticleInCollectionItem';
+import { getCollectionBySlug } from '@/services/collection';
+
+export const revalidate = 60;
+
+export default async function CollectionDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
+
+  if (!collection) {
+    notFound();
+  }
+
+  return (
+    <div>
+      {/* 横幅 */}
+      <Banner
+        title={collection.title}
+        subtitle={collection.description || ''}
+        cover={collection.background || undefined}
+      />
+
+      {/* 合集内容 */}
+      <div className="container mx-auto px-4 py-8">
+        {/* 统计信息栏 */}
+        <div className="flex gap-6 mb-8 p-4 bg-gray-50 rounded-lg dark:bg-slate-800">
+          <span className="flex items-center gap-2">
+            <BookOutlined />
+            {collection.article_count} 篇文章
+          </span>
+          <span className="flex items-center gap-2">
+            <EyeOutlined />
+            {collection.total_views} 次浏览
+          </span>
+          <span className="flex items-center gap-2">
+            <HeartOutlined />
+            {collection.total_likes} 个赞
+          </span>
+        </div>
+
+        {/* 文章列表 */}
+        {collection.articles.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            该合集暂无文章
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {collection.articles.map((article, index) => (
+              <ArticleInCollectionItem
+                key={article.id}
+                article={article}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 生成元数据
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
+
+  if (!collection) {
+    return {
+      title: '合集不存在',
+    };
+  }
+
+  return {
+    title: `${collection.title} - 合集`,
+    description: collection.description || collection.title,
+  };
+}

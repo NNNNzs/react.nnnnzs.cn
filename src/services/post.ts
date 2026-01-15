@@ -22,12 +22,12 @@ function parseTagsString(tags: string | null | undefined): string[] {
 
 /**
  * 将 Prisma 实体序列化为纯对象
- * 
+ *
  * 说明：
  * - tags: 手动将数据库字符串 'tag1,tag2,tag3' 转换为数组 ['tag1', 'tag2', 'tag3']
  * - date/updated: 转换为 ISO 字符串格式，便于 JSON 序列化
  */
-function serializePost(post: TbPost): SerializedPost {
+export function serializePost(post: TbPost): SerializedPost {
   return {
     ...post,
     // 手动将字符串转换为数组

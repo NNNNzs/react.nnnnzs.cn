@@ -18,13 +18,16 @@ import {
 import dayjs from "dayjs";
 
 import { getPostByPath } from "@/services/post";
+import { getCollectionsByPostId } from "@/services/collection";
 import PostLikeButton from "./PostLikeButton";
 import PostVisitorTracker from "./PostVisitorTracker";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import CommentSection from "@/components/CommentSection";
 import SetCurrentPost from "@/components/SetCurrentPost";
 import PostVersionHistory from "@/components/PostVersionHistory";
+import ArticleCollections from "@/components/ArticleCollections";
 import type { Post } from "@/types";
+import type { PostCollectionInfo } from "@/dto/collection.dto";
 
 interface PageProps {
   params:
@@ -77,6 +80,21 @@ const getPost = cache(
     } catch (error) {
       console.error("❌ 获取文章详情失败:", error);
       return null;
+    }
+  }
+);
+
+/**
+ * 获取文章所属合集
+ * 使用 React cache 缓存
+ */
+const getPostCollections = cache(
+  async (postId: number): Promise<PostCollectionInfo[]> => {
+    try {
+      return await getCollectionsByPostId(postId);
+    } catch (error) {
+      console.error("❌ 获取文章合集失败:", error);
+      return [];
     }
   }
 );
@@ -141,6 +159,9 @@ export default async function PostDetail({ params }: PageProps) {
       console.log("❌ 文章不存在，调用 notFound()");
       notFound();
     }
+
+    // 获取文章所属合集
+    const collections = await getPostCollections(post.id);
 
     return (
       <>
@@ -209,6 +230,11 @@ export default async function PostDetail({ params }: PageProps) {
               </div>
             )}
           </header>
+
+          {/* 所属合集 */}
+          {collections && collections.length > 0 && (
+            <ArticleCollections collections={collections} />
+          )}
 
           {/* 文章内容 */}
           <div className="prose prose-lg dark:prose-invert max-w-none">

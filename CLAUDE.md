@@ -177,6 +177,64 @@ export interface SerializedPost extends Omit<TbPost, 'tags' | 'date' | 'updated'
 4. OAuth 2.0 → Bearer token for standard clients
 ```
 
+#### 6. **Admin Page Layout Pattern** ⚠️ IMPORTANT
+管理后台布局 (`src/app/c/layout.tsx`) 使用 `overflow-hidden` 来固定高度，因此每个管理页面都需要遵循特定的 flex 布局模式来实现独立滚动。
+
+**标准布局结构：**
+```tsx
+export default function AdminPage() {
+  return (
+    <div className="w-full h-full flex flex-col">           {/* 最外层：全高 flex 容器 */}
+      <div className="flex-1 flex flex-col min-h-0">        {/* 中间层：flex-1 占据剩余空间，min-h-0 允许收缩 */}
+        <div className="mb-6 flex items-center justify-between shrink-0">  {/* 顶部操作栏：固定高度 */}
+          <h1 className="text-2xl font-bold">页面标题</h1>
+          <Button type="primary">操作按钮</Button>
+        </div>
+
+        {/* 可滚动内容区：flex-1 占据剩余空间 */}
+        <div className="flex-1 min-h-0">
+          {/* 内容区域（可能是表格、表单等） */}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+**关键 Tailwind 类说明：**
+- `flex flex-col`: 创建垂直方向的 flex 容器
+- `flex-1`: 占据父容器的所有剩余空间
+- `min-h-0`: 允许 flex 子项收缩到内容以下（关键！否则无法滚动）
+- `shrink-0`: 防止元素被压缩（用于固定高度的头部）
+- `overflow-y-auto`: 在需要滚动的容器上添加
+
+**列表页面的表格布局：**
+```tsx
+<div className="flex-1 min-h-0">
+  <Table
+    columns={columns}
+    dataSource={data}
+    scroll={{ y: 'calc(100vh - var(--header-height) - 300px)' }}
+    pagination={{ ... }}
+  />
+</div>
+```
+
+**表单页面的滚动布局：**
+```tsx
+<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+  <div className="max-w-4xl mx-auto w-full py-6">
+    <Card>表单内容</Card>
+  </div>
+</div>
+```
+
+**参考实现：**
+- 文章管理页：`src/app/c/post/page.tsx:454-569`
+- 合集管理页：`src/app/c/collections/page.tsx:227-263`
+- 合集编辑页：`src/app/c/collections/[id]/page.tsx:125-250`
+- 合集文章管理：`src/app/c/collections/[id]/posts/page.tsx:203-383`
+
 ## Database Schema (Prisma)
 
 ### Core Tables

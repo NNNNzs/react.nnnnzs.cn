@@ -36,9 +36,10 @@ model TbPost {
   created_by          Int? // 创建人ID，关联用户表
 
   // 关联关系
-  creator  TbUser?         @relation(fields: [created_by], references: [id])
-  versions TbPostVersion[]
-  chunks   TbPostChunk[]
+  creator           TbUser?             @relation(fields: [created_by], references: [id])
+  versions          TbPostVersion[]
+  chunks            TbPostChunk[]
+  collectionPosts   TbCollectionPost[]  // 文章所属的合集（通过中间表）
 
   @@map("tb_post")
 }
@@ -64,8 +65,9 @@ model TbUser {
   status              Int       @default(1)
 
   // 关联关系
-  posts          TbPost[] // 创建的文章
-  longTermTokens LongTermToken[] // 长期Token
+  posts          TbPost[]         // 创建的文章
+  longTermTokens LongTermToken[]  // 长期Token
+  collections    TbCollection[]   // 创建的合集
 
   @@map("tb_user")
 }
@@ -133,4 +135,55 @@ model LongTermToken {
   @@index([userId])
   @@index([token])
   @@map("long_term_token")
+}
+
+// 合集表
+model TbCollection {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(255)    // 合集标题
+  slug        String    @unique @db.VarChar(191) // URL路径，如 /collections/nextjs-series (191字符限制，兼容MySQL 5.7索引键长度限制)
+  description String?   @db.VarChar(1000)   // 合集描述（支持Markdown）
+  cover       String?   @db.VarChar(255)    // 封面图URL
+  background  String?   @db.VarChar(255)    // 背景图URL
+  color       String?   @db.VarChar(20)     // 主题色，如 #2563eb
+
+  // 统计信息（冗余字段，提高查询性能）
+  article_count Int     @default(0)       // 文章数量
+  total_views   Int     @default(0)       // 总浏览量
+  total_likes   Int     @default(0)       // 总点赞数
+
+  // 状态字段
+  status      Int       @default(1)       // 状态：1-正常，0-隐藏
+  is_delete   Int       @default(0)       // 逻辑删除：0-未删除，1-已删除
+
+  // 时间戳
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  // 关联关系
+  collectionPosts TbCollectionPost[] // 该合集包含的文章（通过中间表）
+  creator          TbUser?           @relation(fields: [created_by], references: [id])
+  created_by       Int?              // 创建人ID
+
+  @@index([status])
+  @@index([created_at])
+  @@map("tb_collection")
+}
+
+// 合集文章关联表（中间表）
+model TbCollectionPost {
+  id            Int       @id @default(autoincrement())
+  collection_id Int       // 合集ID
+  post_id       Int       // 文章ID
+  sort_order    Int       @default(0)  // 排序序号，用于控制合集内文章顺序
+
+  created_at    DateTime  @default(now())
+
+  // 关联关系
+  collection    TbCollection @relation(fields: [collection_id], references: [id])
+  post          TbPost       @relation(fields: [post_id], references: [id])
+
+  @@unique([collection_id, post_id]) // 防止重复关联
+  @@index([collection_id, sort_order])
+  @@map("tb_collection_post")
 }

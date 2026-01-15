@@ -9,7 +9,7 @@ import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Layout, Menu, message } from "antd";
 import type { MenuProps } from "antd";
-import { FileTextOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
+import { FileTextOutlined, SettingOutlined, UserOutlined, BookOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 
@@ -23,6 +23,11 @@ const menuItems: MenuProps["items"] = [
     key: "/c/post",
     icon: <FileTextOutlined />,
     label: "文章管理",
+  },
+  {
+    key: "/c/collections",
+    icon: <BookOutlined />,
+    label: "合集管理",
   },
   {
     key: "/c/config",

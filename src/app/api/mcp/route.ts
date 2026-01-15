@@ -6,6 +6,8 @@ import { z } from "zod";
 import { authenticateMcpRequestEnhanced } from '@/services/mcpAuth';
 import { createPost, updatePost, deletePost, getPostById, getPostList, getPostByTitle } from '@/services/post';
 import { getAllTags } from '@/services/tag';
+import { getCollectionList } from '@/services/collection';
+import { addPostsToCollection, removePostsFromCollection } from '@/services/collection';
 
 /**
  * 自定义 HTTP Transport
@@ -127,12 +129,13 @@ function createMcpServer(headers: Headers) {
     "create_article",
     {
       title: "Create article",
-      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, then use matching tags or create new ones.",
+      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, and 'blog://collections' resource to check existing collections. Then use matching tags or create new ones, and optionally add the article to collections.",
       inputSchema: {
         title: z.string().describe("Article title"),
         content: z.string().describe("Article content (Markdown)"),
         category: z.string().optional().describe("Article category"),
         tags: z.string().optional().describe("Comma-separated tags. Check 'blog://tags' resource first for existing tags, then use matching ones or create new custom tags"),
+        collections: z.string().optional().describe("Comma-separated collection IDs or slugs. Check 'blog://collections' resource first for existing collections. Use IDs (numbers) or slugs to add the article to one or more collections"),
         description: z.string().optional().describe("Short description"),
         cover: z.string().optional().describe("Cover image URL"),
         hide: z.string().optional().describe("'1' to hide, '0' to show")
@@ -151,6 +154,39 @@ function createMcpServer(headers: Headers) {
         created_by: user.id,
       };
       const result = await createPost(postData);
+
+      // 处理合集关联
+      if (args.collections && result.id) {
+        try {
+          // 解析合集 ID 或 slug
+          const collectionIdentifiers = args.collections.split(',').map(s => s.trim()).filter(Boolean);
+
+          for (const identifier of collectionIdentifiers) {
+            // 判断是数字 ID 还是 slug
+            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
+
+            if (collectionId) {
+              // 使用 ID
+              await addPostsToCollection(collectionId, [result.id]);
+            } else {
+              // 使用 slug，需要先查询获取 ID
+              const collections = await getCollectionList({
+                pageNum: 1,
+                pageSize: 100
+              });
+
+              const collection = collections.record.find(c => c.slug === identifier);
+              if (collection) {
+                await addPostsToCollection(collection.id, [result.id]);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ [MCP] 添加文章到合集失败:', error);
+          // 不影响文章创建，只记录错误
+        }
+      }
+
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
       };
@@ -161,7 +197,7 @@ function createMcpServer(headers: Headers) {
     "update_article",
     {
       title: "Update article",
-      description: "Update an existing blog article",
+      description: "Update an existing blog article. You can also update collections by providing collection IDs or slugs. Use 'add_to_collections' to add to collections, 'remove_from_collections' to remove from collections.",
       inputSchema: {
         id: z.number().describe("Article ID"),
         title: z.string().optional(),
@@ -170,12 +206,14 @@ function createMcpServer(headers: Headers) {
         tags: z.string().optional(),
         description: z.string().optional(),
         cover: z.string().optional(),
-        hide: z.string().optional()
+        hide: z.string().optional(),
+        add_to_collections: z.string().optional().describe("Comma-separated collection IDs or slugs to ADD the article to"),
+        remove_from_collections: z.string().optional().describe("Comma-separated collection IDs or slugs to REMOVE the article from")
       }
     },
     async (args) => {
       await ensureAuth();
-      const { id, ...restArgs } = args;
+      const { id, add_to_collections, remove_from_collections, ...restArgs } = args;
       const data: Partial<import('@/generated/prisma-client').TbPost> = {
         ...restArgs,
         // tags 保持字符串格式，updatePost 会处理
@@ -183,6 +221,59 @@ function createMcpServer(headers: Headers) {
       };
       const result = await updatePost(id, data);
       if (!result) return { isError: true, content: [{ type: "text", text: "Article not found" }] };
+
+      // 处理添加到合集
+      if (add_to_collections) {
+        try {
+          const collectionIdentifiers = add_to_collections.split(',').map(s => s.trim()).filter(Boolean);
+
+          for (const identifier of collectionIdentifiers) {
+            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
+
+            if (collectionId) {
+              await addPostsToCollection(collectionId, [id]);
+            } else {
+              const collections = await getCollectionList({
+                pageNum: 1,
+                pageSize: 100
+              });
+              const collection = collections.record.find(c => c.slug === identifier);
+              if (collection) {
+                await addPostsToCollection(collection.id, [id]);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ [MCP] 添加文章到合集失败:', error);
+        }
+      }
+
+      // 处理从合集移除
+      if (remove_from_collections) {
+        try {
+          const collectionIdentifiers = remove_from_collections.split(',').map(s => s.trim()).filter(Boolean);
+
+          for (const identifier of collectionIdentifiers) {
+            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
+
+            if (collectionId) {
+              await removePostsFromCollection(collectionId, [id]);
+            } else {
+              const collections = await getCollectionList({
+                pageNum: 1,
+                pageSize: 100
+              });
+              const collection = collections.record.find(c => c.slug === identifier);
+              if (collection) {
+                await removePostsFromCollection(collection.id, [id]);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ [MCP] 从合集移除文章失败:', error);
+        }
+      }
+
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
       };
@@ -279,6 +370,37 @@ function createMcpServer(headers: Headers) {
           uri: "blog://tags",
           mimeType: "application/json",
           text: tagsString
+        }]
+      };
+    }
+  );
+
+  // Register collections as a resource
+  server.registerResource(
+    "collections",
+    "blog://collections",
+    {
+      title: "Available Blog Collections",
+      description: "List of all available collections with their IDs and slugs. Use this resource to check existing collections before adding articles to them. Each collection has an ID (number) and slug (string) that can be used to reference it.",
+      mimeType: "application/json"
+    },
+    async () => {
+      await ensureAuth();
+      const collections = await getCollectionList({
+        pageNum: 1,
+        pageSize: 100
+      });
+
+      // 格式化为易读的文本
+      const collectionsText = collections.record
+        .map(c => `ID: ${c.id} | Slug: ${c.slug} | Title: ${c.title} | Articles: ${c.article_count}`)
+        .join('\n');
+
+      return {
+        contents: [{
+          uri: "blog://collections",
+          mimeType: "text/plain",
+          text: collectionsText
         }]
       };
     }

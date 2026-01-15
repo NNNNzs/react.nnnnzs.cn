@@ -27,6 +27,7 @@ import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/types";
 import MarkdownEditor from "@/components/MarkdownEditor";
+import CollectionSelector from "@/components/CollectionSelector";
 import { fetchAndProcessStream } from "@/lib/stream";
 // import EnhancedMarkdownEditor from "@/components/AITextProcessor/EnhancedMarkdownEditor";
 
@@ -95,12 +96,24 @@ export default function EditPostPage() {
         const postData = response.data.data;
         setPost(postData);
 
+        // 获取文章所属合集
+        let collectionIds: number[] = [];
+        try {
+          const collectionsRes = await axios.get(`/api/post/${params.id}/collections`);
+          if (collectionsRes.data.status) {
+            collectionIds = collectionsRes.data.data.map((c: { id: number }) => c.id);
+          }
+        } catch (error) {
+          console.error("加载文章合集失败:", error);
+        }
+
         // 设置表单值
         form.setFieldsValue({
           ...postData,
           tags: postData.tags || [],
           date: postData.date ? dayjs(postData.date) : dayjs(),
           updated: postData.updated ? dayjs(postData.updated) : dayjs(),
+          collection_ids: collectionIds,
         });
         // 同步更新 content 状态
         setContent(postData.content || "");
@@ -206,17 +219,95 @@ export default function EditPostPage() {
         likes: values.likes || 0,
       };
 
+      // 获取合集ID
+      const collectionIds = values.collection_ids || [];
+
       if (isNewPost) {
         // 创建新文章
         const response = await axios.post("/api/post/create", postData);
         if (response.data.status) {
-          message.success("创建成功");
           const newId = response.data.data.id;
+
+          // 如果选择了合集,关联文章到合集
+          if (collectionIds.length > 0) {
+            console.log('📝 创建文章后关联合集:', { newId, collectionIds });
+            try {
+              await Promise.all(
+                collectionIds.map((collectionId: number) =>
+                  axios.post(`/api/collection/${collectionId}/posts`, {
+                    post_ids: [newId],
+                  })
+                )
+              );
+              console.log('✅ 合集关联成功');
+            } catch (collectionError) {
+              console.error('❌ 合集关联失败:', collectionError);
+              // 即使合集关联失败，文章也已创建成功，提示用户
+              message.warning('文章创建成功，但合集关联失败，请手动添加');
+            }
+          }
+
+          message.success("创建成功");
           router.replace(`/c/edit/${newId}`);
         }
       } else {
         // 更新现有文章
         await axios.put(`/api/post/${params.id}`, postData);
+
+        // 获取文章当前所属的合集
+        const currentCollectionsRes = await axios.get(`/api/post/${params.id}/collections`);
+        const currentCollectionIds = currentCollectionsRes.data.status
+          ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
+          : [];
+
+        // 计算需要添加和移除的合集
+        const toAdd = collectionIds.filter((id: number) => !currentCollectionIds.includes(id));
+        const toRemove = currentCollectionIds.filter((id: number) => !collectionIds.includes(id));
+
+        console.log('📝 更新文章合集关联:', {
+          postId: params.id,
+          currentCollectionIds,
+          newCollectionIds: collectionIds,
+          toAdd,
+          toRemove,
+        });
+
+        // 添加到新合集
+        if (toAdd.length > 0) {
+          console.log('➕ 添加到合集:', toAdd);
+          try {
+            await Promise.all(
+              toAdd.map((collectionId: number) =>
+                axios.post(`/api/collection/${collectionId}/posts`, {
+                  post_ids: [params.id],
+                })
+              )
+            );
+            console.log('✅ 添加到合集成功');
+          } catch (addError) {
+            console.error('❌ 添加到合集失败:', addError);
+            message.error('添加到合集失败');
+          }
+        }
+
+        // 从旧合集移除
+        if (toRemove.length > 0) {
+          console.log('➖ 从合集移除:', toRemove);
+          try {
+            await Promise.all(
+              toRemove.map((collectionId: number) =>
+                axios.delete(`/api/collection/${collectionId}/posts`, {
+                  data: { post_ids: [params.id] },
+                })
+              )
+            );
+            console.log('✅ 从合集移除成功');
+          } catch (removeError) {
+            console.error('❌ 从合集移除失败:', removeError);
+            message.error('从合集移除失败');
+          }
+        }
+
         message.success("保存成功");
         loadPost();
       }
@@ -257,6 +348,7 @@ export default function EditPostPage() {
           likes: 0,
           tags: [], // 初始化 tags 为空数组
           content: "", // 初始化 content 为空字符串
+          collection_ids: [], // 初始化合集为空数组
         }}
       >
         {/* 第一行：标题、标签、发布状态、按钮 */}
@@ -370,6 +462,15 @@ export default function EditPostPage() {
           <Col flex="140px">
             <Form.Item label="点赞" name="likes" className="mb-0">
               <InputNumber min={0} className="w-full" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        {/* 第四行：合集选择 */}
+        <Row gutter={[12, 8]} align="middle" className="mb-2">
+          <Col flex="auto">
+            <Form.Item label="所属合集" name="collection_ids" className="mb-0">
+              <CollectionSelector placeholder="选择合集（可多选）" />
             </Form.Item>
           </Col>
         </Row>
