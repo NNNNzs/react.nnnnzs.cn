@@ -49,7 +49,6 @@ ARG COMMIT_SHA
 # 设置构建时环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-ENV IS_BUILD=false
 
 # 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
 RUN pnpm prisma generate

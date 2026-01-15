@@ -71,9 +71,6 @@ Bucket=your-bucket-name
 Region=ap-shanghai
 CDN_URL=https://static.your-domain.com
 
-# JWT Secret
-JWT_SECRET=your-secret-key-here
-
 # Node 环境
 NODE_ENV=development
 ```

@@ -27,75 +27,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Mock 模型操作参数类型
- */
-interface MockOperationArgs {
-  data?: Record<string, unknown>;
-  create?: Record<string, unknown>;
-  update?: Record<string, unknown>;
-}
-
-/**
- * 创建一个基础的 Mock 模型操作
- * 用于构建时避免数据库连接
- */
-function createMockModel() {
-  return {
-    findMany: async () => [],
-    findUnique: async () => null,
-    findFirst: async () => null,
-    findUniqueOrThrow: async () => { throw new Error('Mock: Not found'); },
-    findFirstOrThrow: async () => { throw new Error('Mock: Not found'); },
-    count: async () => 0,
-    aggregate: async () => ({ _count: 0, _avg: {}, _sum: {}, _min: {}, _max: {} }),
-    groupBy: async () => [],
-    create: async (args: MockOperationArgs = {}) => args?.data || {},
-    createMany: async () => ({ count: 0 }),
-    update: async (args: MockOperationArgs = {}) => args?.data || {},
-    updateMany: async () => ({ count: 0 }),
-    upsert: async (args: MockOperationArgs = {}) => args?.create || args?.update || {},
-    delete: async () => ({}),
-    deleteMany: async () => ({ count: 0 }),
-  };
-}
-
-/**
  * 获取 Prisma 实例（兼容旧的 API）
  */
 export async function getPrisma(): Promise<PrismaClient> {
-  // 在构建时返回一个 mock 实例
-  if (process.env.IS_BUILD === 'true') {
-    console.log('🚧 构建环境，使用 Mock Prisma Client');
-    return {
-      tbPost: createMockModel(),
-      tbUser: createMockModel(),
-      tbConfig: createMockModel(),
-      longTermToken: createMockModel(),
-      $connect: async () => {},
-      $disconnect: async () => {},
-      $executeRaw: async () => 0,
-      $executeRawUnsafe: async () => 0,
-      $queryRaw: async () => [],
-      $queryRawUnsafe: async () => [],
-      $transaction: async <T>(fn: ((prisma: {
-        tbPost: ReturnType<typeof createMockModel>;
-        tbUser: ReturnType<typeof createMockModel>;
-        tbConfig: ReturnType<typeof createMockModel>;
-        longTermToken: ReturnType<typeof createMockModel>;
-      }) => Promise<T>) | unknown[]): Promise<T | unknown[]> => {
-        if (typeof fn === 'function') {
-          return fn({
-            tbPost: createMockModel(),
-            tbUser: createMockModel(),
-            tbConfig: createMockModel(),
-            longTermToken: createMockModel(),
-          });
-        }
-        return fn as unknown[];
-      },
-    } as unknown as PrismaClient;
-  }
-  
   return prisma;
 }
 

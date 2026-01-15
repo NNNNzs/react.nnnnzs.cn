@@ -30,7 +30,7 @@ alwaysApply: true
 
 ### 数据层
 - 数据库：MySQL 5.7+
-- ORM：Prisma 6.2.1（不使用 Prisma Migrate，手写 SQL 迁移）
+- ORM：Prisma 6.2.1（使用 `prisma db push` 同步数据库结构）
 - 缓存：Redis (ioredis)
 
 ### AI 工具库

@@ -7,7 +7,7 @@ import axios from 'axios';
 /**
  * 配置axios默认值
  */
-axios.defaults.baseURL = process.env.NEXT_PUBLIC_API_URL || '';
+axios.defaults.baseURL = ''
 axios.defaults.timeout = 10000;
 axios.defaults.withCredentials = true;
 

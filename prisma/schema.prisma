@@ -73,8 +73,8 @@ model TbUser {
 // 配置表
 model TbConfig {
   id           Int       @id @default(autoincrement())
-  title        String?   @db.VarChar(20)
-  key          String?   @db.VarChar(20)
+  title        String?   @db.VarChar(255)
+  key          String?   @db.VarChar(255)
   value        String?   @db.Text
   status       Int?
   created_at   DateTime? @db.DateTime(0)

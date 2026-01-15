@@ -444,14 +444,12 @@ const user = await prisma.tbUser.findUnique({
   },
 })
 
-// ✅ 使用环境变量
-const secret = process.env.JWT_SECRET
 ```
 
 ## 数据库集成
 
 ### 数据库操作规范
-本项目使用 Prisma 作为 ORM，但**不使用 Prisma Migrate**，而是手写 SQL 迁移脚本。
+本项目使用 Prisma 作为 ORM，使用 **`prisma db push`** 同步数据库结构。
 
 详细规范请参考：`database.mdc`
 
@@ -463,8 +461,11 @@ pnpm prisma generate
 # 查看 Schema
 pnpm prisma studio
 
-# 数据库推送（开发环境）
+# 同步数据库结构（开发环境）
 pnpm prisma db push
+
+# 从数据库同步 Schema（反向工程）
+pnpm prisma db pull
 ```
 
 ## 流式响应规范

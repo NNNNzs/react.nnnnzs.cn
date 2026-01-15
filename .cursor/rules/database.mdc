@@ -1,6 +1,6 @@
 ---
 description: "数据库开发规范 - Prisma ORM 和 MySQL"
-globs: ["prisma/**/*.prisma", "docs/migrations/**/*.sql", "src/services/**/*.ts"]
+globs: ["prisma/**/*.prisma", "src/services/**/*.ts"]
 alwaysApply: false
 ---
 
@@ -11,7 +11,7 @@ alwaysApply: false
 ### 核心技术
 - **ORM**: Prisma 6.2.1
 - **数据库**: MySQL 5.7+
-- **迁移工具**: 自定义 SQL 脚本（**不使用 Prisma Migrate**）
+- **迁移工具**: Prisma db push（同步数据库结构）
 
 ### 数据库连接配置
 ```bash
@@ -78,139 +78,75 @@ model TbUser {
 ## 数据库迁移规范
 
 ### 重要原则
-**⚠️ 本项目不使用 Prisma Migrate，必须手写 SQL 迁移脚本**
-
-### 迁移文件管理
-
-#### 迁移文件位置
-```
-docs/migrations/
-├── 20251218_001_create_tables.sql          # 初始建表
-├── 20251218_002_add_user_fields.sql        # 添加字段
-├── 20251218_003_create_indexes.sql         # 创建索引
-└── README.md                                # 迁移说明
-```
-
-#### 迁移文件命名规范
-```
-YYYYMMDD_序号_描述.sql
-```
-
-示例：
-- `20251218_001_initial_schema.sql`
-- `20251218_002_add_post_tags.sql`
-- `20251218_003_create_user_indexes.sql`
+**✅ 本项目使用 Prisma db push 同步数据库结构**
 
 ### 迁移开发流程
 
 #### 1. 修改 Schema
 ```bash
 # 1. 修改 prisma/schema.prisma
-# 2. 重新生成 Prisma Client
+vim prisma/schema.prisma
+
+# 2. 同步数据库结构（开发环境）
+pnpm prisma db push
+
+# 3. 生成 Prisma Client
 pnpm prisma generate
 ```
 
-#### 2. 迁移脚本模板
-```sql
--- docs/migrations/20251218_001_add_user_fields.sql
-
--- 说明：添加用户表的手机号字段
--- 作者：[你的名字]
--- 日期：2025-12-18
--- 影响表：tb_user
-
--- 开始事务
-START TRANSACTION;
-
--- 检查字段是否存在
-SELECT COUNT(*) INTO @column_exists
-FROM information_schema.columns
-WHERE table_schema = DATABASE()
-  AND table_name = 'tb_user'
-  AND column_name = 'phone';
-
--- 如果字段不存在，则添加
-SET @sql = IF(@column_exists = 0,
-  'ALTER TABLE tb_user ADD COLUMN phone VARCHAR(20) NULL AFTER email',
-  'SELECT "字段已存在，跳过" AS result');
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- 提交事务
-COMMIT;
-```
-
-#### 3. 安全的字段添加
-```sql
--- 1. 检查字段是否存在
-SELECT COUNT(*) as count
-FROM information_schema.columns
-WHERE table_schema = DATABASE()
-  AND table_name = 'tb_user'
-  AND column_name = 'new_field';
-
--- 2. 添加字段
-ALTER TABLE tb_user
-ADD COLUMN new_field VARCHAR(255) NULL DEFAULT NULL;
-
--- 3. 添加索引（可选）
-ALTER TABLE tb_user
-ADD INDEX idx_new_field (new_field);
-
--- 4. 更新现有数据（可选）
-UPDATE tb_user
-SET new_field = 'default_value'
-WHERE new_field IS NULL;
-```
-
-#### 4. 索引管理
-```sql
--- 创建索引
-ALTER TABLE tb_post
-ADD INDEX idx_category (category),
-ADD INDEX idx_date (date);
-
--- 创建唯一索引
-ALTER TABLE tb_user
-ADD UNIQUE INDEX uk_username (username);
-
--- 创建复合索引
-ALTER TABLE tb_comment
-ADD INDEX idx_post_user (post_id, user_id);
-
--- 删除索引
-ALTER TABLE tb_post
-DROP INDEX idx_category;
-```
-
-### 迁移执行流程
-
-#### 开发环境
+#### 2. 开发环境工作流
 ```bash
-# 1. 查看待执行的迁移
-ls -la docs/migrations/
+# 完整的开发流程
+# 1. 修改 Schema
+vim prisma/schema.prisma
 
-# 2. 执行迁移（手动）
-mysql -u root -p database_name < docs/migrations/20251218_001_add_fields.sql
+# 2. 推送数据库变更（会自动创建/修改表结构）
+pnpm prisma db push
 
-# 3. 验证迁移
-pnpm prisma db pull  # 查看当前数据库状态
+# 3. 生成 Client（如果 Schema 有变更）
+pnpm prisma generate
+
+# 4. 更新代码
+vim src/services/xxx.ts
 ```
 
-#### 生产环境
+#### 3. 生产环境部署
 ```bash
-# 1. 备份数据库
-mysqldump -u root -p production_db > backup_20251218.sql
+# 1. 备份数据库（重要！）
+mysqldump -u root -p production_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# 2. 执行迁移
-mysql -u root -p production_db < docs/migrations/20251218_001_add_fields.sql
+# 2. 推送数据库变更
+pnpm prisma db push
 
-# 3. 验证
-# - 检查应用日志
-# - 测试相关功能
-# - 回滚方案准备
+# 3. 生成 Client
+pnpm prisma generate
+
+# 4. 重启应用
+pm2 restart ecosystem.config.cjs
+```
+
+### Prisma db push 说明
+
+#### 功能
+- 将 Prisma Schema 中的变更直接同步到数据库
+- 自动创建新表、添加字段、创建索引等
+- 适用于快速开发和原型设计
+
+#### 注意事项
+- ⚠️ **生产环境使用前务必备份数据库**
+- ⚠️ 某些复杂变更（如删除字段）可能需要手动处理
+- ⚠️ 不会保留迁移历史，适合小团队或快速迭代项目
+
+#### 常用选项
+```bash
+# 基本推送
+pnpm prisma db push
+
+# 跳过生成 Client（如果只需要同步结构）
+pnpm prisma db push --skip-generate
+
+# 接受数据丢失风险（谨慎使用）
+pnpm prisma db push --accept-data-loss
 ```
 
 ## 数据库操作规范
@@ -368,18 +304,16 @@ export async function createPostWithStats(data: {
 ## 性能优化
 
 ### 索引策略
-```sql
--- 常用索引建议
--- 主键索引：自动创建
--- 唯一索引：用户名、邮箱、手机号等
--- 普通索引：查询条件字段
--- 复合索引：多字段查询
+在 Prisma Schema 中定义索引：
+```prisma
+model TbPost {
+  // ... 字段定义
 
--- 示例：文章表索引
-ALTER TABLE tb_post
-ADD INDEX idx_category_hide (category, hide),
-ADD INDEX idx_date_hide (date, hide),
-ADD INDEX idx_user (user_id);
+  @@index([is_delete])
+  @@index([category, hide])
+  @@index([date])
+  @@map("tb_post")
+}
 ```
 
 ### 避免全表扫描
@@ -452,11 +386,17 @@ pnpm prisma generate
 # 查看数据库（GUI）
 pnpm prisma studio
 
-# 数据库推送（开发环境，慎用）
+# 同步数据库结构（开发环境）
 pnpm prisma db push
 
-# 从数据库同步 Schema
+# 从数据库同步 Schema（反向工程）
 pnpm prisma db pull
+
+# 验证 Schema 语法
+pnpm prisma validate
+
+# 格式化 Schema
+pnpm prisma format
 ```
 
 ## 工作流程
@@ -466,36 +406,45 @@ pnpm prisma db pull
 # 1. 修改 Schema
 vim prisma/schema.prisma
 
-# 2. 生成 Client
+# 2. 同步数据库结构
+pnpm prisma db push
+
+# 3. 生成 Client
 pnpm prisma generate
 
-# 3. 编写迁移 SQL
-vim docs/migrations/20251218_001_feature.sql
-
-# 4. 本地测试
-mysql -u root -p dev_db < docs/migrations/20251218_001_feature.sql
-
-# 5. 更新代码
+# 4. 更新代码
 vim src/services/xxx.ts
 ```
 
 ### 2. 生产部署
 ```bash
-# 1. 备份数据库
-mysqldump -u root -p prod_db > backup_prod.sql
+# 1. 备份数据库（必须！）
+mysqldump -u root -p prod_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# 2. 执行迁移
-mysql -u root -p prod_db < docs/migrations/20251218_001_new.sql
+# 2. 同步数据库结构
+pnpm prisma db push
 
-# 3. 重启应用
+# 3. 生成 Client
+pnpm prisma generate
+
+# 4. 重启应用
 pm2 restart ecosystem.config.cjs
+```
+
+### 3. 从现有数据库生成 Schema
+```bash
+# 如果数据库已存在，可以从数据库反向生成 Schema
+pnpm prisma db pull
+
+# 然后生成 Client
+pnpm prisma generate
 ```
 
 ## 核心原则
 
-1. ✅ **手写 SQL 迁移脚本**，不使用 Prisma Migrate
-2. ✅ **使用事务**保证数据一致性
-3. ✅ **添加索引**优化查询性能
-4. ✅ **软删除**保护数据安全
-5. ✅ **记录迁移**便于追踪和回滚
-6. ✅ **敏感字段**不返回给前端
+1. ✅ **使用 Prisma db push** 同步数据库结构
+2. ✅ **修改 Schema 后立即同步** 避免结构不一致
+3. ✅ **生产环境部署前备份数据库** 防止数据丢失
+4. ✅ **使用索引** 优化查询性能
+5. ✅ **软删除** 保护数据安全
+6. ✅ **敏感字段** 不返回给前端

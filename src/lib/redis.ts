@@ -11,36 +11,9 @@ import Redis from 'ioredis';
 let redisClient: Redis | null = null;
 
 /**
- * 创建 Mock Redis 客户端（用于构建环境）
- */
-function createMockRedisClient(): Redis {
-  console.log('🚧 构建环境，使用 Mock Redis Client');
-  return {
-    set: async () => 'OK',
-    setex: async () => 'OK',
-    get: async () => null,
-    del: async () => 1,
-    exists: async () => 0,
-    expire: async () => 1,
-    ttl: async () => -1,
-    keys: async () => [],
-    quit: async () => 'OK',
-    on: () => {},
-  } as unknown as Redis;
-}
-
-/**
  * 获取 Redis 客户端
  */
 export function getRedisClient(): Redis {
-  // 在构建环境中返回 Mock 客户端
-  if (process.env.IS_BUILD === 'true') {
-    if (!redisClient) {
-      redisClient = createMockRedisClient();
-    }
-    return redisClient;
-  }
-
   if (!redisClient) {
     redisClient = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
@@ -98,9 +71,6 @@ export class RedisService {
     mode?: 'EX' | 'PX',
     duration?: number
   ): Promise<string | null> {
-    if (process.env.IS_BUILD === 'true') {
-      return 'OK';
-    }
     if (mode && typeof duration === 'number') {
       if (mode === 'EX') {
         return this.client.set(key, value, 'EX', duration);
@@ -114,9 +84,6 @@ export class RedisService {
    * 获取值
    */
   async get(key: string): Promise<string | null> {
-    if (process.env.IS_BUILD === 'true') {
-      return null;
-    }
     return this.client.get(key);
   }
 
@@ -124,9 +91,6 @@ export class RedisService {
    * 删除键
    */
   async del(key: string): Promise<number> {
-    if (process.env.IS_BUILD === 'true') {
-      return 1;
-    }
     return this.client.del(key);
   }
 
@@ -134,9 +98,6 @@ export class RedisService {
    * 检查键是否存在
    */
   async exists(key: string): Promise<number> {
-    if (process.env.IS_BUILD === 'true') {
-      return 0;
-    }
     return this.client.exists(key);
   }
 
@@ -144,9 +105,6 @@ export class RedisService {
    * 设置键值并指定过期时间（秒）
    */
   async setex(key: string, seconds: number, value: string): Promise<string | null> {
-    if (process.env.IS_BUILD === 'true') {
-      return 'OK';
-    }
     return this.client.setex(key, seconds, value);
   }
 
