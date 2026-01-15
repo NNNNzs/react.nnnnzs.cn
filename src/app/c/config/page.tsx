@@ -238,7 +238,7 @@ function ConfigPageContent() {
         setLoading(false);
       }
     },
-    [urlState.current, urlState.pageSize, urlState.searchText, urlState.statusFilter]
+    [urlState]
   );
 
   /**
@@ -353,8 +353,7 @@ function ConfigPageContent() {
   }, [
     user,
     loadConfigs,
-    urlState.current,
-    urlState.pageSize,
+    urlState,
   ]);
 
   /**

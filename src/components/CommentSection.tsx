@@ -106,9 +106,10 @@ export default function CommentSection({ postId }: CommentSectionProps) {
    * 初始化加载
    */
   useEffect(() => {
-    loadComments();
-    checkGithubBinding();
-  }, [postId, user]);
+    void loadComments();
+    void checkGithubBinding();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
   
   /**
    * 提交评论

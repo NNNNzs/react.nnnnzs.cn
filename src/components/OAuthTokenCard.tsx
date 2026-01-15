@@ -11,7 +11,6 @@ import {
   message,
   Space,
   Typography,
-  Divider,
   Alert,
   Tag,
   Modal,
@@ -44,7 +43,7 @@ interface OAuthTokenItem {
   duration: number | null;
 }
 
-const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
+const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
   const [loading, setLoading] = useState(false);
   const [tokens, setTokens] = useState<OAuthTokenItem[]>([]);
   const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
@@ -88,7 +87,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = ({ userId }) => {
     try {
       await navigator.clipboard.writeText(token);
       message.success("Token已复制到剪贴板");
-    } catch (error) {
+    } catch {
       // 降级方案
       const textArea = document.createElement('textarea');
       textArea.value = token;

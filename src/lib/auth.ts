@@ -67,8 +67,8 @@ export async function validateToken(token: string): Promise<User | null> {
   try {
     // 先尝试登录 Token 格式
     let redisKey = `user:${token}`;
-    let userStr = await RedisService.get(redisKey);
-    
+    const userStr = await RedisService.get(redisKey);
+
     if (userStr) {
       return JSON.parse(userStr) as User;
     }

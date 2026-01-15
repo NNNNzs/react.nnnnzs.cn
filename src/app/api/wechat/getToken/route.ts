@@ -3,7 +3,7 @@
  * 功能: 生成用于微信扫码登录的 token
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import redisService from '@/lib/redis';
 import { successResponse, errorResponse } from '@/dto/response.dto';

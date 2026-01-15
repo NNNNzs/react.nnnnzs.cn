@@ -389,14 +389,14 @@ export async function updatePost(
         const version = await createPostVersion(id, updatedPost.content!, createdBy);
         
         // 然后执行增量向量化（创建chunk记录）
-        const result = await incrementalEmbedPost({
+        await incrementalEmbedPost({
           postId: id,
           title: updatedPost.title || '',
           content: updatedPost.content || '',
           version: version.version,
           hide: updatedPost.hide || '0',
         });
-        
+
       } catch (error) {
         console.error(`❌ 文章 ${id} 版本记录或增量向量化失败:`, error);
         // 失败不影响文章更新

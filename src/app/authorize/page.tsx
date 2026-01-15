@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Space, Typography, Alert, Spin, Select } from 'antd';
 import { LockOutlined, UserOutlined, SafetyOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -14,7 +14,6 @@ const { Option } = Select;
  */
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -57,20 +56,21 @@ function AuthorizePageContent() {
   const handleLogin = async (values: { account: string; password: string }) => {
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await axios.post('/api/auth/login', {
         account: values.account,
         password: values.password
       });
-      
+
       if (response.data.status) {
         setIsLoggedIn(true);
       } else {
         setError(response.data.message || '登录失败');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || '登录失败');
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '登录失败';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -106,13 +106,14 @@ function AuthorizePageContent() {
         const redirectUrl = new URL(redirectUri);
         redirectUrl.searchParams.set('code', response.data.data.code);
         if (state) redirectUrl.searchParams.set('state', state);
-        
+
         window.location.href = redirectUrl.toString();
       } else {
         setError(response.data.message || '授权失败');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || '授权失败');
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '授权失败';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

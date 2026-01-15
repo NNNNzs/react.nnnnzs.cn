@@ -8,7 +8,7 @@ import React, { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
-import { MenuOutlined, GithubOutlined, EditOutlined } from "@ant-design/icons";
+import { MenuOutlined, EditOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";

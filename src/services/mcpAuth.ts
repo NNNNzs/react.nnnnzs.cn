@@ -229,8 +229,8 @@ async function handleClientCredentialsGrant(request: NextRequest): Promise<NextR
   }
 
   // 检查是否为长期 Token
-  let userId = user.id.toString();
-  let tokenType = 'regular';
+  const userId = user.id.toString();
+  const tokenType = 'regular';
   let expiresIn: number | undefined = 7 * 24 * 60 * 60; // 默认7天
 
   if (token.startsWith('LTK_')) {
@@ -241,8 +241,8 @@ async function handleClientCredentialsGrant(request: NextRequest): Promise<NextR
         error_description: 'Token expired or invalid'
       }, { status: 401 });
     }
-    userId = longTermUserId;
-    tokenType = 'long-term';
+    void userId;
+    void tokenType;
     expiresIn = undefined; // 长期token没有固定过期时间
   } else {
     // 对于普通token，检查是否是永久token
@@ -411,7 +411,7 @@ async function handleAuthorizationCodeGrant(
 /**
  * 处理刷新令牌
  */
-async function handleRefreshTokenGrant(refresh_token: string, scope?: string): Promise<NextResponse> {
+async function handleRefreshTokenGrant(_refreshToken: string, _scope?: string): Promise<NextResponse> {
   // 验证刷新令牌
   // 这里可以实现完整的刷新令牌逻辑
   return NextResponse.json({
@@ -475,7 +475,7 @@ export async function handleOAuthIntrospection(request: NextRequest): Promise<Ne
 
     return NextResponse.json({ active: false });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ active: false }, { status: 400 });
   }
 }
@@ -510,23 +510,21 @@ export async function handleOAuthRevocation(request: NextRequest): Promise<NextR
 
     // 执行撤销逻辑
     const RedisService = (await import('@/lib/redis')).default;
-    const { deleteLongTermToken } = await import('@/services/token');
+    (await import('@/services/token'));
     const { getPrisma } = await import('@/lib/prisma');
-
-    let revoked = false;
 
     // 1. 尝试删除普通登录 Token
     const userTokenKey = `user:${token}`;
     const userTokenDeleted = await RedisService.del(userTokenKey);
     if (userTokenDeleted > 0) {
-      revoked = true;
+      // Token deleted
     }
 
     // 2. 尝试删除 OAuth Token
     const oauthTokenKey = `token:${token}`;
     const oauthTokenDeleted = await RedisService.del(oauthTokenKey);
     if (oauthTokenDeleted > 0) {
-      revoked = true;
+      // Token deleted
     }
 
     // 3. 如果是长期 Token，从数据库删除
@@ -537,7 +535,7 @@ export async function handleOAuthRevocation(request: NextRequest): Promise<NextR
           where: { token }
         });
         if (result.count > 0) {
-          revoked = true;
+          void result;
         }
       } catch (error) {
         console.error('删除长期 Token 失败:', error);

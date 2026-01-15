@@ -4,8 +4,7 @@
  * 默认使用流式响应
  */
 
-import { ChatPromptTemplate } from '@/lib/ai';
-import { createOpenAIModel, streamFromChain } from '@/lib/ai';
+import { ChatPromptTemplate, createAIChain, streamFromChain } from '@/lib/ai';
 import { AI_PROMPTS, type AIProcessParams, type AIActionType } from '@/lib/ai-text';
 
 /**
@@ -58,13 +57,11 @@ ${instruction}`;
     ['human', '{userContent}'],
   ]);
 
-  // 创建模型（从数据库读取 ai_text.* 配置）
-  const model = await createOpenAIModel({
+  // 创建带文本提取器的链（从数据库读取 ai_text.* 配置）
+  const chain = await createAIChain<{ userContent: string }>(prompt, {
     scenario: 'ai_text',
   });
 
-  // 创建链并流式执行
-  const chain = prompt.pipe(model);
-  
+  // 流式执行，输出纯文本字符串
   return streamFromChain(chain, { userContent });
 };

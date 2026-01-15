@@ -6,11 +6,10 @@
 
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
-import { 
-  parseToolCalls, 
-  executeToolCall, 
+import {
+  parseToolCalls,
+  executeToolCall,
   formatJsonRpcResponse,
-  type JsonRpcResponse
 } from '@/services/ai/tools';
 
 /**
@@ -112,12 +111,6 @@ export class ReactAgent {
 
       while (shouldContinue && iteration < this.maxIterations) {
         iteration++;
-        
-        if (this.verbose) {
-          if (messages.length > 0) {
-            const lastMsg = messages[messages.length - 1];
-          }
-        }
 
         // 调用模型（直接使用消息对象，不使用模板）
         const stream = await this.model.stream(messages);

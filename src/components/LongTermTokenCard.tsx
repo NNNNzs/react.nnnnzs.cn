@@ -45,7 +45,7 @@ interface TokenRecord {
   lastUsed: string | null;
 }
 
-const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
+const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [duration, setDuration] = useState<7 | 30 | 0>(7);
@@ -88,8 +88,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
       } else {
         message.error(response.data.message || "生成失败");
       }
-    } catch (error) {
-      console.error("生成Token失败:", error);
+    } catch {
       message.error("生成Token失败");
     } finally {
       setLoading(false);
@@ -111,7 +110,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
     try {
       await navigator.clipboard.writeText(token);
       message.success("Token已复制到剪贴板");
-    } catch (error) {
+    } catch {
       // 降级方案
       const textArea = document.createElement('textarea');
       textArea.value = token;
@@ -332,7 +331,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = ({ userId }) => {
           <div className="text-center py-8 text-gray-500">
             <ClockCircleOutlined style={{ fontSize: 48, marginBottom: 8 }} />
             <div>暂无长期Token</div>
-            <div className="text-sm mt-2">点击"申请新Token"按钮开始创建</div>
+            <div className="text-sm mt-2">点击&quot;申请新Token&quot;按钮开始创建</div>
           </div>
         ) : (
           <Space direction="vertical" className="w-full" size="middle">

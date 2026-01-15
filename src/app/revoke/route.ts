@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import RedisService from '@/lib/redis';
-import { deleteLongTermToken } from '@/services/token';
 import { getPrisma } from '@/lib/prisma';
 
 /**

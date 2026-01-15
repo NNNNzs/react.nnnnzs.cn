@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getPostVersion,
   getPostVersionChunks,
-  rollbackToVersion,
 } from '@/services/post-version';
 import {
   getTokenFromRequest,

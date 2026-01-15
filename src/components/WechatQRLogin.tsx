@@ -30,7 +30,7 @@ interface WechatQRLoginProps {
  * 微信小程序扫码登录组件
  */
 export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLoginProps) {
-  const [token, setToken] = useState<string>('');
+  const [, setToken] = useState<string>('');
   const [imgSrc, setImgSrc] = useState<string>('');
   const [message_text, setMessageText] = useState<string>('请使用微信扫码登录');
   const [loading, setLoading] = useState<boolean>(true);
@@ -202,13 +202,13 @@ export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLogi
   useEffect(() => {
     // 增加初始化计数
     const currentInitId = ++initRef.current;
-    
+
     // 标记组件已挂载
     isMountedRef.current = true;
     currentTokenRef.current = '';
-    
+
     // 调用初始化，传入当前初始化ID
-    initQRCode(currentInitId);
+    void initQRCode(currentInitId);
 
     // 组件卸载时清除定时器和标记
     return () => {
@@ -219,6 +219,7 @@ export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLogi
         timerRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

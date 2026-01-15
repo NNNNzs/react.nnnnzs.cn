@@ -4,7 +4,6 @@
  */
 
 import { getQdrantClient, QDRANT_COLLECTION_CONFIG } from '@/lib/qdrant';
-import type { TextChunk } from './text-splitter';
 
 /**
  * 向量数据项
@@ -47,9 +46,8 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
     const collectionInfo = await client.getCollection(COLLECTION_NAME);
     
     const collectionDimension = collectionInfo.config.params.vectors?.size;
-    const vectorConfig = collectionInfo.config.params.vectors;
-    
-    
+
+
     if (collectionDimension !== DIMENSION) {
       throw new Error(
         `集合向量维度 (${collectionDimension}) 与配置维度 (${DIMENSION}) 不匹配`
@@ -117,7 +115,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
     
     // 调试：输出第一条数据的示例
     if (points.length > 0) {
-      const firstPoint = points[0];
+      void points[0];
     }
 
     // 批量插入数据（Qdrant 支持批量操作）
@@ -130,7 +128,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
       
       // 调试：输出要发送的数据格式（仅第一条）
       if (i === 0 && batch.length > 0) {
-        const samplePoint = batch[0];
+        void batch[0];
       }
       
       try {
@@ -154,7 +152,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
     return insertedCount;
   } catch (error) {
     // 输出详细的错误信息
-    
+
     if (error instanceof Error) {
     }
 
@@ -163,22 +161,22 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
       // 检查是否是 HTTP 错误响应
       if (error && typeof error === 'object') {
         const errorObj = error as Record<string, unknown>;
-        
+
         // 检查是否有 response 属性（Axios 错误格式）
         if ('response' in errorObj) {
           const response = errorObj.response as Record<string, unknown>;
-          
+
           if (response.data) {
           }
         }
-        
+
         // 检查是否有 data 属性（直接错误格式）
         if ('data' in errorObj && errorObj.data) {
         }
-        
+
         // 输出所有可枚举属性
       }
-    } catch (logError) {
+    } catch {
     }
 
     throw error;

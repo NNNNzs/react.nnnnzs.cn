@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ active: false });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ active: false });
   }
 }
