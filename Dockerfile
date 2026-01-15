@@ -4,7 +4,7 @@
 # ================================
 
 # ===== 阶段 1: 依赖安装 =====
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 # 安装 libc6-compat（某些包可能需要）
 RUN apk add --no-cache libc6-compat
@@ -25,7 +25,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 
 # ===== 阶段 2: 构建应用 =====
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -62,7 +62,7 @@ RUN pnpm prune --prod
 
 
 # ===== 阶段 3: 生产运行 =====
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
