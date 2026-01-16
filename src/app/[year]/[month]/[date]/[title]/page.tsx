@@ -16,7 +16,8 @@ import {
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
-import { getPostList } from "@/services/post";
+import { unstable_cache } from "next/cache";
+import { getPostByPath, getPostList } from "@/services/post";
 
 import { getCollectionsByPostId } from "@/services/collection";
 import PostLikeButton from "./PostLikeButton";
@@ -56,51 +57,33 @@ async function resolveParams(params: PageProps["params"]) {
 }
 
 /**
- * 获取文章数据（使用 Next.js fetch 缓存 + 标签）
+ * 获取文章数据（使用 unstable_cache + 标签）
  * 支持按需重新验证 (On-Demand Revalidation)
  */
+const getCachedPost = unstable_cache(
+  async (path: string) => {
+    return await getPostByPath(path);
+  },
+  ['post'],
+  {
+    revalidate: 3600, // 1小时后重新验证（兜底机制）
+    tags: ['post'],
+  }
+);
+
 async function getPost(params: PageProps["params"]): Promise<Post | null> {
   try {
     const resolvedParams = await resolveParams(params);
     const { year, month, date, title } = resolvedParams;
 
-    // 构建 API 路径
-    // 服务器端需要完整的 URL，使用 next.config.ts 中配置的 baseUrl
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    // 构建路径
+    const path = `/${year}/${month}/${date}/${title}`;
 
-    // Next.js 传入的 title 是编码的（如 MCP-%E8%AE%A4...）
-    // 我们需要先解码它，然后让 fetch 重新编码
-    // 否则 fetch 会对已经编码的字符再次编码（% → %25），导致双重编码
-    const decodedTitle = decodeURIComponent(title);
-    const apiPath = `${baseUrl}/api/post/by-path/${year}/${month}/${date}/${decodedTitle}`;
+    console.log("🔍 获取文章 - 文章路径:", path);
 
-    console.log("🔍 Fetch 缓存请求 - 文章路径:", apiPath);
-
-    // 使用 fetch + Next.js 缓存标签
-    const response = await fetch(apiPath, {
-      // 声明缓存标签，与 API route 中的标签对应
-      next: {
-        tags: [`post`], // 通用标签，可批量清除所有文章缓存
-        // 如果需要精确控制单篇文章，可以在获取到 post id 后添加特定标签
-      },
-    });
-
-    if (!response.ok) {
-      console.error("❌ API 请求失败:", response.status);
-      return null;
-    }
-
-    const result = await response.json();
-
-    if (!result.status) {
-      console.error("❌ API 返回错误:", result.message);
-      return null;
-    }
-
-    console.log("✅ API 返回成功，文章 ID:", result.data?.id);
-    return result.data;
+    return await getCachedPost(path);
   } catch (error) {
-    console.error("❌ 获取文章详情失败 client:", error);
+    console.error("❌ 获取文章详情失败:", error);
     return null;
   }
 }
@@ -317,5 +300,6 @@ export async function generateStaticParams() {
   });
 }
 
-// 使用 Next.js fetch 缓存，支持按需重新验证
-export const dynamic = "force-dynamic"; // 允许按需重新验证
+// 使用 ISR (增量静态再生成)，支持按需重新验证
+// 1小时后自动重新验证作为兜底机制，实际更新时通过 revalidatePath 立即清除缓存
+export const revalidate = 3600;

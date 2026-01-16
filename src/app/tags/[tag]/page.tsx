@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Empty } from 'antd';
+import { unstable_cache } from 'next/cache';
 import PostListItem from '@/components/PostListItem';
 import Banner from '@/components/Banner';
 import { getPostsByTag } from '@/services/tag';
@@ -14,12 +15,26 @@ interface PageProps {
   }>;
 }
 
-export const revalidate = 60;
+/**
+ * 根据标签获取文章列表（使用 unstable_cache + 缓存标签）
+ */
+const getCachedPostsByTag = unstable_cache(
+  async (tag: string) => {
+    return await getPostsByTag(tag);
+  },
+  ['tag'],
+  {
+    revalidate: 3600,
+    tags: ['tags'],
+  }
+);
+
+export const revalidate = 3600;
 
 export default async function TagPostsPage({ params }: PageProps) {
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
-  const posts = await getPostsByTag(tag);
+  const posts = await getCachedPostsByTag(tag);
 
   return (
     <div>
@@ -38,7 +53,7 @@ export default async function TagPostsPage({ params }: PageProps) {
           <Empty description="该标签下暂无文章" />
         ) : (
           <ul>
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <PostListItem key={post.id} post={post} />
             ))}
           </ul>

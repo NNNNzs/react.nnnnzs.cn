@@ -89,6 +89,24 @@ export async function POST(request: NextRequest) {
       revalidatePath(result.path); // 清除路径缓存
     }
 
+    // 清除列表页缓存
+    revalidateTag('home', {}); // 清除首页缓存
+    revalidateTag('post-list', {}); // 清除文章列表缓存
+    revalidateTag('tags', {}); // 清除标签列表缓存
+    revalidateTag('tag-list', {}); // 清除标签列表缓存
+    revalidateTag('archives', {}); // 清除归档页缓存
+
+    // 清除标签页缓存（如果文章有标签）
+    if (result.tags) {
+      const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
+      tags.forEach((tag: string) => {
+        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+        if (trimmedTag) {
+          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+        }
+      });
+    }
+
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {
     console.error('创建文章失败:', error);

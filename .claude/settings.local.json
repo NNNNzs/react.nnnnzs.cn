@@ -23,7 +23,16 @@
       "Bash(pnpm run typecheck:*)",
       "Bash(pnpm typecheck)",
       "Bash(pnpm lint:*)",
-      "mcp__MyBlog__list_articles"
+      "mcp__MyBlog__list_articles",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git diff:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm build:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "mcp__MyBlog__get_article"
     ],
     "deny": [],
     "ask": []

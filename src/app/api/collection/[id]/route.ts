@@ -11,7 +11,8 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { updateCollection, deleteCollection } from '@/services/collection';
+import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
+import { revalidateTag, revalidatePath } from 'next/cache';
 
 // 定义合集更新的验证schema
 const updateCollectionSchema = z.object({
@@ -64,10 +65,22 @@ export async function PUT(
       updateData.status = parseInt(updateData.status as string, 10);
     }
 
+    // 获取更新前的合集（用于清除旧 slug 的缓存）
+    const oldCollection = await getCollectionById(collectionId);
+
     const result = await updateCollection(collectionId, updateData);
 
     if (!result) {
       return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
+    }
+
+    // 清除缓存
+    revalidateTag('collection', {}); // 清除合集列表缓存
+    revalidatePath(`/collections/${result.slug}`); // 清除新路径缓存
+
+    // 如果 slug 改变，清除旧路径缓存
+    if (oldCollection && oldCollection.slug !== result.slug) {
+      revalidatePath(`/collections/${oldCollection.slug}`);
     }
 
     return NextResponse.json(successResponse(result, '更新成功'));
@@ -97,10 +110,18 @@ export async function DELETE(
       return NextResponse.json(errorResponse('无效的合集 ID'), { status: 400 });
     }
 
+    // 获取合集信息（用于清除缓存）
+    const collection = await getCollectionById(collectionId);
     const success = await deleteCollection(collectionId);
 
     if (!success) {
       return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
+    }
+
+    // 清除缓存
+    revalidateTag('collection', {}); // 清除合集列表缓存
+    if (collection) {
+      revalidatePath(`/collections/${collection.slug}`); // 清除合集详情页
     }
 
     return NextResponse.json(successResponse(null, '删除成功'));

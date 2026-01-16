@@ -5,14 +5,29 @@
 import React from 'react';
 import Link from 'next/link';
 import { Empty } from 'antd';
+import { unstable_cache } from 'next/cache';
 import { TagOutlined } from '@ant-design/icons';
 import Banner from '@/components/Banner';
 import { getAllTags } from '@/services/tag';
 
-export const revalidate = 60;
+/**
+ * 获取所有标签（使用 unstable_cache + 缓存标签）
+ */
+const getCachedAllTags = unstable_cache(
+  async () => {
+    return await getAllTags();
+  },
+  ['tags', 'tag-list'],
+  {
+    revalidate: 3600,
+    tags: ['tags', 'tag-list'],
+  }
+);
+
+export const revalidate = 3600;
 
 export default async function TagsPage() {
-  const tags = await getAllTags();
+  const tags = await getCachedAllTags();
 
   return (
     <div>
@@ -25,7 +40,7 @@ export default async function TagsPage() {
           <Empty description="暂无标签" />
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {tags.map(([tag, count]) => (
+            {tags.map(([tag, count]: [string, number]) => (
               <Link
                 key={tag}
                 href={`/tags/${encodeURIComponent(tag)}`}

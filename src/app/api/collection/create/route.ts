@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
+import { revalidateTag, revalidatePath } from 'next/cache';
 
 // 定义合集创建的验证schema
 const createCollectionSchema = z.object({
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
       ...validationResult.data,
       created_by: user.id,
     });
+
+    // 清除缓存
+    revalidateTag('collection', {}); // 清除合集列表缓存
+    revalidatePath(`/collections/${result.slug}`); // 清除合集详情页
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {

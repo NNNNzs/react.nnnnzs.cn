@@ -125,6 +125,24 @@ export async function PUT(
       revalidatePath(updatedPost.path); // 清除路径缓存
     }
 
+    // 清除列表页缓存
+    revalidateTag('home', {}); // 清除首页缓存
+    revalidateTag('post-list', {}); // 清除文章列表缓存
+    revalidateTag('tags', {}); // 清除标签列表缓存
+    revalidateTag('tag-list', {}); // 清除标签列表缓存
+    revalidateTag('archives', {}); // 清除归档页缓存
+
+    // 清除标签页缓存（如果文章有标签）
+    if (updatedPost.tags) {
+      const tags = Array.isArray(updatedPost.tags) ? updatedPost.tags : String(updatedPost.tags).split(',');
+      tags.forEach((tag: string) => {
+        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+        if (trimmedTag) {
+          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+        }
+      });
+    }
+
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
 
@@ -198,6 +216,24 @@ export async function PATCH(
       revalidatePath(updatedPost.path); // 清除路径缓存
     }
 
+    // 清除列表页缓存
+    revalidateTag('home', {}); // 清除首页缓存
+    revalidateTag('post-list', {}); // 清除文章列表缓存
+    revalidateTag('tags', {}); // 清除标签列表缓存
+    revalidateTag('tag-list', {}); // 清除标签列表缓存
+    revalidateTag('archives', {}); // 清除归档页缓存
+
+    // 清除标签页缓存（如果文章有标签）
+    if (updatedPost.tags) {
+      const tags = Array.isArray(updatedPost.tags) ? updatedPost.tags : String(updatedPost.tags).split(',');
+      tags.forEach((tag: string) => {
+        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+        if (trimmedTag) {
+          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+        }
+      });
+    }
+
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
 
@@ -244,6 +280,24 @@ export async function DELETE(
         revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
       }
       revalidatePath(post.path); // 清除路径缓存
+    }
+
+    // 清除列表页缓存
+    revalidateTag('home', {}); // 清除首页缓存
+    revalidateTag('post-list', {}); // 清除文章列表缓存
+    revalidateTag('tags', {}); // 清除标签列表缓存
+    revalidateTag('tag-list', {}); // 清除标签列表缓存
+    revalidateTag('archives', {}); // 清除归档页缓存
+
+    // 清除标签页缓存（如果文章有标签）
+    if (post?.tags) {
+      const tags = Array.isArray(post.tags) ? post.tags : String(post.tags).split(',');
+      tags.forEach((tag: string) => {
+        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+        if (trimmedTag) {
+          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+        }
+      });
     }
 
     return NextResponse.json(successResponse(null, '删除成功'));

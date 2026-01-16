@@ -3,17 +3,32 @@
  */
 
 import React from 'react';
+import { unstable_cache } from 'next/cache';
 import Banner from '@/components/Banner';
-import { getArchives } from '@/services/post';
 import ArchivesList from '@/components/ArchivesList';
+import { getArchives } from '@/services/post';
 
-export const revalidate = 60;
+/**
+ * 获取归档数据（使用 unstable_cache + 缓存标签）
+ */
+const getCachedArchives = unstable_cache(
+  async () => {
+    return await getArchives();
+  },
+  ['archives'],
+  {
+    revalidate: 3600,
+    tags: ['archives'],
+  }
+);
+
+export const revalidate = 3600;
 
 export default async function ArchivesPage() {
-  const archives = await getArchives();
-  
+  const archives = await getCachedArchives();
+
   // 计算总文章数
-  const totalPosts = archives.reduce((sum, item) => sum + item.posts.length, 0);
+  const totalPosts = archives.reduce((sum: number, item: { posts: unknown[] }) => sum + item.posts.length, 0);
 
   return (
     <div>

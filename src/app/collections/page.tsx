@@ -4,20 +4,33 @@
 
 import React from 'react';
 import { Empty } from 'antd';
+import { unstable_cache } from 'next/cache';
 import Banner from '@/components/Banner';
 import CollectionCard from '@/components/CollectionCard';
 import { getCollectionList } from '@/services/collection';
 
-export const revalidate = 60;
+/**
+ * 获取合集列表（使用 unstable_cache + 缓存标签）
+ */
+const getCachedCollections = unstable_cache(
+  async () => {
+    return await getCollectionList({
+      pageSize: 100,
+      pageNum: 1,
+      status: 1,
+    });
+  },
+  ['collection', 'collection-list'],
+  {
+    revalidate: 3600,
+    tags: ['collection', 'collection-list'],
+  }
+);
+
+export const revalidate = 3600;
 
 export default async function CollectionsPage() {
-  // 获取所有合集（第一页，每页100个）
-  const result = await getCollectionList({
-    pageSize: 100,
-    pageNum: 1,
-    status: 1,
-  });
-
+  const result = await getCachedCollections();
   const collections = result.record;
 
   return (
@@ -31,7 +44,7 @@ export default async function CollectionsPage() {
           <Empty description="暂无合集" />
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {collections.map((collection) => (
+            {collections.map((collection: any) => (
               <CollectionCard
                 key={collection.id}
                 collection={collection}

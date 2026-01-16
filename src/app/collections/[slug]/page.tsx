@@ -4,12 +4,27 @@
 
 import React from 'react';
 import { notFound } from 'next/navigation';
+import { unstable_cache } from 'next/cache';
 import { BookOutlined, EyeOutlined, HeartOutlined } from '@ant-design/icons';
 import Banner from '@/components/Banner';
 import ArticleInCollectionItem from '@/components/ArticleInCollectionItem';
 import { getCollectionBySlug } from '@/services/collection';
 
-export const revalidate = 60;
+/**
+ * 获取合集详情（使用 unstable_cache + 缓存标签）
+ */
+const getCachedCollectionBySlug = unstable_cache(
+  async (slug: string) => {
+    return await getCollectionBySlug(slug);
+  },
+  ['collection'],
+  {
+    revalidate: 3600,
+    tags: ['collection'],
+  }
+);
+
+export const revalidate = 3600;
 
 export default async function CollectionDetailPage({
   params,
@@ -17,7 +32,7 @@ export default async function CollectionDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const collection = await getCollectionBySlug(slug);
+  const collection = await getCachedCollectionBySlug(slug);
 
   if (!collection) {
     notFound();
@@ -57,7 +72,7 @@ export default async function CollectionDetailPage({
           </div>
         ) : (
           <div className="space-y-4">
-            {collection.articles.map((article, index) => (
+            {collection.articles.map((article: any, index: number) => (
               <ArticleInCollectionItem
                 key={article.id}
                 article={article}
@@ -78,7 +93,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const collection = await getCollectionBySlug(slug);
+  const collection = await getCachedCollectionBySlug(slug);
 
   if (!collection) {
     return {
