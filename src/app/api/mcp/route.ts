@@ -8,6 +8,7 @@ import { createPost, updatePost, deletePost, getPostById, getPostList, getPostBy
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
 import { addPostsToCollection, removePostsFromCollection } from '@/services/collection';
+import { revalidateTag, revalidatePath } from 'next/cache';
 
 /**
  * 自定义 HTTP Transport
@@ -155,6 +156,37 @@ function createMcpServer(headers: Headers) {
       };
       const result = await createPost(postData);
 
+      // 清除缓存（与 /api/post/create 保持一致）
+      revalidateTag('post', {}); // 清除所有文章列表缓存
+      revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
+
+      // 从 path 中提取 slug（最后一部分）
+      if (result.path) {
+        const slug = result.path.split('/').pop();
+        if (slug) {
+          revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+        }
+        revalidatePath(result.path); // 清除路径缓存
+      }
+
+      // 清除列表页缓存
+      revalidateTag('home', {}); // 清除首页缓存
+      revalidateTag('post-list', {}); // 清除文章列表缓存
+      revalidateTag('tags', {}); // 清除标签列表缓存
+      revalidateTag('tag-list', {}); // 清除标签列表缓存
+      revalidateTag('archives', {}); // 清除归档页缓存
+
+      // 清除标签页缓存（如果文章有标签）
+      if (result.tags) {
+        const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
+        tags.forEach((tag: string) => {
+          const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+          if (trimmedTag) {
+            revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+          }
+        });
+      }
+
       // 处理合集关联
       if (args.collections && result.id) {
         try {
@@ -221,6 +253,37 @@ function createMcpServer(headers: Headers) {
       };
       const result = await updatePost(id, data);
       if (!result) return { isError: true, content: [{ type: "text", text: "Article not found" }] };
+
+      // 清除缓存（与 /api/post/[id] 保持一致）
+      revalidateTag('post', {}); // 清除所有文章列表缓存
+      revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
+
+      // 从 path 中提取 slug（最后一部分）
+      if (result.path) {
+        const slug = result.path.split('/').pop();
+        if (slug) {
+          revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+        }
+        revalidatePath(result.path); // 清除路径缓存
+      }
+
+      // 清除列表页缓存
+      revalidateTag('home', {}); // 清除首页缓存
+      revalidateTag('post-list', {}); // 清除文章列表缓存
+      revalidateTag('tags', {}); // 清除标签列表缓存
+      revalidateTag('tag-list', {}); // 清除标签列表缓存
+      revalidateTag('archives', {}); // 清除归档页缓存
+
+      // 清除标签页缓存（如果文章有标签）
+      if (result.tags) {
+        const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
+        tags.forEach((tag: string) => {
+          const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+          if (trimmedTag) {
+            revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+          }
+        });
+      }
 
       // 处理添加到合集
       if (add_to_collections) {
@@ -291,7 +354,44 @@ function createMcpServer(headers: Headers) {
     },
     async ({ id }) => {
       await ensureAuth();
+
+      // 先获取文章信息用于缓存失效
+      const post = await getPostById(id);
       const success = await deletePost(id);
+
+      if (success && post) {
+        // 清除缓存（与 /api/post/[id] 的 DELETE 方法保持一致）
+        revalidateTag('post', {}); // 清除所有文章列表缓存
+        revalidateTag(`post:${id}`, {}); // 清除按 ID 的缓存
+
+        // 从 path 中提取 slug（最后一部分）
+        if (post.path) {
+          const slug = post.path.split('/').pop();
+          if (slug) {
+            revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+          }
+          revalidatePath(post.path); // 清除路径缓存
+        }
+
+        // 清除列表页缓存
+        revalidateTag('home', {}); // 清除首页缓存
+        revalidateTag('post-list', {}); // 清除文章列表缓存
+        revalidateTag('tags', {}); // 清除标签列表缓存
+        revalidateTag('tag-list', {}); // 清除标签列表缓存
+        revalidateTag('archives', {}); // 清除归档页缓存
+
+        // 清除标签页缓存（如果文章有标签）
+        if (post.tags) {
+          const tags = Array.isArray(post.tags) ? post.tags : String(post.tags).split(',');
+          tags.forEach((tag: string) => {
+            const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
+            if (trimmedTag) {
+              revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
+            }
+          });
+        }
+      }
+
       return {
         content: [{ type: "text", text: success ? "Deleted successfully" : "Failed to delete" }]
       };
