@@ -13,6 +13,7 @@ import {
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { canManageCollections } from '@/lib/permission';
 
 // 定义合集更新的验证schema
 const updateCollectionSchema = z.object({
@@ -36,6 +37,11 @@ export async function PUT(
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以更新合集
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限更新合集'), { status: 403 });
     }
 
     const { id } = await params;
@@ -101,6 +107,11 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以删除合集
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限删除合集'), { status: 403 });
     }
 
     const { id } = await params;

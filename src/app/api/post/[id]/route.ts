@@ -15,6 +15,8 @@ import {
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { canAccessPost } from '@/lib/permission';
+import { isAdmin } from '@/types/role';
 // 定义文章更新的验证schema
 const updatePostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),
@@ -61,6 +63,27 @@ export async function GET(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
+    // 检查是否已删除：已删除的文章只有管理员可以查看
+    if (post.is_delete === 1) {
+      const token = getTokenFromRequest(request.headers);
+      const user = token ? await validateToken(token) : null;
+
+      if (!isAdmin(user?.role)) {
+        return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
+      }
+    }
+
+    // 检查是否隐藏：隐藏文章只有管理员或作者本人可以查看
+    if (post.hide === '1') {
+      const token = getTokenFromRequest(request.headers);
+      const user = token ? await validateToken(token) : null;
+
+      // 不是管理员且不是作者本人
+      if (!isAdmin(user?.role) && user?.id !== post.created_by) {
+        return NextResponse.json(errorResponse('无权限查看此隐藏文章'), { status: 403 });
+      }
+    }
+
     return NextResponse.json(successResponse(post));
   } catch (error) {
     console.error('获取文章详情失败:', error);
@@ -81,9 +104,23 @@ export async function PUT(
     // 验证Token
     const token = getTokenFromRequest(request.headers);
     const user = token ? await validateToken(token) : null;
-    
+
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const postId = Number(id);
+
+    // 先获取文章，检查权限
+    const existingPost = await getPostById(postId);
+    if (!existingPost) {
+      return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    // 检查编辑权限
+    if (!canAccessPost(user, existingPost, 'edit')) {
+      return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
 
     const body = await request.json();
@@ -100,12 +137,10 @@ export async function PUT(
       );
     }
 
-    const { id } = await context.params;
-
     const updatedPost = await updatePost(
-      Number(id),
+      postId,
       validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
-      user?.id
+      user.id
     );
 
     if (!updatedPost) {
@@ -164,9 +199,23 @@ export async function PATCH(
     // 验证Token
     const token = getTokenFromRequest(request.headers);
     const user = token ? await validateToken(token) : null;
-    
+
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const postId = Number(id);
+
+    // 先获取文章，检查权限
+    const existingPost = await getPostById(postId);
+    if (!existingPost) {
+      return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    // 检查编辑权限
+    if (!canAccessPost(user, existingPost, 'edit')) {
+      return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
 
     const body = await request.json();
@@ -191,10 +240,8 @@ export async function PATCH(
       );
     }
 
-    const { id } = await context.params;
-
     const updatedPost = await updatePost(
-      Number(id),
+      postId,
       validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
       user.id
     );
@@ -254,15 +301,28 @@ export async function DELETE(
   try {
     // 验证Token
     const token = getTokenFromRequest(request.headers);
-    if (!token || !(await validateToken(token))) {
+    const user = token ? await validateToken(token) : null;
+
+    if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
     }
 
     const { id } = await context.params;
     const postId = Number(id);
 
-    // 先获取文章信息用于清除缓存
+    // 先获取文章信息用于清除缓存和权限检查
     const post = await getPostById(postId);
+    if (!post) {
+      return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    // 检查删除权限
+    if (!canAccessPost(user, post, 'delete')) {
+      return NextResponse.json(errorResponse('无权限删除此文章'), {
+        status: 403,
+      });
+    }
+
     const success = await deletePost(postId);
 
     if (!success) {

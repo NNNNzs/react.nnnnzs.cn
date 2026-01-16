@@ -160,8 +160,8 @@ function UserPageContent() {
    */
   useEffect(() => {
     if (user && !isAdmin(user.role)) {
-      message.error("无权限访问");
-      router.push("/c");
+      message.error("无权限访问用户管理");
+      router.push("/c/post");
     }
   }, [user, router]);
 

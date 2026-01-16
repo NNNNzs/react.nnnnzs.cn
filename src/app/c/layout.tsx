@@ -5,41 +5,16 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Layout, Menu, message } from "antd";
 import type { MenuProps } from "antd";
 import { FileTextOutlined, SettingOutlined, UserOutlined, BookOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
+import { isAdmin } from "@/types/role";
 
 const { Sider, Content } = Layout;
-
-/**
- * 菜单项配置
- */
-const menuItems: MenuProps["items"] = [
-  {
-    key: "/c/post",
-    icon: <FileTextOutlined />,
-    label: "文章管理",
-  },
-  {
-    key: "/c/collections",
-    icon: <BookOutlined />,
-    label: "合集管理",
-  },
-  {
-    key: "/c/config",
-    icon: <SettingOutlined />,
-    label: "配置管理",
-  },
-  {
-    key: "/c/user",
-    icon: <UserOutlined />,
-    label: "用户管理",
-  },
-];
 
 /**
  * 管理后台布局组件
@@ -51,6 +26,43 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
 
   /**
+   * 动态生成菜单项
+   * 普通用户只显示"文章管理"，管理员显示所有菜单
+   */
+  const menuItems: MenuProps["items"] = useMemo(() => {
+    const items: MenuProps["items"] = [
+      {
+        key: "/c/post",
+        icon: <FileTextOutlined />,
+        label: "文章管理",
+      },
+    ];
+
+    // 管理员专属菜单
+    if (isAdmin(user?.role)) {
+      items.push(
+        {
+          key: "/c/collections",
+          icon: <BookOutlined />,
+          label: "合集管理",
+        },
+        {
+          key: "/c/config",
+          icon: <SettingOutlined />,
+          label: "配置管理",
+        },
+        {
+          key: "/c/user",
+          icon: <UserOutlined />,
+          label: "用户管理",
+        }
+      );
+    }
+
+    return items;
+  }, [user?.role]);
+
+  /**
    * 检查登录状态
    * 只有在 loading 完成后才检查，避免误判
    */
@@ -60,6 +72,27 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  /**
+   * 路径访问权限检查
+   * 防止普通用户直接访问管理员专属页面
+   */
+  useEffect(() => {
+    if (!loading && user) {
+      // 定义管理员专属路径
+      // 注意：/c/user/info 是个人中心，所有用户都可以访问，所以只拦截 /c/user
+      const adminOnlyPaths = ['/c/collections', '/c/config', '/c/user'];
+      const isAdminPath = adminOnlyPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
+
+      // 个人中心页面例外处理
+      const isPersonalCenter = pathname.startsWith('/c/user/info');
+
+      if (isAdminPath && !isPersonalCenter && !isAdmin(user.role)) {
+        message.warning('您没有权限访问此页面');
+        router.push('/c/post');
+      }
+    }
+  }, [user, loading, pathname, router]);
 
   /**
    * 后台页面统一控制 Header 样式：

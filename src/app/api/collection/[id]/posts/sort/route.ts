@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollectionOrder } from '@/services/collection';
+import { canManageCollections } from '@/lib/permission';
 
 // 调整顺序验证schema
 const updateOrderSchema = z.object({
@@ -31,6 +32,11 @@ export async function PUT(
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以调整合集文章顺序
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限调整合集文章顺序'), { status: 403 });
     }
 
     const { id } = await params;

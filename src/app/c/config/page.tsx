@@ -148,8 +148,8 @@ function ConfigPageContent() {
    */
   useEffect(() => {
     if (user && !isAdmin(user.role)) {
-      message.error("无权限访问");
-      router.push("/c");
+      message.error("无权限访问配置管理");
+      router.push("/c/post");
     }
   }, [user, router]);
 

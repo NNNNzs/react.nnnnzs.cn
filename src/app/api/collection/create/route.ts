@@ -12,6 +12,7 @@ import {
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { canManageCollections } from '@/lib/permission';
 
 // 定义合集创建的验证schema
 const createCollectionSchema = z.object({
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以创建合集
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限创建合集'), { status: 403 });
     }
 
     const body = await request.json();

@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 使用中文回答问题
 
 This is a full-stack React blog system built with Next.js 16 + React 19 + Prisma + MySQL. It features:
-- Complete frontend blog with article display, tags, archives
+- Complete frontend blog with article display, tags, archives, collections
 - Admin backend for content management
 - AI-powered features (chat, content generation, embeddings)
 - OAuth 2.0 authentication with MCP (Model Context Protocol) support
 - Vector search using Qdrant for semantic search
+- Article collection system for organizing related posts
 
 ## Common Commands
 
@@ -52,6 +53,16 @@ pnpm start:docker           # Start with docker-compose (local)
 pnpm local:image:push       # Push image to registry
 ```
 
+### Cursor Rules
+```bash
+# 项目包含详细的 Cursor IDE 规范
+# 参考 .cursor/rules/ 目录：
+# - general.mdc: 通用开发规范
+# - frontend.mdc: 前端组件和页面规范
+# - backend.mdc: API 路由和服务层规范
+# - database.mdc: 数据库和 ORM 规范
+```
+
 ## Architecture
 
 ### Tech Stack
@@ -82,8 +93,12 @@ src/
 │   │   ├── oauth-authorization-server/
 │   │   ├── oauth-protected-resource/
 │   │   └── openid-configuration/
-│   ├── [year]/[month]/[date]/[title]/  # Dynamic blog post pages
+│   ├── [year]/[month]/[date]/[title]/  # blog post pages
+│   ├── collections/[slug]/       # Collection detail page
 │   ├── c/                        # Admin dashboard
+│   │   ├── collections/          # Collection management
+│   │   │   ├── [id]/             # Collection edit
+│   │   │   └── [id]/posts/       # Articles in collection
 │   │   ├── edit/[id]/            # Article editor
 │   │   ├── post/                 # Post management
 │   │   ├── user/                 # User management
@@ -95,6 +110,9 @@ src/
 │
 ├── components/                   # React components
 │   ├── AITextProcessor/          # AI text processing UI
+│   ├── CollectionCard/           # Collection card component
+│   ├── ArticleCollections/       # Article's collections
+│   ├── CollectionSelector/       # Collection selector for posts
 │   └── (shared UI components)
 │
 ├── contexts/                     # React Contexts
@@ -106,12 +124,15 @@ src/
 │   ├── post.dto.ts               # Post data types
 │   ├── user.dto.ts               # User data types
 │   ├── config.dto.ts             # Config data types
+│   ├── collection.dto.ts         # Collection data types
 │   └── response.dto.ts           # API response format
 │
 ├── lib/                          # Core utilities
 │   ├── auth.ts                   # Authentication utilities
 │   ├── redis.ts                  # Redis client & service
 │   ├── prisma.ts                 # Prisma client wrapper
+│   ├── long-term-token-auth.ts   # LTK auth middleware
+│   ├── ai.ts                     # OpenAI LangChain abstraction
 │   └── (other utilities)
 │
 ├── services/                     # Business logic layer
@@ -119,10 +140,11 @@ src/
 │   │   ├── anthropic/            # Anthropic SDK wrapper
 │   │   ├── description/          # Article description generation
 │   │   ├── text/                 # Text processing
-│   │   └── tools/                # AI tools/functions
+│   │   └── utils/                # AI prompt templates (OpenAI)
 │   ├── embedding/                # Text embedding services
 │   ├── vector/                   # Qdrant vector operations
 │   ├── post.ts                   # Post CRUD operations
+│   ├── collection.ts             # Collection CRUD operations
 │   ├── user.ts                   # User operations
 │   ├── auth.ts                   # Authentication service
 │   ├── mcpAuth.ts                # MCP OAuth adapter
@@ -145,6 +167,74 @@ All database operations go through the `services/` layer:
 export async function getPostList(params: QueryCondition): Promise<PageQueryRes<SerializedPost>>
 export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
 ```
+
+#### 2. **Permission & Security Architecture** 🔒 IMPORTANT
+项目使用多层权限防护系统，所有 API 必须实现权限验证：
+
+**权限层级（自上而下）**：
+1. **前端 UI 控制** - 隐藏无权访问的功能（仅用户体验，不提供安全保障）
+2. **路由守卫** - 拦截未授权的 URL 访问
+3. **API 权限验证** - ✅ 核心防护，所有 API 必须实现
+4. **服务层过滤** - 最后一道防线，数据查询时过滤
+
+**角色定义**：
+- `admin` - 管理员，拥有所有权限
+- `user` - 普通用户，只能管理自己创建的资源
+- `guest` - 访客，只能查看公开内容
+
+**权限工具库**（`src/lib/permission.ts`）：
+```typescript
+// 身份验证
+const { user, error } = await validateUserFromRequest(request.headers);
+const { user, error } = await requireAdmin(request.headers);  // 仅管理员
+
+// 资源权限检查
+canAccessPost(user, post, 'edit')           // 文章权限
+canAccessUser(currentUser, targetUserId, 'edit')  // 用户权限
+canManageConfig(user)                       // 配置管理
+canManageCollections(user)                  // 合集管理
+canManageUsers(user)                        // 用户管理
+```
+
+**API 权限检查标准模式**：
+```typescript
+export async function POST(request: NextRequest) {
+  // 1. 验证身份
+  const { user, error } = await validateUserFromRequest(request.headers);
+  if (error) {
+    return NextResponse.json(errorResponse(error), { status: 401 });
+  }
+
+  // 2. 验证权限（根据场景选择）
+  // 2a. 管理员专属操作
+  if (!canManageCollections(user)) {
+    return NextResponse.json(errorResponse('无权限操作合集'), { status: 403 });
+  }
+
+  // 2b. 资源所有权操作
+  if (!canAccessPost(user, post, 'edit')) {
+    return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
+  }
+
+  // 3. 业务逻辑
+  // ...
+}
+```
+
+**特殊权限规则**：
+- **隐藏文章** (`hide=1`)：管理员可查看所有，普通用户只能查看自己的
+- **已删除文章** (`is_delete=1`)：仅管理员可查看，普通用户绝对不可见
+- **文章列表**：普通用户默认只能看到自己创建的文章
+- **合集/配置/用户管理**：仅管理员可操作
+
+**⚠️ 关键原则**：
+- ✅ 所有 API 必须在服务端验证权限（不能仅依赖前端）
+- ✅ 使用封装的权限检查函数（避免重复代码）
+- ✅ 先检查权限，再查询数据（性能优化）
+- ❌ 永远不信任客户端请求的角色信息
+- ❌ 不能因为前端隐藏了功能就跳过 API 权限检查
+
+详见 `docs/PERMISSION.md` 和 `.cursor/rules/permission.mdc`
 
 #### 2. **DTO Pattern**
 Shared type definitions in `src/dto/` for type safety across frontend/backend:
@@ -244,6 +334,17 @@ export default function AdminPage() {
 - **TbPostVersion**: Article version history
 - **TbPostChunk**: Content chunks for vector search
 - **LongTermToken**: Persistent tokens for MCP/CLI
+- **TbCollection**: Article collections
+- **TbCollectionPost**: Collection-post relationship (many-to-many)
+
+### Collection Tables
+- **TbCollection**: Collection main table
+  - `slug`: URL path (unique)
+  - `article_count`, `total_views`, `total_likes`: Redundant stats fields
+  - `status`: Status (1-normal, 0-hidden)
+- **TbCollectionPost**: Junction table
+  - `sort_order`: Order for posts in collection
+  - Unique constraint: `(collection_id, post_id)`
 
 ### Important Notes
 - **No auto-migrations**: Database schema exists externally
@@ -261,6 +362,17 @@ export default function AdminPage() {
 - `DELETE /api/post/[id]` - Delete article (auth required)
 - `GET /api/post/tags` - All tags
 - `GET /api/post/tags/[tag]` - Articles by tag
+
+### Collection Operations
+- `GET /api/collections` - Public collection list
+- `GET /api/collections/[slug]` - Collection detail with posts
+- `GET /api/collection/list` - Admin collection list (auth required)
+- `POST /api/collection/create` - Create collection (auth required)
+- `PUT /api/collection/[id]` - Update collection (auth required)
+- `DELETE /api/collection/[id]` - Delete collection (auth required)
+- `POST /api/collection/[id]/posts` - Add post to collection (auth required)
+- `DELETE /api/collection/[id]/posts/[postId]` - Remove post from collection (auth required)
+- `PUT /api/collection/[id]/posts/reorder` - Reorder posts in collection (auth required)
 
 ### Authentication
 - `POST /api/user/login` - Login
@@ -335,6 +447,11 @@ pnpm dev
 1. Update `prisma/schema.prisma`
 2. Run `pnpm prisma:push` (dev) or create migration
 3. Regenerate client: `pnpm prisma:generate`
+
+### Adding Collections to Posts
+1. Add collection selector component in article editor
+2. Use `CollectionSelector` component
+3. Call `/api/collection/[id]/posts` API to manage associations
 
 ## Important Files
 
@@ -414,3 +531,36 @@ ci(docker): optimize build workflow
 ```
 
 See README.md for complete commit message guidelines.
+
+## Additional Rules
+
+项目包含详细的 Cursor IDE 规范文件，提供更深入的开发指导：
+
+- **`.cursor/rules/general.mdc`**: 通用开发规范
+  - 项目技术栈详情
+  - 文件组织和命名规范
+  - TypeScript 严格模式配置
+  - 环境变量配置
+  - Git 提交规范
+
+- **`.cursor/rules/frontend.mdc`**: 前端开发规范
+  - Next.js App Router 约定
+  - 客户端 vs 服务端组件
+  - Ant Design 6.x 使用规范（API 变更）
+  - 管理后台布局模式
+  - AI 流式响应处理
+
+- **`.cursor/rules/backend.mdc`**: 后端开发规范
+  - API 路由规范
+  - 服务层组织（AI 服务目录结构）
+  - 认证和授权（withAuth 中间件）
+  - AI 工具选择规范（Anthropic vs OpenAI）
+  - MCP 服务器规范
+
+- **`.cursor/rules/database.mdc`**: 数据库开发规范
+  - Prisma Schema 定义
+  - 数据库迁移（使用 `prisma db push`）
+  - 查询优化和索引策略
+  - 常用命令和工作流程
+
+查看这些文件可以获取更详细的编码标准和最佳实践。

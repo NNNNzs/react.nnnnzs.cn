@@ -39,6 +39,8 @@ export interface QueryCondition {
   pageNum: number;
   hide?: string;
   query?: string;
+  created_by?: number; // 按创建者过滤
+  is_delete?: number; // 是否包含已删除文章（0=未删除，1=已删除）
 }
 
 /**

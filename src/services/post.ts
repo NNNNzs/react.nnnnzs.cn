@@ -63,17 +63,27 @@ function genCover(date: Date | string): string {
  * 获取文章列表
  */
 export async function getPostList(params: QueryCondition): Promise<PageQueryRes<SerializedPost>> {
-  const { pageNum = 1, pageSize = 10, hide = '0', query = '' } = params;
-  
+  const { pageNum = 1, pageSize = 10, hide = '0', query = '', created_by, is_delete } = params;
+
   const prisma = await getPrisma();
 
   // 构建查询条件
-  const whereConditions: Record<string, unknown> = {
-    is_delete: 0,
-  };
+  const whereConditions: Record<string, unknown> = {};
+
+  // is_delete 参数：明确指定时使用指定值，否则默认为 0（未删除）
+  if (is_delete !== undefined) {
+    whereConditions.is_delete = is_delete;
+  } else {
+    whereConditions.is_delete = 0;
+  }
 
   if (hide !== 'all') {
     whereConditions.hide = hide;
+  }
+
+  // 按创建者过滤
+  if (created_by !== undefined) {
+    whereConditions.created_by = created_by;
   }
 
   if (query) {
@@ -137,6 +147,7 @@ export async function getPostByPath(path: string): Promise<SerializedPost | null
     where: {
       path: path,
       is_delete: 0,
+      hide: '0', // 只查询显示的文章
     },
   });
 
@@ -150,6 +161,7 @@ export async function getPostByPath(path: string): Promise<SerializedPost | null
       where: {
         path: decodedPath,
         is_delete: 0,
+        hide: '0', // 只查询显示的文章
       },
     });
 

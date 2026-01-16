@@ -18,6 +18,8 @@ import {
   Typography,
   Divider,
   Upload,
+  Tag,
+  Alert,
 } from "antd";
 import type { UploadProps } from "antd";
 import {
@@ -36,6 +38,8 @@ import WechatBindCard from "@/components/WechatBindCard";
 import GithubBindCard from "@/components/GithubBindCard";
 import LongTermTokenCard from "@/components/LongTermTokenCard";
 import OAuthTokenCard from "@/components/OAuthTokenCard";
+import { isAdmin } from "@/types/role";
+import { RoleDisplayNames } from "@/types/role";
 
 const { Title, Text } = Typography;
 
@@ -266,6 +270,37 @@ export default function UserInfoPage() {
           </div>
 
           <Divider />
+
+          {/* 角色显示和权限说明 */}
+          <div className="mb-6">
+            <Space direction="vertical" size="middle" className="w-full">
+              <div>
+                <Text type="secondary">账户角色：</Text>
+                <Tag
+                  color={isAdmin(userInfo?.role) ? "red" : "blue"}
+                  icon={<UserOutlined />}
+                  className="ml-2"
+                >
+                  {RoleDisplayNames[userInfo?.role as keyof typeof RoleDisplayNames || "user"] || "未知"}
+                </Tag>
+              </div>
+              {isAdmin(userInfo?.role) ? (
+                <Alert
+                  message="管理员权限"
+                  description="您可以管理所有文章、合集、配置和用户"
+                  type="success"
+                  showIcon
+                />
+              ) : (
+                <Alert
+                  message="普通用户权限"
+                  description="您可以创建和编辑自己的文章"
+                  type="info"
+                  showIcon
+                />
+              )}
+            </Space>
+          </div>
 
           {/* 用户信息表单 */}
           <Form

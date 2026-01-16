@@ -1,0 +1,495 @@
+# 权限系统规范
+
+> 本规范定义了项目中所有 API 的权限验证标准，所有开发人员必须严格遵守。
+
+## 核心原则
+
+### 1. 多层防护原则
+
+权限检查必须在多个层面实现，确保没有任何单点故障：
+
+```
+Layer 1: 前端 UI 控制（用户体验）
+   ├─ 动态菜单生成
+   ├─ 按钮显隐控制
+   └─ 路由访问拦截
+   ↓
+Layer 2: API 权限验证（核心防护）✅ 必须实现
+   ├─ 身份验证（Token）
+   ├─ 角色权限检查
+   ├─ 资源所有权检查
+   └─ 操作类型检查
+   ↓
+Layer 3: 服务层过滤（最后一道防线）
+   ├─ 查询条件过滤
+   └─ 数据返回控制
+```
+
+**关键原则**：前端控制只负责用户体验，真正的权限验证必须在 API 层完成。
+
+### 2. 防御性编程原则
+
+- ✅ **永远不信任客户端请求**：角色、用户ID等必须从服务端 Token 中验证
+- ✅ **默认拒绝**：除非明确授权，否则拒绝访问
+- ✅ **最小权限**：用户只能访问其职责范围内的最小权限集合
+- ❌ **不信任前端隐藏**：前端隐藏的功能不代表有权限保护
+
+## 权限模型
+
+### 角色定义
+
+| 角色 | 代码值 | 说明 | 权限范围 |
+|------|--------|------|----------|
+| **管理员** | `admin` | 系统管理员 | 所有功能 |
+| **普通用户** | `user` | 已登录用户 | 自己创建的资源 |
+| **访客** | `guest` | 未登录用户 | 公开内容 |
+
+### 权限矩阵
+
+| 资源/操作 | 访客 | 普通用户 | 管理员 |
+|----------|------|----------|--------|
+| **文章管理** |
+| 查看显示的文章 | ✅ | ✅ | ✅ |
+| 查看隐藏的文章 | ❌ | ✅（自己的） | ✅（所有） |
+| 创建文章 | ❌ | ✅ | ✅ |
+| 编辑文章 | ❌ | ✅（自己的） | ✅（所有） |
+| 删除文章 | ❌ | ❌ | ✅ |
+| 查看已删除文章 | ❌ | ❌ | ✅ |
+| **合集管理** |
+| 查看合集 | ✅ | ✅ | ✅ |
+| 创建/编辑/删除合集 | ❌ | ❌ | ✅ |
+| 管理合集文章 | ❌ | ❌ | ✅ |
+| **配置管理** |
+| 查看系统配置 | ❌ | ❌ | ✅ |
+| 修改系统配置 | ❌ | ❌ | ✅ |
+| **用户管理** |
+| 查看个人信息 | ❌ | ✅（自己的） | ✅（所有） |
+| 编辑个人信息 | ❌ | ✅（自己的） | ✅（所有） |
+| 管理用户 | ❌ | ❌ | ✅ |
+
+## API 权限实现标准
+
+### 标准权限检查流程
+
+所有 API 必须遵循以下流程：
+
+```typescript
+import { validateUserFromRequest } from '@/lib/permission';
+import { canManageCollections } from '@/lib/permission';
+import { successResponse, errorResponse } from '@/dto/response.dto';
+
+export async function POST(request: NextRequest) {
+  try {
+    // ===== 步骤 1: 验证身份 =====
+    const { user, error } = await validateUserFromRequest(request.headers);
+    if (error) {
+      return NextResponse.json(errorResponse(error), { status: 401 });
+    }
+
+    // ===== 步骤 2: 验证权限 =====
+    // 2a. 管理员专属操作
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限操作合集'), { status: 403 });
+    }
+
+    // 2b. 资源所有权操作
+    // if (!canAccessPost(user, post, 'edit')) {
+    //   return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
+    // }
+
+    // ===== 步骤 3: 业务逻辑 =====
+    const result = await createCollection(data);
+
+    return NextResponse.json(successResponse(result));
+  } catch (error) {
+    // 错误处理
+  }
+}
+```
+
+### 权限检查场景
+
+#### 场景 1: 管理员专属 API
+
+**适用**：系统配置、用户管理、合集管理
+
+```typescript
+import { canManageConfig, canManageCollections, canManageUsers } from '@/lib/permission';
+
+export async function POST(request: NextRequest) {
+  const { user, error } = await validateUserFromRequest(request.headers);
+  if (error) {
+    return NextResponse.json(errorResponse(error), { status: 401 });
+  }
+
+  // 检查权限
+  if (!canManageConfig(user)) {
+    return NextResponse.json(errorResponse('无权限管理配置'), { status: 403 });
+  }
+
+  // 业务逻辑...
+}
+```
+
+#### 场景 2: 资源所有权 API
+
+**适用**：文章管理、用户信息编辑
+
+```typescript
+import { canAccessPost, canAccessUser } from '@/lib/permission';
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  // 验证身份
+  const { user, error } = await validateUserFromRequest(request.headers);
+  if (error) {
+    return NextResponse.json(errorResponse(error), { status: 401 });
+  }
+
+  // 获取资源
+  const post = await getPostById(postId);
+  if (!post) {
+    return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+  }
+
+  // 验证权限（管理员或作者本人）
+  if (!canAccessPost(user, post, 'edit')) {
+    return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
+  }
+
+  // 业务逻辑...
+}
+```
+
+#### 场景 3: 列表查询权限
+
+**适用**：文章列表、用户列表
+
+```typescript
+export async function GET(request: NextRequest) {
+  const { user, error } = await validateUserFromRequest(request.headers);
+  if (error) {
+    return NextResponse.json(errorResponse(error), { status: 401 });
+  }
+
+  const params: QueryParams = { pageNum, pageSize };
+
+  // 普通用户只能查看自己的文章
+  if (!isAdmin(user?.role)) {
+    params.created_by = user.id;
+  }
+
+  // 已删除文章只有管理员可查看
+  if (isDelete === '1' && !isAdmin(user?.role)) {
+    return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
+  }
+
+  const result = await getPostList(params);
+  return NextResponse.json(successResponse(result));
+}
+```
+
+## 权限工具库
+
+### 文件位置
+`src/lib/permission.ts`
+
+### 身份验证函数
+
+#### `validateUserFromRequest(headers: Headers)`
+从请求中验证用户身份
+
+```typescript
+const { user, error } = await validateUserFromRequest(request.headers);
+if (error) {
+  return NextResponse.json(errorResponse(error), { status: 401 });
+}
+```
+
+#### `requireAdmin(headers: Headers)`
+验证用户是否为管理员
+
+```typescript
+const { user, error } = await requireAdmin(request.headers);
+if (error) {
+  return NextResponse.json(errorResponse(error), { status: error === '未授权' ? 401 : 403 });
+}
+```
+
+### 资源权限检查函数
+
+#### `canAccessPost(user, post, operation)`
+检查是否有权限操作指定文章
+
+参数：
+- `user`: 当前用户
+- `post`: 目标文章对象
+- `operation`: 操作类型 (`'read'` | `'edit'` | `'delete'`)
+
+规则：
+- 管理员：所有权限
+- 普通用户：只能查看和编辑自己的文章
+
+```typescript
+if (!canAccessPost(user, post, 'edit')) {
+  return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
+}
+```
+
+#### `canAccessUser(currentUser, targetUserId, operation)`
+检查是否有权限操作指定用户
+
+参数：
+- `currentUser`: 当前用户
+- `targetUserId`: 目标用户ID
+- `operation`: 操作类型 (`'read'` | `'edit'` | `'delete'`)
+
+规则：
+- 管理员：所有权限
+- 普通用户：只能查看和编辑自己的信息，不能删除自己
+
+```typescript
+if (!canAccessUser(currentUser, targetUserId, 'edit')) {
+  return NextResponse.json(errorResponse('无权限编辑此用户'), { status: 403 });
+}
+```
+
+#### `canManageConfig(user)` / `canManageCollections(user)` / `canManageUsers(user)`
+检查是否有管理权限
+
+```typescript
+if (!canManageConfig(user)) {
+  return NextResponse.json(errorResponse('无权限管理配置'), { status: 403 });
+}
+```
+
+## 特殊场景处理
+
+### 1. 隐藏文章权限
+
+**规则**：
+- 管理员：可以查看所有人的隐藏文章
+- 普通用户：可以查看**自己的**隐藏文章（用于恢复）
+- 访客：无法查看隐藏文章
+
+**实现**：
+```typescript
+// 列表 API
+if (hide === 'all' && !isAdmin(user?.role)) {
+  return NextResponse.json(errorResponse('无权限查看所有隐藏文章'), { status: 403 });
+}
+
+if (hide === '1' && !isAdmin(user?.role)) {
+  if (!created_by || parseInt(createdBy, 10) !== user?.id) {
+    return NextResponse.json(errorResponse('无权限查看其他用户的隐藏文章'), { status: 403 });
+  }
+}
+
+// 详情 API
+if (post.hide === '1') {
+  if (!isAdmin(user?.role) && user?.id !== post.created_by) {
+    return NextResponse.json(errorResponse('无权限查看此隐藏文章'), { status: 403 });
+  }
+}
+```
+
+### 2. 已删除文章权限
+
+**规则**：
+- 管理员：可以选择查看已删除文章（通过 `is_delete=1` 参数）
+- 普通用户：**绝对不能**查看任何已删除文章（包括自己的）
+
+**实现**：
+```typescript
+// 列表 API
+if (isDelete === '1' && !isAdmin(user?.role)) {
+  return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
+}
+
+// 详情 API
+if (post.is_delete === 1 && !isAdmin(user?.role)) {
+  return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
+}
+
+// 服务层
+const whereConditions: Record<string, unknown> = {};
+if (is_delete !== undefined) {
+  whereConditions.is_delete = is_delete;
+} else {
+  whereConditions.is_delete = 0;  // 默认不返回已删除文章
+}
+```
+
+## HTTP 状态码规范
+
+| 状态码 | 场景 | 示例消息 |
+|--------|------|----------|
+| **200** | 操作成功 | 更新成功、删除成功 |
+| **400** | 请求参数错误 | pageSize 超出范围、无效的 ID |
+| **401** | 未登录或 Token 无效 | 未授权、登录已过期 |
+| **403** | 已登录但权限不足 | 无权限访问、无权限编辑此文章 |
+| **404** | 资源不存在 | 文章不存在、用户不存在 |
+| **500** | 服务器内部错误 | 数据库连接失败 |
+
+## 最佳实践
+
+### ✅ 推荐做法
+
+#### 1. 所有 API 都要验证身份
+```typescript
+export async function POST(request: NextRequest) {
+  const { user, error } = await validateUserFromRequest(request.headers);
+  if (error) {
+    return NextResponse.json(errorResponse(error), { status: 401 });
+  }
+  // 业务逻辑
+}
+```
+
+#### 2. 使用封装的权限检查函数
+```typescript
+// ✅ 推荐
+if (!canManageCollections(user)) {
+  return NextResponse.json(errorResponse('无权限'), { status: 403 });
+}
+
+// ❌ 不推荐（重复实现）
+if (!isAdmin(user?.role)) {
+  return NextResponse.json(errorResponse('无权限'), { status: 403 });
+}
+```
+
+#### 3. 先检查权限，再查询数据
+```typescript
+// ✅ 推荐（先检查权限）
+if (!canManageConfig(user)) {
+  return NextResponse.json(errorResponse('无权限'), { status: 403 });
+}
+const config = await getConfigById(id);
+
+// ❌ 不推荐（先查询数据）
+const config = await getConfigById(id);
+if (!canManageConfig(user)) {
+  return NextResponse.json(errorResponse('无权限'), { status: 403 });
+}
+```
+
+#### 4. 明确的错误消息
+```typescript
+// ✅ 推荐（明确指出权限不足）
+return NextResponse.json(errorResponse('无权限创建合集'), { status: 403 });
+
+// ❌ 不推荐（模糊的错误消息）
+return NextResponse.json(errorResponse('操作失败'), { status: 403 });
+```
+
+### ❌ 避免的做法
+
+#### 1. 只依赖前端权限控制
+```typescript
+// ❌ 错误：前端隐藏了，但 API 没有验证
+export async function DELETE(request: NextRequest) {
+  // 没有权限检查！
+  await deleteCollection(id);
+  return NextResponse.json(successResponse(null, '删除成功'));
+}
+```
+
+#### 2. 在 API 中信任用户角色
+```typescript
+// ❌ 错误：从请求体中读取角色
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  if (body.role !== 'admin') {  // 用户可以伪造角色！
+    return NextResponse.json(errorResponse('无权限'), { status: 403 });
+  }
+}
+
+// ✅ 正确：从 Token 中验证角色
+export async function POST(request: NextRequest) {
+  const user = await validateUser(token);  // 从服务器端验证
+  if (!canManageCollections(user)) {
+    return NextResponse.json(errorResponse('无权限'), { status: 403 });
+  }
+}
+```
+
+#### 3. 忽略资源所有权检查
+```typescript
+// ❌ 错误：只检查登录状态，不检查资源所有权
+export async function PUT(request: NextRequest, context) {
+  const user = await validateUser(token);
+  const post = await getPostById(id);
+  await updatePost(id, data);  // 用户可以修改别人的文章！
+}
+
+// ✅ 正确：检查资源所有权
+export async function PUT(request: NextRequest, context) {
+  const user = await validateUser(token);
+  const post = await getPostById(id);
+
+  if (!canAccessPost(user, post, 'edit')) {
+    return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
+  }
+
+  await updatePost(id, data);
+}
+```
+
+## 开发检查清单
+
+在开发新的 API 时，请按照以下清单检查：
+
+- [ ] 是否验证了用户身份（Token 验证）？
+- [ ] 是否检查了用户权限（角色/资源所有权）？
+- [ ] 是否使用了封装的权限检查函数？
+- [ ] 是否返回了正确的 HTTP 状态码？
+- [ ] 错误消息是否明确指出权限不足？
+- [ ] 是否考虑了绕过前端直接调用 API 的情况？
+- [ ] 是否在服务层也做了数据过滤？
+
+## 示例参考
+
+### 正确的 API 实现
+
+```typescript
+// src/app/api/collection/create/route.ts
+import { validateUserFromRequest } from '@/lib/permission';
+import { canManageCollections } from '@/lib/permission';
+import { successResponse, errorResponse } from '@/dto/response.dto';
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. 验证身份
+    const { user, error } = await validateUserFromRequest(request.headers);
+    if (error) {
+      return NextResponse.json(errorResponse(error), { status: 401 });
+    }
+
+    // 2. 验证权限
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限创建合集'), { status: 403 });
+    }
+
+    // 3. 业务逻辑
+    const body = await request.json();
+    const result = await createCollection({
+      ...body,
+      created_by: user.id,
+    });
+
+    return NextResponse.json(successResponse(result, '创建成功'));
+  } catch (error) {
+    console.error('创建合集失败:', error);
+    return NextResponse.json(errorResponse('创建合集失败'), { status: 500 });
+  }
+}
+```
+
+## 相关文档
+
+- **详细权限设计**：`docs/PERMISSION.md`
+- **权限工具库**：`src/lib/permission.ts`
+- **角色定义**：`src/types/role.ts`

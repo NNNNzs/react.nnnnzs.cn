@@ -18,6 +18,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SerializedCollection } from '@/dto/collection.dto';
+import { isAdmin } from '@/types/role';
 
 const { confirm } = Modal;
 
@@ -32,6 +33,14 @@ export default function CollectionsManagePage() {
     pageSize: 20,
     total: 0,
   });
+
+  // 权限检查
+  useEffect(() => {
+    if (user && !isAdmin(user.role)) {
+      message.error('无权限访问合集管理');
+      router.push('/c/post');
+    }
+  }, [user, router]);
 
   // 加载合集列表
   const loadCollections = useCallback(async (page = 1, pageSize = 20) => {

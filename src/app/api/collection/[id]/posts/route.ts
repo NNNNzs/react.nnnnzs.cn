@@ -16,6 +16,7 @@ import {
   addPostsToCollection,
   removePostsFromCollection,
 } from '@/services/collection';
+import { canManageCollections } from '@/lib/permission';
 
 // 添加文章验证schema
 const addPostsSchema = z.object({
@@ -39,6 +40,11 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以管理合集文章
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限管理合集文章'), { status: 403 });
     }
 
     const { id } = await params;
@@ -86,6 +92,11 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    }
+
+    // 检查权限：只有管理员可以管理合集文章
+    if (!canManageCollections(user)) {
+      return NextResponse.json(errorResponse('无权限管理合集文章'), { status: 403 });
     }
 
     const { id } = await params;

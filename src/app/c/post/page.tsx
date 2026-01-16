@@ -22,6 +22,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Post } from '@/types';
+import { isAdmin } from '@/types/role';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -31,10 +32,12 @@ const { confirm } = Modal;
  */
 function useUrlState() {
   const searchParams = useSearchParams();
-  
+
   return {
     searchText: searchParams.get('q') || '',
     hideFilter: searchParams.get('hide') || 'all',
+    ownerFilter: searchParams.get('owner') || 'mine', // 创建者筛选，默认'mine'（我创建的）
+    includeDeleted: searchParams.get('is_delete') === '1', // 是否包含已删除文章（仅管理员）
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
   };
@@ -46,6 +49,8 @@ function useUrlState() {
 interface QueryParams {
   q?: string;
   hide?: string;
+  owner?: string; // 创建者筛选（mine/all）
+  is_delete?: string; // 是否包含已删除文章（'0'=未删除，'1'=已删除）
   page?: number;
   pageSize?: number;
 }
@@ -63,39 +68,51 @@ function useUpdateUrl() {
     const currentParams: QueryParams = {
       q: searchParams.get('q') || undefined,
       hide: searchParams.get('hide') || undefined,
+      owner: searchParams.get('owner') || undefined,
+      is_delete: searchParams.get('is_delete') || undefined,
       page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
       pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined,
     };
-    
+
     // 合并更新到当前参数
     const mergedParams: QueryParams = {
       ...currentParams,
       ...updates,
     };
-    
+
     // 构建新的 URLSearchParams，只包含非空值
     const params = new URLSearchParams();
-    
+
     // 处理搜索关键词 q
     if (mergedParams.q && mergedParams.q.trim()) {
       params.set('q', mergedParams.q.trim());
     }
-    
+
     // 处理状态筛选 hide
     if (mergedParams.hide && mergedParams.hide !== 'all') {
       params.set('hide', mergedParams.hide);
     }
-    
+
+    // 处理创建者筛选 owner
+    if (mergedParams.owner && mergedParams.owner !== 'mine') {
+      params.set('owner', mergedParams.owner);
+    }
+
+    // 处理是否包含已删除文章 is_delete
+    if (mergedParams.is_delete && mergedParams.is_delete === '1') {
+      params.set('is_delete', '1');
+    }
+
     // 处理页码 page
     if (mergedParams.page && mergedParams.page > 1) {
       params.set('page', mergedParams.page.toString());
     }
-    
+
     // 处理每页数量 pageSize
     if (mergedParams.pageSize && mergedParams.pageSize !== 20) {
       params.set('pageSize', mergedParams.pageSize.toString());
     }
-    
+
     const newUrl = params.toString() ? `?${params.toString()}` : '';
     // 使用当前路径而不是硬编码 /c
     router.replace(`${pathname}${newUrl}`, { scroll: false });
@@ -199,6 +216,8 @@ function AdminPageContent() {
         pageSize: number;
         hide?: string;
         query?: string;
+        created_by?: number;
+        is_delete?: number;
       }
 
       // 使用传入的参数，如果没有则使用当前 URL 状态
@@ -219,6 +238,25 @@ function AdminPageContent() {
         params.query = urlState.searchText;
       }
 
+      // 是否包含已删除文章（仅管理员可查看）
+      if (urlState.includeDeleted && isAdmin(user?.role)) {
+        params.is_delete = 1;
+      }
+
+      // 创建者筛选逻辑
+      // 管理员：根据 owner 筛选参数决定（mine/all）
+      // 普通用户：强制只能查看自己的文章
+      if (user && isAdmin(user.role)) {
+        // 管理员可以选择查看全部或自己的文章
+        if (urlState.ownerFilter === 'mine') {
+          params.created_by = user.id;
+        }
+        // ownerFilter === 'all' 时不传 created_by，查看所有文章
+      } else if (user) {
+        // 普通用户只能查看自己的文章
+        params.created_by = user.id;
+      }
+
       const response = await axios.get('/api/post/list', { params });
 
       if (response.data.status) {
@@ -233,7 +271,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [urlState]);
+  }, [urlState, user]); // urlState 已经包含了 ownerFilter，所以不需要额外添加依赖
 
   /**
    * 删除文章
@@ -356,7 +394,7 @@ function AdminPageContent() {
       loadPosts(urlState.current, urlState.pageSize);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText]);
+  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText, urlState.includeDeleted]);
 
   /**
    * 表格列定义
@@ -524,6 +562,34 @@ function AdminPageContent() {
             }}
             style={{ maxWidth: 400 }}
           />
+          {/* 创建者筛选 - 仅管理员可见 */}
+          {isAdmin(user?.role) && (
+            <Select
+              placeholder="创建者筛选"
+              size="large"
+              style={{ width: 120 }}
+              value={urlState.ownerFilter}
+              onChange={(value) => updateQueryParams({ owner: value || 'mine', page: 1 })}
+              options={[
+                { label: '我创建的', value: 'mine' },
+                { label: '全部', value: 'all' },
+              ]}
+            />
+          )}
+          {/* 是否包含已删除 - 仅管理员可见 */}
+          {isAdmin(user?.role) && (
+            <Select
+              placeholder="已删除文章"
+              size="large"
+              style={{ width: 140 }}
+              value={urlState.includeDeleted ? true : undefined}
+              onChange={(value) => updateQueryParams({ is_delete: value ? '1' : undefined, page: 1 })}
+              options={[
+                { label: '仅未删除', value: false },
+                { label: '包含已删除', value: true },
+              ]}
+            />
+          )}
           <Select
             placeholder="状态筛选"
             allowClear
@@ -531,11 +597,18 @@ function AdminPageContent() {
             style={{ width: 120 }}
             value={hideFilter === 'all' ? undefined : hideFilter}
             onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}
-            options={[
-              { label: '全部', value: 'all' },
-              { label: '显示', value: '0' },
-              { label: '隐藏', value: '1' },
-            ]}
+            options={
+              isAdmin(user?.role)
+                ? [
+                    { label: '全部', value: 'all' },
+                    { label: '显示', value: '0' },
+                    { label: '隐藏', value: '1' },
+                  ]
+                : [
+                    { label: '显示', value: '0' },
+                    { label: '隐藏', value: '1' },
+                  ]
+            }
           />
         </div>
 
