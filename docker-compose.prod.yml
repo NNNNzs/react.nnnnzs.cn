@@ -25,7 +25,6 @@ services:
     # 持久化日志和缓存
     volumes:
       - ./logs:/app/logs
-      - nextjs_cache:/app/.next/cache
 
     # 连接宿主机服务（MySQL, Redis 等）
     extra_hosts:
