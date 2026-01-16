@@ -130,6 +130,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
  * 根据路径获取文章
  */
 export async function getPostByPath(path: string): Promise<SerializedPost | null> {
+  console.log('🔍 获取文章详情 - 路径:', path);
   const prisma = await getPrisma();
   const post = await prisma.tbPost.findFirst({
     where: {

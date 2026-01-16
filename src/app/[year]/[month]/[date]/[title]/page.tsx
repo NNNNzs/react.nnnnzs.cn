@@ -18,7 +18,6 @@ import {
 import dayjs from "dayjs";
 import { getPostList } from "@/services/post";
 
-import { getPostByPath } from "@/services/post";
 import { getCollectionsByPostId } from "@/services/collection";
 import PostLikeButton from "./PostLikeButton";
 import PostVisitorTracker from "./PostVisitorTracker";
@@ -66,8 +65,14 @@ async function getPost(params: PageProps["params"]): Promise<Post | null> {
     const { year, month, date, title } = resolvedParams;
 
     // 构建 API 路径
-    const slug = decodeURIComponent(title);
-    const apiPath = `/api/post/by-path/${year}/${month}/${date}/${slug}`;
+    // 服务器端需要完整的 URL，使用 next.config.ts 中配置的 baseUrl
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+    // Next.js 传入的 title 是编码的（如 MCP-%E8%AE%A4...）
+    // 我们需要先解码它，然后让 fetch 重新编码
+    // 否则 fetch 会对已经编码的字符再次编码（% → %25），导致双重编码
+    const decodedTitle = decodeURIComponent(title);
+    const apiPath = `${baseUrl}/api/post/by-path/${year}/${month}/${date}/${decodedTitle}`;
 
     console.log("🔍 Fetch 缓存请求 - 文章路径:", apiPath);
 
@@ -75,7 +80,7 @@ async function getPost(params: PageProps["params"]): Promise<Post | null> {
     const response = await fetch(apiPath, {
       // 声明缓存标签，与 API route 中的标签对应
       next: {
-        tags: [`post`, `post:${slug}`], // 通用标签，可批量清除所有文章缓存
+        tags: [`post`], // 通用标签，可批量清除所有文章缓存
         // 如果需要精确控制单篇文章，可以在获取到 post id 后添加特定标签
       },
     });
@@ -87,14 +92,15 @@ async function getPost(params: PageProps["params"]): Promise<Post | null> {
 
     const result = await response.json();
 
-    if (!result.success) {
+    if (!result.status) {
       console.error("❌ API 返回错误:", result.message);
       return null;
     }
 
+    console.log("✅ API 返回成功，文章 ID:", result.data?.id);
     return result.data;
   } catch (error) {
-    console.error("❌ 获取文章详情失败:", error);
+    console.error("❌ 获取文章详情失败 client:", error);
     return null;
   }
 }
@@ -177,7 +183,7 @@ export default async function PostDetail({ params }: PageProps) {
     const post = await getPost(resolvedParams);
 
     if (!post) {
-      console.log("❌ 文章不存在，调用 notFound()");
+      // console.log("❌ 文章不存在，调用 notFound()");
       notFound();
     }
 

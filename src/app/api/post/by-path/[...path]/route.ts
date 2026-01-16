@@ -20,10 +20,22 @@ export async function GET(
   try {
     const { path } = await context.params;
 
-    // 重建完整路径
-    const fullPath = '/' + path.join('/');
+    console.log('🔍 [缓存API] 接收到的 path 参数:', path);
+    console.log('🔍 [缓存API] path 数组长度:', path?.length);
 
-    console.log('🔍 [缓存API] 获取文章路径:', fullPath);
+    if (!path || path.length === 0) {
+      console.error('❌ [缓存API] path 参数为空');
+      return NextResponse.json(errorResponse('路径参数不能为空'), { status: 400 });
+    }
+
+    // 重建完整路径
+    // Next.js 会自动解码 URL 参数，所以这里 path 数组中的每个元素都是解码后的
+    // 直接拼接即可，因为数据库中存储的路径也是未编码的
+    const [year, month, date, title] = path;
+    const fullPath = '/' + [year, month, date, title].join('/');
+
+    console.log('🔍 [缓存API] 重建的完整路径:', fullPath);
+    console.log('🔍 [缓存API] title 解码后值:', title);
 
     const post = await getPostByPath(fullPath);
 
