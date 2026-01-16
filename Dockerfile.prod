@@ -68,6 +68,8 @@ RUN pnpm build
 
 # 清理开发依赖，只保留生产依赖
 # 注意：Prisma Client 已生成到 src/generated，不受 prune 影响
+# 设置 CI=true 以允许在非交互式环境中运行 prune
+ENV CI=true
 RUN pnpm prune --prod
 
 

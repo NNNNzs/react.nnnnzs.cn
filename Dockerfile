@@ -45,10 +45,26 @@ COPY . .
 ARG VERSION
 ARG BUILD_DATE
 ARG COMMIT_SHA
+# 数据库连接（构建时需要，用于 Prisma 和预渲染）
+ARG DATABASE_URL
+# Redis 配置（构建时可能需要）
+ARG REDIS_HOST
+ARG REDIS_PORT
+ARG REDIS_DB
+# 微信小程序配置（构建时可能需要）
+ARG WX_APP_ID
+ARG WX_APP_SECRET
 
 # 设置构建时环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# 将构建参数作为构建时环境变量（仅在 builder 阶段使用）
+ENV DATABASE_URL=${DATABASE_URL}
+ENV REDIS_HOST=${REDIS_HOST}
+ENV REDIS_PORT=${REDIS_PORT}
+ENV REDIS_DB=${REDIS_DB}
+ENV WX_APP_ID=${WX_APP_ID}
+ENV WX_APP_SECRET=${WX_APP_SECRET}
 
 # 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
 RUN pnpm prisma generate
@@ -58,15 +74,22 @@ RUN pnpm build
 
 # 清理开发依赖，只保留生产依赖
 # 注意：Prisma Client 已生成到 src/generated，不受 prune 影响
+# 设置 CI=true 以允许在非交互式环境中运行 prune
+ENV CI=true
 RUN pnpm prune --prod
 
 
 # ===== 阶段 3: 生产运行 =====
 FROM node:22-alpine AS runner
 
+# 重新声明 ARG，因为 ARG 只在当前阶段有效
+ARG VERSION
+ARG BUILD_DATE
+ARG COMMIT_SHA
+
 WORKDIR /app
 
-# 安装 CA 证书和其他必要工具（解决 HTTPS 请求问题）
+# 安装 CA 证书和其他必要工具
 RUN apk add --no-cache \
     ca-certificates \
     wget \
@@ -81,12 +104,12 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 复制必要的文件
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
+# 复制必要的文件 (Standalone 模式)
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/src/generated ./src/generated
 
 # 创建必要的目录结构并设置权限（在切换用户之前）
 # 确保 nextjs 用户有权限写入预渲染缓存
@@ -106,10 +129,6 @@ USER nextjs
 # 暴露端口
 EXPOSE 3000
 
-# 重新声明构建参数（用于 LABEL）
-ARG VERSION
-ARG BUILD_DATE
-ARG COMMIT_SHA
 
 # 添加版本信息标签
 LABEL version="${VERSION}" \
@@ -119,7 +138,7 @@ LABEL version="${VERSION}" \
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
 # 设置启动脚本为入口点
 ENTRYPOINT ["/app/docker-entrypoint-prod.sh"]

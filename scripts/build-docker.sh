@@ -130,6 +130,23 @@ BUILD_CMD="$BUILD_CMD --build-arg VERSION=${VERSION}"
 BUILD_CMD="$BUILD_CMD --build-arg BUILD_DATE=${BUILD_DATE}"
 BUILD_CMD="$BUILD_CMD --build-arg COMMIT_SHA=${COMMIT_SHA}"
 
+# 从 .env 文件加载环境变量并添加为构建参数
+if [ -f ".env" ]; then
+  echo -e "${BLUE}从 .env 文件加载环境变量...${NC}"
+  # 读取 .env 文件并添加构建参数（跳过注释和空行）
+  while IFS='=' read -r key value; do
+    # 跳过注释和空行
+    if [[ ! "$key" =~ ^#.*$ ]] && [ -n "$key" ]; then
+      # 去除值两端的引号和空格
+      value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+      # 添加为构建参数
+      BUILD_CMD="$BUILD_CMD --build-arg ${key}=${value}"
+    fi
+  done < <(grep '=' .env | grep -v '^#' || true)
+else
+  echo -e "${YELLOW}警告: .env 文件不存在，部分环境变量可能缺失${NC}"
+fi
+
 # 添加标签（只使用 local 标签）
 BUILD_CMD="$BUILD_CMD -t ${FULL_IMAGE_NAME}:local"
 
