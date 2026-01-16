@@ -32,7 +32,9 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(cat:*)",
-      "mcp__MyBlog__get_article"
+      "mcp__MyBlog__get_article",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)"
     ],
     "deny": [],
     "ask": []

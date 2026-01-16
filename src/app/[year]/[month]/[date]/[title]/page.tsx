@@ -57,19 +57,12 @@ async function resolveParams(params: PageProps["params"]) {
 }
 
 /**
- * 获取文章数据（使用 unstable_cache + 标签）
- * 支持按需重新验证 (On-Demand Revalidation)
+ * 获取文章数据（直接调用 service，不使用缓存）
+ * 构建时会预渲染，运行时使用 ISR
  */
-const getCachedPost = unstable_cache(
-  async (path: string) => {
-    return await getPostByPath(path);
-  },
-  ['post'],
-  {
-    revalidate: 3600, // 1小时后重新验证（兜底机制）
-    tags: ['post'],
-  }
-);
+async function getCachedPost(path: string) {
+  return await getPostByPath(path);
+}
 
 async function getPost(params: PageProps["params"]): Promise<Post | null> {
   try {

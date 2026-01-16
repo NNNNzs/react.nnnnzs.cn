@@ -131,6 +131,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
  */
 export async function getPostByPath(path: string): Promise<SerializedPost | null> {
   console.log('🔍 获取文章详情 - 路径:', path);
+
   const prisma = await getPrisma();
   const post = await prisma.tbPost.findFirst({
     where: {
@@ -138,8 +139,24 @@ export async function getPostByPath(path: string): Promise<SerializedPost | null
       is_delete: 0,
     },
   });
-  
-  return post ? serializePost(post) : null;
+
+  if (!post) {
+    // 如果直接查询失败，尝试解码路径后再次查询
+    // 这是因为 Next.js 传递的 URL 参数可能是编码的
+    const decodedPath = decodeURI(path);
+    console.log('🔍 第一次查询失败，尝试解码后的路径:', decodedPath);
+
+    const decodedPost = await prisma.tbPost.findFirst({
+      where: {
+        path: decodedPath,
+        is_delete: 0,
+      },
+    });
+
+    return decodedPost ? serializePost(decodedPost) : null;
+  }
+
+  return serializePost(post);
 }
 
 /**
