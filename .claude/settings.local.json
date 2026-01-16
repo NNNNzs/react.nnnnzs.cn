@@ -22,7 +22,8 @@
       "Bash(pnpm run lint)",
       "Bash(pnpm run typecheck:*)",
       "Bash(pnpm typecheck)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "mcp__MyBlog__list_articles"
     ],
     "deny": [],
     "ask": []

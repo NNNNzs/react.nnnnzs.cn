@@ -12,6 +12,8 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { revalidateTag, revalidatePath } from 'next/cache';
+
 // 定义文章创建的验证schema
 const createPostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符'),
@@ -72,6 +74,19 @@ export async function POST(request: NextRequest) {
         console.error('文章向量化失败（异步）:', error);
         // 向量化失败不影响文章创建，只记录错误
       });
+    }
+
+    // 清除缓存（精细化控制）
+    revalidateTag('post', {}); // 清除所有文章列表缓存
+    revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
+
+    // 从 path 中提取 slug（最后一部分）
+    if (result.path) {
+      const slug = result.path.split('/').pop();
+      if (slug) {
+        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+      }
+      revalidatePath(result.path); // 清除路径缓存
     }
 
     return NextResponse.json(successResponse(result, '创建成功'));

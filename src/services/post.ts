@@ -4,6 +4,7 @@ import { TbPost } from '@/generated/prisma-client';
 import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
 import { incrementalEmbedPost } from '@/services/embedding';
+import { revalidatePath } from "next/cache";
 
 /**
  * 将字符串标签转换为数组
@@ -379,6 +380,7 @@ export async function updatePost(
     data: updateData,
   });
 
+  revalidatePath(updatedPost.path!);
 
   // 如果内容有更新，创建版本记录并执行增量向量化（异步执行，不阻塞响应）
   if (hasContentUpdate && updatedPost.content) {

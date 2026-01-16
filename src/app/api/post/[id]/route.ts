@@ -14,6 +14,7 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { revalidateTag, revalidatePath } from 'next/cache';
 // 定义文章更新的验证schema
 const updatePostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),
@@ -111,6 +112,19 @@ export async function PUT(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
+    // 清除缓存（精细化控制）
+    revalidateTag('post', {}); // 清除所有文章列表缓存
+    revalidateTag(`post:${updatedPost.id}`, {}); // 清除按 ID 的缓存
+
+    // 从 path 中提取 slug（最后一部分）
+    if (updatedPost.path) {
+      const slug = updatedPost.path.split('/').pop();
+      if (slug) {
+        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+      }
+      revalidatePath(updatedPost.path); // 清除路径缓存
+    }
+
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
 
@@ -171,6 +185,19 @@ export async function PATCH(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
+    // 清除缓存（精细化控制）
+    revalidateTag('post', {}); // 清除所有文章列表缓存
+    revalidateTag(`post:${updatedPost.id}`, {}); // 清除按 ID 的缓存
+
+    // 从 path 中提取 slug（最后一部分）
+    if (updatedPost.path) {
+      const slug = updatedPost.path.split('/').pop();
+      if (slug) {
+        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+      }
+      revalidatePath(updatedPost.path); // 清除路径缓存
+    }
+
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
 
@@ -196,10 +223,27 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const success = await deletePost(Number(id));
+    const postId = Number(id);
+
+    // 先获取文章信息用于清除缓存
+    const post = await getPostById(postId);
+    const success = await deletePost(postId);
 
     if (!success) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+
+    // 清除缓存（精细化控制）
+    revalidateTag('post', {}); // 清除所有文章列表缓存
+    revalidateTag(`post:${postId}`, {}); // 清除按 ID 的缓存
+
+    // 从 path 中提取 slug（最后一部分）
+    if (post?.path) {
+      const slug = post.path.split('/').pop();
+      if (slug) {
+        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
+      }
+      revalidatePath(post.path); // 清除路径缓存
     }
 
     return NextResponse.json(successResponse(null, '删除成功'));

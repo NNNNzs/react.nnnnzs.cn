@@ -17,7 +17,7 @@ datasource db {
 // 文章表
 model TbPost {
   id                  Int       @id @default(autoincrement())
-  path                String?   @db.VarChar(255)
+  path                String   @db.VarChar(255)
   title               String?   @db.VarChar(255)
   category            String?   @db.VarChar(255)
   tags                String?   @db.VarChar(255) // 逗号分隔的标签字符串

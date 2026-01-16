@@ -16,6 +16,7 @@ import {
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
+import { getPostList } from "@/services/post";
 
 import { getPostByPath } from "@/services/post";
 import { getCollectionsByPostId } from "@/services/collection";
@@ -56,33 +57,47 @@ async function resolveParams(params: PageProps["params"]) {
 }
 
 /**
- * 获取文章数据
- * 使用 React cache 缓存，避免在同一个请求中重复查询数据库
+ * 获取文章数据（使用 Next.js fetch 缓存 + 标签）
+ * 支持按需重新验证 (On-Demand Revalidation)
  */
-const getPost = cache(
-  async (params: PageProps["params"]): Promise<Post | null> => {
-    try {
-      const resolvedParams = await resolveParams(params);
-      const { year, month, date, title } = resolvedParams;
+async function getPost(params: PageProps["params"]): Promise<Post | null> {
+  try {
+    const resolvedParams = await resolveParams(params);
+    const { year, month, date, title } = resolvedParams;
 
-      // 构建完整路径
-      // 注意：数据库中的 path 是未编码的中文 (raw string)
-      // Next.js params 中的 title 可能是编码过的，也可能是解码后的
-      // 统一进行解码以匹配数据库中的 raw path
-      const slug = decodeURIComponent(title);
-      const path = `/${year}/${month}/${date}/${slug}`;
+    // 构建 API 路径
+    const slug = decodeURIComponent(title);
+    const apiPath = `/api/post/by-path/${year}/${month}/${date}/${slug}`;
 
-      console.log("🔍 数据库查询执行 - 文章路径:", path);
+    console.log("🔍 Fetch 缓存请求 - 文章路径:", apiPath);
 
-      const post = await getPostByPath(path);
+    // 使用 fetch + Next.js 缓存标签
+    const response = await fetch(apiPath, {
+      // 声明缓存标签，与 API route 中的标签对应
+      next: {
+        tags: [`post`, `post:${slug}`], // 通用标签，可批量清除所有文章缓存
+        // 如果需要精确控制单篇文章，可以在获取到 post id 后添加特定标签
+      },
+    });
 
-      return post;
-    } catch (error) {
-      console.error("❌ 获取文章详情失败:", error);
+    if (!response.ok) {
+      console.error("❌ API 请求失败:", response.status);
       return null;
     }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error("❌ API 返回错误:", result.message);
+      return null;
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error("❌ 获取文章详情失败:", error);
+    return null;
   }
-);
+}
 
 /**
  * 获取文章所属合集
@@ -126,7 +141,10 @@ export async function generateMetadata({
   return {
     title: `${post.title} | 博客`,
     description,
-    keywords: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags.join(',') : undefined,
+    keywords:
+      Array.isArray(post.tags) && post.tags.length > 0
+        ? post.tags.join(",")
+        : undefined,
     openGraph: {
       title: post.title || undefined,
       description,
@@ -134,7 +152,10 @@ export async function generateMetadata({
       publishedTime: post.date ? String(post.date) : undefined,
       modifiedTime: post.updated ? String(post.updated) : undefined,
       images: coverImages,
-      tags: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags : undefined,
+      tags:
+        Array.isArray(post.tags) && post.tags.length > 0
+          ? post.tags
+          : undefined,
     },
     twitter: {
       card: "summary_large_image",
@@ -188,7 +209,10 @@ export default async function PostDetail({ params }: PageProps) {
                 "@type": "Organization",
                 name: "nnnnzs",
               },
-              keywords: Array.isArray(post.tags) && post.tags.length > 0 ? post.tags.join(',') : undefined,
+              keywords:
+                Array.isArray(post.tags) && post.tags.length > 0
+                  ? post.tags.join(",")
+                  : undefined,
             }),
           }}
         />
@@ -238,7 +262,10 @@ export default async function PostDetail({ params }: PageProps) {
 
           {/* 文章内容 */}
           <div className="prose prose-lg dark:prose-invert max-w-none">
-            <MarkdownPreview showMdCatalog={true} content={post.content || ""} />
+            <MarkdownPreview
+              showMdCatalog={true}
+              content={post.content || ""}
+            />
           </div>
 
           {/* 点赞按钮和版本历史 */}
@@ -250,7 +277,13 @@ export default async function PostDetail({ params }: PageProps) {
 
         {/* 评论区 */}
         <div className="mt-12 px-4">
-          <Suspense fallback={<div className="text-center py-8 text-slate-500">加载评论中...</div>}>
+          <Suspense
+            fallback={
+              <div className="text-center py-8 text-slate-500">
+                加载评论中...
+              </div>
+            }
+          >
             <CommentSection postId={post.id} />
           </Suspense>
         </div>
@@ -262,3 +295,21 @@ export default async function PostDetail({ params }: PageProps) {
     throw error;
   }
 }
+
+export async function generateStaticParams() {
+  const { record } = await getPostList({ pageNum: 1, pageSize: 10000 }); // DB 查 path
+
+  return record.map((post) => {
+    const [, year, month, date, title] = post.path!.split("/");
+
+    return {
+      year,
+      month,
+      date,
+      title: title,
+    };
+  });
+}
+
+// 使用 Next.js fetch 缓存，支持按需重新验证
+export const dynamic = "force-dynamic"; // 允许按需重新验证
