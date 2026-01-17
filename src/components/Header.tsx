@@ -72,7 +72,7 @@ export default function Header() {
 
   // 统一的导航菜单配置 - 只维护一份数据
   const navItems = [
-    { href: "/chat", label: "聊天", type: "link" as const },
+    { href: "/chat", label: "回想", type: "link" as const },
   ];
 
   // Algolia 配置 - 使用通用配置 Hook 获取
