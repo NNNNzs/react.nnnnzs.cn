@@ -296,10 +296,11 @@ export function splitMarkdownIntoChunks(
 
   // 尝试使用基于标题的分块（如果文章有标题结构）
   const headingChunks = splitMarkdownByHeadings(markdown, config);
-  
-  // 如果基于标题的分块产生了多个区块，使用它
+
+  // 如果基于标题的分块成功产生了多个区块，使用它
   // 否则使用原来的纯文本分块方法（兼容无标题的大段文字）
-  if (headingChunks.length > 1 || (headingChunks.length === 1 && headingChunks[0].text.length > 2000)) {
+  // 修改：只要 headingChunks 有内容就使用，即使只有1个chunk
+  if (headingChunks.length > 0) {
     return headingChunks;
   }
 

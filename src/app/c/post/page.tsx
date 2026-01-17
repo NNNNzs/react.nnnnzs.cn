@@ -8,8 +8,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress } from 'antd';
-import type { TableColumnsType } from 'antd';
+import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown } from 'antd';
+import type { TableColumnsType, MenuProps } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -351,12 +351,19 @@ function AdminPageContent() {
   };
 
   /**
-   * 批量更新所有文章的向量
+   * 批量更新文章向量
+   * 支持三种模式：全部更新 / 只更新失败的文章
    */
-  const handleBatchUpdateEmbeddings = () => {
+  const handleBatchUpdateEmbeddings = (mode: 'all' | 'failed' = 'all') => {
+    const isAllMode = mode === 'all';
+    const title = isAllMode ? '确认批量更新所有文章' : '确认批量更新失败的文章';
+    const content = isAllMode
+      ? '确定要更新所有文章的向量数据吗？此操作将把所有文章添加到异步队列中处理。'
+      : '确定要更新向量化失败的文章吗？此操作将只把失败的文章添加到异步队列中重新处理。';
+
     confirm({
-      title: '确认批量更新向量',
-      content: '确定要更新所有文章的向量数据吗？此操作将把所有文章添加到异步队列中处理。',
+      title,
+      content,
       okText: '确定',
       okType: 'primary',
       cancelText: '取消',
@@ -365,7 +372,7 @@ function AdminPageContent() {
           setEmbeddingLoading(true);
           setEmbeddingProgress({ total: 0, success: 0, failed: 0 });
 
-          const response = await axios.post('/api/post/embed/batch', {});
+          const response = await axios.post('/api/post/embed/batch', { mode });
 
           if (response.data.status) {
             const data = response.data.data;
@@ -560,14 +567,30 @@ function AdminPageContent() {
         <div className="mb-6 flex items-center justify-between shrink-0">
           <h1 className="text-2xl font-bold">文章管理</h1>
           <Space>
-            <Button
-              icon={<SyncOutlined />}
-              onClick={handleBatchUpdateEmbeddings}
-              loading={embeddingLoading}
-              size="large"
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'all',
+                    label: '全部更新',
+                    onClick: () => handleBatchUpdateEmbeddings('all'),
+                  },
+                  {
+                    key: 'failed',
+                    label: '只更新失败的文章',
+                    onClick: () => handleBatchUpdateEmbeddings('failed'),
+                  },
+                ],
+              }}
             >
-              批量更新向量
-            </Button>
+              <Button
+                icon={<SyncOutlined />}
+                loading={embeddingLoading}
+                size="large"
+              >
+                批量更新向量
+              </Button>
+            </Dropdown>
             <Button
               type="primary"
               icon={<PlusOutlined />}
