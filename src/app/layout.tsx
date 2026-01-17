@@ -9,6 +9,8 @@ import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
+// 初始化向量化队列
+import "@/lib/embedding-init";
 
 export const metadata: Metadata = {
   title: "NNNNzs",

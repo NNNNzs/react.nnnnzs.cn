@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { embedPost } from '@/services/embedding';
+import { queueEmbedPosts, getQueueStatus, embeddingQueue } from '@/services/embedding';
 import {
   getTokenFromRequest,
   validateToken,
@@ -13,7 +13,7 @@ import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getPrisma } from '@/lib/prisma';
 
 /**
- * 批量更新文章向量接口
+ * 批量更新文章向量接口（使用异步队列）
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,131 +26,56 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { postIds, force = false } = body;
+    const { postIds } = body;
 
-    // 如果指定了 postIds，只更新这些文章；否则更新所有文章
     const prisma = await getPrisma();
-    
-    let posts;
+
+    // 确定要更新的文章ID列表
+    let targetPostIds: number[] = [];
+
     if (postIds && Array.isArray(postIds) && postIds.length > 0) {
       // 更新指定的文章
-      posts = await prisma.tbPost.findMany({
-        where: {
-          id: { in: postIds.map((id: unknown) => Number(id)) },
-          is_delete: 0,
-        },
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          hide: true,
-        },
-      });
+      targetPostIds = postIds.map((id: unknown) => Number(id));
     } else {
       // 更新所有未删除的文章
-      posts = await prisma.tbPost.findMany({
+      const posts = await prisma.tbPost.findMany({
         where: {
           is_delete: 0,
         },
         select: {
           id: true,
-          title: true,
-          content: true,
-          hide: true,
-        },
-        orderBy: {
-          id: 'asc',
         },
       });
+      targetPostIds = posts.map(p => p.id);
     }
 
-    if (posts.length === 0) {
+    if (targetPostIds.length === 0) {
       return NextResponse.json(
         successResponse(
-          { total: 0, success: 0, failed: 0, skipped: 0, results: [] },
+          {
+            total: 0,
+            queued: 0,
+            queueStatus: getQueueStatus(),
+          },
           '没有需要更新的文章'
         )
       );
     }
 
-    // 批量处理文章向量化
-    const results: Array<{
-      postId: number;
-      success: boolean;
-      message: string;
-      insertedCount?: number;
-      chunkCount?: number;
-      skipped?: boolean;
-    }> = [];
+    // 批量添加到向量化队列
+    await queueEmbedPosts(targetPostIds);
 
-    let successCount = 0;
-    let failedCount = 0;
-    let skippedCount = 0;
-
-    // 逐个处理文章（避免并发过多导致 API 限流）
-    for (const post of posts) {
-      try {
-        if (!post.content || post.content.trim().length === 0) {
-          results.push({
-            postId: post.id,
-            success: false,
-            message: '文章内容为空，跳过',
-          });
-          failedCount++;
-          continue;
-        }
-
-        const result = await embedPost({
-          postId: post.id,
-          title: post.title || '无标题',
-          content: post.content,
-          hide: post.hide || '0',
-          force: Boolean(force),
-        });
-
-        // 检查是否因为已存在向量而跳过
-        if (result.skipped) {
-          results.push({
-            postId: post.id,
-            success: true,
-            message: '已存在向量数据，跳过（使用 force=true 可强制更新）',
-            insertedCount: 0,
-            chunkCount: 0,
-            skipped: true,
-          });
-          skippedCount++;
-        } else {
-          results.push({
-            postId: post.id,
-            success: true,
-            message: '向量化成功',
-            insertedCount: result.insertedCount,
-            chunkCount: result.chunkCount,
-          });
-          successCount++;
-        }
-      } catch (error) {
-        console.error(`文章 ${post.id} 向量化失败:`, error);
-        results.push({
-          postId: post.id,
-          success: false,
-          message:
-            error instanceof Error ? error.message : '向量化失败',
-        });
-        failedCount++;
-      }
-    }
+    // 确保队列已启动
+    embeddingQueue.start();
 
     return NextResponse.json(
       successResponse(
         {
-          total: posts.length,
-          success: successCount,
-          failed: failedCount,
-          skipped: skippedCount,
-          results: results,
+          total: targetPostIds.length,
+          queued: targetPostIds.length,
+          queueStatus: getQueueStatus(),
         },
-        `批量更新完成：成功 ${successCount} 篇，跳过 ${skippedCount} 篇，失败 ${failedCount} 篇`
+        `已将 ${targetPostIds.length} 篇文章添加到向量化队列`
       )
     );
   } catch (error) {

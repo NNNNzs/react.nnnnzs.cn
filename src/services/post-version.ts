@@ -3,7 +3,7 @@
  */
 
 import { getPrisma } from '@/lib/prisma';
-import type { TbPostVersion, TbPostChunk } from '@/generated/prisma-client';
+import type { TbPostVersion } from '@/generated/prisma-client';
 
 /**
  * 创建文章版本
@@ -116,32 +116,6 @@ export async function getCurrentVersion(postId: number): Promise<number> {
   });
 
   return maxVersion?.version || 0;
-}
-
-/**
- * 获取指定版本的 Chunks
- * 
- * @param postId 文章ID
- * @param version 版本号
- * @returns Chunks 列表
- */
-export async function getPostVersionChunks(
-  postId: number,
-  version: number
-): Promise<TbPostChunk[]> {
-  const prisma = await getPrisma();
-
-  const chunks = await prisma.tbPostChunk.findMany({
-    where: {
-      post_id: postId,
-      version: version,
-    },
-    orderBy: {
-      created_at: 'asc',
-    },
-  });
-
-  return chunks;
 }
 
 /**

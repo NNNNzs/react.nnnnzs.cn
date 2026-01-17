@@ -3,7 +3,7 @@ import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dt
 import { TbPost } from '@/generated/prisma-client';
 import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
-import { incrementalEmbedPost } from '@/services/embedding';
+import { queueEmbedPost } from '@/services/embedding';
 import { revalidatePath } from "next/cache";
 
 /**
@@ -117,6 +117,9 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
         likes: true,
         hide: true,
         created_by: true,
+        rag_status: true,
+        rag_error: true,
+        rag_updated_at: true,
         // content 不在列表中返回
         content: false,
         is_delete: false,
@@ -311,9 +314,29 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
       likes: 0,
       // 创建人：允许上层传入，默认为空
       created_by: data.created_by ?? null,
+      // RAG 状态初始化
+      rag_status: 'pending',
+      rag_error: null,
     },
   });
-  
+
+  // 异步添加到向量化队列（不阻塞响应）
+  if (result.content) {
+    (async () => {
+      try {
+        await queueEmbedPost({
+          postId: result.id,
+          title: result.title || '',
+          content: result.content,
+          hide: result.hide || '0',
+          priority: 5, // 新文章优先级略高
+        });
+      } catch (error) {
+        console.error(`❌ 添加文章 ${result.id} 到向量化队列失败:`, error);
+      }
+    })();
+  }
+
   return serializePost(result);
 }
 
@@ -412,25 +435,25 @@ export async function updatePost(
 
   revalidatePath(updatedPost.path!);
 
-  // 如果内容有更新，创建版本记录并执行增量向量化（异步执行，不阻塞响应）
+  // 如果内容有更新，创建版本记录并添加到向量化队列（异步执行，不阻塞响应）
   if (hasContentUpdate && updatedPost.content) {
     // 异步执行，不阻塞响应
     (async () => {
       try {
         // 先创建版本记录
-        const version = await createPostVersion(id, updatedPost.content!, createdBy);
-        
-        // 然后执行增量向量化（创建chunk记录）
-        await incrementalEmbedPost({
+        await createPostVersion(id, updatedPost.content!, createdBy);
+
+        // 添加到向量化队列（使用新的简化向量化服务）
+        await queueEmbedPost({
           postId: id,
           title: updatedPost.title || '',
           content: updatedPost.content || '',
-          version: version.version,
           hide: updatedPost.hide || '0',
+          priority: 5, // 更新文章优先级略高
         });
 
       } catch (error) {
-        console.error(`❌ 文章 ${id} 版本记录或增量向量化失败:`, error);
+        console.error(`❌ 文章 ${id} 版本记录或向量化失败:`, error);
         // 失败不影响文章更新
       }
     })();
@@ -450,5 +473,18 @@ export async function deletePost(id: number): Promise<boolean> {
       is_delete: 1,
     },
   });
+
+  // 异步删除向量数据（不阻塞响应）
+  if (result) {
+    (async () => {
+      try {
+        const { removePostEmbeddings } = await import('@/services/embedding');
+        await removePostEmbeddings(id);
+      } catch (error) {
+        console.error(`❌ 删除文章 ${id} 的向量数据失败:`, error);
+      }
+    })();
+  }
+
   return !!result;
 }

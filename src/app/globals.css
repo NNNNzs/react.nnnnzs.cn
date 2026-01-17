@@ -18,6 +18,23 @@ body {
   color: var(--foreground);
 }
 
+/* 加载动画点 */
+.loading-dots {
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: '.';
+  }
+  40% {
+    content: '..';
+  }
+  60%, 100% {
+    content: '...';
+  }
+}
+
 /* 中文友好的系统字体配置 */
 @layer base {
   html {

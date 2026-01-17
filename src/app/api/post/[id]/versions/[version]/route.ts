@@ -5,10 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getPostVersion,
-  getPostVersionChunks,
-} from '@/services/post-version';
+import { getPostVersion } from '@/services/post-version';
 import {
   getTokenFromRequest,
   validateToken,
@@ -44,15 +41,7 @@ export async function GET(
       return NextResponse.json(errorResponse('版本不存在'), { status: 404 });
     }
 
-    // 获取该版本的 Chunks
-    const chunks = await getPostVersionChunks(postId, versionNum);
-
-    return NextResponse.json(
-      successResponse({
-        version: versionRecord,
-        chunks: chunks,
-      })
-    );
+    return NextResponse.json(successResponse(versionRecord));
   } catch (error) {
     console.error('获取文章版本详情失败:', error);
     return NextResponse.json(errorResponse('获取文章版本详情失败'), {

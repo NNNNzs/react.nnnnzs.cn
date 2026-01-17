@@ -4,13 +4,16 @@
  */
 
 import { splitMarkdownIntoChunks } from './text-splitter';
-import { embedTexts } from './embedding';
+import { embedTexts, embedText } from './embedding';
 import {
   insertVectors,
   deleteVectorsByPostId,
   hasVectorsByPostId,
   type VectorDataItem,
 } from './vector-store';
+
+// 导出嵌入函数
+export { embedTexts, embedText };
 
 /**
  * 文章向量化参数
@@ -182,19 +185,19 @@ export async function removePostEmbeddings(postId: number): Promise<void> {
 export type { TextChunk } from './text-splitter';
 export type { VectorDataItem } from './vector-store';
 
-// 导出增量向量化服务
-export { incrementalEmbedPost } from './incremental-embedder';
-export type {
-  IncrementalEmbedParams,
-  IncrementalEmbedResult,
-  ChunkData,
-} from './incremental-embedder';
-
-// 导出内容规范化工具
-export { normalizeContent, hashContent } from './chunk-normalizer';
-
-// 导出 Chunk ID 生成器
-export { generateChunkId, generateStableChunkId, buildHeadingPath } from './chunk-id-generator';
-
 // 导出向量删除函数
 export { deleteVectorsByChunkIds } from './vector-store';
+
+// 导出简化的向量化服务
+export { simpleEmbedPost } from './simple-embedder';
+export type { SimpleEmbedParams, SimpleEmbedResult } from './simple-embedder';
+
+// 导出异步队列系统
+export {
+  embeddingQueue,
+  queueEmbedPost,
+  queueEmbedPosts,
+  getQueueStatus,
+  EmbedStatus,
+} from './embedding-queue';
+export type { EmbedTask } from './embedding-queue';

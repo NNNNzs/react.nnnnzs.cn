@@ -17,6 +17,7 @@ import {
   PlusOutlined,
   SearchOutlined,
   SyncOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -332,7 +333,7 @@ function AdminPageContent() {
   const handleBatchUpdateEmbeddings = () => {
     confirm({
       title: '确认批量更新向量',
-      content: '确定要更新所有文章的向量数据吗？此操作可能需要较长时间。',
+      content: '确定要更新所有文章的向量数据吗？此操作将把所有文章添加到异步队列中处理。',
       okText: '确定',
       okType: 'primary',
       cancelText: '取消',
@@ -347,17 +348,11 @@ function AdminPageContent() {
             const data = response.data.data;
             setEmbeddingProgress({
               total: data.total,
-              success: data.success,
-              failed: data.failed,
+              success: 0,
+              failed: 0,
             });
 
-            if (data.failed === 0) {
-              message.success(`批量更新完成：成功更新 ${data.success} 篇文章的向量数据`);
-            } else {
-              message.warning(
-                `批量更新完成：成功 ${data.success} 篇，失败 ${data.failed} 篇`
-              );
-            }
+            message.success(`已将 ${data.total} 篇文章添加到向量化队列`);
 
             // 3秒后清除进度显示
             setTimeout(() => {
@@ -376,6 +371,26 @@ function AdminPageContent() {
         }
       },
     });
+  };
+
+  /**
+   * 单篇文章更新向量
+   */
+  const handleUpdateEmbedding = async (post: Post) => {
+    try {
+      const response = await axios.post(`/api/post/${post.id}/embed`);
+
+      if (response.data.status) {
+        message.success(`《${post.title}》已添加到向量化队列`);
+        // 刷新列表
+        loadPosts(urlState.current, urlState.pageSize);
+      } else {
+        message.error(response.data.message || '添加到队列失败');
+      }
+    } catch (error) {
+      console.error('更新向量失败:', error);
+      message.error('更新向量失败');
+    }
   };
 
   /**
@@ -440,6 +455,26 @@ function AdminPageContent() {
       ),
     },
     {
+      title: '向量化状态',
+      key: 'rag_status',
+      width: 120,
+      render: (_: unknown, record: Post) => {
+        const ragStatus = record.rag_status || 'pending';
+        const statusConfig: Record<string, { color: string; text: string }> = {
+          pending: { color: 'default', text: '待处理' },
+          processing: { color: 'processing', text: '处理中' },
+          completed: { color: 'success', text: '已完成' },
+          failed: { color: 'error', text: '失败' },
+        };
+        const config = statusConfig[ragStatus] || statusConfig.pending;
+        return (
+          <Tag color={config.color}>
+            {config.text}
+          </Tag>
+        );
+      },
+    },
+    {
       title: '统计',
       key: 'stats',
       width: 150,
@@ -461,7 +496,7 @@ function AdminPageContent() {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: Post) => (
-        <Space>
+        <Space wrap>
           <Button
             type="link"
             icon={<EyeOutlined />}
@@ -475,6 +510,13 @@ function AdminPageContent() {
             onClick={() => handleEdit(record)}
           >
             编辑
+          </Button>
+          <Button
+            type="link"
+            icon={<ReloadOutlined />}
+            onClick={() => handleUpdateEmbedding(record)}
+          >
+            更新向量
           </Button>
           <Button
             type="link"

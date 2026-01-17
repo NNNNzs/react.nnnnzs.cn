@@ -34,11 +34,13 @@ model TbPost {
   github_issue_number Int? // GitHub Issue 编号
   github_issue_id     Int? // GitHub Issue ID
   created_by          Int? // 创建人ID，关联用户表
+  rag_status          String?   @default("pending") @db.VarChar(50) // 向量化状态：pending/processing/completed/failed
+  rag_error           String?   @db.Text // 向量化错误信息（当 rag_status=failed 时存储）
+  rag_updated_at      DateTime? // 最后一次向量化时间
 
   // 关联关系
   creator           TbUser?             @relation(fields: [created_by], references: [id])
   versions          TbPostVersion[]
-  chunks            TbPostChunk[]
   collectionPosts   TbCollectionPost[]  // 文章所属的合集（通过中间表）
 
   @@map("tb_post")
@@ -100,24 +102,6 @@ model TbPostVersion {
 
   @@index([post_id, version])
   @@map("tb_post_version")
-}
-
-// 文章内容块表
-model TbPostChunk {
-  id           String   @id @db.VarChar(191) // 稳定 Chunk ID（191 字符，兼容 MySQL 5.7 索引键长度限制）
-  post_id      Int
-  version      Int
-  type         String   @db.VarChar(50) // section | code | list | paragraph
-  content      String   @db.Text
-  hash         String   @db.VarChar(64) // 内容 hash (SHA256)
-  embedding_id String?  @db.VarChar(191) // 向量库中的 ID（191 字符，兼容 MySQL 5.7）
-  created_at   DateTime @default(now())
-
-  post TbPost @relation(fields: [post_id], references: [id])
-
-  @@index([post_id])
-  @@index([post_id, version])
-  @@map("tb_post_chunk")
 }
 
 // 长期Token表

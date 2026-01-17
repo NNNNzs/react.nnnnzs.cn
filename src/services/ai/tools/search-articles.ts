@@ -105,6 +105,8 @@ export const searchArticlesTool: Tool = {
       }
 
       // 3. 获取文章详细信息
+      // ⚠️ 安全过滤：getPostById 会自动过滤 is_delete=1 的文章（返回 null）
+      // 所以这里不需要额外检查
       const uniquePostIds = [...new Set(searchResults.map((r) => r.postId))];
       const postInfoMap = new Map<number, { title: string; url: string | null }>();
 

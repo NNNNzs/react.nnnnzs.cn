@@ -34,9 +34,15 @@
       "Bash(cat:*)",
       "mcp__MyBlog__get_article",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(pnpm prisma:generate:*)",
+      "Bash(pnpm prisma:push:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "next-devtools"
+  ]
 }

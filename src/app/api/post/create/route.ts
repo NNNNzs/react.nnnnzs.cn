@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPost } from '@/services/post';
-import { embedPost } from '@/services/embedding';
 import {
   getTokenFromRequest,
   validateToken,
@@ -63,18 +62,8 @@ export async function POST(request: NextRequest) {
       created_by: user.id,
     });
 
-    // 异步执行向量化（不阻塞响应）
-    if (result.id && result.title && result.content) {
-      embedPost({
-        postId: result.id,
-        title: result.title,
-        content: result.content,
-        hide: result.hide || '0',
-      }).catch((error) => {
-        console.error('文章向量化失败（异步）:', error);
-        // 向量化失败不影响文章创建，只记录错误
-      });
-    }
+    // 注意：createPost 服务层已经自动将文章添加到向量化队列
+    // 无需在此处手动调用向量化接口
 
     // 清除缓存（精细化控制）
     revalidateTag('post', {}); // 清除所有文章列表缓存

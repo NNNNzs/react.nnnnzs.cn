@@ -209,12 +209,19 @@ export function splitMarkdownByHeadings(
       continue;
     }
 
-    // 移除 Markdown 语法，保留文本内容
+    // 优化 Markdown 语法处理，保留关键内容
     const plainText = content
-      // 移除代码块
-      .replace(/```[\s\S]*?```/g, '')
-      // 移除行内代码
-      .replace(/`[^`]+`/g, '')
+      // 代码块：提取语言标记和第一行注释
+      .replace(/```[\s\S]*?```/g, (match) => {
+        const lines = match.split('\n');
+        if (lines.length >= 2) {
+          const lang = lines[0].replace(/```\w*/, '').trim() || '代码';
+          return `[${lang}块] `;
+        }
+        return '';
+      })
+      // 行内代码：保留代码内容（移除反引号）
+      .replace(/`([^`]+)`/g, '$1')
       // 移除链接，保留链接文本
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
       // 移除图片
@@ -296,12 +303,19 @@ export function splitMarkdownIntoChunks(
     return headingChunks;
   }
 
-  // 回退到原来的方法：移除 Markdown 语法，保留文本内容
+  // 回退到原来的方法：优化 Markdown 语法处理，保留关键内容
   const plainText = markdown
-    // 移除代码块
-    .replace(/```[\s\S]*?```/g, '')
-    // 移除行内代码
-    .replace(/`[^`]+`/g, '')
+    // 代码块：提取语言标记和第一行注释
+    .replace(/```[\s\S]*?```/g, (match) => {
+      const lines = match.split('\n');
+      if (lines.length >= 2) {
+        const lang = lines[0].replace(/```\w*/, '').trim() || '代码';
+        return `[${lang}块] `;
+      }
+      return '';
+    })
+    // 行内代码：保留代码内容（移除反引号）
+    .replace(/`([^`]+)`/g, '$1')
     // 移除链接，保留链接文本
     .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
     // 移除图片
