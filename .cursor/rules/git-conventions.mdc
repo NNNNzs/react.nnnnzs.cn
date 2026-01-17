@@ -1,0 +1,159 @@
+---
+description: "Git 提交和分支规范"
+globs: [".git*"]
+alwaysApply: false
+---
+
+# Git 规范
+
+## Commit Message 规范
+
+### 格式
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Type 类型
+- `feat`: 新功能
+- `fix`: 修复 Bug
+- `docs`: 文档更新
+- `style`: 代码格式调整（不影响功能）
+- `refactor`: 重构（既不是新功能也不是修复）
+- `perf`: 性能优化
+- `test`: 测试相关
+- `chore`: 构建/工具链更新
+
+### Scope 范围
+常见 scope：
+- `auth`: 认证相关
+- `api`: API 路由
+- `frontend`: 前端页面和组件
+- `backend`: 服务层
+- `database`: 数据库和 Prisma
+- `ai`: AI 功能
+- `deps`: 依赖更新
+
+### 示例
+```bash
+feat(auth): 添加 OAuth 2.0 支持
+fix(api): 修复分页问题
+docs(permission): 更新权限文档
+refactor(chat): 简化聊天系统
+chore(deps): 更新依赖
+```
+
+## 分支策略
+
+### 主要分支
+- `main`: 主分支，稳定版本
+- `develop`: 开发分支（如果使用）
+
+### 功能分支
+```
+feature/<feature-name>
+```
+例如：`feature/oauth2`, `feature/vector-search`
+
+### 修复分支
+```
+fix/<bug-name>
+```
+例如：`fix/login-error`
+
+### 重构分支
+```
+refactor/<component-name>
+```
+例如：`refactor/chat-system`
+
+## 工作流程
+
+### 功能开发流程
+1. 从 `main` 创建功能分支
+2. 完成开发和测试
+3. 提交 Pull Request
+4. Code Review
+5. 合并到 `main`
+6. 删除功能分支
+
+### 紧急修复流程
+1. 从 `main` 创建修复分支
+2. 快速修复
+3. 合并到 `main`
+4. 必要时回传到其他分支
+
+## 提交最佳实践
+
+### 提交频率
+- 小步提交，每个逻辑单元一次提交
+- 避免一次性提交大量改动
+- 完成一个功能立即提交
+
+### 提交内容
+- 提交前确保代码通过 lint 和 typecheck
+- 提交信息清晰描述改动内容
+- 避免提交调试代码和注释代码
+
+### 提交格式
+```bash
+# ✅ 好的提交
+feat(chat): 添加流式响应支持
+
+- 使用 Server-Sent Events 实现
+- 前端添加加载状态
+- 后端优化响应速度
+
+# ❌ 不好的提交
+update
+fix bug
+添加了一些东西
+```
+
+## 项目结构变更规范
+
+⚠️ **重要**：当涉及项目目录结构或架构变更时，必须同步更新规范文件。
+
+### 变更需要更新规范的情况
+1. 新增目录
+2. 删除目录
+3. 重命名目录
+4. 调整架构
+5. 新增技术栈
+6. 修改开发流程
+
+### 更新步骤
+1. 完成代码变更
+2. 立即检查相关规范文件
+3. 更新受影响的 `.cursor/rules/*.mdc` 文件
+4. 在 commit message 中注明
+
+示例：
+```bash
+feat(hooks): 添加自定义 hooks 目录并更新规范
+
+- 创建 src/hooks 目录
+- 添加常用 hooks（useAuth, usePost）
+- 更新 directory-structure.mdc
+```
+
+## .gitignore 规则
+
+### 已排除的文件/目录
+- `.env.local`, `.env.production`
+- `node_modules/`
+- `.next/`
+- `dist/`
+- `*.log`
+- `.DS_Store`
+- `coverage/`
+
+### 敏感文件
+永远不要提交：
+- 环境变量文件（包含真实密钥）
+- 数据库备份文件
+- 私钥文件
+- 用户数据

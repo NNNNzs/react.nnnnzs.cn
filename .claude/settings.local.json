@@ -36,7 +36,9 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(pnpm prisma:generate:*)",
-      "Bash(pnpm prisma:push:*)"
+      "Bash(pnpm prisma:push:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
     ],
     "deny": [],
     "ask": []

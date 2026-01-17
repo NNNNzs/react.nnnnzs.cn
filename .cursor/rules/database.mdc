@@ -1,9 +1,7 @@
 ---
 description: "数据库开发规范 - Prisma ORM 和 MySQL"
-globs: ["prisma/**/*.prisma", "src/services/**/*.ts"]
 alwaysApply: false
 ---
-
 # 数据库开发规范
 
 ## 数据库技术栈

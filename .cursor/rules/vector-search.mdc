@@ -1,0 +1,111 @@
+---
+description: "向量检索系统规范"
+globs: ["src/services/embedding/**", "src/services/vector/**", "src/app/api/ai/**"]
+alwaysApply: false
+---
+
+# 向量检索系统
+
+## 设计文档
+
+**详细设计**: [向量检索设计文档](../../docs/designs/vector-search-design.md)
+
+在修改向量检索相关代码前，请先阅读设计文档以了解整体架构。
+
+## 核心组件
+
+### 文本预处理
+**位置**: `src/services/embedding/preprocess.ts`
+
+**关键规范**:
+- 必须保留代码块内容（不清理代码块）
+- 移除多余的空白字符
+- 标准化 Markdown 格式
+
+### 内容分块
+**位置**: `src/services/embedding/chunker.ts`
+
+**分块策略**:
+- 最大 chunk 大小: 500 tokens
+- 重叠区域: 50 tokens
+- 优先在段落边界分割
+- 代码块单独作为一个 chunk
+
+### 嵌入生成
+**位置**: `src/services/embedding/index.ts`
+
+**使用模型**:
+- OpenAI `text-embedding-3-small`
+- 维度: 1536
+
+**性能优化**:
+- 批量处理（最多 100 个文本）
+- 实现错误重试机制
+
+### 向量存储
+**位置**: `src/services/vector/index.ts`
+
+**集合配置**:
+```typescript
+collection_name: "blog_posts"
+vector_size: 1536
+distance: "Cosine"
+```
+
+**Payload 结构**:
+- `post_id`: 文章 ID
+- `chunk_index`: 块索引
+- `content`: 块内容
+- `created_at`: 创建时间
+
+### 相似度检索
+**位置**: `src/services/vector/search.ts`
+
+**默认参数**:
+- `limit`: 10
+- `scoreThreshold`: 0.7
+
+**返回结果**:
+- `post_id`: 文章 ID
+- `score`: 相似度分数 (0-1)
+- `content`: 匹配的文本片段
+
+## 开发规范
+
+### 修改嵌入逻辑
+1. 先阅读 `docs/designs/vector-search-design.md`
+2. 确保理解增量更新机制
+3. 修改后测试向量化功能
+4. 验证检索质量
+
+### 添加新的嵌入模型
+1. 实现 `EmbeddingProvider` 接口
+2. 在设计文档中记录新模型
+3. 更新相关配置
+4. 进行性能对比测试
+
+### 性能优化
+- 使用批量处理
+- 实现缓存机制（Redis）
+- 异步处理向量化任务
+- 监控 API 调用次数和成本
+
+## 注意事项
+
+⚠️ **重要**:
+- 文章更新时必须触发向量化更新
+- 使用增量更新（仅更新变更的块）
+- 处理 API 限流错误
+- 记录向量化失败日志
+
+❌ **不要做的事**:
+- 发送完整文章内容到客户端
+- 在客户端直接调用 Embedding API
+- 忽略内容哈希对比（会导致重复向量化）
+- 删除文章时不同步删除向量
+
+✅ **应该做的事**:
+- 使用内容哈希避免重复向量化
+- 异步执行向量化任务
+- 实现重试机制处理 API 错误
+- 定期清理无效的向量数据

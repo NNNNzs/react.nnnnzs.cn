@@ -1,9 +1,7 @@
 ---
 description: "后端开发规范 - API 路由和服务层"
-globs: ["src/app/api/**/*.ts", "src/services/**/*.ts", "src/lib/**/*.ts"]
 alwaysApply: false
 ---
-
 # 后端开发规范
 
 ## API 路由规范

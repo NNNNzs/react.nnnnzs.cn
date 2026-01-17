@@ -1,0 +1,133 @@
+---
+description: "包管理和常用命令"
+globs: ["package.json", "pnpm-lock.yaml"]
+alwaysApply: false
+---
+
+# 包管理和常用命令
+
+## 包管理器
+
+本项目使用 **pnpm** 作为包管理器。
+
+### 为什么选择 pnpm？
+- 节省磁盘空间（硬链接机制）
+- 更快的安装速度
+- 严格的依赖管理（避免幽灵依赖）
+- 支持 monorepo
+
+## 常用命令
+
+### 开发命令
+```bash
+pnpm dev                    # 启动开发服务器
+pnpm build                  # 生成 Prisma client 并构建
+pnpm start                  # 启动生产服务器
+pnpm lint                   # 运行 ESLint
+pnpm typecheck              # TypeScript 类型检查
+```
+
+### 数据库和 Prisma
+```bash
+pnpm prisma:generate        # 生成 Prisma 客户端
+pnpm prisma:studio          # 打开 Prisma Studio GUI
+pnpm prisma:migrate         # 创建并应用迁移
+pnpm prisma:push            # 推送 schema 到数据库（仅开发）
+```
+
+### AI 和向量搜索
+```bash
+pnpm qdrant:init            # 初始化 Qdrant 集合
+```
+
+### 性能分析
+```bash
+pnpm analyze                # 运行所有分析（代码、包大小、渲染）
+pnpm analyze:code           # 代码复杂度分析
+pnpm analyze:bundle         # 包大小分析
+pnpm analyze:render         # 渲染性能
+pnpm analyze:quick          # 快速分析
+```
+
+### Docker
+```bash
+pnpm build:docker           # 构建 Docker 镜像
+pnpm start:docker           # 使用 docker-compose 启动（本地）
+pnpm local:image:push       # 推送镜像到 registry
+```
+
+## 依赖管理
+
+### 安装依赖
+```bash
+# 生产依赖
+pnpm add <package>
+
+# 开发依赖
+pnpm add -D <package>
+
+# 全局依赖
+pnpm add -g <package>
+```
+
+### 移除依赖
+```bash
+pnpm remove <package>
+```
+
+### 更新依赖
+```bash
+# 更新所有依赖
+pnpm update
+
+# 更新特定依赖
+pnpm update <package>
+
+# 交互式更新
+pnpm update -i
+```
+
+## 依赖版本策略
+
+### 精确版本
+对于关键依赖，使用精确版本锁定：
+```json
+{
+  "antd": "6.1.1",
+  "next": "16.0.8"
+}
+```
+
+### 范围版本
+对于工具库，使用范围版本：
+```json
+{
+  "dayjs": "^1.11.10",
+  "lodash-es": "^4.17.21"
+}
+```
+
+## 重要依赖版本
+
+### UI 库
+- `antd`: `6.1.1` - 固定版本，注意 6.x API 变更
+
+### 核心框架
+- `next`: `16.0.8`
+- `react`: `19.2.1`
+
+### 数据库
+- `@prisma/client`: `6.2.1`
+- `prisma`: `6.2.1`
+
+## 安全更新
+
+定期检查依赖漏洞：
+```bash
+pnpm audit
+```
+
+修复漏洞：
+```bash
+pnpm audit --fix
+```

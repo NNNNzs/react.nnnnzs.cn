@@ -1,0 +1,107 @@
+---
+description: "项目目录结构说明"
+alwaysApply: false
+---
+# 目录结构
+
+## 完整目录树
+
+```
+src/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API routes (REST + MCP)
+│   │   ├── post/                 # 博客文章 API
+│   │   ├── user/                 # 用户认证 API
+│   │   ├── ai/                   # AI 生成端点
+│   │   ├── chat/                 # 聊天 API (SSE 流式)
+│   │   ├── mcp/                  # Model Context Protocol
+│   │   ├── oauth/                # OAuth 2.0 端点
+│   │   └── github/               # GitHub 集成
+│   ├── .well-known/              # OAuth 发现端点
+│   ├── [year]/[month]/[date]/[title]/  # 博客文章页面
+│   ├── collections/[slug]/       # 合集详情页
+│   ├── c/                        # 管理后台
+│   │   ├── collections/          # 合集管理
+│   │   ├── edit/[id]/            # 文章编辑器
+│   │   ├── post/                 # 文章管理
+│   │   ├── user/                 # 用户管理
+│   │   └── config/               # 配置管理
+│   ├── tags/                     # 标签页面
+│   ├── archives/                 # 归档页面
+│   ├── chat/                     # AI 聊天界面
+│   └── login/                    # 认证页面
+│
+├── components/                   # React 组件
+│   ├── AITextProcessor/          # AI 文本处理 UI
+│   ├── CollectionCard/           # 合集卡片组件
+│   ├── ArticleCollections/       # 文章的合集
+│   ├── CollectionSelector/       # 文章的合集选择器
+│   └── (shared UI components)    # 其他共享组件
+│
+├── contexts/                     # React Contexts
+│   ├── AuthContext.tsx           # 认证状态
+│   ├── CurrentPostContext.tsx    # 当前文章状态
+│   └── HeaderStyleContext.tsx    # 头部样式
+│
+├── dto/                          # 数据传输对象 (共享类型)
+│   ├── post.dto.ts               # 文章数据类型
+│   ├── user.dto.ts               # 用户数据类型
+│   ├── config.dto.ts             # 配置数据类型
+│   ├── collection.dto.ts         # 合集数据类型
+│   └── response.dto.ts           # API 响应格式
+│
+├── lib/                          # 核心工具库
+│   ├── auth.ts                   # 认证工具
+│   ├── redis.ts                  # Redis 客户端和服务
+│   ├── prisma.ts                 # Prisma 客户端包装
+│   ├── long-term-token-auth.ts   # LTK 认证中间件
+│   ├── ai.ts                     # OpenAI LangChain 抽象层
+│   └── (其他工具函数)
+│
+├── services/                     # 业务逻辑层
+│   ├── ai/                       # AI 服务
+│   │   ├── anthropic/            # Anthropic SDK 包装
+│   │   ├── description/          # 文章描述生成
+│   │   ├── text/                 # 文本处理
+│   │   └── utils/                # AI 提示词模板 (OpenAI)
+│   ├── embedding/                # 文本嵌入服务
+│   ├── vector/                   # Qdrant 向量操作
+│   ├── post.ts                   # 文章 CRUD 操作
+│   ├── collection.ts             # 合集 CRUD 操作
+│   ├── user.ts                   # 用户操作
+│   ├── auth.ts                   # 认证服务
+│   ├── mcpAuth.ts                # MCP OAuth 适配器
+│   ├── token.ts                  # 长期令牌服务
+│   └── post-version.ts           # 文章版本控制
+│
+├── hooks/                        # 自定义 React Hooks
+├── types/                        # TypeScript 类型定义 (重新导出)
+└── style/                        # 全局样式
+
+docs/                             # 项目文档
+├── plans/                        # 项目计划列表
+└── designs/                      # 功能详细设计文档
+
+.cursor/rules/                    # Cursor IDE 规范文件
+prisma/                           # Prisma Schema 定义
+```
+
+## 目录职责说明
+
+### `/src/app/api` - API 路由
+所有 API 端点，遵循 RESTful 规范。
+
+### `/src/services` - 业务逻辑层
+核心业务逻辑，所有数据库操作通过此层进行。
+
+### `/src/dto` - 数据传输对象
+前后端共享的类型定义，确保类型安全。
+
+### `/src/lib` - 工具库
+通用的工具函数和配置。
+
+### `/docs/plans` - 项目计划
+存放项目改进计划和重构方案。
+
+### `/docs/designs` - 功能设计文档
+存放功能详细设计文档。
