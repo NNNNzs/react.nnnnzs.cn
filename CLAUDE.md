@@ -198,9 +198,8 @@ pnpm analyze:bundle   # 包大小分析
 - [Ant Design 6.x](https://ant.design/components)
 - [Cursor IDE](https://cursor.sh)
 
-### 项目参考
-- [api.nnnnzs.cn](https://github.com/NNNNzs/api.nnnnzs.cn) - NestJS 后端（参考）
-- [nnnnzs.cn](https://github.com/NNNNzs/nnnnzs.cn) - Nuxt 3 前端（参考）
+## MCP
+当我让你把功能、总结、计划等内容添加到博客的时候，请使用```MyBlog``` MCP 工具添加，默认添加到合集```小破站建设```
 
 ---
 

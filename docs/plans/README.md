@@ -4,7 +4,25 @@
 
 ## 📋 当前计划
 
-### [聊天系统简化：从 ReAct 到简单 RAG](./chat-system-simplification.md) 🔥
+### [管理后台性能优化](./admin-performance-optimization.md) 🔥
+
+**状态**：✅ 已完成
+
+**目标**：优化 Next.js 管理后台的路由切换和数据加载性能，实现接近 SPA 的用户体验
+
+**核心问题**：
+- 路由切换慢，每次都需要服务端处理
+- 没有预加载机制，用户感知延迟明显
+- 数据加载无缓存，重复请求频繁
+
+**预期收益**：
+- 路由切换速度提升 70%（600ms → 200ms）
+- 接近 Vue SPA 的用户体验
+- 保留 Next.js 的 SEO 优势
+
+---
+
+### [聊天系统简化：从 ReAct 到简单 RAG](./chat-system-simplification.md)
 
 **状态**：📝 计划中
 

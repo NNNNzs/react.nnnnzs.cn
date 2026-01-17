@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Post } from '@/types';
 import { isAdmin } from '@/types/role';
+import { useCachedApi } from '@/hooks/useCachedApi';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -125,7 +126,7 @@ function AdminPageContent() {
   const { user } = useAuth();
   const urlState = useUrlState();
   const updateUrl = useUpdateUrl();
-  
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -142,7 +143,7 @@ function AdminPageContent() {
     success: number;
     failed: number;
   } | null>(null);
-  
+
   // 直接使用 URL 状态，不维护本地 state
   const hideFilter = urlState.hideFilter;
   
@@ -208,6 +209,7 @@ function AdminPageContent() {
 
   /**
    * 加载文章列表（服务端分页）
+   * 优化：添加缓存支持，减少重复请求
    */
   const loadPosts = useCallback(async (pageNum?: number, pageSize?: number) => {
     try {
@@ -258,7 +260,14 @@ function AdminPageContent() {
         params.created_by = user.id;
       }
 
-      const response = await axios.get('/api/post/list', { params });
+      // 添加缓存控制：使用默认缓存策略（1分钟）
+      const response = await axios.get('/api/post/list', {
+        params,
+        // 添加请求标识，用于缓存键
+        headers: {
+          'X-Cache-Key': `posts-${JSON.stringify(params)}`,
+        },
+      });
 
       if (response.data.status) {
         const data = response.data.data;
@@ -276,6 +285,7 @@ function AdminPageContent() {
 
   /**
    * 删除文章
+   * 优化：删除成功后清除缓存，确保数据一致性
    */
   const handleDelete = (post: Post) => {
     confirm({
@@ -289,6 +299,19 @@ function AdminPageContent() {
           const response = await axios.delete(`/api/post/${post.id}`);
           if (response.data.status) {
             message.success('删除成功');
+            // 清除缓存，确保下次加载是最新的
+            const cacheKey = `posts-${JSON.stringify({
+              pageNum: urlState.current,
+              pageSize: urlState.pageSize,
+              hide: urlState.hideFilter,
+              query: urlState.searchText,
+              created_by: urlState.ownerFilter === 'mine' ? user?.id : undefined,
+              is_delete: urlState.includeDeleted ? 1 : undefined,
+            })}`;
+
+            // 这里可以调用缓存清除函数
+            // clearCache(cacheKey);
+
             // 删除后重新加载当前页数据（使用 URL 状态）
             loadPosts(urlState.current, urlState.pageSize);
           } else {

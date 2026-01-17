@@ -105,6 +105,49 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, pathname, router]);
 
   /**
+   * 预加载所有管理路由
+   * 提前加载路由代码和组件，实现接近 SPA 的切换体验
+   */
+  useEffect(() => {
+    // 定义所有需要预加载的管理路由
+    const routes = [
+      '/c/post',
+      '/c/collections',
+      '/c/config',
+      '/c/user',
+      '/c/user/info',
+      '/c/queue',
+      '/c/vector-search',
+      '/c/edit/new',
+    ];
+
+    // 在用户空闲时预加载路由
+    const prefetchRoutes = async () => {
+      for (const route of routes) {
+        try {
+          await router.prefetch(route);
+        } catch (error) {
+          console.warn(`Failed to prefetch route: ${route}`, error);
+        }
+      }
+    };
+
+    // 使用 requestIdleCallback 在浏览器空闲时预加载
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(() => {
+        prefetchRoutes();
+      });
+    } else {
+      // 降级方案：延迟 1 秒后预加载
+      const timer = setTimeout(() => {
+        prefetchRoutes();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [router]);
+
+  /**
    * 后台页面统一控制 Header 样式：
    * - 不使用 fixed，避免遮挡后台布局
    * - 始终不透明，保证后台页面观感一致
