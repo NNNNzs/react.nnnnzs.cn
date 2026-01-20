@@ -1,0 +1,26 @@
+/**
+ * ImageUpload 组件样式
+ */
+
+.image-upload-container {
+  width: 100%;
+}
+
+.image-upload-preview {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .image-upload-preview {
+    background: #1f1f1f;
+    border-color: #424242;
+  }
+}

@@ -26,14 +26,14 @@ import {
   UserOutlined,
   SaveOutlined,
   ArrowLeftOutlined,
-  UploadOutlined,
   EditOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import type { UserInfo } from "@/dto/user.dto";
 import type { RcFile } from "antd/es/upload";
-import AvatarCropper from "@/components/AvatarCropper";
+import ImageUpload from "@/components/ImageUpload";
+import ImageCropper from "@/components/ImageCropper";
 import WechatBindCard from "@/components/WechatBindCard";
 import GithubBindCard from "@/components/GithubBindCard";
 import LongTermTokenCard from "@/components/LongTermTokenCard";
@@ -52,7 +52,6 @@ export default function UserInfoPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [cropperVisible, setCropperVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -67,13 +66,11 @@ export default function UserInfoPage() {
         if (response.data.status) {
           const data = response.data.data;
           setUserInfo(data);
-          const avatar = data.avatar || "";
-          setAvatarUrl(avatar);
           form.setFieldsValue({
             nickname: data.nickname,
             mail: data.mail || "",
             phone: data.phone || "",
-            avatar: avatar,
+            avatar: data.avatar || "",
           });
         } else {
           message.error(response.data.message || "获取用户信息失败");
@@ -126,7 +123,7 @@ export default function UserInfoPage() {
   };
 
   /**
-   * 处理文件选择，打开裁剪弹窗
+   * 处理头像区域快速编辑（点击头像编辑按钮）
    */
   const handleFileSelect = (file: RcFile) => {
     // 验证文件类型
@@ -149,7 +146,7 @@ export default function UserInfoPage() {
   };
 
   /**
-   * 确认裁剪后上传
+   * 确认裁剪后上传（用于头像预览区域的快速编辑）
    */
   const handleCropperConfirm = async (blob: Blob) => {
     setUploading(true);
@@ -171,7 +168,6 @@ export default function UserInfoPage() {
 
       if (response.data.status) {
         const url = response.data.data;
-        setAvatarUrl(url);
         form.setFieldsValue({ avatar: url });
         message.success("头像上传成功");
       } else {
@@ -209,13 +205,6 @@ export default function UserInfoPage() {
     }
   };
 
-  /**
-   * 处理上传变化（已改为手动处理，此函数保留用于兼容）
-   */
-  const handleUploadChange: UploadProps["onChange"] = () => {
-    // 文件选择后会在 handleFileSelect 中处理，这里不需要额外逻辑
-  };
-
   return (
     <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
       <div className="mb-6 flex items-center justify-between">
@@ -241,11 +230,10 @@ export default function UserInfoPage() {
               <Avatar
                 size={80}
                 icon={<UserOutlined />}
-                src={avatarUrl || userInfo?.avatar}
+                src={form.getFieldValue("avatar") || userInfo?.avatar}
               />
               <Upload
                 beforeUpload={handleFileSelect}
-                onChange={handleUploadChange}
                 showUploadList={false}
                 accept="image/*"
                 disabled={uploading}
@@ -354,34 +342,10 @@ export default function UserInfoPage() {
               ]}
               help="可以上传图片或直接输入图片URL"
             >
-              <Space.Compact className="w-full">
-                <Input
-                  placeholder="请输入头像URL（可选）"
-                  size="large"
-                  allowClear
-                  value={avatarUrl}
-                  onChange={(e) => {
-                    const url = e.target.value;
-                    setAvatarUrl(url);
-                    form.setFieldsValue({ avatar: url });
-                  }}
-                />
-                <Upload
-                  beforeUpload={handleFileSelect}
-                  onChange={handleUploadChange}
-                  showUploadList={false}
-                  accept="image/*"
-                  disabled={uploading}
-                >
-                  <Button
-                    icon={<UploadOutlined />}
-                    size="large"
-                    loading={uploading}
-                  >
-                    上传图片
-                  </Button>
-                </Upload>
-              </Space.Compact>
+              <ImageUpload
+                placeholder="请输入头像URL（可选）"
+                defaultAspectRatio={1}
+              />
             </Form.Item>
 
             <Form.Item
@@ -448,14 +412,15 @@ export default function UserInfoPage() {
       </div>
 
       {/* 头像裁剪弹窗 */}
-      <AvatarCropper
+      <ImageCropper
         open={cropperVisible}
         imageSrc={selectedFile}
         onClose={handleCropperClose}
         onConfirm={handleCropperConfirm}
-        aspectRatio={1}
+        defaultAspectRatio={1}
         minCropBoxWidth={100}
         minCropBoxHeight={100}
+        title="编辑头像"
       />
     </div>
   );
