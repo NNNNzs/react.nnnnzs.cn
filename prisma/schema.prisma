@@ -42,6 +42,7 @@ model TbPost {
   creator           TbUser?             @relation(fields: [created_by], references: [id])
   versions          TbPostVersion[]
   collectionPosts   TbCollectionPost[]  // 文章所属的合集（通过中间表）
+  comments          TbComment[]         // 文章的评论
 
   @@map("tb_post")
 }
@@ -70,6 +71,7 @@ model TbUser {
   posts          TbPost[]         // 创建的文章
   longTermTokens LongTermToken[]  // 长期Token
   collections    TbCollection[]   // 创建的合集
+  comments       TbComment[]      // 用户发表的评论
 
   @@map("tb_user")
 }
@@ -170,4 +172,30 @@ model TbCollectionPost {
   @@unique([collection_id, post_id]) // 防止重复关联
   @@index([collection_id, sort_order])
   @@map("tb_collection_post")
+}
+
+// 评论表
+model TbComment {
+  id         Int       @id @default(autoincrement())
+  post_id    Int       // 关联文章ID
+  user_id    Int       // 评论者用户ID
+  parent_id  Int?      // 父评论ID（用于回复）
+  content    String    @db.Text  // 评论内容（支持Markdown）
+  status     Int       @default(1)  // 状态：1-正常，0-隐藏
+  is_delete  Int       @default(0)  // 逻辑删除：0-未删除，1-已删除
+  like_count Int       @default(0)  // 点赞数
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  // 关联关系
+  post    TbPost     @relation(fields: [post_id], references: [id])
+  user    TbUser     @relation(fields: [user_id], references: [id])
+  parent  TbComment? @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies TbComment[] @relation("CommentReplies")
+
+  @@index([post_id])
+  @@index([user_id])
+  @@index([parent_id])
+  @@index([created_at])
+  @@map("tb_comment")
 }
