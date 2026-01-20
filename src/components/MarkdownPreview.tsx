@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { MdPreview, MdPreviewProps, MdCatalog } from "md-editor-rt";
 import "md-editor-rt/lib/preview.css";
 
@@ -39,6 +39,15 @@ function generateStableId(content: string): string {
 }
 
 /**
+ * 获取 Markdown 内容中的标题数量
+ */
+function hasHeadings(content: string): boolean {
+  // 检查是否存在 Markdown 标题（# ## ### 等）
+  const headingRegex = /^(#{1,6})\s+.+$/gm;
+  return headingRegex.test(content);
+}
+
+/**
  * Markdown 预览组件
  * 使用 md-editor-rt 库渲染 Markdown 内容
  */
@@ -50,27 +59,35 @@ export default function MarkdownPreview({
   // 基于内容生成稳定的 editorId，确保服务端和客户端使用相同的 ID
   const editorId = useMemo(() => generateStableId(content), [content]);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [hasCatalog, setHasCatalog] = useState(false);
+
+  // 检查是否有目录
+  useEffect(() => {
+    if (showMdCatalog) {
+      setHasCatalog(hasHeadings(content));
+    }
+  }, [content, showMdCatalog]);
 
   return (
     <div ref={wrapperRef} className="markdown-preview-wrapper relative">
       <MdPreview editorId={editorId} modelValue={content} {...props} />
-      {showMdCatalog && (
-        <aside 
+      {showMdCatalog && hasCatalog && (
+        <aside
           className="
             fixed top-1/2 -translate-y-1/2
-            h-[60vh] overflow-y-auto
-            w-48 max-w-[200px]
+            h-auto max-h-[70vh] overflow-y-auto
+            w-auto min-w-[180px] max-w-[280px]
             hidden xl:block
             bg-white/80 dark:bg-gray-900/80
             backdrop-blur-sm
             rounded-lg shadow-lg
-            p-3
+            p-4
             border border-gray-200/50 dark:border-gray-700/50
           "
           style={{
             // 使用 calc 计算位置：距离视口左边 16px
             // 在大屏幕上会显示在内容左侧
-            left: 'max(16px, calc((100vw - 896px) / 2 - 220px))',
+            left: 'max(16px, calc((100vw - 896px) / 2 - 300px))',
           }}
         >
           <MdCatalog
