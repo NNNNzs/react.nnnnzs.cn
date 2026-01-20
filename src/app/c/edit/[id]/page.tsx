@@ -1,6 +1,6 @@
 /**
- * 编辑文章页
- * 参考 Edit.vue 的布局和功能
+ * 编辑文章页 - Linear 风格重构
+ * 极简顶部栏 + 右侧属性抽屉 + 预览抽屉
  */
 
 "use client";
@@ -15,13 +15,22 @@ import {
   message,
   Spin,
   DatePicker,
-  InputNumber,
+  Drawer,
   Radio,
-  Row,
-  Col,
   Space,
+  Divider,
+  Tooltip,
 } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import {
+  SaveOutlined,
+  TagsOutlined,
+  FolderOutlined,
+  EyeOutlined,
+  SettingOutlined,
+  MoreOutlined,
+  CheckOutlined,
+  CloseOutlined,
+} from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,28 +39,25 @@ import MarkdownEditor from "@/components/MarkdownEditor";
 import CollectionSelector from "@/components/CollectionSelector";
 import ImageUpload from "@/components/ImageUpload";
 import { fetchAndProcessStream } from "@/lib/stream";
-// import EnhancedMarkdownEditor from "@/components/AITextProcessor/EnhancedMarkdownEditor";
-
-/**
- * 生成文章路径 - 已移至服务端
- */
-// function genPath... removed
+import MarkdownPreview from "@/components/MarkdownPreview";
 
 export default function EditPostPage() {
   const router = useRouter();
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const [form] = Form.useForm();
-  // 使用 useState 管理 content，确保组件响应式更新
   const [content, setContent] = useState<string>("");
-  // 统一的loading状态管理
   const [loading, setLoading] = useState({
-    submit: false, // 提交表单
-    generateDescription: false, // 生成描述
-    fetch: true, // 加载文章数据
+    submit: false,
+    generateDescription: false,
+    fetch: true,
   });
   const [post, setPost] = useState<Post | null>(null);
   const [tags, setTags] = useState<[string, number][]>([]);
+
+  // 抽屉状态
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+  const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false);
 
   const isNewPost = params.id === "new";
 
@@ -97,7 +103,6 @@ export default function EditPostPage() {
         const postData = response.data.data;
         setPost(postData);
 
-        // 获取文章所属合集
         let collectionIds: number[] = [];
         try {
           const collectionsRes = await axios.get(`/api/post/${params.id}/collections`);
@@ -108,7 +113,6 @@ export default function EditPostPage() {
           console.error("加载文章合集失败:", error);
         }
 
-        // 设置表单值
         form.setFieldsValue({
           ...postData,
           tags: postData.tags || [],
@@ -116,7 +120,6 @@ export default function EditPostPage() {
           updated: postData.updated ? dayjs(postData.updated) : dayjs(),
           collection_ids: collectionIds,
         });
-        // 同步更新 content 状态
         setContent(postData.content || "");
       }
     } catch (error) {
@@ -132,12 +135,40 @@ export default function EditPostPage() {
       loadTags();
       loadPost();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, params.id]);
 
   /**
+   * 键盘快捷键
+   */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      if (cmdOrCtrl) {
+        switch (e.key.toLowerCase()) {
+          case 's':
+            e.preventDefault();
+            handleSubmit();
+            break;
+          case ',':
+            e.preventDefault();
+            setSettingsDrawerOpen((prev) => !prev);
+            break;
+          case 'p':
+            e.preventDefault();
+            setPreviewDrawerOpen((prev) => !prev);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [form, content]);
+
+  /**
    * 生成描述（流式）
-   * 参考 nnnnzs.cn/components/Post/Edit.vue 的 genDescription
    */
   const genDescription = async () => {
     const currentContent = content || form.getFieldValue("content") || "";
@@ -148,13 +179,10 @@ export default function EditPostPage() {
 
     try {
       setLoading((prev) => ({ ...prev, generateDescription: true }));
-
-      // 先清空描述字段
       form.setFieldsValue({ description: "" });
 
       let accumulatedText = "";
 
-      // 使用封装的流式处理函数
       await fetchAndProcessStream(
         "/api/ai/generate/description",
         {
@@ -163,7 +191,6 @@ export default function EditPostPage() {
         },
         {
           onChunk: (chunk) => {
-            // 累积文本并实时更新表单字段
             accumulatedText += chunk;
             form.setFieldsValue({ description: accumulatedText });
           },
@@ -199,37 +226,28 @@ export default function EditPostPage() {
    */
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      const values = await form.validateFields(["title", "content"]);
       setLoading((prev) => ({ ...prev, submit: true }));
 
-      // 生成路径 - 已移至服务端
-      // const { path, oldTitle } = genPath({
-      //   title: values.title,
-      //   date: values.date,
-      // });
-
-      // 处理标签：直接使用表单的 tags 字段（已经是数组）
-      // 注意：content 字段不在 Form.Item 中，需要手动获取
       const postData = {
-        ...values,
-        content: form.getFieldValue("content") || "", // 手动获取 content 字段
-        tags: values.tags || [], // 确保 tags 是数组
+        title: values.title,
+        content: form.getFieldValue("content") || "",
+        tags: values.tags || [],
         date: dayjs(values.date).format("YYYY-MM-DD HH:mm:ss"),
-        updated: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        visitors: values.visitors || 0,
-        likes: values.likes || 0,
+        category: values.category || null,
+        description: values.description || null,
+        cover: values.cover || null,
+        hide: values.hide || "0",
+        layout: values.layout || null,
       };
 
-      // 获取合集ID
       const collectionIds = values.collection_ids || [];
 
       if (isNewPost) {
-        // 创建新文章
         const response = await axios.post("/api/post/create", postData);
         if (response.data.status) {
           const newId = response.data.data.id;
 
-          // 如果选择了合集,关联文章到合集
           if (collectionIds.length > 0) {
             console.log('📝 创建文章后关联合集:', { newId, collectionIds });
             try {
@@ -243,7 +261,6 @@ export default function EditPostPage() {
               console.log('✅ 合集关联成功');
             } catch (collectionError) {
               console.error('❌ 合集关联失败:', collectionError);
-              // 即使合集关联失败，文章也已创建成功，提示用户
               message.warning('文章创建成功，但合集关联失败，请手动添加');
             }
           }
@@ -252,30 +269,17 @@ export default function EditPostPage() {
           router.replace(`/c/edit/${newId}`);
         }
       } else {
-        // 更新现有文章
-        await axios.put(`/api/post/${params.id}`, postData);
+        await axios.patch(`/api/post/${params.id}`, postData);
 
-        // 获取文章当前所属的合集
         const currentCollectionsRes = await axios.get(`/api/post/${params.id}/collections`);
         const currentCollectionIds = currentCollectionsRes.data.status
           ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
           : [];
 
-        // 计算需要添加和移除的合集
         const toAdd = collectionIds.filter((id: number) => !currentCollectionIds.includes(id));
         const toRemove = currentCollectionIds.filter((id: number) => !collectionIds.includes(id));
 
-        console.log('📝 更新文章合集关联:', {
-          postId: params.id,
-          currentCollectionIds,
-          newCollectionIds: collectionIds,
-          toAdd,
-          toRemove,
-        });
-
-        // 添加到新合集
         if (toAdd.length > 0) {
-          console.log('➕ 添加到合集:', toAdd);
           try {
             await Promise.all(
               toAdd.map((collectionId: number) =>
@@ -284,16 +288,13 @@ export default function EditPostPage() {
                 })
               )
             );
-            console.log('✅ 添加到合集成功');
           } catch (addError) {
             console.error('❌ 添加到合集失败:', addError);
             message.error('添加到合集失败');
           }
         }
 
-        // 从旧合集移除
         if (toRemove.length > 0) {
-          console.log('➖ 从合集移除:', toRemove);
           try {
             await Promise.all(
               toRemove.map((collectionId: number) =>
@@ -302,7 +303,6 @@ export default function EditPostPage() {
                 })
               )
             );
-            console.log('✅ 从合集移除成功');
           } catch (removeError) {
             console.error('❌ 从合集移除失败:', removeError);
             message.error('从合集移除失败');
@@ -314,7 +314,6 @@ export default function EditPostPage() {
       }
     } catch (error: unknown) {
       if (error && typeof error === "object" && "errorFields" in error) {
-        // 表单验证错误
         return;
       }
       console.error("操作失败:", error);
@@ -326,7 +325,7 @@ export default function EditPostPage() {
 
   if (authLoading || loading.fetch) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-neutral-50">
         <Spin size="large" />
       </div>
     );
@@ -336,38 +335,185 @@ export default function EditPostPage() {
     return null;
   }
 
+  const selectedTags = form.getFieldValue("tags") || [];
+  const hideValue = form.getFieldValue("hide") || "0";
+  const isPublished = hideValue === "0";
+
   return (
-    <div className="w-full h-full  overflow-hidden p-2 editor flex flex-col">
+    <div className="h-full flex flex-col bg-white">
       <Form
         form={form}
-        className="form mb-3"
         initialValues={{
           date: dayjs(),
           updated: dayjs(),
           hide: "0",
-          visitors: 0,
-          likes: 0,
-          tags: [], // 初始化 tags 为空数组
-          content: "", // 初始化 content 为空字符串
-          collection_ids: [], // 初始化合集为空数组
+          tags: [],
+          content: "",
+          collection_ids: [],
         }}
       >
-        {/* 第一行：标题、标签、发布状态、按钮 */}
-        <Row gutter={[12, 8]} align="middle" className="mb-2">
-          <Col flex="auto">
-            <Form.Item
-              label="标题"
-              name="title"
-              className="mb-0"
-              rules={[{ required: true, message: "请输入标题" }]}
-            >
-              <Input placeholder="请输入文章标题" />
+        {/* 极简顶部栏 */}
+        <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-3">
+          <div className="flex items-center gap-4">
+            {/* 左侧：状态指示 */}
+            <div className="flex items-center gap-2">
+              <Tooltip title={isPublished ? "已发布" : "隐藏中"}>
+                <div className={`w-2 h-2 rounded-full ${isPublished ? "bg-green-500" : "bg-amber-500"}`} />
+              </Tooltip>
+              <Form.Item name="hide" className="mb-0" noStyle>
+                <Radio.Group
+                  size="small"
+                  optionType="button"
+                  buttonStyle="solid"
+                  className="opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  <Radio.Button value="0">发布</Radio.Button>
+                  <Radio.Button value="1">隐藏</Radio.Button>
+                </Radio.Group>
+              </Form.Item>
+            </div>
+
+            {/* 中间：标题输入 */}
+            <div className="flex-1">
+              <Form.Item
+                name="title"
+                className="mb-0"
+                rules={[{ required: true, message: "请输入标题" }]}
+              >
+                <Input
+                  placeholder="无标题文章"
+                  bordered={false}
+                  className="text-lg font-semibold px-0"
+                  style={{ fontSize: 18, fontWeight: 600 }}
+                />
+              </Form.Item>
+            </div>
+
+            {/* 右侧：快捷标签 + 操作按钮 */}
+            <div className="flex items-center gap-2">
+              {/* 快捷标签选择 */}
+              <Form.Item name="tags" className="mb-0" noStyle>
+                <Select
+                  mode="tags"
+                  size="small"
+                  maxTagCount={1}
+                  placeholder="+ 标签"
+                  bordered={false}
+                  suffixIcon={<TagsOutlined className="text-neutral-400" />}
+                  filterOption={(input, option) =>
+                    (option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                  options={tags.map((tag) => ({
+                    value: tag[0],
+                    label: tag[0],
+                  }))}
+                  style={{ minWidth: 80 }}
+                  className="opacity-60 hover:opacity-100 transition-opacity"
+                />
+              </Form.Item>
+
+              <Divider type="vertical" className="h-6 mx-1" />
+
+              {/* 快速操作 */}
+              <Tooltip title="预览 (Cmd+P)">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => setPreviewDrawerOpen(true)}
+                />
+              </Tooltip>
+
+              <Tooltip title="设置 (Cmd+,)">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<SettingOutlined />}
+                  onClick={() => setSettingsDrawerOpen(true)}
+                />
+              </Tooltip>
+
+              <Tooltip title="保存 (Cmd+S)">
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={handleSubmit}
+                  loading={loading.submit}
+                  icon={<SaveOutlined />}
+                >
+                  保存
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
+      </Form>
+
+      {/* 主编辑区 */}
+      <div className="flex-1 overflow-hidden">
+        <MarkdownEditor
+          className="h-full"
+          value={content}
+          onChange={(value) => {
+            setContent(value);
+            form.setFieldsValue({ content: value });
+          }}
+          placeholder="开始写作..."
+          preview={false}
+        />
+      </div>
+
+      {/* 右侧设置抽屉 */}
+      <Drawer
+        title={
+          <div className="flex items-center gap-2">
+            <SettingOutlined />
+            <span>文章设置</span>
+          </div>
+        }
+        placement="right"
+        width={400}
+        open={settingsDrawerOpen}
+        onClose={() => setSettingsDrawerOpen(false)}
+        styles={{
+          body: { padding: 24 },
+        }}
+      >
+        <Form form={form} layout="vertical">
+          {/* 文章元信息 */}
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+              元信息
+            </h4>
+
+            <Form.Item label="描述" name="description">
+              <Input.TextArea
+                placeholder="文章描述"
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                showCount
+                maxLength={500}
+              />
             </Form.Item>
-          </Col>
-          <Col flex="280px">
-            <Form.Item label="标签" name="tags" className="mb-0">
+
+            <Form.Item label="背景图" name="cover">
+              <ImageUpload placeholder="背景图URL" defaultAspectRatio={16 / 9} />
+            </Form.Item>
+          </div>
+
+          <Divider className="my-6" />
+
+          {/* 分类 */}
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+              分类
+            </h4>
+
+            <Form.Item label="标签" name="tags">
               <Select
-                mode="tags"
+                mode="multiple"
+                placeholder="选择标签"
                 filterOption={(input, option) =>
                   (option?.label ?? "")
                     .toLowerCase()
@@ -377,65 +523,25 @@ export default function EditPostPage() {
                   value: tag[0],
                   label: tag[0],
                 }))}
-                placeholder="选择标签"
               />
             </Form.Item>
-          </Col>
-          <Col flex="140px">
-            <Form.Item
-              label="发布"
-              name="hide"
-              className="mb-0"
-              rules={[{ required: true }]}
-            >
-              <Radio.Group>
-                <Radio value="0">是</Radio>
-                <Radio value="1">否</Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col flex="240px">
-            <Space>
-              <Button
-                onClick={genDescription}
-                loading={loading.generateDescription}
-              >
-                生成描述
-              </Button>
-              <Button onClick={genCover}>生成背景</Button>
-              <Button
-                type="primary"
-                onClick={handleSubmit}
-                loading={loading.submit}
-                icon={<SaveOutlined />}
-              >
-                保存
-              </Button>
-            </Space>
-          </Col>
-        </Row>
 
-        {/* 第二行：描述、背景图 */}
-        <Row gutter={[12, 8]} align="middle" className="mb-2">
-          <Col flex="auto">
-            <Form.Item label="描述" name="description" className="mb-0">
-              <Input placeholder="请输入文章描述" />
+            <Form.Item label="所属合集" name="collection_ids">
+              <CollectionSelector placeholder="选择合集（可多选）" mode="multiple" />
             </Form.Item>
-          </Col>
-          <Col flex="380px">
-            <Form.Item label="背景图" name="cover" className="mb-0">
-              <ImageUpload placeholder="背景图URL" defaultAspectRatio={16 / 9} />
-            </Form.Item>
-          </Col>
-        </Row>
+          </div>
 
-        {/* 第三行：日期、访客、点赞 */}
-        <Row gutter={[12, 8]} align="middle">
-          <Col flex="240px">
+          <Divider className="my-6" />
+
+          {/* 时间设置 */}
+          <div>
+            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+              时间
+            </h4>
+
             <Form.Item
               label="发布日期"
               name="date"
-              className="mb-0"
               rules={[{ required: true }]}
             >
               <DatePicker
@@ -444,9 +550,8 @@ export default function EditPostPage() {
                 className="w-full"
               />
             </Form.Item>
-          </Col>
-          <Col flex="240px">
-            <Form.Item label="更新日期" name="updated" className="mb-0">
+
+            <Form.Item label="更新日期" name="updated">
               <DatePicker
                 showTime
                 format="YYYY-MM-DD HH:mm"
@@ -454,42 +559,113 @@ export default function EditPostPage() {
                 className="w-full"
               />
             </Form.Item>
-          </Col>
-          <Col flex="140px">
-            <Form.Item label="访客数" name="visitors" className="mb-0">
-              <InputNumber min={0} className="w-full" />
-            </Form.Item>
-          </Col>
-          <Col flex="140px">
-            <Form.Item label="点赞" name="likes" className="mb-0">
-              <InputNumber min={0} className="w-full" />
-            </Form.Item>
-          </Col>
-        </Row>
+          </div>
 
-        {/* 第四行：合集选择 */}
-        <Row gutter={[12, 8]} align="middle" className="mb-2">
-          <Col flex="auto">
-            <Form.Item label="所属合集" name="collection_ids" className="mb-0">
-              <CollectionSelector placeholder="选择合集（可多选）" />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Form>
+          {/* AI 工具 */}
+          <Divider className="my-6" />
+          <div>
+            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+              AI 辅助
+            </h4>
+            <Space direction="vertical" className="w-full">
+              <Button
+                block
+                icon={<TagsOutlined />}
+                onClick={genDescription}
+                loading={loading.generateDescription}
+              >
+                生成描述
+              </Button>
+              <Button
+                block
+                icon={<FolderOutlined />}
+                onClick={genCover}
+              >
+                生成背景图
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Drawer>
 
-      <div
-        className="flex-1 overflow-hidden flex flex-col"
-        style={{ minHeight: 0 }}
+      {/* 预览抽屉 */}
+      <Drawer
+        title={
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <EyeOutlined />
+              <span>预览</span>
+            </div>
+            <div className="text-sm text-neutral-400">
+              {form.getFieldValue("title") || "无标题文章"}
+            </div>
+          </div>
+        }
+        placement="right"
+        width={800}
+        open={previewDrawerOpen}
+        onClose={() => setPreviewDrawerOpen(false)}
+        styles={{
+          body: { padding: 0, background: "#fafafa" },
+        }}
       >
-        <MarkdownEditor
-          className="flex-1 overflow-hidden"
-          value={content}
-          onChange={(value) => {
-            setContent(value); // 更新本地状态
-            form.setFieldsValue({ content: value }); // 同步到表单
-          }}
-          placeholder="支持 Markdown 格式，可以直接粘贴图片..."
-        />
+        <div className="h-full overflow-y-auto">
+          <article className="max-w-3xl mx-auto px-8 py-12 bg-white min-h-full shadow-sm">
+            {/* 标题 */}
+            <h1 className="text-4xl font-bold text-neutral-900 mb-6">
+              {form.getFieldValue("title") || "无标题文章"}
+            </h1>
+
+            {/* 元信息 */}
+            <div className="flex items-center gap-4 text-sm text-neutral-500 mb-8 pb-6 border-b border-neutral-200">
+              <span>
+                {dayjs(form.getFieldValue("date")).format("YYYY年MM月DD日")}
+              </span>
+              {(form.getFieldValue("tags") || []).length > 0 && (
+                <>
+                  <span>·</span>
+                  <div className="flex gap-2">
+                    {form.getFieldValue("tags").map((tag: string) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 bg-neutral-100 rounded text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 描述 */}
+            {form.getFieldValue("description") && (
+              <div className="text-lg text-neutral-600 leading-relaxed mb-8 p-6 bg-neutral-50 rounded-lg border-l-4 border-neutral-300">
+                {form.getFieldValue("description")}
+              </div>
+            )}
+
+            {/* 内容 */}
+            <MarkdownPreview content={content} />
+
+            {/* 底部 */}
+            <div className="mt-16 pt-8 border-t border-neutral-200 text-center text-sm text-neutral-400">
+              <p>本文由 {user?.nickname || user?.account} 创作</p>
+              <p className="mt-1">
+                最后更新：{dayjs(form.getFieldValue("updated")).format("YYYY-MM-DD HH:mm")}
+              </p>
+            </div>
+          </article>
+        </div>
+      </Drawer>
+
+      {/* 快捷键提示 */}
+      <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
+        <Space split={<span>·</span>}>
+          <span>Cmd+S 保存</span>
+          <span>Cmd+, 设置</span>
+          <span>Cmd+P 预览</span>
+        </Space>
       </div>
     </div>
   );
