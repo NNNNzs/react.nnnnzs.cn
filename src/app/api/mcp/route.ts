@@ -9,6 +9,7 @@ import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
 import { addPostsToCollection, removePostsFromCollection } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { getWritingStyleGuide, getReferenceDocs } from '@/lib/docs-resources';
 
 /**
  * 自定义 HTTP Transport
@@ -130,7 +131,7 @@ function createMcpServer(headers: Headers) {
     "create_article",
     {
       title: "Create article",
-      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, and 'blog://collections' resource to check existing collections. Then use matching tags or create new ones, and optionally add the article to collections.",
+      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, and 'blog://collections' resource to check existing collections. Then use matching tags or create new ones, and optionally add the article to collections. IMPORTANT: Follow the blog's writing style guide - write in first person ('我'), use conversational tone with short sentences, be authentic and informal. Check 'blog://writing_style' resource for detailed style guidelines before writing.",
       inputSchema: {
         title: z.string().describe("Article title"),
         content: z.string().describe("Article content (Markdown)"),
@@ -229,7 +230,7 @@ function createMcpServer(headers: Headers) {
     "update_article",
     {
       title: "Update article",
-      description: "Update an existing blog article. You can also update collections by providing collection IDs or slugs. Use 'add_to_collections' to add to collections, 'remove_from_collections' to remove from collections.",
+      description: "Update an existing blog article. You can also update collections by providing collection IDs or slugs. Use 'add_to_collections' to add to collections, 'remove_from_collections' to remove from collections. IMPORTANT: Follow the blog's writing style guide when updating content - write in first person ('我'), use conversational tone with short sentences, be authentic and informal. Check 'blog://writing_style' resource for detailed style guidelines.",
       inputSchema: {
         id: z.number().describe("Article ID"),
         title: z.string().optional(),
@@ -505,6 +506,66 @@ function createMcpServer(headers: Headers) {
       };
     }
   );
+
+  // Register writing style guide as a resource
+  server.registerResource(
+    "writing_style",
+    "blog://writing_style",
+    {
+      title: "Blog Writing Style Guide",
+      description: "Complete writing style guidelines for blog articles. MUST read before creating or updating articles to ensure the content matches the blog's authentic, conversational tone. Includes guidelines for both technical and personal reflection articles.",
+      mimeType: "text/markdown"
+    },
+    async () => {
+      await ensureAuth();
+      // 动态读取写作风格指南
+      const writingStyleGuide = getWritingStyleGuide();
+
+      return {
+        contents: [{
+          uri: "blog://writing_style",
+          mimeType: "text/markdown",
+          text: writingStyleGuide
+        }]
+      };
+    }
+  );
+
+  // 动态注册 docs/reference 目录下的所有文档作为 resources
+  try {
+    const refDocs = getReferenceDocs();
+
+    for (const doc of refDocs) {
+      // 跳过写作风格指南，因为已经单独注册了
+      if (doc.name === 'writing-style-guide') continue;
+
+      server.registerResource(
+        doc.name,
+        `blog://ref/${doc.name}`,
+        {
+          title: doc.name,
+          description: `Reference document: ${doc.name}`,
+          mimeType: "text/markdown"
+        },
+        async () => {
+          await ensureAuth();
+          return {
+            contents: [{
+              uri: `blog://ref/${doc.name}`,
+              mimeType: "text/markdown",
+              text: doc.content
+            }]
+          };
+        }
+      );
+    }
+
+    if (refDocs.length > 0) {
+      console.log(`✅ [MCP] 动态注册了 ${refDocs.length} 个参考文档作为 resources`);
+    }
+  } catch (error) {
+    console.warn('⚠️ [MCP] 动态注册参考文档失败:', error);
+  }
 
   return server;
 }
