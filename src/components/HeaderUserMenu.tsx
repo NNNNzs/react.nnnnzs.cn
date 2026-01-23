@@ -5,13 +5,11 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
-import { UserOutlined, LogoutOutlined, EditOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * 头部导航中的用户信息和菜单区域
- * 单独拆分出来并使用 useSearchParams，以便在外层用 Suspense 包裹，
- * 最小化对 Header 其他内容的影响，保证主要导航可用于 SEO。
+ * 基于设计稿重构
  */
 export default function HeaderUserMenu() {
   const pathname = usePathname();
@@ -28,22 +26,31 @@ export default function HeaderUserMenu() {
     {
       key: "admin",
       label: <Link href="/c">管理后台</Link>,
-      icon: <EditOutlined />,
+      icon: <span className="material-symbols-outlined">edit</span>,
     },
     {
       key: "user",
-      label: <Link href="/c/user/info">个人中心</Link>,
-      icon: <UserOutlined />,
+      label: <Link href="/c/user/info">个人资料</Link>,
+      icon: <span className="material-symbols-outlined">person</span>,
+    },
+    {
+      key: "settings",
+      label: <Link href="/c/user">设置</Link>,
+      icon: <span className="material-symbols-outlined">settings</span>,
+    },
+    {
+      type: "divider",
     },
     {
       key: "logout",
       label: "退出登录",
-      icon: <LogoutOutlined />,
+      icon: <span className="material-symbols-outlined text-red-600 dark:text-red-400">logout</span>,
       onClick: async () => {
         await logout();
         // 退出后返回当前页面
         window.location.href = currentUrl;
       },
+      className: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
     },
   ];
 
@@ -52,8 +59,8 @@ export default function HeaderUserMenu() {
       {user ? (
         <Dropdown menu={{ items: menuItems }} placement="bottomRight">
           <Space className="cursor-pointer">
-            <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            <Avatar size={32} icon={<span className="material-symbols-outlined">person</span>} src={user.avatar} />
+            <span className="text-sm font-medium text-slate-900 dark:text-white">
               {user.nickname}
             </span>
           </Space>
@@ -61,13 +68,16 @@ export default function HeaderUserMenu() {
       ) : (
         <Link
           href={`/login?redirect=${encodeURIComponent(currentUrl)}`}
-          className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-300"
+          className="flex items-center gap-2 px-4 py-1.5 rounded-full
+            bg-slate-900 dark:bg-white
+            text-white dark:text-slate-900
+            text-sm font-medium
+            hover:opacity-90 transition-opacity shadow-sm"
         >
-          登录
+          <span>登录</span>
+          <span className="material-symbols-outlined text-sm">login</span>
         </Link>
       )}
     </div>
   );
 }
-
-

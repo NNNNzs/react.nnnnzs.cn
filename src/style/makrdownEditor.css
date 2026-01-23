@@ -20,3 +20,194 @@
   min-height: 500px;
   height: 100%;
 }
+
+/* Markdown 预览暗色模式样式 */
+.md-dark-preview .md-editor-preview,
+.md-dark-preview .md-editor-preview-wrapper {
+  --md-bk-color: #1e293b !important;
+  --md-color: #e2e8f0 !important;
+  --md-heading-color: #f1f5f9 !important;
+  --md-link-color: #60a5fa !important;
+  --md-link-hover-color: #3b82f6 !important;
+  --md-border-color: #334155 !important;
+  --md-block-bg-color: #0f172a !important;
+  --md-code-bg-color: #0f172a !important;
+  --md-code-color: #e2e8f0 !important;
+}
+
+/* 暗色模式下的预览容器 */
+.md-dark-preview .md-editor {
+  background-color: #1e293b !important;
+}
+
+.md-dark-preview .md-editor-preview {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+/* 暗色模式下的标题 */
+.md-dark-preview .md-editor-preview h1,
+.md-dark-preview .md-editor-preview h2,
+.md-dark-preview .md-editor-preview h3,
+.md-dark-preview .md-editor-preview h4,
+.md-dark-preview .md-editor-preview h5,
+.md-dark-preview .md-editor-preview h6 {
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+
+/* 暗色模式下的段落 */
+.md-dark-preview .md-editor-preview p {
+  color: #cbd5e1 !important;
+}
+
+/* 暗色模式下的代码块 */
+.md-dark-preview .md-editor-preview pre {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+.md-dark-preview .md-editor-preview code {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+.md-dark-preview .md-editor-preview pre code {
+  background-color: transparent !important;
+}
+
+/* 暗色模式下的引用 */
+.md-dark-preview .md-editor-preview blockquote {
+  border-color: #475569 !important;
+  color: #94a3b8 !important;
+  background-color: #1e293b50 !important;
+}
+
+/* 暗色模式下的表格 */
+.md-dark-preview .md-editor-preview table {
+  border-color: #334155 !important;
+}
+
+.md-dark-preview .md-editor-preview th,
+.md-dark-preview .md-editor-preview td {
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+.md-dark-preview .md-editor-preview th {
+  background-color: #1e293b !important;
+}
+
+/* 暗色模式下的链接 */
+.md-dark-preview .md-editor-preview a {
+  color: #60a5fa !important;
+}
+
+.md-dark-preview .md-editor-preview a:hover {
+  color: #3b82f6 !important;
+}
+
+/* 暗色模式下的列表 */
+.md-dark-preview .md-editor-preview ul,
+.md-dark-preview .md-editor-preview ol {
+  color: #cbd5e1 !important;
+}
+
+.md-dark-preview .md-editor-preview li {
+  color: #cbd5e1 !important;
+}
+
+/* 暗色模式下的分隔线 */
+.md-dark-preview .md-editor-preview hr {
+  border-color: #334155 !important;
+}
+
+/* 暗色模式下的图片 */
+.md-dark-preview .md-editor-preview img {
+  background-color: transparent !important;
+}
+
+/* 暗色模式下的行内代码 */
+.md-dark-preview .md-editor-preview p code,
+.md-dark-preview .md-editor-preview li code {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 0.25rem !important;
+}
+
+/* 暗色模式下的目录组件 */
+.md-dark-preview .md-editor-catalog {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.md-dark-preview .md-editor-catalog-link {
+  color: #94a3b8 !important;
+}
+
+.md-dark-preview .md-editor-catalog-link:hover {
+  color: #3b82f6 !important;
+}
+
+.md-dark-preview .md-editor-catalog-active {
+  color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* 评论区域 Card 暗色模式样式 */
+.dark .ant-card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.dark .ant-card-head {
+  border-color: #334155 !important;
+}
+
+.dark .ant-card-head-title {
+  color: #f1f5f9 !important;
+}
+
+.dark .ant-collapse {
+  background-color: transparent !important;
+  border-color: #334155 !important;
+}
+
+.dark .ant-collapse-item {
+  border-color: #334155 !important;
+}
+
+.dark .ant-collapse-header {
+  color: #e2e8f0 !important;
+}
+
+.dark .ant-collapse-content-box {
+  background-color: transparent !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .ant-tabs-tab {
+  color: #94a3b8 !important;
+}
+
+.dark .ant-tabs-tab-active {
+  color: #3b82f6 !important;
+}
+
+.dark .ant-tabs-ink-bar {
+  background-color: #3b82f6 !important;
+}
+
+.dark .ant-btn-text {
+  color: #94a3b8 !important;
+}
+
+.dark .ant-btn-text:hover {
+  color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.dark .ant-empty-description {
+  color: #94a3b8 !important;
+}

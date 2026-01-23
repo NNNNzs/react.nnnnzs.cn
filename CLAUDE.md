@@ -161,6 +161,7 @@ pnpm prisma:studio    # 打开 Prisma Studio
 pnpm analyze          # 运行所有分析
 pnpm analyze:bundle   # 包大小分析
 ```
+**重要** 在后台```npm run dev``` 启动了服务，任务完成后，要kill掉杀死，而不是一直挂着，影响我看日志
 
 更多命令：[包管理](.cursor/rules/package-management.mdc)
 

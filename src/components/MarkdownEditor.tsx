@@ -12,6 +12,7 @@ import 'md-editor-rt/lib/style.css';
 import '@/style/makrdownEditor.css';
 import axios from 'axios';
 import { message } from 'antd';
+import { useDarkMode } from '@/hooks/useDarkMode';
 
 interface MarkdownEditorProps {
   value: string;
@@ -35,6 +36,8 @@ export default function MarkdownEditor({
   className,
   preview = true,
 }: MarkdownEditorProps) {
+  // 获取暗色模式状态
+  const { isDark } = useDarkMode();
   /**
    * 处理图片上传
    * 参考 nnnnzs.cn/components/Post/Edit.vue 的 onUploadImg
@@ -92,6 +95,7 @@ export default function MarkdownEditor({
         preview={preview ?? true}
         onUploadImg={onUploadImg}
         placeholder={placeholder}
+        theme={isDark ? "dark" : "light"}
         codeFoldable={false}
         previewTheme="cyanosis"
         language="zh-CN"

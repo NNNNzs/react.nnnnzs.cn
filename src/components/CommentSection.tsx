@@ -85,8 +85,8 @@ function CommentItem({ comment, currentUser, onReply, onDelete, onLike, depth = 
 
   return (
     <div
-      className={`border-b border-gray-100 pb-4 last:border-b-0 dark:border-gray-800 ${
-        depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200 dark:border-gray-700' : ''
+      className={`border-b border-border-light pb-4 last:border-b-0 dark:border-border-dark ${
+        depth > 0 ? 'ml-8 pl-4 border-l-2 border-border-light dark:border-border-dark' : ''
       }`}
     >
       <div className="flex items-start gap-3">
@@ -382,7 +382,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 取消回复
               </Button>
             </div>
-            <div className="mt-2 rounded border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mt-2 rounded border border-border-light bg-card-light p-3 dark:border-border-dark dark:bg-card-dark">
               <div className="prose dark:prose-invert max-w-none text-sm">
                 <MarkdownPreview content={replyTo.content} />
               </div>
@@ -430,7 +430,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
             }
             key="preview"
           >
-            <div className="min-h-[200px] rounded border border-gray-200 p-4 dark:border-gray-700">
+            <div className="min-h-[200px] rounded border border-border-light bg-card-light p-4 dark:border-border-dark dark:bg-card-dark">
               {content ? (
                 <div className="prose dark:prose-invert max-w-none">
                   <MarkdownPreview content={content} />

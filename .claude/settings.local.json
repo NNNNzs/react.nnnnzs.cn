@@ -41,7 +41,14 @@
       "mcp__plugin_context7_context7__query-docs",
       "Bash(pnpm dev:*)",
       "Bash(npx prisma db push:*)",
-      "Skill(frontend-design:frontend-design)"
+      "Skill(frontend-design:frontend-design)",
+      "Bash(pnpm eslint:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__zai-mcp-server__analyze_image",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_snapshot"
     ],
     "deny": [],
     "ask": []

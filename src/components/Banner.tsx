@@ -1,6 +1,7 @@
 /**
  * 横幅组件
  * 参考 nnnnzs.cn/components/Banner.vue 的设计
+ * 所有页面都使用大图背景
  */
 
 "use client";
@@ -16,7 +17,7 @@ interface BannerProps {
   anchorRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function Banner({ cover, anchorRef }: BannerProps) {
+export default function Banner({ cover, title, subtitle, anchorRef }: BannerProps) {
   const defaultCover = `https://static.nnnnzs.cn/bing/${dayjs().format(
     "YYYYMMDD"
   )}.png`;
@@ -54,10 +55,26 @@ export default function Banner({ cover, anchorRef }: BannerProps) {
           backgroundImage: `url(${bannerImage})`,
         }}
       >
-        {/* 一言文字 */}
-        <div className="mix-blend-difference p-8 text-2xl text-white antialiased transition-all duration-300 hover:backdrop-blur-[3px]">
-          <p className="mb-20">记录技术，分享生活</p>
-        </div>
+        {/* 标题区域 - 如果提供了 title */}
+        {title && (
+          <div className="mix-blend-difference p-8 text-center antialiased">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="text-lg text-white/90">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 如果没有 title，显示默认的一言 */}
+        {!title && (
+          <div className="mix-blend-difference p-8 text-2xl text-white antialiased transition-all duration-300 hover:backdrop-blur-[3px]">
+            <p className="mb-20">记录技术，分享生活</p>
+          </div>
+        )}
 
         {/* 滚动提示 */}
         <div

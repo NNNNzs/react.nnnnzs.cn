@@ -60,6 +60,7 @@ export default function MarkdownPreview({
   const editorId = useMemo(() => generateStableId(content), [content]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [hasCatalog, setHasCatalog] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   // 检查是否有目录
   useEffect(() => {
@@ -68,9 +69,29 @@ export default function MarkdownPreview({
     }
   }, [content, showMdCatalog]);
 
+  // 监听暗色模式变化 - 直接从 DOM 检测
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const dark = document.documentElement.classList.contains('dark');
+      setIsDark(dark);
+    };
+
+    // 初始检查
+    checkDarkMode();
+
+    // 监听 class 变化
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div ref={wrapperRef} className="markdown-preview-wrapper relative">
-      <MdPreview editorId={editorId} modelValue={content} {...props} />
+    <div ref={wrapperRef} className={`markdown-preview-wrapper relative ${isDark ? 'md-dark-preview' : ''}`}>
+      <MdPreview editorId={editorId} modelValue={content} theme={isDark ? "dark" : "light"} {...props} />
       {showMdCatalog && hasCatalog && (
         <aside
           className="

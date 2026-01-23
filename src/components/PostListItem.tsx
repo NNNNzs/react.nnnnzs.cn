@@ -1,6 +1,6 @@
 /**
  * 文章列表项组件
- * 参考 nnnnzs.cn/components/Post/CardItem.vue 的设计
+ * 基于设计稿重构，保留一左一右交替布局
  */
 
 "use client";
@@ -9,27 +9,33 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dayjs from "dayjs";
-import { EyeOutlined, HeartOutlined, TagOutlined } from "@ant-design/icons";
 import type { Post } from "@/types";
+import { getTagClassName } from "@/lib/tagColors";
 
 interface PostListItemProps {
   post: Post;
+  index?: number; // 用于判断奇偶行
 }
-const target = "";
 
-export default function PostListItem({ post }: PostListItemProps) {
+export default function PostListItem({ post, index = 0 }: PostListItemProps) {
   const optimizeImageUrl = (url: string) => {
     return url + "?imageMogr2/thumbnail/600x";
   };
+
+  // 判断是否为偶数行（从0开始，所以0,2,4...是偶数行）
+  const isEven = index % 2 === 0;
+
   return (
     <li
-      className="post group m-auto my-8 flex w-5/6 max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all hover:shadow-2xl dark:bg-slate-800 md:h-auto md:flex-row md:even:flex-row-reverse"
+      className={`group relative m-auto my-8 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-card-light shadow-sm hover:shadow-xl dark:bg-card-dark md:h-auto md:flex-row border border-border-light dark:border-border-dark transition-all duration-300 transform hover:-translate-y-1 ${
+        isEven ? "" : "md:flex-row-reverse"
+      }`}
       id={`post_${post.id}`}
     >
-      {/* 封面图片 */}
-      <div className="post-cover w-full bg-transparent text-center md:w-3/5">
-        <Link href={post.path || "#"} target="_blank">
-          <div className="relative h-48 w-full md:h-full md:max-h-96">
+      {/* 封面图片 - 2/5 */}
+      <div className="md:w-2/5 h-64 md:h-auto overflow-hidden relative">
+        <Link href={post.path || "#"} prefetch={false}>
+          <div className="relative w-full h-full">
             {post.cover ? (
               <Image
                 src={optimizeImageUrl(post.cover)}
@@ -37,71 +43,76 @@ export default function PostListItem({ post }: PostListItemProps) {
                 unoptimized={true}
                 title={post.cover || ""}
                 fill
-                className="rounded-t-xl object-cover transition-all md:rounded-2xl md:hover:shadow-2xl md:group-even:rounded-l-none md:group-odd:rounded-r-none"
-                sizes="(max-width: 768px) 100vw, 60vw"
+                className={`object-cover transition-transform duration-700 group-hover:scale-105 ${
+                  isEven ? "md:rounded-l-2xl md:rounded-r-none" : "md:rounded-r-2xl md:rounded-l-none"
+                } rounded-t-2xl md:rounded-t-none`}
+                sizes="(max-width: 768px) 100vw, 40vw"
               />
             ) : (
-              <div className="flex h-full items-center justify-center bg-slate-200 dark:bg-slate-700">
-                <span className="text-slate-400">暂无封面</span>
+              <div className="flex h-full items-center justify-center bg-slate-100 dark:bg-slate-900/50">
+                <span className="text-slate-400 dark:text-slate-600">暂无封面</span>
               </div>
             )}
           </div>
         </Link>
+        {/* 移动端渐变遮罩 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 md:hidden"></div>
       </div>
 
-      {/* 文章信息 */}
-      <div className="post-text w-full border-t-0 bg-white p-4 text-left dark:border-none dark:bg-slate-800 md:relative md:w-2/5 md:border md:border-gray-300 md:even:border-l-0 md:odd:border-r-0 lg:even:border-l-0 lg:odd:border-r-0">
-        {/* 时间 */}
-        <p className="post-time text-gray-300">
-          {dayjs(post.date).format("YYYY-MM-DD")}
-        </p>
-
-        {/* 标题 */}
-        <h2 className="post-title my-4 bg-white text-2xl text-slate-950 dark:bg-slate-800 dark:text-white md:line-clamp-1">
-          <Link
-            href={post.path || "#"}
-            className="hover:text-blue-600"
-            title={post.title || ""}
-            target={target}
-          >
-            {post.title}
-          </Link>
-        </h2>
-
-        {/* 标签 */}
-        {post.tags && Array.isArray(post.tags) && post.tags.length > 0 && (
-          <div className="post-tags mb-4 flex flex-wrap gap-2">
-            {post.tags.map((tag: string, index: number) => (
-              <span
-                key={index}
-                className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-              >
-                <TagOutlined className="mr-1" />
-                {tag}
-              </span>
-            ))}
+      {/* 文章信息 - 3/5 */}
+      <div className="md:w-3/5 p-6 md:p-8 flex flex-col justify-between min-h-[320px]">
+        <div>
+          {/* 时间 */}
+          <div className="flex items-center gap-3 text-xs font-medium text-text-muted-light dark:text-text-muted-dark mb-3">
+            <time dateTime={post.date ?? undefined}>
+              {dayjs(post.date).format("YYYY-MM-DD")}
+            </time>
           </div>
-        )}
 
-        {/* 描述 */}
-        <p className="post-description hidden h-42 leading-10 text-gray-500 md:block overflow-hidden">
-          {post.description}
-        </p>
+          {/* 标题 */}
+          <h2 className="text-xl md:text-2xl font-bold mb-3 text-text-main-light dark:text-text-main-dark group-hover:text-primary transition-colors line-clamp-2">
+            <Link
+              href={post.path || "#"}
+              title={post.title || ""}
+              prefetch={false}
+            >
+              {post.title}
+            </Link>
+          </h2>
 
-        {/* 元信息 */}
-        <p className="post-meta hidden text-slate-700 dark:text-slate-400 md:block">
-          <span className="leancloud_visitors my-6 mr-4">
-            <EyeOutlined className="mr-1" />
-            热度
-            <i className="ml-1 not-italic">{post.visitors || 0}</i>
+          {/* 标签 */}
+          {post.tags && Array.isArray(post.tags) && post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {post.tags.map((tag: string, tagIndex: number) => (
+                <span
+                  key={tagIndex}
+                  className={getTagClassName(tag)}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 描述 */}
+          {post.description && (
+            <p className="text-text-muted-light dark:text-text-muted-dark text-sm leading-relaxed line-clamp-3 mb-4">
+              {post.description}
+            </p>
+          )}
+        </div>
+
+        {/* 底部元信息 */}
+        <div className="flex items-center gap-4 text-xs text-text-muted-light dark:text-text-muted-dark border-t border-border-light dark:border-border-dark pt-4 mt-auto">
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">visibility</span>
+            {post.visitors || 0}
           </span>
-
-          <span className="leancloud_likes">
-            <HeartOutlined className="mr-1" />
-            喜欢
-            <i className="ml-1 not-italic">{post.likes || 0}</i>
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">favorite_border</span>
+            {post.likes || 0}
           </span>
-        </p>
+        </div>
       </div>
     </li>
   );

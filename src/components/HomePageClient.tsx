@@ -18,7 +18,7 @@ const SCROLL_CACHE_KEY = 'home_scroll_position';
  * 首页客户端组件（受控组件）
  * 只负责展示和触发加载更多的回调
  */
-export default function HomePageClient({ 
+export default function HomePageClient({
   posts,
   hasMore,
   onLoadMore,
@@ -149,31 +149,33 @@ export default function HomePageClient({
     <div className="snap-y snap-mandatory">
       {/* 横幅 */}
       <Banner anchorRef={anchorRef} />
-      
+
       {/* 锚点 */}
       <div ref={anchorRef} />
 
       {/* 文章列表 */}
       <div className="snap-start">
         <ul>
-          {posts.map((post) => (
-            <PostListItem key={post.id} post={post} />
+          {posts.map((post, index) => (
+            <PostListItem key={post.id} post={post} index={index} />
           ))}
         </ul>
 
         {/* 加载更多 */}
         {hasMore && posts.length > 0 && (
-          <div
-            className="cursor-pointer py-8 text-center text-slate-950 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            onClick={onLoadMore}
-          >
-            加载更多
+          <div className="flex justify-center pt-8 mb-8 ">
+            <button
+              className="cursor-pointer px-8 py-3 rounded-full border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary hover:border-primary transition-all text-sm font-medium shadow-sm hover:shadow-md"
+              onClick={onLoadMore}
+            >
+              加载更多文章
+            </button>
           </div>
         )}
 
         {/* 已加载全部 */}
         {!hasMore && posts.length > 0 && (
-          <div className="py-8 text-center text-slate-500 dark:text-slate-400">
+          <div className="py-8 text-center text-text-muted-light dark:text-text-muted-dark">
             已加载全部文章
           </div>
         )}
