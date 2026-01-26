@@ -1,7 +1,7 @@
 /**
  * 站点地图生成
  * Next.js 16 App Router 会自动识别此文件并生成 /sitemap.xml
- * 
+ *
  * 包含的页面：
  * - 首页
  * - 所有文章详情页
@@ -9,12 +9,15 @@
  * - 分类列表和分类页
  * - 归档页
  * - 时间线页
+ * - 合集列表和合集详情页
+ * - AI 聊天页面
  */
 
 import { MetadataRoute } from 'next';
 import { getPrisma } from '@/lib/prisma';
 import { getAllTags } from '@/services/tag';
 import { getAllCategories } from '@/services/category';
+import { getCollectionList } from '@/services/collection';
 
 /**
  * 获取网站基础 URL
@@ -60,9 +63,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 获取所有标签
   const tags = await getAllTags();
-  
+
   // 获取所有分类
   const categories = await getAllCategories();
+
+  // 获取所有已发布的合集
+  const collectionsResult = await getCollectionList({
+    pageSize: 1000,
+    pageNum: 1,
+    status: 1, // 只获取已发布的合集
+  });
+  const collections = collectionsResult.record;
 
   // 静态页面
   const staticPages: MetadataRoute.Sitemap = [
@@ -96,6 +107,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.7,
     },
+    {
+      url: `${baseUrl}/collections`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    }
   ];
 
   // 文章详情页（过滤掉 path 为 null 的文章）
@@ -124,7 +141,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // 合集详情页
+  const collectionPages: MetadataRoute.Sitemap = collections.map((collection) => ({
+    url: `${baseUrl}/collections/${encodeURIComponent(collection.slug)}`,
+    lastModified: collection.updated_at ? new Date(collection.updated_at) : new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
   // 合并所有页面
-  return [...staticPages, ...postPages, ...tagPages, ...categoryPages];
+  return [...staticPages, ...postPages, ...tagPages, ...categoryPages, ...collectionPages];
 }
 
