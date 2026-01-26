@@ -200,7 +200,7 @@ function createMcpServer(headers: Headers) {
 
             if (collectionId) {
               // 使用 ID
-              await addPostsToCollection(collectionId, [result.id]);
+              await addPostsToCollection(collectionId, [result.id], undefined, user.id);
             } else {
               // 使用 slug，需要先查询获取 ID
               const collections = await getCollectionList({
@@ -210,7 +210,7 @@ function createMcpServer(headers: Headers) {
 
               const collection = collections.record.find(c => c.slug === identifier);
               if (collection) {
-                await addPostsToCollection(collection.id, [result.id]);
+                await addPostsToCollection(collection.id, [result.id], undefined, user.id);
               }
             }
           }
@@ -245,7 +245,7 @@ function createMcpServer(headers: Headers) {
       }
     },
     async (args) => {
-      await ensureAuth();
+      const user = await ensureAuth();
       const { id, add_to_collections, remove_from_collections, ...restArgs } = args;
       const data: Partial<import('@/generated/prisma-client').TbPost> = {
         ...restArgs,
@@ -295,7 +295,7 @@ function createMcpServer(headers: Headers) {
             const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
 
             if (collectionId) {
-              await addPostsToCollection(collectionId, [id]);
+              await addPostsToCollection(collectionId, [id], undefined, user.id);
             } else {
               const collections = await getCollectionList({
                 pageNum: 1,
@@ -303,7 +303,7 @@ function createMcpServer(headers: Headers) {
               });
               const collection = collections.record.find(c => c.slug === identifier);
               if (collection) {
-                await addPostsToCollection(collection.id, [id]);
+                await addPostsToCollection(collection.id, [id], undefined, user.id);
               }
             }
           }
@@ -321,7 +321,7 @@ function createMcpServer(headers: Headers) {
             const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
 
             if (collectionId) {
-              await removePostsFromCollection(collectionId, [id]);
+              await removePostsFromCollection(collectionId, [id], user.id);
             } else {
               const collections = await getCollectionList({
                 pageNum: 1,
@@ -329,7 +329,7 @@ function createMcpServer(headers: Headers) {
               });
               const collection = collections.record.find(c => c.slug === identifier);
               if (collection) {
-                await removePostsFromCollection(collection.id, [id]);
+                await removePostsFromCollection(collection.id, [id], user.id);
               }
             }
           }

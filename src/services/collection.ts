@@ -18,7 +18,7 @@ import { TbCollection, TbPost } from '@/generated/prisma-client';
 import { serializePost } from './post';
 import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogsAsync } from '@/services/entity-change-log';
-import { EntityType } from '@/types/entity-change';
+import { EntityType, ValueType } from '@/types/entity-change';
 
 /**
  * 将 Prisma 实体序列化为纯对象
@@ -251,7 +251,8 @@ export async function deleteCollection(id: number): Promise<boolean> {
 export async function addPostsToCollection(
   collectionId: number,
   postIds: number[],
-  sortOrders?: number[]
+  sortOrders?: number[],
+  userId?: number
 ) {
   const prisma = await getPrisma();
 
@@ -290,8 +291,36 @@ export async function addPostsToCollection(
       data: { article_count: count },
     });
 
-    return { created: createData.length };
+    return { created: createData.length, addedPostIds: newPostIds };
   });
+
+  // 记录变更日志（在事务外异步执行）
+  if (userId && result.addedPostIds.length > 0) {
+    // 获取合集当前所有文章
+    const currentPosts = await prisma.tbCollectionPost.findMany({
+      where: { collection_id: collectionId },
+      select: { post_id: true },
+      orderBy: { sort_order: 'asc' },
+    });
+
+    const currentPostIds = currentPosts.map(p => p.post_id);
+
+    // 生成变更记录：记录整个文章列表的变化
+    const changes = [{
+      fieldName: 'posts' as const,
+      displayName: '关联文章',
+      oldValue: JSON.stringify(currentPostIds.filter(id => !result.addedPostIds.includes(id))),
+      newValue: JSON.stringify(currentPostIds),
+      valueType: ValueType.ARRAY,
+    }];
+
+    createChangeLogsAsync({
+      entityId: collectionId,
+      entityType: EntityType.COLLECTION,
+      changes,
+      userId,
+    });
+  }
 
   return result;
 }
@@ -299,7 +328,11 @@ export async function addPostsToCollection(
 /**
  * 从合集移除文章
  */
-export async function removePostsFromCollection(collectionId: number, postIds: number[]) {
+export async function removePostsFromCollection(
+  collectionId: number,
+  postIds: number[],
+  userId?: number
+) {
   const prisma = await getPrisma();
 
   await prisma.$transaction(async (tx) => {
@@ -320,6 +353,35 @@ export async function removePostsFromCollection(collectionId: number, postIds: n
       data: { article_count: count },
     });
   });
+
+  // 记录变更日志（在事务外异步执行）
+  if (userId && postIds.length > 0) {
+    // 获取合集当前所有文章（已移除后的状态）
+    const currentPosts = await prisma.tbCollectionPost.findMany({
+      where: { collection_id: collectionId },
+      select: { post_id: true },
+      orderBy: { sort_order: 'asc' },
+    });
+
+    const currentPostIds = currentPosts.map(p => p.post_id);
+
+    // 生成变更记录： oldValue 是移除前的列表（当前列表 + 已移除的文章）
+    const previousPostIds = [...currentPostIds, ...postIds];
+    const changes = [{
+      fieldName: 'posts' as const,
+      displayName: '关联文章',
+      oldValue: JSON.stringify(previousPostIds),
+      newValue: JSON.stringify(currentPostIds),
+      valueType: ValueType.ARRAY,
+    }];
+
+    createChangeLogsAsync({
+      entityId: collectionId,
+      entityType: EntityType.COLLECTION,
+      changes,
+      userId,
+    });
+  }
 
   return true;
 }

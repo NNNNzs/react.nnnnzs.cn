@@ -134,9 +134,9 @@ export default function UserInfoPage() {
     }
 
     // 验证文件大小
-    const isLt5M = file.size / 1024 / 1024 < 5;
-    if (!isLt5M) {
-      message.error("图片大小不能超过 5MB！");
+    const isLt10M = file.size / 1024 / 1024 < 10;
+    if (!isLt10M) {
+      message.error("图片大小不能超过 10MB！");
       return false;
     }
 

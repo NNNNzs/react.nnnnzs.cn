@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证文件大小（5MB）
-    const maxSize = 5 * 1024 * 1024;
+    // 验证文件大小（100MB）
+    const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
-      return NextResponse.json(errorResponse('文件大小不能超过5MB'), {
+      return NextResponse.json(errorResponse('文件大小不能超过100MB'), {
         status: 400,
       });
     }

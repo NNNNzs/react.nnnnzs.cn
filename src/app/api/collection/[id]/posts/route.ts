@@ -71,7 +71,8 @@ export async function POST(
     const result = await addPostsToCollection(
       collectionId,
       validationResult.data.post_ids,
-      validationResult.data.sort_orders
+      validationResult.data.sort_orders,
+      user.id
     );
 
     return NextResponse.json(successResponse(result, `成功添加 ${result.created} 篇文章到合集`));
@@ -120,7 +121,7 @@ export async function DELETE(
       );
     }
 
-    await removePostsFromCollection(collectionId, validationResult.data.post_ids);
+    await removePostsFromCollection(collectionId, validationResult.data.post_ids, user.id);
 
     return NextResponse.json(successResponse(null, '文章已从合集中移除'));
   } catch (error) {

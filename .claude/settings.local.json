@@ -48,7 +48,8 @@
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "mcp__zai-mcp-server__analyze_image",
       "mcp__plugin_playwright_playwright__browser_click",
-      "mcp__plugin_playwright_playwright__browser_snapshot"
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__MyBlog__update_article"
     ],
     "deny": [],
     "ask": []
