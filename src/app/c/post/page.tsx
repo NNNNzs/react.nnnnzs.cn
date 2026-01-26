@@ -18,6 +18,7 @@ import {
   SearchOutlined,
   SyncOutlined,
   ReloadOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -25,6 +26,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Post } from '@/types';
 import { isAdmin } from '@/types/role';
 import { useCachedApi } from '@/hooks/useCachedApi';
+import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
+import { EntityType } from '@/types/entity-change';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -143,6 +146,16 @@ function AdminPageContent() {
     success: number;
     failed: number;
   } | null>(null);
+  // 变更历史弹窗状态
+  const [changeHistoryModal, setChangeHistoryModal] = useState<{
+    visible: boolean;
+    postId: number | null;
+    postName: string | null;
+  }>({
+    visible: false,
+    postId: null,
+    postName: null,
+  });
 
   // 直接使用 URL 状态，不维护本地 state
   const hideFilter = urlState.hideFilter;
@@ -341,6 +354,17 @@ function AdminPageContent() {
    */
   const handleEdit = (post: Post) => {
     router.push(`/c/edit/${post.id}`);
+  };
+
+  /**
+   * 查看变更历史
+   */
+  const handleViewChangeHistory = (post: Post) => {
+    setChangeHistoryModal({
+      visible: true,
+      postId: post.id,
+      postName: post.title || `文章 #${post.id}`,
+    });
   };
 
   /**
@@ -543,6 +567,13 @@ function AdminPageContent() {
           </Button>
           <Button
             type="link"
+            icon={<HistoryOutlined />}
+            onClick={() => handleViewChangeHistory(record)}
+          >
+            变更历史
+          </Button>
+          <Button
+            type="link"
             icon={<ReloadOutlined />}
             onClick={() => handleUpdateEmbedding(record)}
           >
@@ -562,6 +593,7 @@ function AdminPageContent() {
   ];
 
   return (
+    <>
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         <div className="mb-6 flex items-center justify-between shrink-0">
@@ -727,6 +759,22 @@ function AdminPageContent() {
         </div>
       </div>
     </div>
+
+    {/* 变更历史弹窗 */}
+    <EntityChangeHistoryModal
+      visible={changeHistoryModal.visible}
+      onClose={() =>
+        setChangeHistoryModal({
+          visible: false,
+          postId: null,
+          postName: null,
+        })
+      }
+      entityType={EntityType.POST}
+      entityId={changeHistoryModal.postId || 0}
+      entityName={changeHistoryModal.postName || undefined}
+    />
+    </>
   );
 }
 

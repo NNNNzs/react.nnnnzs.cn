@@ -13,12 +13,15 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SerializedCollection } from '@/dto/collection.dto';
 import { isAdmin } from '@/types/role';
+import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
+import { EntityType } from '@/types/entity-change';
 
 const { confirm } = Modal;
 
@@ -32,6 +35,16 @@ export default function CollectionsManagePage() {
     current: 1,
     pageSize: 20,
     total: 0,
+  });
+  // 变更历史弹窗状态
+  const [changeHistoryModal, setChangeHistoryModal] = useState<{
+    visible: boolean;
+    collectionId: number | null;
+    collectionName: string | null;
+  }>({
+    visible: false,
+    collectionId: null,
+    collectionName: null,
   });
 
   // 权限检查
@@ -106,6 +119,15 @@ export default function CollectionsManagePage() {
           message.error('删除合集失败');
         }
       },
+    });
+  };
+
+  // 查看变更历史
+  const handleViewChangeHistory = (collection: SerializedCollection) => {
+    setChangeHistoryModal({
+      visible: true,
+      collectionId: collection.id,
+      collectionName: collection.title || `合集 #${collection.id}`,
     });
   };
 
@@ -210,7 +232,7 @@ export default function CollectionsManagePage() {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 240,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -219,6 +241,13 @@ export default function CollectionsManagePage() {
             onClick={() => router.push(`/c/collections/${record.id}`)}
           >
             编辑
+          </Button>
+          <Button
+            type="link"
+            icon={<HistoryOutlined />}
+            onClick={() => handleViewChangeHistory(record)}
+          >
+            变更历史
           </Button>
           <Button
             type="link"
@@ -234,6 +263,7 @@ export default function CollectionsManagePage() {
   ];
 
   return (
+    <>
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 头部操作栏 */}
@@ -269,5 +299,21 @@ export default function CollectionsManagePage() {
         </div>
       </div>
     </div>
+
+    {/* 变更历史弹窗 */}
+    <EntityChangeHistoryModal
+      visible={changeHistoryModal.visible}
+      onClose={() =>
+        setChangeHistoryModal({
+          visible: false,
+          collectionId: null,
+          collectionName: null,
+        })
+      }
+      entityType={EntityType.COLLECTION}
+      entityId={changeHistoryModal.collectionId || 0}
+      entityName={changeHistoryModal.collectionName || undefined}
+    />
+    </>
   );
 }

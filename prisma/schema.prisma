@@ -68,10 +68,11 @@ model TbUser {
   status              Int       @default(1)
 
   // 关联关系
-  posts          TbPost[]         // 创建的文章
-  longTermTokens LongTermToken[]  // 长期Token
-  collections    TbCollection[]   // 创建的合集
-  comments       TbComment[]      // 用户发表的评论
+  posts              TbPost[]            // 创建的文章
+  longTermTokens     LongTermToken[]     // 长期Token
+  collections        TbCollection[]      // 创建的合集
+  comments           TbComment[]         // 用户发表的评论
+  createdChangeLogs  TbEntityChangeLog[] @relation("EntityChangeLogCreator") // 创建的变更日志
 
   @@map("tb_user")
 }
@@ -198,4 +199,28 @@ model TbComment {
   @@index([parent_id])
   @@index([created_at])
   @@map("tb_comment")
+}
+
+// 实体变更日志表
+// 用于记录文章、合集等实体的字段变更历史
+model TbEntityChangeLog {
+  id          Int      @id @default(autoincrement())
+  entity_id   Int                                              // 实体ID（文章ID、合集ID等）
+  entity_type String   @db.VarChar(50)                         // 实体类型：POST, COLLECTION, CATEGORY, TAG 等
+  field_name  String   @db.VarChar(100)                        // 变更的字段名：title, path, tags 等
+  old_value   String?  @db.Text                                // 变更前的值（JSON字符串）
+  new_value   String?  @db.Text                                // 变更后的值（JSON字符串）
+  value_type  String   @db.VarChar(20)                         // 值类型：string, number, boolean, array, object
+  created_at  DateTime @default(now())
+  created_by  Int?                                             // 操作人ID（可能为null，如系统操作）
+
+  // 关联用户表
+  creator TbUser? @relation("EntityChangeLogCreator", fields: [created_by], references: [id])
+
+  // 索引优化
+  @@index([entity_id, entity_type], name: "idx_entity")
+  @@index([entity_type, created_at], name: "idx_type_time")
+  @@index([created_by, created_at], name: "idx_user_time")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_entity_change_log")
 }

@@ -59,6 +59,7 @@ export type CreateCollectionDto = {
  */
 export type UpdateCollectionDto = Partial<CreateCollectionDto> & {
   status?: number;
+  updated_by?: number; // 更新人ID
 };
 
 /**

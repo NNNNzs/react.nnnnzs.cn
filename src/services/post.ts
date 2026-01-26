@@ -5,6 +5,9 @@ import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
 import { queueEmbedPost } from '@/services/embedding';
 import { revalidatePath } from "next/cache";
+import { detectChanges } from '@/services/entity-change-detector';
+import { createChangeLogsAsync } from '@/services/entity-change-log';
+import { EntityType } from '@/types/entity-change';
 
 /**
  * 将字符串标签转换为数组
@@ -396,7 +399,18 @@ export async function updatePost(
 
   // 处理日期：统一转换为 Date 对象
   if (data.date !== undefined && data.date !== null) {
-    updateData.date = new Date(data.date);
+    const newDate = new Date(data.date);
+    updateData.date = newDate;
+
+    // 调试日志：比较日期
+    const oldDate = existingPost.date;
+    console.log('📅 日期变更检测:', {
+      oldDate: oldDate?.toISOString(),
+      newDate: newDate.toISOString(),
+      oldTimestamp: oldDate ? Math.floor(oldDate.getTime() / 1000) : null,
+      newTimestamp: Math.floor(newDate.getTime() / 1000),
+      isChanged: oldDate ? Math.floor(oldDate.getTime() / 1000) !== Math.floor(newDate.getTime() / 1000) : 'no old date',
+    });
   }
 
   // 如果有 title，重新生成 path（使用原始发布日期或更新后的日期）
@@ -407,12 +421,19 @@ export async function updatePost(
     updateData.title = data.title;
   }
 
-  // 如果 cover 为空，生成新的 cover（使用原始发布日期或更新后的日期）
-  if (data.cover === '' || data.cover === null || data.cover === undefined) {
-    const dateForCover = (updateData.date as Date) || existingPost.date;
-    updateData.cover = genCover(dateForCover);
-  } else if (data.cover) {
-    updateData.cover = data.cover;
+  // 处理 cover 字段
+  // - undefined: 不传该字段，不更新 cover（保持原值）
+  // - null 或空字符串: 自动生成 cover
+  // - 具体值: 使用该值
+  if (data.cover !== undefined) {
+    if (data.cover === '' || data.cover === null) {
+      // 显式设置为空时，自动生成
+      const dateForCover = (updateData.date as Date) || existingPost.date;
+      updateData.cover = genCover(dateForCover);
+    } else {
+      // 使用传入的值
+      updateData.cover = data.cover;
+    }
   }
 
   // 添加其他字段
@@ -434,6 +455,34 @@ export async function updatePost(
   });
 
   revalidatePath(updatedPost.path!);
+
+  // 检测字段变更并记录日志（异步执行，不阻塞响应）
+  const changes = detectChanges(
+    EntityType.POST,
+    existingPost,
+    updateData
+  );
+
+  // 调试日志：显示检测到的变更
+  console.log('🔍 检测到字段变更:', {
+    totalChanges: changes.length,
+    changes: changes.map(c => ({
+      field: c.fieldName,
+      display: c.displayName,
+      oldValue: c.oldValue,
+      newValue: c.newValue,
+    })),
+    updateDataKeys: Object.keys(updateData),
+  });
+
+  if (changes.length > 0) {
+    createChangeLogsAsync({
+      entityId: id,
+      entityType: EntityType.POST,
+      changes,
+      userId: createdBy,
+    });
+  }
 
   // 如果内容有更新，创建版本记录并添加到向量化队列（异步执行，不阻塞响应）
   if (hasContentUpdate && updatedPost.content) {

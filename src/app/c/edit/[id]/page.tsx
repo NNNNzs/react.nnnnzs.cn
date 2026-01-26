@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Form,
@@ -27,9 +27,6 @@ import {
   FolderOutlined,
   EyeOutlined,
   SettingOutlined,
-  MoreOutlined,
-  CheckOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
@@ -54,6 +51,8 @@ export default function EditPostPage() {
   });
   const [post, setPost] = useState<Post | null>(null);
   const [tags, setTags] = useState<[string, number][]>([]);
+  // 保存原始日期，用于比较是否真的修改了
+  const [originalDate, setOriginalDate] = useState<string | null>(null);
 
   // 抽屉状态
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
@@ -102,6 +101,11 @@ export default function EditPostPage() {
       if (response.data.status) {
         const postData = response.data.data;
         setPost(postData);
+
+        // 保存原始日期（用于比较是否修改）
+        if (postData.date) {
+          setOriginalDate(dayjs(postData.date).format("YYYY-MM-DD HH:mm:ss"));
+        }
 
         let collectionIds: number[] = [];
         try {
@@ -226,27 +230,46 @@ export default function EditPostPage() {
    */
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields(["title", "content"]);
+      // 验证必填字段（标题和内容）
+      await form.validateFields(["title", "content"]);
+
+      // 获取所有表单字段值（包括抽屉里的字段）
+      const values = form.getFieldsValue();
       setLoading((prev) => ({ ...prev, submit: true }));
 
-      const postData = {
+      console.log('📋 提交表单数据:', values);
+
+      // 处理日期字段
+      const formDate = values.date ? dayjs(values.date).format("YYYY-MM-DD HH:mm:ss") : null;
+      const shouldUpdateDate = isNewPost || (originalDate && formDate !== originalDate);
+
+      // 构建提交数据
+      const postData: Record<string, unknown> = {
         title: values.title,
-        content: form.getFieldValue("content") || "",
+        content: values.content || "",
         tags: values.tags || [],
-        date: dayjs(values.date).format("YYYY-MM-DD HH:mm:ss"),
         category: values.category || null,
         description: values.description || null,
-        cover: values.cover || null,
         hide: values.hide || "0",
         layout: values.layout || null,
+        collection_ids: values.collection_ids || [],
       };
 
-      const collectionIds = values.collection_ids || [];
+      // 处理日期字段：只有修改时才发送
+      if (shouldUpdateDate && formDate) {
+        postData.date = formDate;
+      }
+
+      // 处理 cover 字段：有值才发送（包括空值，让后端决定是否生成）
+      if (values.cover !== undefined) {
+        postData.cover = values.cover || null;
+      }
 
       if (isNewPost) {
         const response = await axios.post("/api/post/create", postData);
         if (response.data.status) {
           const newId = response.data.data.id;
+          const collectionIds = postData.collection_ids as number[];
 
           if (collectionIds.length > 0) {
             console.log('📝 创建文章后关联合集:', { newId, collectionIds });
@@ -276,6 +299,7 @@ export default function EditPostPage() {
           ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
           : [];
 
+        const collectionIds = postData.collection_ids as number[];
         const toAdd = collectionIds.filter((id: number) => !currentCollectionIds.includes(id));
         const toRemove = currentCollectionIds.filter((id: number) => !collectionIds.includes(id));
 
@@ -335,7 +359,6 @@ export default function EditPostPage() {
     return null;
   }
 
-  const selectedTags = form.getFieldValue("tags") || [];
   const hideValue = form.getFieldValue("hide") || "0";
   const isPublished = hideValue === "0";
 

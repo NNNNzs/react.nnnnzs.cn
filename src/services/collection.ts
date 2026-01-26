@@ -16,6 +16,9 @@ import {
 } from '@/dto/collection.dto';
 import { TbCollection, TbPost } from '@/generated/prisma-client';
 import { serializePost } from './post';
+import { detectChanges } from '@/services/entity-change-detector';
+import { createChangeLogsAsync } from '@/services/entity-change-log';
+import { EntityType } from '@/types/entity-change';
 
 /**
  * 将 Prisma 实体序列化为纯对象
@@ -176,18 +179,46 @@ export async function updateCollection(
   const prisma = await getPrisma();
 
   try {
+    // 先获取现有合集数据
+    const existingCollection = await prisma.tbCollection.findUnique({
+      where: { id },
+    });
+
+    if (!existingCollection) {
+      return null;
+    }
+
+    // 准备更新数据
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.cover !== undefined) updateData.cover = data.cover;
+    if (data.background !== undefined) updateData.background = data.background;
+    if (data.color !== undefined) updateData.color = data.color;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    // 执行更新
     const collection = await prisma.tbCollection.update({
       where: { id },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.slug !== undefined && { slug: data.slug }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.cover !== undefined && { cover: data.cover }),
-        ...(data.background !== undefined && { background: data.background }),
-        ...(data.color !== undefined && { color: data.color }),
-        ...(data.status !== undefined && { status: data.status }),
-      },
+      data: updateData,
     });
+
+    // 检测字段变更并记录日志（异步执行，不阻塞响应）
+    const changes = detectChanges(
+      EntityType.COLLECTION,
+      existingCollection,
+      updateData
+    );
+
+    if (changes.length > 0) {
+      createChangeLogsAsync({
+        entityId: id,
+        entityType: EntityType.COLLECTION,
+        changes,
+        userId: data.updated_by,
+      });
+    }
 
     return serializeCollection(collection);
   } catch {
