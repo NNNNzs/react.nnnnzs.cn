@@ -8,10 +8,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // 配置请求体大小限制（100MB）
-  experimental: {
-    bodySizeLimit: '100mb',
-  },
   // 安全的images字段host配置
   images: {
     // 同时配置 remotePatterns
