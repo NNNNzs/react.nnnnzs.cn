@@ -677,20 +677,21 @@ export default function AdminPage() {
 - 合集编辑页：`src/app/c/collections/[id]/page.tsx:125-250`
 - 合集文章管理：`src/app/c/collections/[id]/posts/page.tsx:203-383`
 
-## 图片上传规范
+## 媒体上传规范
 
-### 通用图片上传组件 ⚠️ IMPORTANT
+### 通用媒体上传组件 ⚠️ IMPORTANT
 
-**重要**：项目中所有图片上传功能（头像、封面图、背景图等）**必须**使用 `ImageUpload` 组件。
+**重要**：项目中所有媒体上传功能（头像、封面图、背景图、视频等）**必须**使用 `MediaUpload` 组件。
 
 #### 组件位置
 ```typescript
-import ImageUpload from '@/components/ImageUpload'
+import MediaUpload from '@/components/MediaUpload'
 ```
 
 #### 功能特性
+- ✅ **支持图片和视频上传**（原 ImageUpload 仅支持图片）
 - ✅ 支持 URL 输入
-- ✅ 支持外链图片下载和裁剪（通过 `/api/fs/proxy-image` API）
+- ✅ 支持外链下载和裁剪（通过 `/api/fs/proxy-image` API）
 - ✅ 支持文件上传（调用 `/api/fs/upload` API）
 - ✅ 支持图片裁剪（基于 `ImageCropper` 内部组件）
 - ✅ 裁剪弹窗点击外部不关闭，防止误操作
@@ -698,16 +699,16 @@ import ImageUpload from '@/components/ImageUpload'
 - ✅ **支持自由裁剪和固定比例裁剪，可切换锁定/解锁**
 - ✅ 裁剪功能完全内聚，业务组件无需关心裁剪逻辑
 - ✅ 完全兼容 Ant Design `Form.Item`
-- ✅ 自动图片预览
+- ✅ 自动媒体预览
 - ✅ 文件大小和类型验证
 
 #### 基础用法
 ```tsx
-import ImageUpload from '@/components/ImageUpload'
+import MediaUpload from '@/components/MediaUpload'
 
 // 1. 头像上传（1:1 正方形裁剪，作为默认值）
 <Form.Item name="avatar" label="头像">
-  <ImageUpload
+  <MediaUpload
     placeholder="请输入头像 URL"
     defaultAspectRatio={1}
   />
@@ -715,7 +716,7 @@ import ImageUpload from '@/components/ImageUpload'
 
 // 2. 封面/背景图上传（16:9 裁剪，作为默认值）
 <Form.Item name="cover" label="封面图">
-  <ImageUpload
+  <MediaUpload
     placeholder="请输入封面图 URL"
     defaultAspectRatio={16 / 9}
   />
@@ -723,7 +724,7 @@ import ImageUpload from '@/components/ImageUpload'
 
 // 3. 自由裁剪（不锁定比例）
 <Form.Item name="banner" label="横幅">
-  <ImageUpload
+  <MediaUpload
     placeholder="请输入横幅 URL"
     defaultAspectRatio={0}
   />
@@ -731,8 +732,17 @@ import ImageUpload from '@/components/ImageUpload'
 
 // 4. 直接上传，不支持裁剪
 <Form.Item name="logo" label="Logo">
-  <ImageUpload
+  <MediaUpload
     placeholder="请输入 Logo URL"
+    enableCrop={false}
+  />
+</Form.Item>
+
+// 5. 视频上传（新增功能）
+<Form.Item name="video" label="视频">
+  <MediaUpload
+    placeholder="请输入视频 URL"
+    accept="video/*"
     enableCrop={false}
   />
 </Form.Item>
@@ -818,14 +828,15 @@ interface ImageUploadProps {
 | 合集背景图 | `16 / 9` | 横向矩形，用户可修改 |
 | 其他横幅 | `16 / 9` | 横向矩形，用户可修改 |
 | 自由裁剪 | `0` | 完全自由，不锁定比例 |
+| 视频上传 | N/A | 视频不支持裁剪，设置 `enableCrop={false}` |
 
 #### 依赖组件
-- `ImageCropper` - 图片裁剪弹窗（内部组件，`ImageUpload` 自动使用）
-- `/api/fs/upload` - 文件上传 API
+- `ImageCropper` - 图片裁剪弹窗（内部组件，`MediaUpload` 自动使用）
+- `/api/fs/upload` - 文件上传 API（支持图片和视频）
 - `/api/fs/proxy-image` - 图片代理 API（用于下载外链图片）
 
 #### 已实现的页面
-以下页面已使用 `ImageUpload` 组件：
+以下页面已使用 `MediaUpload` 组件：
 1. **用户信息页** (`src/app/c/user/info/page.tsx`) - 头像上传（`defaultAspectRatio={1}`）
 2. **编辑文章页** (`src/app/c/edit/[id]/page.tsx`) - 背景图上传（`defaultAspectRatio={16 / 9}`）
 3. **合集编辑页** (`src/app/c/collections/[id]/page.tsx`) - 封面图和背景图上传（`defaultAspectRatio={16 / 9}`）
@@ -834,18 +845,23 @@ interface ImageUploadProps {
 
 **组件层级：**
 ```
-ImageUpload（对外组件，业务层使用）
+MediaUpload（对外组件，业务层使用）
   └── ImageCropper（内部组件，裁剪弹窗）
 ```
 
 **职责划分：**
-- `ImageUpload`：处理 URL 输入、文件选择、外链下载、上传到服务器
+- `MediaUpload`：处理 URL 输入、文件选择、外链下载、上传到服务器（支持图片和视频）
 - `ImageCropper`：纯裁剪功能组件，可独立使用（如用户信息页的头像快速编辑）
 
 **业务层简化：**
-- 业务组件只需使用 `ImageUpload`，无需关心裁剪逻辑
-- 所有裁剪、上传、回调都在 `ImageUpload` 内部处理
+- 业务组件只需使用 `MediaUpload`，无需关心裁剪逻辑
+- 所有裁剪、上传、回调都在 `MediaUpload` 内部处理
 - 业务组件通过 `Form.Item` 的 `value` 和 `onChange` 获取最终 URL
+
+**重构说明（重要）：**
+- 原 `ImageUpload` 组件已重构为 `MediaUpload`
+- 新增视频上传支持
+- 所有旧代码中的 `ImageUpload` 引用需要更新为 `MediaUpload`
 
 ## 重要注意事项
 

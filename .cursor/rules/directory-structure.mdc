@@ -16,11 +16,25 @@ src/
 │   │   ├── chat/                 # 聊天 API (SSE 流式)
 │   │   ├── mcp/                  # Model Context Protocol
 │   │   ├── oauth/                # OAuth 2.0 端点
+│   │   ├── comment/              # 评论 API（新增）
+│   │   ├── entity-change/        # 实体变更日志 API（新增）
+│   │   ├── upload/               # 文件上传 API（新增）
+│   │   ├── fs/                   # 文件系统 API（新增）
+│   │   ├── collections/          # 合集管理 API（新增）
 │   │   └── github/               # GitHub 集成
 │   ├── .well-known/              # OAuth 发现端点
 │   ├── [year]/[month]/[date]/[title]/  # 博客文章页面
 │   ├── collections/[slug]/       # 合集详情页
+│   ├── timeline/                 # 时间线页面（新增）
+│   ├── categories/               # 分类页面（新增）
+│   ├── status/                   # 状态页面（新增）
+│   ├── register/                 # 注册页面（新增）
+│   ├── authorize/                # OAuth 授权页面（新增）
+│   ├── introspect/               # Token 检查端点（新增）
+│   ├── revoke/                   # Token 撤销端点（新增）
 │   ├── c/                        # 管理后台
+│   │   ├── tools/                # 工具页面（新增）
+│   │   ├── vector-search/        # 向量搜索管理（新增）
 │   │   ├── collections/          # 合集管理
 │   │   ├── edit/[id]/            # 文章编辑器
 │   │   ├── post/                 # 文章管理
@@ -32,10 +46,13 @@ src/
 │   └── login/                    # 认证页面
 │
 ├── components/                   # React 组件
+│   ├── MediaUpload/              # 媒体上传组件（新增，原 ImageUpload）
 │   ├── AITextProcessor/          # AI 文本处理 UI
 │   ├── CollectionCard/           # 合集卡片组件
 │   ├── ArticleCollections/       # 文章的合集
 │   ├── CollectionSelector/       # 文章的合集选择器
+│   ├── CommentSection/           # 评论展示组件（新增）
+│   ├── EntityChangeHistoryModal/ # 变更历史弹窗（新增）
 │   └── (shared UI components)    # 其他共享组件
 │
 ├── contexts/                     # React Contexts
@@ -48,6 +65,7 @@ src/
 │   ├── user.dto.ts               # 用户数据类型
 │   ├── config.dto.ts             # 配置数据类型
 │   ├── collection.dto.ts         # 合集数据类型
+│   ├── comment.dto.ts            # 评论数据类型（新增）
 │   └── response.dto.ts           # API 响应格式
 │
 ├── lib/                          # 核心工具库
@@ -70,6 +88,9 @@ src/
 │   ├── collection.ts             # 合集 CRUD 操作
 │   ├── user.ts                   # 用户操作
 │   ├── auth.ts                   # 认证服务
+│   ├── comment.ts                # 评论服务（新增）
+│   ├── entity-change-detector.ts # 变更检测服务（新增）
+│   ├── entity-change-log.ts      # 变更日志服务（新增）
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务
 │   └── post-version.ts           # 文章版本控制

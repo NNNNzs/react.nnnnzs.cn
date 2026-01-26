@@ -35,18 +35,28 @@ DATABASE_URL="mysql://user:password@host:port/database"
 ```prisma
 // 示例：文章表
 model TbPost {
-  id         BigInt    @id @default(autoincrement())
-  title      String?
-  content    String?   @db.Text
-  category   String?
-  tags       String?   // 存储为逗号分隔的字符串
-  date       DateTime?
-  hide       String    @default("0")
-  visitors   Int       @default(0)
-  likes      Int       @default(0)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
+  id         Int       @id @default(autoincrement())
+  path       String    @db.VarChar(255)
+  title      String?   @db.VarChar(255)
+  category   String?   @db.VarChar(255)
+  tags       String?   @db.VarChar(255)  // 存储为逗号分隔的字符串
+  date       DateTime? @db.DateTime(0)
+  updated    DateTime? @db.DateTime(0)
+  cover      String?   @db.VarChar(255)
+  layout     String?   @db.VarChar(255)
+  content    String    @db.Text
+  description String?  @db.VarChar(500)
+  visitors   Int?      @default(0)
+  likes      Int?      @default(0)
+  hide       String?   @default("0") @db.VarChar(255)
   is_delete  Int       @default(0)
+  created_by  Int?     // 创建人ID
+
+  // 关联关系
+  creator            TbUser?            @relation(fields: [created_by], references: [id])
+  versions           TbPostVersion[]
+  collectionPosts    TbCollectionPost[]
+  comments           TbComment[]
 
   @@index([is_delete])
   @@index([category, hide])
@@ -55,21 +65,71 @@ model TbPost {
 
 // 示例：用户表
 model TbUser {
-  id         BigInt    @id @default(autoincrement())
-  username   String    @unique
-  password   String
-  nickname   String?
-  avatar     String?
-  email      String?
-  role       String    @default("user")  // user, admin
-  github_id  String?   @unique
-  wechat_id  String?   @unique
+  id              Int       @id @default(autoincrement())
+  role            String?   @db.VarChar(255)
+  account         String    @db.VarChar(16)
+  avatar          String?   @db.VarChar(255)
+  password        String    @db.VarChar(255)
+  nickname        String    @db.VarChar(16)
+  mail            String?   @db.VarChar(30)
+  github_id       String?   @db.VarChar(255)
+  github_username String?   @db.VarChar(255)
+  status          Int       @default(1)
+
+  // 关联关系
+  posts             TbPost[]
+  collections       TbCollection[]
+  comments          TbComment[]
+  createdChangeLogs TbEntityChangeLog[] @relation("EntityChangeLogCreator")
+
+  @@unique([account])
+  @@map("tb_user")
+}
+
+// 示例：评论表（支持回复）
+model TbComment {
+  id         Int       @id @default(autoincrement())
+  post_id    Int       // 关联文章ID
+  user_id    Int       // 评论者用户ID
+  parent_id  Int?      // 父评论ID（用于回复），null 表示顶级评论
+  content    String    @db.Text
+  status     Int       @default(1)  // 0=隐藏, 1=显示
+  is_delete  Int       @default(0)
+  like_count Int       @default(0)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
-  is_delete  Int       @default(0)
 
-  @@index([is_delete])
-  @@map("tb_user")
+  // 关联关系
+  post    TbPost     @relation("PostComments", fields: [post_id], references: [id])
+  user    TbUser     @relation("UserComments", fields: [user_id], references: [id])
+  parent  TbComment? @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies TbComment[] @relation("CommentReplies")
+
+  @@index([post_id, is_delete])
+  @@index([user_id, is_delete])
+  @@index([parent_id])
+  @@index([created_at])
+  @@map("tb_comment")
+}
+
+// 示例：实体变更日志表
+model TbEntityChangeLog {
+  id          Int      @id @default(autoincrement())
+  entity_id   Int      // 实体ID（文章ID、合集ID等）
+  entity_type String   @db.VarChar(50)  // POST, COLLECTION, CATEGORY, TAG 等
+  field_name  String   @db.VarChar(100)
+  old_value   String?  @db.Text
+  new_value   String?  @db.Text
+  value_type  String   @db.VarChar(20)  // string, number, boolean, array, object
+  created_at  DateTime @default(now())
+  created_by  Int?     // 操作人ID（可能为null，如系统操作）
+
+  creator TbUser? @relation("EntityChangeLogCreator", fields: [created_by], references: [id])
+
+  @@index([entity_id, entity_type])
+  @@index([entity_type, created_at])
+  @@index([created_by, created_at])
+  @@map("tb_entity_change_log")
 }
 ```
 

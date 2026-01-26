@@ -31,8 +31,6 @@ model TbPost {
   likes               Int?      @default(0)
   hide                String?   @default("0") @db.VarChar(255)
   is_delete           Int       @default(0)
-  github_issue_number Int? // GitHub Issue 编号
-  github_issue_id     Int? // GitHub Issue ID
   created_by          Int? // 创建人ID，关联用户表
   rag_status          String?   @default("pending") @db.VarChar(50) // 向量化状态：pending/processing/completed/failed
   rag_error           String?   @db.Text // 向量化错误信息（当 rag_status=failed 时存储）

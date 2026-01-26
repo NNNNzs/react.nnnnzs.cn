@@ -56,11 +56,32 @@ Region=ap-shanghai
 CDN_URL=https://static.your-domain.com
 ```
 
-### AI 服务 (可选)
+### AI 服务（已迁移至数据库）⚠️ 重要变更
+
+**旧方式**（已废弃）：
 ```bash
+# ❌ 不再使用这些环境变量进行 AI 配置
 ANTHROPIC_API_KEY=sk-...
 OPENAI_API_KEY=sk-...
 ```
+
+**新方式**（推荐）：
+- AI 模型配置已迁移到数据库 `tb_config` 表
+- 在系统配置管理页面添加 AI 配置
+- 或使用 `scripts/batch-add-ai-configs.js` 批量添加
+- 参考 `scripts/README-AI-CONFIG.md`
+
+**保留的环境变量**（用于服务端初始化，可选）：
+```bash
+# 如果需要在启动时初始化默认配置（可选）
+ANTHROPIC_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
+```
+
+**配置方式说明**：
+1. 通过管理后台配置页面添加 AI 模型（推荐）
+2. 使用数据库脚本批量添加配置
+3. 环境变量仅用于首次启动时的默认配置
 
 ### Qdrant 向量数据库
 ```bash
