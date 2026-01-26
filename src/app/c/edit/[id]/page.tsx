@@ -34,7 +34,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/types";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import CollectionSelector from "@/components/CollectionSelector";
-import ImageUpload from "@/components/ImageUpload";
+import MediaUpload from "@/components/MediaUpload";
 import { fetchAndProcessStream } from "@/lib/stream";
 import MarkdownPreview from "@/components/MarkdownPreview";
 
@@ -521,7 +521,7 @@ export default function EditPostPage() {
             </Form.Item>
 
             <Form.Item label="背景图" name="cover">
-              <ImageUpload placeholder="背景图URL" defaultAspectRatio={16 / 9} />
+              <MediaUpload placeholder="背景图URL" defaultAspectRatio={16 / 9} />
             </Form.Item>
           </div>
 

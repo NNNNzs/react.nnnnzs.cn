@@ -32,7 +32,7 @@ import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import type { UserInfo } from "@/dto/user.dto";
 import type { RcFile } from "antd/es/upload";
-import ImageUpload from "@/components/ImageUpload";
+import MediaUpload from "@/components/MediaUpload";
 import ImageCropper from "@/components/ImageCropper";
 import WechatBindCard from "@/components/WechatBindCard";
 import GithubBindCard from "@/components/GithubBindCard";
@@ -342,7 +342,7 @@ export default function UserInfoPage() {
               ]}
               help="可以上传图片或直接输入图片URL"
             >
-              <ImageUpload
+              <MediaUpload
                 placeholder="请输入头像URL（可选）"
                 defaultAspectRatio={1}
               />

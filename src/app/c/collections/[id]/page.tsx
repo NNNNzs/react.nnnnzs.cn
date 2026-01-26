@@ -12,7 +12,7 @@ import { SaveOutlined, ArrowLeftOutlined, UnorderedListOutlined } from '@ant-des
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SerializedCollection } from '@/dto/collection.dto';
-import ImageUpload from '@/components/ImageUpload';
+import MediaUpload from '@/components/MediaUpload';
 
 const { TextArea } = Input;
 
@@ -202,11 +202,19 @@ export default function CollectionEditPage() {
                 name="cover"
                 rules={[{ type: 'url', message: '请输入有效的 URL' }]}
               >
-                <ImageUpload placeholder="封面图 URL" defaultAspectRatio={16 / 9} />
+                <MediaUpload
+                  placeholder="封面图 URL"
+                  defaultAspectRatio={16 / 9}
+                  accept="image/*"
+                />
               </Form.Item>
 
               <Form.Item label="背景图 URL" name="background">
-                <ImageUpload placeholder="背景图 URL" defaultAspectRatio={16 / 9} />
+                <MediaUpload
+                  placeholder="背景图 URL（支持图片/视频）"
+                  defaultAspectRatio={16 / 9}
+                  accept="image/*,video/*"
+                />
               </Form.Item>
 
               <Form.Item

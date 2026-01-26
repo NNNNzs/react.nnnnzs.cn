@@ -313,7 +313,7 @@ export default function ImageCropper({
                 }
                 type="info"
                 showIcon
-                className="mt-4"
+                className="mt-4 mb-2"
               />
             )}
           </>
