@@ -80,7 +80,7 @@ body {
 /* 字体配置: Inter + Noto Sans SC */
 @layer base {
   html {
-    font-family: 'Inter', 'Noto Sans SC',
+    font-family: var(--font-inter), var(--font-noto-sans-sc),
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",

@@ -1,16 +1,33 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Inter, Noto_Sans_SC } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
 import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
+import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
 // 初始化向量化队列
 import "@/lib/embedding-init";
+
+// 配置 Google Fonts
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const notoSansSC = Noto_Sans_SC({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
+  variable: "--font-noto-sans-sc",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "NNNNzs",
@@ -26,18 +43,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html
+      lang="zh-CN"
+      suppressHydrationWarning
+      className={`${inter.variable} ${notoSansSC.variable}`}
+    >
       <head>
-        {/* Google Fonts: Inter + Noto Sans SC */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
-          rel="stylesheet"
-        />
-        {/* Material Symbols Outlined */}
+        {/* Material Symbols Outlined - 图标字体，通过 CDN 加载以获得更好的缓存效果 */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
+        <GoogleTagManager gtmId="GTM-51f12d30a4c94bac90b35bde7079f7b8" />
       </head>
       <AuthProvider>
         <CurrentPostProvider>
@@ -83,6 +101,7 @@ export default function RootLayout({
                   })();
                   `}
                   </Script>
+                  <GoogleTagManager gtmId="GTM-PTJQT23X" />
                 </body>
               </ConfigProvider>
             </AntdRegistry>

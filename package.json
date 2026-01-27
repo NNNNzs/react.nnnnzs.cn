@@ -24,7 +24,7 @@
     "analyze:quick": "node performance/index.js quick",
     "perf": "node performance/index.js all",
     "perf:quick": "node performance/index.js quick",
-    "kill":"lsof -ti:3000 | xargs kill -9 2>/dev/null || echo '没有进程监听 3000 端口'"
+    "kill": "lsof -ti:3000 | xargs kill -9 2>/dev/null || echo '没有进程监听 3000 端口'"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -40,6 +40,7 @@
     "@langchain/langgraph": "^1.0.15",
     "@langchain/openai": "^1.2.0",
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "@next/third-parties": "^16.1.5",
     "@prisma/client": "6.2.1",
     "@qdrant/js-client-rest": "^1.16.2",
     "@types/multer": "^2.0.0",
