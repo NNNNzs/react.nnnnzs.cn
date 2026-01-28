@@ -17,7 +17,7 @@ interface PostListItemProps {
   index?: number; // 用于判断奇偶行
 }
 
-export default function PostListItem({ post, index = 0 }: PostListItemProps) {
+function PostListItem({ post, index = 0 }: PostListItemProps) {
   const optimizeImageUrl = (url: string) => {
     return url + "?imageMogr2/thumbnail/600x";
   };
@@ -117,3 +117,6 @@ export default function PostListItem({ post, index = 0 }: PostListItemProps) {
     </li>
   );
 }
+
+// 使用 React.memo 优化重渲染
+export default React.memo(PostListItem);

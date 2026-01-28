@@ -863,6 +863,38 @@ MediaUpload（对外组件，业务层使用）
 - 新增视频上传支持
 - 所有旧代码中的 `ImageUpload` 引用需要更新为 `MediaUpload`
 
+## 性能优化规范
+
+**重要**：项目性能优化遵循 **Vercel React Best Practices** 规范。
+
+### 使用方式
+
+开发过程中遇到性能相关问题时，使用以下命令：
+
+```bash
+/vercel-react-best-practices
+```
+
+该 skill 包含 57 条规则，涵盖：
+- 消除瀑布请求（CRITICAL）
+- 包体积优化（CRITICAL）
+- 服务端性能（HIGH）
+- 客户端数据获取（MEDIUM-HIGH）
+- 重渲染优化（MEDIUM）
+- 渲染性能（MEDIUM）
+- JavaScript 性能（LOW-MEDIUM）
+
+### 参考文档
+- [性能优化计划](/docs/designs/performance-optimization-plan.md) - 项目实施记录
+- [Vercel React Best Practices](https://github.com/vercel/next.js/tree/canary/packages/react-best-practices)
+
+### 已优化的组件
+1. `BackToTop` - useCallback + passive 事件监听
+2. `PostListItem` - React.memo
+3. `CollectionCard` - React.memo
+4. `CollectionSelector` - React.memo + useCallback
+5. 文章管理页 - resize 节流
+
 ## 重要注意事项
 
 ### 服务端组件限制

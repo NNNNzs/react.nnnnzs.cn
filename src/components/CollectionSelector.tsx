@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Select, message } from "antd";
 import type { GetProps } from "antd";
 import type { SerializedCollection } from "@/dto/collection.dto";
@@ -20,7 +20,7 @@ interface CollectionSelectorProps {
 
 type SelectProps = GetProps<typeof Select>;
 
-export default function CollectionSelector({
+function CollectionSelector({
   value = [],
   onChange,
   disabled = false,
@@ -30,11 +30,8 @@ export default function CollectionSelector({
   const [collections, setCollections] = useState<SerializedCollection[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadCollections();
-  }, []);
-
-  const loadCollections = async () => {
+  // 使用 useCallback 避免依赖警告
+  const loadCollections = useCallback(async () => {
     setLoading(true);
     try {
       // 获取所有合集（包括隐藏的）
@@ -52,12 +49,17 @@ export default function CollectionSelector({
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // 空依赖数组，只在挂载时执行一次
 
   const options: SelectProps["options"] = collections.map((c) => ({
     label: c.title,
     value: c.id,
   }));
+
+  // 添加 useEffect 调用 loadCollections
+  useEffect(() => {
+    loadCollections();
+  }, [loadCollections]);
 
   return (
     <Select
@@ -73,3 +75,6 @@ export default function CollectionSelector({
     />
   );
 }
+
+// 使用 React.memo 优化重渲染
+export default React.memo(CollectionSelector);

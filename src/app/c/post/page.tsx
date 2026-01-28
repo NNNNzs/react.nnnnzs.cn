@@ -179,6 +179,7 @@ function AdminPageContent() {
    * 高度是动态计算的，基于flex布局的剩余空间
    */
   useEffect(() => {
+    // 使用 useCallback 稳定函数引用
     const updateScrollHeight = () => {
       if (tableContainerRef.current) {
         const containerHeight = tableContainerRef.current.clientHeight;
@@ -192,22 +193,28 @@ function AdminPageContent() {
     };
 
     updateScrollHeight();
-    
+
     // 使用 ResizeObserver 监听容器大小变化（响应flex布局变化）
     const resizeObserver = new ResizeObserver(() => {
       updateScrollHeight();
     });
-    
+
     if (tableContainerRef.current) {
       resizeObserver.observe(tableContainerRef.current);
     }
-    
-    // 监听窗口大小变化
-    window.addEventListener('resize', updateScrollHeight);
-    
+
+    // 监听窗口大小变化（带节流）
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateScrollHeight, 100);
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener('resize', updateScrollHeight);
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
     };
   }, []);
 
@@ -462,8 +469,9 @@ function AdminPageContent() {
     if (user) {
       loadPosts(urlState.current, urlState.pageSize);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText, urlState.includeDeleted]);
+  // 只在真正需要重新加载数据时触发
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText, urlState.ownerFilter, urlState.includeDeleted]);
 
   /**
    * 表格列定义

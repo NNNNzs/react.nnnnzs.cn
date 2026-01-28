@@ -14,6 +14,13 @@
 
 ## 设计文档列表
 
+### 性能优化
+
+#### 性能优化指南
+**文档**: [性能优化计划.md](./performance-optimization-plan.md)
+**描述**: 项目性能优化实施记录
+**使用**: 开发时使用 `/vercel-react-best-practices` skill 获取优化建议
+
 ### 向量检索与向量化
 
 #### 向量检索系统

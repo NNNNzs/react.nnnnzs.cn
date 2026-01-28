@@ -30,6 +30,10 @@
 
 ### 可用设计文档
 
+#### 性能优化
+- **[性能优化计划](docs/designs/performance-optimization-plan.md)** - 性能优化实施记录
+- **开发时使用**: `/vercel-react-best-practices` skill
+
 #### 向量检索与向量化
 - **[向量检索设计](docs/designs/vector-search-design.md)** - 基于 Qdrant 的语义搜索系统
 - **[向量化系统设计](docs/designs/embedding-design.md)** - 文章向量化的完整实现方案

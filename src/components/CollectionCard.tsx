@@ -16,7 +16,7 @@ interface CollectionCardProps {
   className?: string;
 }
 
-export default function CollectionCard({ collection, className = "" }: CollectionCardProps) {
+function CollectionCard({ collection, className = "" }: CollectionCardProps) {
   return (
     <Link
       href={`/collections/${collection.slug}`}
@@ -70,3 +70,6 @@ export default function CollectionCard({ collection, className = "" }: Collectio
     </Link>
   );
 }
+
+// 使用 React.memo 优化重渲染
+export default React.memo(CollectionCard);
