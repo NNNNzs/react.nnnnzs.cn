@@ -3,7 +3,27 @@
  * 路由: /c/collections
  */
 
-"'use client';\n+\n+import React, { useState, useEffect, useCallback } from 'react';\n+import { useRouter } from 'next/navigation';\n+import Image from 'next/image';\n+import { Table, Button, Space, Tag, message, Modal, Switch } from 'antd';\n+import type { TableColumnsType } from 'antd';\n+import {\n+  EditOutlined,\n+  DeleteOutlined,\n+  PlusOutlined,\n+  HistoryOutlined,\n+} from '@ant-design/icons';\n+import axios from 'axios';\n+import dayjs from 'dayjs';\n+import { useAuth } from '@/contexts/AuthContext';\n+import type { SerializedCollection } from '@/dto/collection.dto';\n+import { isAdmin } from '@/types/role';\n+import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';\n+import { EntityType } from '@/types/entity-change';\n+import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';"
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { Table, Button, Space, Tag, message, Modal, Switch } from 'antd';
+import type { TableColumnsType } from 'antd';
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons';
+import axios from 'axios';
+import dayjs from 'dayjs';
+import { useAuth } from '@/contexts/AuthContext';
+import type { SerializedCollection } from '@/dto/collection.dto';
+import { isAdmin } from '@/types/role';
+import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
+import { EntityType } from '@/types/entity-change';
+import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';
 
 const { confirm } = Modal;
 
@@ -146,9 +166,9 @@ export default function CollectionsManagePage() {
       key: 'cover',
       width: 100,
       render: (cover: string) => {
-        const src =
-          cover || 'https://via.placeholder.com/60x40';
-\n        return (
+        const src = cover || 'https://via.placeholder.com/60x40';
+        
+        return (
           <Image
             src={optimizeImageUrl(src, ImageOptimizationType.SMALL_THUMBNAIL)}
             alt="封面"
