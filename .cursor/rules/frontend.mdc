@@ -537,6 +537,66 @@ import Image from 'next/image'
 />
 ```
 
+#### 腾讯云 CDN 图片压缩规范 ⚠️ IMPORTANT
+
+项目使用 **腾讯云数据万象图片处理** 对 CDN 图片进行按比例/尺寸压缩，文档参考：
+[`https://cloud.tencent.com/document/product/460/46823`](https://cloud.tencent.com/document/product/460/46823)。
+
+统一使用 `src/lib/image.ts` 中的工具函数：
+
+```typescript
+// src/lib/image.ts
+const CDN_PREFIX = 'https://static.nnnnzs.cn'
+
+export enum ImageOptimizationType {
+  POST_LIST_COVER = 'post_list_cover',     // 文章列表封面（600px 宽）
+  POST_CARD_COVER = 'post_card_cover',     // 卡片封面（400px 宽）
+  COLLECTION_COVER = 'collection_cover',   // 合集封面（600px 宽）
+  SMALL_THUMBNAIL = 'small_thumbnail',     // 小缩略图（200px 宽）
+  NONE = 'none',
+}
+
+export function optimizeImageUrl(
+  url: string | null | undefined,
+  type: ImageOptimizationType = ImageOptimizationType.NONE
+): string {
+  // 仅处理 https://static.nnnnzs.cn 域名的图片
+  // 已包含 imageMogr2 参数的 URL 不会重复追加
+}
+```
+
+**使用规范：**
+
+1. **仅对 CDN 域名生效**
+   - 只处理 `https://static.nnnnzs.cn` 开头的图片 URL
+   - 其他域名（占位图、第三方图片等）保持原样，不添加任何参数
+
+2. **必须关闭 Next.js 自带优化**
+   - 所有使用腾讯云压缩的图片，统一写法：
+   ```tsx
+   import Image from 'next/image'
+   import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image'
+
+   <Image
+     src={optimizeImageUrl(post.cover, ImageOptimizationType.POST_LIST_COVER)}
+     alt={post.title || ''}
+     unoptimized={true}                 // 关键：关闭 Next.js 内置优化，避免与腾讯云冲突
+     fill
+     sizes="(max-width: 768px) 100vw, 40vw"
+     className="object-cover"
+   />
+   ```
+
+3. **典型场景对应优化类型**
+   - 文章列表封面：`ImageOptimizationType.POST_LIST_COVER`
+   - 文章卡片封面：`ImageOptimizationType.POST_CARD_COVER`
+   - 合集封面：`ImageOptimizationType.COLLECTION_COVER`
+   - 小尺寸封面/后台表格缩略图：`ImageOptimizationType.SMALL_THUMBNAIL`
+
+4. **不使用 CDN 压缩的场景**
+   - 所有头像（Avatar）图片
+   - `Banner` 横幅背景图（使用 `backgroundImage`，并且不做压缩）
+
 ### 代码分割
 ```typescript
 import dynamic from 'next/dynamic'

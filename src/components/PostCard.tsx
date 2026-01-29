@@ -10,6 +10,7 @@ import Image from "next/image";
 import dayjs from "dayjs";
 import { EyeOutlined, HeartOutlined, TagOutlined } from "@ant-design/icons";
 import type { Post } from "@/types";
+import { optimizeImageUrl, ImageOptimizationType } from "@/lib/image";
 
 interface PostCardProps {
   post: Post;
@@ -23,7 +24,7 @@ export default function PostCard({ post }: PostCardProps) {
         <div className="relative h-48 w-full overflow-hidden bg-slate-200 dark:bg-slate-700">
           {post.cover ? (
             <Image
-              src={post.cover}
+              src={optimizeImageUrl(post.cover, ImageOptimizationType.POST_CARD_COVER)}
               alt={post.title as string}
               fill
               unoptimized={true}

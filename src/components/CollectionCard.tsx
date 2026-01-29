@@ -10,6 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BookOutlined, EyeOutlined } from "@ant-design/icons";
 import type { SerializedCollection } from "@/dto/collection.dto";
+import { optimizeImageUrl, ImageOptimizationType } from "@/lib/image";
 
 interface CollectionCardProps {
   collection: SerializedCollection;
@@ -27,7 +28,7 @@ function CollectionCard({ collection, className = "" }: CollectionCardProps) {
         {collection.cover ? (
           <div className="relative h-48 w-full">
             <Image
-              src={collection.cover}
+              src={optimizeImageUrl(collection.cover, ImageOptimizationType.COLLECTION_COVER)}
               alt={collection.title}
               fill
               unoptimized={true}

@@ -10,6 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dayjs from "dayjs";
 import type { Post } from "@/types";
+import { optimizeImageUrl, ImageOptimizationType } from "@/lib/image";
 import { getTagClassName } from "@/lib/tagColors";
 
 interface PostListItemProps {
@@ -18,10 +19,6 @@ interface PostListItemProps {
 }
 
 function PostListItem({ post, index = 0 }: PostListItemProps) {
-  const optimizeImageUrl = (url: string) => {
-    return url + "?imageMogr2/thumbnail/600x";
-  };
-
   // 判断是否为偶数行（从0开始，所以0,2,4...是偶数行）
   const isEven = index % 2 === 0;
 
@@ -38,7 +35,7 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
           <div className="relative w-full h-full">
             {post.cover ? (
               <Image
-                src={optimizeImageUrl(post.cover)}
+                src={optimizeImageUrl(post.cover, ImageOptimizationType.POST_LIST_COVER)}
                 alt={post.title || ""}
                 unoptimized={true}
                 title={post.cover || ""}

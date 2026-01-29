@@ -10,6 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dayjs from "dayjs";
 import type { ArticleInCollection } from "@/dto/collection.dto";
+import { optimizeImageUrl, ImageOptimizationType } from "@/lib/image";
 
 interface ArticleInCollectionItemProps {
   article: ArticleInCollection;
@@ -37,7 +38,7 @@ export default function ArticleInCollectionItem({
         {article.cover && (
           <div className="relative w-20 h-12 flex-shrink-0 overflow-hidden rounded">
             <Image
-              src={article.cover}
+              src={optimizeImageUrl(article.cover, ImageOptimizationType.SMALL_THUMBNAIL)}
               alt={article.title || ""}
               fill
               unoptimized={true}
