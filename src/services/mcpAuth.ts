@@ -77,19 +77,19 @@ export const mcpAuthVerifier: OAuthTokenVerifier = {
 
 /**
  * 从请求头中提取并验证 Bearer Token
- * 支持向后兼容：优先使用 Bearer Token，回退到自定义头部（带警告）
+ * 支持标准 OAuth 2.0 Bearer Token 认证
  * @param requestOrHeaders 请求对象或请求头
  * @returns 认证结果，包含用户信息或错误
  */
 export async function authenticateMcpRequest(
   requestOrHeaders: NextRequest | Headers
 ): Promise<{ success: boolean; user?: import('@/types').User; error?: string }> {
-  const headers = requestOrHeaders instanceof Headers 
-    ? requestOrHeaders 
+  const headers = requestOrHeaders instanceof Headers
+    ? requestOrHeaders
     : requestOrHeaders.headers;
   const token = getTokenFromRequest(headers);
 
-  // 优先使用标准 Bearer Token
+  // 使用标准 Bearer Token
   if (token) {
     const user = await validateToken(token);
     if (user) {
@@ -98,30 +98,9 @@ export async function authenticateMcpRequest(
     return { success: false, error: "Invalid or expired token" };
   }
 
-  // 向后兼容：支持自定义头部认证（带警告）
-  const account = headers.get('x-mcp-account');
-  const password = headers.get('x-mcp-password');
-
-  if (account && password) {
-    console.warn('[MCP] ⚠️ 使用已弃用的自定义头部认证 (x-mcp-account/x-mcp-password)，请尽快迁移到标准 Bearer Token');
-    console.warn('[MCP] 迁移方法: 先调用 /api/auth/login 获取 token，然后使用 Authorization: Bearer <token>');
-
-    // 动态导入 login 函数以避免循环依赖
-    const { login } = await import('@/services/auth');
-    const result = await login(account, password);
-
-    if (!result) {
-      return { success: false, error: "Authentication failed with deprecated headers" };
-    }
-
-    // login 返回的是 { token, userInfo }，我们需要返回 userInfo
-    // userInfo 已经是 Omit<TbUser, 'password'> 类型，符合 User 类型
-    return { success: true, user: result.userInfo as import('@/types').User };
-  }
-
-  return { 
-    success: false, 
-    error: "Missing authentication credentials. Please provide 'Authorization: Bearer <token>' header" 
+  return {
+    success: false,
+    error: "Missing authentication credentials. Please provide 'Authorization: Bearer <token>' header"
   };
 }
 
@@ -167,36 +146,49 @@ async function parseTokenRequestBody(request: NextRequest): Promise<Record<strin
 export async function handleOAuthTokenRequest(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await parseTokenRequestBody(request);
-    const { 
-      grant_type, 
-      client_id, 
-      client_secret, 
-      code, 
+    const {
+      grant_type,
+      client_id,
+      client_secret,
+      code,
       redirect_uri,
       code_verifier,
-      refresh_token, 
-      scope 
+      refresh_token,
+      scope
     } = body;
+
+    console.log('📥 [OAuth Token] 收到 token 请求:', {
+      grant_type,
+      client_id,
+      has_code: !!code,
+      has_redirect_uri: !!redirect_uri,
+      has_code_verifier: !!code_verifier,
+      scope
+    });
 
     // 支持的授权类型
     switch (grant_type) {
       case 'client_credentials':
+        console.log('🔑 [OAuth Token] 处理 client_credentials 授权');
         return await handleClientCredentialsGrant(request);
 
       case 'authorization_code':
+        console.log('🔑 [OAuth Token] 处理 authorization_code 授权');
         return await handleAuthorizationCodeGrant(code, client_id, client_secret, redirect_uri, code_verifier);
 
       case 'refresh_token':
+        console.log('🔑 [OAuth Token] 处理 refresh_token 授权');
         return await handleRefreshTokenGrant(refresh_token, scope);
 
       default:
+        console.error('❌ [OAuth Token] 不支持的授权类型:', grant_type);
         return NextResponse.json({
           error: 'unsupported_grant_type',
           error_description: `Grant type '${grant_type}' is not supported`
         }, { status: 400 });
     }
   } catch (error) {
-    console.error('OAuth token request failed:', error);
+    console.error('❌ [OAuth Token] 处理失败:', error);
     return NextResponse.json({
       error: 'invalid_request',
       error_description: error instanceof Error ? error.message : 'Invalid request'
@@ -279,16 +271,33 @@ async function handleClientCredentialsGrant(request: NextRequest): Promise<NextR
  * 支持 PKCE (RFC 7636)
  */
 async function handleAuthorizationCodeGrant(
-  code: string, 
-  client_id: string, 
+  code: string,
+  client_id: string,
   client_secret: string,
   redirect_uri?: string,
   code_verifier?: string
 ): Promise<NextResponse> {
+  console.log('🔑 [OAuth] 处理授权码换取 token:', {
+    code: code?.substring(0, 20) + '...',
+    client_id,
+    has_client_secret: !!client_secret,
+    redirect_uri,
+    has_code_verifier: !!code_verifier
+  });
+
   if (!code) {
+    console.error('❌ [OAuth] 缺少授权码');
     return NextResponse.json({
       error: 'invalid_request',
       error_description: 'Missing authorization code'
+    }, { status: 400 });
+  }
+
+  if (!client_id) {
+    console.error('❌ [OAuth] 缺少 client_id');
+    return NextResponse.json({
+      error: 'invalid_request',
+      error_description: 'Missing client_id'
     }, { status: 400 });
   }
 
@@ -296,8 +305,14 @@ async function handleAuthorizationCodeGrant(
     // 从 Redis 获取授权码信息
     const redis = (await import('@/lib/redis')).default;
     const authCodeDataStr = await redis.get(`oauth:auth_code:${code}`);
-    
+
+    console.log('🔍 [OAuth] 授权码查询结果:', {
+      found: !!authCodeDataStr,
+      code: code?.substring(0, 20) + '...'
+    });
+
     if (!authCodeDataStr) {
+      console.error('❌ [OAuth] 授权码不存在或已过期');
       return NextResponse.json({
         error: 'invalid_grant',
         error_description: 'Authorization code expired or invalid'
@@ -306,8 +321,20 @@ async function handleAuthorizationCodeGrant(
 
     const authCodeData = JSON.parse(authCodeDataStr);
 
+    console.log('📋 [OAuth] 授权码数据:', {
+      client_id: authCodeData.client_id,
+      user_id: authCodeData.user_id,
+      scope: authCodeData.scope,
+      redirect_uri: authCodeData.redirect_uri,
+      has_code_challenge: !!authCodeData.code_challenge
+    });
+
     // 验证 client_id
     if (authCodeData.client_id !== client_id) {
+      console.error('❌ [OAuth] client_id 不匹配:', {
+        expected: authCodeData.client_id,
+        received: client_id
+      });
       return NextResponse.json({
         error: 'invalid_grant',
         error_description: 'Authorization code was issued to another client'
@@ -316,6 +343,10 @@ async function handleAuthorizationCodeGrant(
 
     // 验证 redirect_uri（如果提供）
     if (redirect_uri && authCodeData.redirect_uri !== redirect_uri) {
+      console.error('❌ [OAuth] redirect_uri 不匹配:', {
+        expected: authCodeData.redirect_uri,
+        received: redirect_uri
+      });
       return NextResponse.json({
         error: 'invalid_grant',
         error_description: 'Redirect URI mismatch'
@@ -325,6 +356,7 @@ async function handleAuthorizationCodeGrant(
     // 验证 PKCE code_verifier
     if (authCodeData.code_challenge) {
       if (!code_verifier) {
+        console.error('❌ [OAuth] 缺少 code_verifier (PKCE)');
         return NextResponse.json({
           error: 'invalid_request',
           error_description: 'Code verifier required for PKCE'
@@ -334,7 +366,7 @@ async function handleAuthorizationCodeGrant(
       // 计算 code_challenge
       const crypto = await import('crypto');
       let computedChallenge: string;
-      
+
       if (authCodeData.code_challenge_method === 'S256') {
         computedChallenge = crypto
           .createHash('sha256')
@@ -345,7 +377,15 @@ async function handleAuthorizationCodeGrant(
         computedChallenge = code_verifier;
       }
 
+      console.log('🔐 [OAuth] PKCE 验证:', {
+        method: authCodeData.code_challenge_method,
+        computed: computedChallenge?.substring(0, 20) + '...',
+        expected: authCodeData.code_challenge?.substring(0, 20) + '...',
+        match: computedChallenge === authCodeData.code_challenge
+      });
+
       if (computedChallenge !== authCodeData.code_challenge) {
+        console.error('❌ [OAuth] code_verifier 验证失败');
         return NextResponse.json({
           error: 'invalid_grant',
           error_description: 'Invalid code verifier'
@@ -355,6 +395,7 @@ async function handleAuthorizationCodeGrant(
 
     // 授权码只能使用一次，立即删除
     await redis.del(`oauth:auth_code:${code}`);
+    console.log('🗑️ [OAuth] 授权码已删除（一次性使用）');
 
     // 从授权码数据中获取duration，默认7天
     const duration = authCodeData.duration || 7;
@@ -368,11 +409,19 @@ async function handleAuthorizationCodeGrant(
     const redisExpiry = duration === 0 ? 10 * 365 * 24 * 60 * 60 : duration * 24 * 60 * 60;
     const expiresIn = duration === 0 ? undefined : duration * 24 * 60 * 60;
 
+    console.log('🎫 [OAuth] 生成 access_token:', {
+      token: access_token.substring(0, 30) + '...',
+      duration,
+      redis_expiry_days: Math.floor(redisExpiry / (24 * 60 * 60)),
+      is_permanent: duration === 0
+    });
+
     // 存储 access_token 到 Redis
     const tokenData = {
       userId: authCodeData.user_id.toString(), // 转为字符串以保持一致性
       scope: authCodeData.scope,
       client_id: authCodeData.client_id,
+      app_name: authCodeData.app_name || null, // 自定义应用名称
       created_at: Date.now(),
       is_permanent: duration === 0, // 标记是否永久
       duration: duration
@@ -384,6 +433,8 @@ async function handleAuthorizationCodeGrant(
       JSON.stringify(tokenData)
     );
 
+    console.log('✅ [OAuth] Token 存储成功');
+
 
     // 返回 OAuth 2.0 标准响应
     const response: OAuthTokens = {
@@ -392,6 +443,13 @@ async function handleAuthorizationCodeGrant(
       expires_in: expiresIn, // 永久时返回undefined
       scope: authCodeData.scope
     };
+
+    console.log('🎉 [OAuth] Token 交换成功:', {
+      access_token: access_token.substring(0, 30) + '...',
+      token_type: response.token_type,
+      expires_in: response.expires_in,
+      scope: response.scope
+    });
 
     return NextResponse.json(response, {
       headers: {
@@ -569,8 +627,8 @@ export function createOAuthErrorResponse(
 }
 
 /**
- * 增强的认证中间件，支持多种认证方式
- * 优先级：1. Bearer Token, 2. 长期 Token, 3. 客户端凭证
+ * 增强的认证中间件，支持标准 OAuth 2.0 Bearer Token
+ * 支持的 Token 类型：1. 普通 Bearer Token, 2. 长期 Token (LTK_ 前缀)
  */
 export async function authenticateMcpRequestEnhanced(headers: Headers): Promise<import('@/types').User> {
   const token = getTokenFromRequest(headers);
@@ -579,13 +637,13 @@ export async function authenticateMcpRequestEnhanced(headers: Headers): Promise<
     throw new Error("Missing authentication credentials. Please provide 'Authorization: Bearer <token>' header");
   }
 
-  // 1. 尝试普通 Bearer Token
+  // 1. 验证普通 Bearer Token
   const user = await validateToken(token);
   if (user) {
     return user;
   }
 
-  // 2. 尝试长期 Token
+  // 2. 验证长期 Token (LTK_ 前缀)
   if (token.startsWith('LTK_')) {
     const userId = await validateLongTermToken(token);
     if (userId) {
@@ -597,21 +655,6 @@ export async function authenticateMcpRequestEnhanced(headers: Headers): Promise<
       }
     }
     throw new Error("Invalid or expired long-term token");
-  }
-
-  // 3. 向后兼容：自定义头部认证
-  const account = headers.get('x-mcp-account');
-  const password = headers.get('x-mcp-password');
-
-  if (account && password) {
-    console.warn('[MCP] ⚠️ 使用已弃用的自定义头部认证');
-    console.warn('[MCP] 请迁移到标准 OAuth 2.0 Bearer Token');
-
-    const { login } = await import('@/services/auth');
-    const result = await login(account, password);
-    if (result) {
-      return result.userInfo as import('@/types').User;
-    }
   }
 
   throw new Error("Invalid or expired token");

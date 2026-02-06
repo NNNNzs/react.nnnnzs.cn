@@ -51,6 +51,7 @@
     "cos-nodejs-sdk-v5": "^2.15.4",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.19",
+    "framer-motion": "^12.33.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.8.2",
     "lodash-es": "^4.17.21",

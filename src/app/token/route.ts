@@ -10,6 +10,26 @@ import { NextRequest } from 'next/server';
 import { handleOAuthTokenRequest } from '@/services/mcpAuth';
 
 export async function POST(request: NextRequest) {
+  // 添加详细的请求日志，帮助调试
+  const contentType = request.headers.get('content-type');
+  const url = request.url;
+
+  console.log('📥 [Token Endpoint] 收到请求:', {
+    url,
+    method: 'POST',
+    contentType,
+    headers: Object.fromEntries(request.headers.entries())
+  });
+
+  try {
+    const body = await request.clone().json();
+    console.log('📋 [Token Endpoint] 请求体:', body);
+  } catch (error) {
+    // 如果不是 JSON，尝试读取文本
+    const text = await request.clone().text();
+    console.log('📋 [Token Endpoint] 请求体 (文本):', text);
+  }
+
   // 使用统一的 OAuth Token 处理器
   return handleOAuthTokenRequest(request);
 }

@@ -615,7 +615,7 @@ export async function POST(request: NextRequest) {
           code: -32000,
           message: "Authentication failed",
           data: {
-            hint: "Token is invalid or expired. Please re-authenticate or use /revoke to clear invalid tokens."
+            hint: "Token is invalid or expired. Please use 'Authorization: Bearer <token>' header or OAuth 2.0 authorization code flow."
           }
         },
         id: requestId
@@ -691,7 +691,7 @@ export async function POST(request: NextRequest) {
           code: -32000,
           message: "Authentication failed",
           data: {
-            hint: "Token is invalid or expired. Please re-authenticate or use /revoke to clear invalid tokens."
+            hint: "Token is invalid or expired. Please use 'Authorization: Bearer <token>' header or OAuth 2.0 authorization code flow."
           }
         },
         id: requestId

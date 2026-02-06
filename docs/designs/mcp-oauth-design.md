@@ -104,21 +104,14 @@ export async function authenticateMcpRequestEnhanced(headers: Headers) {
     if (userId) {
       return await getUserById(userId);
     }
+    throw new Error("Invalid or expired long-term token");
   }
 
-  // 3. 向后兼容：自定义 Headers
-  const account = headers.get('x-mcp-account');
-  const password = headers.get('x-mcp-password');
-  if (account && password) {
-    console.warn('[MCP] ⚠️ 使用已弃用的自定义头部认证');
-    const { login } = await import('@/services/auth');
-    const result = await login(account, password);
-    if (result) return result.userInfo;
-  }
-
-  throw new Error("Invalid token");
+  throw new Error("Invalid or expired token");
 }
 ```
+
+**2026-02-06 更新**: 移除了自定义头部认证 (`x-mcp-account` / `x-mcp-password`)，只保留标准 OAuth 2.0 Bearer Token。
 
 ### 方案 5: 长期 Token 机制
 
@@ -208,27 +201,28 @@ claude mcp list
 
 ### 4. 向后兼容测试
 ```bash
-# 旧 Headers 方式（应工作但显示警告）
+# 旧 Headers 方式（已移除，应返回 401）
 curl -X POST http://localhost:3000/api/mcp \
   -H "x-mcp-account: admin" \
   -H "x-mcp-password: password" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+# 应返回 401 Unauthorized
 ```
 
 ---
 
 ## 📊 改造前后对比
 
-| 方面 | 改造前 | 改造后 |
-|------|--------|--------|
-| **认证协议** | 自定义 Headers | OAuth 2.0 标准 |
-| **Token 格式** | 无结构 | Bearer / LTK_ 前缀 |
-| **OAuth 端点** | `/api/mcp/.well-known/*` | `/.well-known/*` ✅ |
-| **Claude CLI 兼容** | ❌ 不支持 | ✅ 完全支持 |
-| **自动发现** | ❌ | ✅ |
-| **长期配置** | ❌ | ✅ |
-| **向后兼容** | - | ✅ |
-| **多 Client 支持** | 有限 | ✅ 全面 |
+| 方面 | 改造前 | 改造后 (2026-01-15) | 最新 (2026-02-06) |
+|------|--------|--------|----------------|
+| **认证协议** | 自定义 Headers | OAuth 2.0 标准 + 旧方式 | OAuth 2.0 标准 |
+| **Token 格式** | 无结构 | Bearer / LTK_ 前缀 | Bearer / LTK_ 前缀 |
+| **OAuth 端点** | `/api/mcp/.well-known/*` | `/.well-known/*` ✅ | `/.well-known/*` ✅ |
+| **Claude CLI 兼容** | ❌ 不支持 | ✅ 完全支持 | ✅ 完全支持 |
+| **自动发现** | ❌ | ✅ | ✅ |
+| **长期配置** | ❌ | ✅ | ✅ |
+| **向后兼容** | - | ✅ (旧方式) | ❌ (已移除) |
+| **多 Client 支持** | 有限 | ✅ 全面 | ✅ 全面 |
 
 ---
 
@@ -247,8 +241,11 @@ curl -X POST http://localhost:3000/api/mcp \
 ### 3. 适配器模式
 统一处理多种认证方式，输出标准 User 对象
 
-### 4. 渐进迁移
+### 4. 渐进迁移 (2026-01-15)
 保留旧方式 + 警告 + 新标准
+
+### 5. 完全标准化 (2026-02-06)
+移除旧方式，只保留标准 OAuth 2.0 Bearer Token
 
 ---
 
@@ -278,10 +275,8 @@ claude mcp list
 claude mcp add MyBlog http://localhost:3000/api/mcp \
   --header "Authorization: Bearer LTK_xxx"
 
-# 方式 B: 旧 Headers (向后兼容)
-claude mcp add MyBlog http://localhost:3000/api/mcp \
-  --header "x-mcp-account: admin" \
-  --header "x-mcp-password: password"
+# 方式 B: OAuth 2.0 授权码流程
+# Claude Code CLI 会自动发现并处理
 ```
 
 ---
@@ -293,24 +288,31 @@ claude mcp add MyBlog http://localhost:3000/api/mcp \
 2. Claude Code CLI 完全兼容
 3. 长期 Token 机制
 4. Web UI 管理界面
-5. 向后兼容适配器
-6. 路由冲突完全解决
-7. 全面的测试验证
+5. 路由冲突完全解决
+6. 全面的测试验证
+
+### 🔄 2026-02-06 更新
+1. 移除自定义头部认证 (`x-mcp-account` / `x-mcp-password`)
+2. 简化认证逻辑，只保留标准 OAuth 2.0
+3. 更新错误提示信息
+4. 保持 OAuth 2.0 授权码流程完全兼容
 
 ### 🔑 核心优势
 1. **标准兼容**: 符合 OAuth 2.0 RFC
 2. **Client 通用**: 支持各种 MCP Client
 3. **易于配置**: Web UI + 自动脚本
-4. **平滑迁移**: 旧方式逐步淘汰
+4. **代码简洁**: 移除旧方式，维护成本低
 5. **安全可靠**: 多层验证机制
 
 ### 📚 相关文档
-- 博客文章: "MCP 认证升级：从 Headers 到 OAuth 2.0"
+- 博客文章: "MCP 认证升级：从 Headers 到 OAuth 2.0" (2026-01-15)
+- 博客文章: "MCP 服务认证优化：移除自定义头部，统一 OAuth 2.0" (2026-02-06)
 - 测试脚本: `scripts/test-mcp-oauth.sh`
 - Token 生成: `scripts/get-claude-token.sh`
 
 ---
 
 **状态**: ✅ 已完成并测试通过
-**兼容性**: Claude Code CLI + 其他 MCP Client
+**兼容性**: Claude Code CLI + Cursor IDE + 其他 MCP Client
 **标准**: OAuth 2.0 RFC 8707, 8414, 7636
+**最后更新**: 2026-02-06

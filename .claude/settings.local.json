@@ -49,7 +49,9 @@
       "mcp__zai-mcp-server__analyze_image",
       "mcp__plugin_playwright_playwright__browser_click",
       "mcp__plugin_playwright_playwright__browser_snapshot",
-      "mcp__MyBlog__update_article"
+      "mcp__MyBlog__update_article",
+      "Skill(frontend-design)",
+      "Bash(pnpm add:*)"
     ],
     "deny": [],
     "ask": []

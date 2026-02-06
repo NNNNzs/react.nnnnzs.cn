@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       code_challenge,
       code_challenge_method,
       created_at: Date.now(),
-      duration: duration
+      duration: duration,
+      app_name: body.app_name || null // 自定义应用名称
     };
 
     await redis.setex(

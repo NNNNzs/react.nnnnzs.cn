@@ -36,6 +36,7 @@ interface OAuthTokenCardProps {
 interface OAuthTokenItem {
   token: string;
   client_id: string;
+  app_name: string | null; // 自定义应用名称
   scope: string;
   created_at: number;
   expires_at: number | null;
@@ -200,9 +201,14 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Text strong>客户端: {tokenItem.client_id}</Text>
+                        <Text strong>{tokenItem.app_name || tokenItem.client_id}</Text>
                         {getExpiryText(tokenItem.expires_at, tokenItem.is_permanent)}
                       </div>
+                      {tokenItem.app_name && (
+                        <Text type="secondary" className="text-xs block mb-1">
+                          Client ID: {tokenItem.client_id}
+                        </Text>
+                      )}
                       <div className="flex items-center gap-2 mb-1">
                         <Tag color="purple">权限: {tokenItem.scope}</Tag>
                         <Tag>

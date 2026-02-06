@@ -1,46 +1,74 @@
 /**
  * OAuth 2.0 Client Registration (根路径)
- * 支持匿名注册，返回手动配置指引
+ * 支持 OAuth 2.0 授权码流程
+ * 返回客户端配置，触发完整的授权流程
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const body = await request.json().catch(() => ({}));
-    const { client_name = 'MCP Client' } = body;
+    const {
+      client_name = 'MCP Client',
+      redirect_uris = [],
+      grant_types = ['authorization_code'],
+      response_types = ['code']
+    } = body;
 
-    console.log('📝 [OAuth Register] 客户端注册请求:', client_name);
+    console.log('📝 [OAuth Register] 客户端注册请求:', {
+      client_name,
+      redirect_uris,
+      grant_types,
+      response_types
+    });
 
-    // 返回模拟的客户端注册响应
-    // 提供指引让用户手动获取 Token
+    // 生成唯一的 client_id
+    const client_id = `mcp-client-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+
+    // 如果没有提供 redirect_uris，使用默认的 OAuth 2.0 loopback
+    const defaultRedirectUris = redirect_uris.length > 0
+      ? redirect_uris
+      : [
+          'http://localhost:4200/callback',  // Cursor 默认端口
+          'http://localhost:4200/',
+          'http://127.0.0.1:4200/callback',
+          'http://127.0.0.1:4200/',
+        ];
+
+    // 返回标准 OAuth 2.0 客户端注册响应
     return NextResponse.json({
-      client_id: `mcp-client-${Date.now()}`,
-      client_secret: 'not-required-use-bearer-token',
-      client_name: client_name,
-      redirect_uris: [],
-      grant_types: ['client_credentials'],
-      response_types: ['token'],
-      token_endpoint_auth_method: 'none',
-      
-      // 手动配置说明
-      _manual_setup_required: true,
-      _instructions: {
-        step1: 'Login to get Bearer Token',
-        step2: `Visit ${url.origin}/c/user/info to generate long-term token`,
-        step3: `Configure: claude mcp add MyBlog ${url.origin}/api/mcp --header "Authorization: Bearer YOUR_TOKEN"`,
-        documentation: `${url.origin}/.well-known/oauth-authorization-server`
-      }
+      client_id,
+      client_secret: null,  // 公共客户端，不需要 secret
+      client_id_issued_at: Math.floor(Date.now() / 1000),
+      client_secret_expires_at: 0,  // 0 表示永不过期
+      client_name,
+      redirect_uris: defaultRedirectUris,
+      grant_types: ['authorization_code', 'client_credentials'],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'none',  // 使用 PKCE，不需要 client secret
+
+      // 授权端点配置
+      authorization_endpoint: `${url.origin}/authorize`,
+      token_endpoint: `${url.origin}/token`,
+
+      // 支持的 PKCE 方法
+      code_challenge_methods_supported: ['S256', 'plain'],
+
+      // 额外的元数据
+      software_id: crypto.randomUUID(),
+      software_version: '1.0.0',
     }, {
-      status: 200,  // 返回 200 避免 Claude CLI 报错
+      status: 201,  // 201 Created
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store'
       }
     });
   } catch (error) {
-    console.error('注册错误:', error);
+    console.error('❌ [OAuth Register] 注册错误:', error);
     return NextResponse.json({
       error: 'invalid_request',
       error_description: error instanceof Error ? error.message : 'Invalid request'

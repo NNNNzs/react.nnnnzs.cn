@@ -20,6 +20,7 @@ interface OAuthTokenData {
   userId: string | number;
   scope: string;
   client_id: string;
+  app_name?: string | null; // 自定义应用名称
   created_at: number;
   is_permanent?: boolean;
   duration?: number;
@@ -31,6 +32,7 @@ interface OAuthTokenData {
 interface OAuthTokenItem {
   token: string;
   client_id: string;
+  app_name: string | null; // 自定义应用名称
   scope: string;
   created_at: number;
   expires_at: number | null;
@@ -89,6 +91,7 @@ export async function GET(request: NextRequest) {
           userTokens.push({
             token,
             client_id: tokenData.client_id || 'unknown',
+            app_name: tokenData.app_name || null,
             scope: tokenData.scope || 'read',
             created_at: tokenData.created_at || Date.now(),
             expires_at,
