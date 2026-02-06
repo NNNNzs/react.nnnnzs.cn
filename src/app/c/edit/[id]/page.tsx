@@ -472,6 +472,15 @@ export default function EditPostPage() {
             </div>
           </div>
         </div>
+
+        {/* 隐藏的 content 字段用于表单验证 */}
+        <Form.Item
+          name="content"
+          rules={[{ required: true, message: "请输入文章内容" }]}
+          hidden
+        >
+          <Input />
+        </Form.Item>
       </Form>
 
       {/* 主编辑区 */}
