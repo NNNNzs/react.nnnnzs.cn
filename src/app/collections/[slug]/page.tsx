@@ -9,6 +9,7 @@ import { BookOutlined, EyeOutlined, HeartOutlined } from '@ant-design/icons';
 import Banner from '@/components/Banner';
 import ArticleInCollectionItem from '@/components/ArticleInCollectionItem';
 import { getCollectionBySlug } from '@/services/collection';
+import type { ArticleInCollection } from '@/dto/collection.dto';
 
 /**
  * 获取合集详情（使用 unstable_cache + 缓存标签）
@@ -72,7 +73,7 @@ export default async function CollectionDetailPage({
           </div>
         ) : (
           <div className="space-y-4">
-            {collection.articles.map((article: any, index: number) => (
+            {collection.articles.map((article: ArticleInCollection, index: number) => (
               <ArticleInCollectionItem
                 key={article.id}
                 article={article}

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Typography, Alert, Spin, Select } from 'antd';
-import { ShieldCheck, User, Lock, Clock, Check as CheckIcon, ChevronRight } from 'lucide-react';
+import { SafetyOutlined, UserOutlined, LockOutlined, ClockCircleOutlined, CheckOutlined, RightOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDarkMode } from '@/hooks/useDarkMode';
@@ -254,7 +254,7 @@ function AuthorizePageContent() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur-xl opacity-40 dark:opacity-50 animate-pulse" />
                     <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-white/10">
-                      <ShieldCheck className="w-12 h-12 text-cyan-500 dark:text-cyan-400" strokeWidth={1.5} />
+                      <SafetyOutlined className="text-3xl text-cyan-500 dark:text-cyan-400" />
                     </div>
                   </div>
                 </motion.div>
@@ -319,7 +319,7 @@ function AuthorizePageContent() {
                     rules={[{ required: true, message: '请输入账号' }]}
                   >
                     <Input
-                      prefix={<User className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
+                      prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
                       placeholder="账号/邮箱/手机号"
                       className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl h-11"
                       size="large"
@@ -332,7 +332,7 @@ function AuthorizePageContent() {
                     rules={[{ required: true, message: '请输入密码' }]}
                   >
                     <Input.Password
-                      prefix={<Lock className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
+                      prefix={<LockOutlined className="text-slate-400 dark:text-slate-500" />}
                       placeholder="密码"
                       className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl h-11"
                       size="large"
@@ -373,7 +373,7 @@ function AuthorizePageContent() {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full blur-xl opacity-40 dark:opacity-50" />
                     <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4 rounded-full border border-slate-200 dark:border-white/10">
-                      <ShieldCheck className="w-12 h-12 text-green-500 dark:text-green-400" strokeWidth={1.5} />
+                      <SafetyOutlined className="text-3xl text-green-500 dark:text-green-400" />
                     </div>
                   </div>
                 </motion.div>
@@ -393,7 +393,7 @@ function AuthorizePageContent() {
                   <div className="space-y-3">
                     <div className="flex items-start">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mr-3 shrink-0">
-                        <ShieldCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                        <SafetyOutlined className="text-cyan-600 dark:text-cyan-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 dark:text-slate-400 text-xs mb-0.5">应用名称</p>
@@ -403,7 +403,7 @@ function AuthorizePageContent() {
 
                     <div className="flex items-start">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mr-3 shrink-0">
-                        <CheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <CheckOutlined className="text-purple-600 dark:text-purple-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 dark:text-slate-400 text-xs mb-0.5">请求权限</p>
@@ -413,7 +413,7 @@ function AuthorizePageContent() {
 
                     <div className="flex items-start">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center mr-3 shrink-0">
-                        <ChevronRight className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        <RightOutlined className="text-orange-600 dark:text-orange-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 dark:text-slate-400 text-xs mb-0.5">回调地址</p>
@@ -426,7 +426,7 @@ function AuthorizePageContent() {
                 {/* Token 有效期选择 */}
                 <div className="mb-5">
                   <div className="flex items-center mb-3">
-                    <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500 mr-2" />
+                    <ClockCircleOutlined className="text-slate-400 dark:text-slate-500 mr-2" />
                     <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Token 有效期</span>
                   </div>
                   <Select
@@ -434,7 +434,7 @@ function AuthorizePageContent() {
                     onChange={(value) => setDuration(value)}
                     className="w-full"
                     size="large"
-                    suffixIcon={<ChevronRight className="w-4 h-4" />}
+                    suffixIcon={<RightOutlined />}
                   >
                     <Option value={7}>
                       <div className="flex items-center justify-between">

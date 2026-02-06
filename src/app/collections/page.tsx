@@ -8,6 +8,7 @@ import { unstable_cache } from 'next/cache';
 import Banner from '@/components/Banner';
 import CollectionCard from '@/components/CollectionCard';
 import { getCollectionList } from '@/services/collection';
+import type { SerializedCollection } from '@/dto/collection.dto';
 
 /**
  * 获取合集列表（使用 unstable_cache + 缓存标签）
@@ -44,7 +45,7 @@ export default async function CollectionsPage() {
           <Empty description="暂无合集" />
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {collections.map((collection: any) => (
+            {collections.map((collection: SerializedCollection) => (
               <CollectionCard
                 key={collection.id}
                 collection={collection}

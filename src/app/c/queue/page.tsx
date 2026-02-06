@@ -41,23 +41,14 @@ export default function QueueMonitorPage() {
   const [error, setError] = useState<string | null>(null);
 
   // 权限检查
-  if (!user || !isAdmin(user.role)) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Alert
-          message="权限不足"
-          description="您没有权限访问此页面，仅管理员可访问。"
-          type="error"
-          showIcon
-        />
-      </div>
-    );
-  }
+  const hasAccess = user && isAdmin(user.role);
 
   /**
    * 加载队列状态
    */
   const loadQueueStatus = useCallback(async () => {
+    if (!hasAccess) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -74,13 +65,13 @@ export default function QueueMonitorPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasAccess]);
 
   /**
    * 加载任务状态
    */
   const loadTaskStatuses = useCallback(async (taskIds: number[]) => {
-    if (taskIds.length === 0) return;
+    if (taskIds.length === 0 || !hasAccess) return;
 
     try {
       const promises = taskIds.map(id =>
@@ -100,7 +91,7 @@ export default function QueueMonitorPage() {
     } catch (err) {
       console.error('加载任务状态失败:', err);
     }
-  }, []);
+  }, [hasAccess]);
 
   /**
    * 刷新所有数据
@@ -113,15 +104,17 @@ export default function QueueMonitorPage() {
    * 自动刷新
    */
   useEffect(() => {
+    if (!hasAccess) return;
     loadQueueStatus();
     const interval = setInterval(loadQueueStatus, 5000); // 每5秒刷新
     return () => clearInterval(interval);
-  }, [loadQueueStatus]);
+  }, [loadQueueStatus, hasAccess]);
 
   /**
    * 加载任务详情
    */
   useEffect(() => {
+    if (!hasAccess) return;
     if (queueStatus) {
       const allTaskIds = [
         ...queueStatus.queueTasks.map(t => t.postId),
@@ -129,7 +122,21 @@ export default function QueueMonitorPage() {
       ];
       loadTaskStatuses(allTaskIds);
     }
-  }, [queueStatus, loadTaskStatuses]);
+  }, [queueStatus, loadTaskStatuses, hasAccess]);
+
+  // 权限检查
+  if (!hasAccess) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Alert
+          message="权限不足"
+          description="您没有权限访问此页面，仅管理员可访问。"
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
 
   /**
    * 队列任务表格列定义
@@ -343,8 +350,8 @@ export default function QueueMonitorPage() {
           <Card type="inner" title="说明">
             <Space direction="vertical" className="w-full">
               <Text>• 队列每 5 秒自动刷新一次</Text>
-              <Text>• 点击"刷新"按钮可立即刷新状态</Text>
-              <Text>• 优先级：手动触发（高） {'>'} 新建/更新（中） {'>'} 批量更新（低）</Text>
+              <Text>• 点击&ldquo;刷新&rdquo;按钮可立即刷新状态</Text>
+              <Text>• 优先级：手动触发（高） &gt; 新建/更新（中） &gt; 批量更新（低）</Text>
               <Text>• 失败的任务会自动重试，最多 2 次</Text>
             </Space>
           </Card>

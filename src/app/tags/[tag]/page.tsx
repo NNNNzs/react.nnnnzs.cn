@@ -8,6 +8,7 @@ import { unstable_cache } from 'next/cache';
 import PostListItem from '@/components/PostListItem';
 import Banner from '@/components/Banner';
 import { getPostsByTag } from '@/services/tag';
+import type { Post } from '@/types';
 
 interface PageProps {
   params: Promise<{
@@ -53,7 +54,7 @@ export default async function TagPostsPage({ params }: PageProps) {
           <Empty description="该标签下暂无文章" />
         ) : (
           <ul>
-            {posts.map((post: any) => (
+            {posts.map((post: Post) => (
               <PostListItem key={post.id} post={post} />
             ))}
           </ul>

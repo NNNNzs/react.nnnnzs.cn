@@ -134,7 +134,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
 
     // 使用 requestIdleCallback 在浏览器空闲时预加载
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(() => {
+      (window as Window & { requestIdleCallback: (callback: () => void) => void }).requestIdleCallback(() => {
         prefetchRoutes();
       });
     } else {

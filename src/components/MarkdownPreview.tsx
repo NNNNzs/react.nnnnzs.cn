@@ -59,15 +59,8 @@ export default function MarkdownPreview({
   // 基于内容生成稳定的 editorId，确保服务端和客户端使用相同的 ID
   const editorId = useMemo(() => generateStableId(content), [content]);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [hasCatalog, setHasCatalog] = useState(false);
+  const hasCatalog = showMdCatalog && hasHeadings(content);
   const [isDark, setIsDark] = useState(false);
-
-  // 检查是否有目录
-  useEffect(() => {
-    if (showMdCatalog) {
-      setHasCatalog(hasHeadings(content));
-    }
-  }, [content, showMdCatalog]);
 
   // 监听暗色模式变化 - 直接从 DOM 检测
   useEffect(() => {

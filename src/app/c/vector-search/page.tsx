@@ -263,8 +263,8 @@ export default function VectorSearchPage() {
             <Text>• 搜索结果来自已完成向量化的文章</Text>
             <Divider className="my-2" />
             <Text strong>提示：</Text>
-            <Text>• 使用自然语言描述，例如："如何优化 React 性能"</Text>
-            <Text>• 可以搜索代码相关的概念，例如："异步函数使用"</Text>
+            <Text>• 使用自然语言描述，例如：&ldquo;如何优化 React 性能&rdquo;</Text>
+            <Text>• 可以搜索代码相关的概念，例如：&ldquo;异步函数使用&rdquo;</Text>
             <Text>• 尝试不同的表述方式，找到最相关的结果</Text>
           </Space>
         </Card>
