@@ -83,11 +83,35 @@ OPENAI_API_KEY=sk-...
 2. 使用数据库脚本批量添加配置
 3. 环境变量仅用于首次启动时的默认配置
 
-### Qdrant 向量数据库
+### Qdrant 向量数据库（已迁移至数据库）⚠️ 重要变更
+
+**旧方式**（已废弃）：
 ```bash
+# ❌ 不再推荐使用这些环境变量
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=your-api-key
 ```
+
+**新方式**（推荐）：
+- Qdrant 配置已迁移到数据库 `tb_config` 表
+- 在系统配置管理页面添加以下配置：
+  - `qdrant.url`: Qdrant 服务地址（如 http://localhost:6333）
+  - `qdrant.api_key`: API 密钥（可选）
+  - `qdrant.timeout`: 超时时间（可选，默认 30000 毫秒）
+- 或使用 `pnpm run config:add-vector-db` 批量添加配置模板
+
+**保留的环境变量**（作为后备配置）：
+```bash
+# 如果数据库中没有配置，会回退到这些环境变量
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-api-key
+QDRANT_TIMEOUT=30000
+```
+
+**配置方式说明**：
+1. 通过管理后台配置页面添加 Qdrant 配置（推荐）
+2. 使用脚本添加配置模板：`pnpm run config:add-vector-db`
+3. 环境变量作为后备配置，确保兼容性
 
 ### 站点配置
 ```bash

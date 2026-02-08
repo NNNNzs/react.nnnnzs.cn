@@ -38,7 +38,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
     return 0;
   }
 
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const { COLLECTION_NAME, DIMENSION } = QDRANT_COLLECTION_CONFIG;
 
   // 验证集合是否存在并检查配置
@@ -190,7 +190,7 @@ export async function insertVectors(items: VectorDataItem[]): Promise<number> {
  * @returns 如果存在向量数据返回 true，否则返回 false
  */
 export async function hasVectorsByPostId(postId: number): Promise<boolean> {
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const { COLLECTION_NAME, POST_ID_FIELD } = QDRANT_COLLECTION_CONFIG;
 
   try {
@@ -227,7 +227,7 @@ export async function hasVectorsByPostId(postId: number): Promise<boolean> {
  * @returns 删除成功的数量
  */
 export async function deleteVectorsByPostId(postId: number): Promise<number> {
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const { COLLECTION_NAME, POST_ID_FIELD } = QDRANT_COLLECTION_CONFIG;
 
   try {
@@ -282,7 +282,7 @@ export async function searchSimilarVectors(
   title: string;
   score: number;
 }>> {
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const {
     COLLECTION_NAME,
     POST_ID_FIELD,
@@ -394,7 +394,7 @@ export async function deleteVectorsByChunkIds(chunkIds: string[]): Promise<numbe
     return 0;
   }
 
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const { COLLECTION_NAME } = QDRANT_COLLECTION_CONFIG;
 
   try {

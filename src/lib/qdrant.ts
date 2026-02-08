@@ -4,12 +4,14 @@
  */
 
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { getVectorDBConfig } from '@/lib/vector-db-config';
 
 /**
  * 全局 Qdrant 实例类型声明
  */
 declare global {
   var qdrant: QdrantClient | undefined;
+  var qdrantConfigExpire: number | undefined;
 }
 
 /**
@@ -59,17 +61,36 @@ function parseQdrantUrl(url: string): {
 }
 
 /**
- * Qdrant 客户端配置
+ * 获取 Qdrant 客户端配置（从数据库或环境变量）
  */
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const QDRANT_CONFIG = {
-  ...parseQdrantUrl(QDRANT_URL),
-  apiKey: process.env.QDRANT_API_KEY || undefined,
-  // 超时时间（毫秒），默认 30 秒，可通过环境变量 QDRANT_TIMEOUT 配置
-  timeout: process.env.QDRANT_TIMEOUT 
-    ? parseInt(process.env.QDRANT_TIMEOUT, 10) 
-    : 30000,
-};
+async function getQdrantConfig(): Promise<{
+  host?: string;
+  port?: number;
+  https?: boolean;
+  url?: string;
+  apiKey?: string;
+  timeout: number;
+}> {
+  try {
+    const config = await getVectorDBConfig();
+    return {
+      ...parseQdrantUrl(config.url),
+      apiKey: config.api_key,
+      timeout: config.timeout || 30000,
+    };
+  } catch (error) {
+    // 如果数据库配置读取失败，回退到环境变量
+    console.warn('从数据库读取 Qdrant 配置失败，回退到环境变量', error);
+    const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
+    return {
+      ...parseQdrantUrl(QDRANT_URL),
+      apiKey: process.env.QDRANT_API_KEY || undefined,
+      timeout: process.env.QDRANT_TIMEOUT
+        ? parseInt(process.env.QDRANT_TIMEOUT, 10)
+        : 30000,
+    };
+  }
+}
 
 /**
  * Qdrant 集合配置
@@ -96,12 +117,19 @@ export const QDRANT_COLLECTION_CONFIG = {
 };
 
 /**
- * 获取 Qdrant 客户端实例（单例模式）
+ * 获取 Qdrant 客户端实例（单例模式，支持配置热更新）
  */
-export function getQdrantClient(): QdrantClient {
-  if (global.qdrant) {
+export async function getQdrantClient(): Promise<QdrantClient> {
+  const now = Date.now();
+  const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
+
+  // 检查全局实例是否存在且未过期
+  if (global.qdrant && global.qdrantConfigExpire && now < global.qdrantConfigExpire) {
     return global.qdrant;
   }
+
+  // 获取最新配置
+  const QDRANT_CONFIG = await getQdrantConfig();
 
   // 优先使用 host + port 参数，避免库自动添加 6333 端口
   const clientConfig: {
@@ -129,9 +157,6 @@ export function getQdrantClient(): QdrantClient {
   } else if (QDRANT_CONFIG.url) {
     // 如果解析失败，回退到使用 url 参数
     clientConfig.url = QDRANT_CONFIG.url;
-  } else {
-    // 兜底：使用默认配置
-    clientConfig.url = QDRANT_URL;
   }
 
   // 如果配置了 API key，则添加认证
@@ -144,6 +169,7 @@ export function getQdrantClient(): QdrantClient {
   // 在开发环境中保存到全局变量，避免热重载时创建多个实例
   if (process.env.NODE_ENV !== 'production') {
     global.qdrant = client;
+    global.qdrantConfigExpire = now + CONFIG_CACHE_TTL;
   }
 
   return client;
@@ -154,11 +180,7 @@ export function getQdrantClient(): QdrantClient {
  * 如果集合不存在则创建，如果存在则检查配置
  */
 export async function initQdrantCollection(): Promise<void> {
-  if (!process.env.QDRANT_URL) {
-    throw new Error('QDRANT_URL 环境变量未设置');
-  }
-
-  const client = getQdrantClient();
+  const client = await getQdrantClient();
   const { COLLECTION_NAME, DIMENSION } = QDRANT_COLLECTION_CONFIG;
 
   // 检查集合是否存在
