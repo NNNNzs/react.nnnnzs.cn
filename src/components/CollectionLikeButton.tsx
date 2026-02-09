@@ -1,6 +1,5 @@
 /**
- * 点赞按钮组件（客户端组件）
- * 新增：初始点赞状态支持
+ * 合集点赞按钮组件
  */
 
 'use client';
@@ -8,13 +7,17 @@
 import React, { useState } from 'react';
 import { Button, message } from 'antd';
 import { HeartOutlined, HeartFilled } from '@ant-design/icons';
-import axios, { type AxiosError } from 'axios';
+import axios from 'axios';
 
-interface PostLikeButtonProps {
+interface CollectionLikeButtonProps {
   /**
-   * 文章ID
+   * 合集ID
    */
-  postId: number;
+  collectionId: number;
+  /**
+   * 合集 slug
+   */
+  collectionSlug: string;
   /**
    * 初始点赞数
    */
@@ -25,11 +28,12 @@ interface PostLikeButtonProps {
   initialLiked?: boolean;
 }
 
-export default function PostLikeButton({
-  postId,
+export default function CollectionLikeButton({
+  collectionId,
+  collectionSlug,
   initialLikes,
-  initialLiked = false
-}: PostLikeButtonProps) {
+  initialLiked = false,
+}: CollectionLikeButtonProps) {
   const [liked, setLiked] = useState(initialLiked);
   const [likes, setLikes] = useState(initialLikes);
   const [loading, setLoading] = useState(false);
@@ -42,14 +46,13 @@ export default function PostLikeButton({
 
     setLoading(true);
     try {
-      await axios.put(`/api/post/fav?id=${postId}&type=likes`);
+      await axios.post(`/api/collections/${collectionSlug}/likes`);
       setLikes((prev) => prev + 1);
       setLiked(true);
       message.success('感谢点赞！');
     } catch (error) {
       console.error('点赞失败:', error);
-      const axiosError = error as AxiosError<{ message?: string }>;
-      const errorMsg = axiosError.response?.data?.message || '点赞失败';
+      const errorMsg = (error as any)?.response?.data?.message || '点赞失败';
       if (errorMsg.includes('已经点过赞')) {
         setLiked(true);
         message.warning('您已经点过赞了');

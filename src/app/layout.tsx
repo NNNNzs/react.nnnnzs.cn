@@ -8,6 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
 import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
 import { GoogleTagManager } from "@next/third-parties/google";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { getAnalyticsConfig } from "@/lib/analytics-config";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
@@ -37,11 +39,14 @@ export const experimental = {
   scrollRestoration: true,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 获取 GA4 配置
+  const analyticsConfig = await getAnalyticsConfig();
+
   return (
     <html
       lang="zh-CN"
@@ -101,6 +106,7 @@ export default function RootLayout({
                   `}
                   </Script>
                   <GoogleTagManager gtmId="GTM-PTJQT23X" />
+                  <GoogleAnalytics measurementId={analyticsConfig.measurementId} />
                 </body>
               </ConfigProvider>
             </AntdRegistry>

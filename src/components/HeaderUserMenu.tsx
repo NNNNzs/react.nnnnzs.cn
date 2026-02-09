@@ -68,11 +68,7 @@ export default function HeaderUserMenu() {
       ) : (
         <Link
           href={`/login?redirect=${encodeURIComponent(currentUrl)}`}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-full
-            bg-slate-900 dark:bg-white
-            text-white dark:text-slate-900
-            text-sm font-medium
-            hover:opacity-90 transition-opacity shadow-sm"
+          className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
         >
           <span>登录</span>
           <span className="material-symbols-outlined text-sm">login</span>

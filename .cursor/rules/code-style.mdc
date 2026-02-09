@@ -55,6 +55,65 @@ alwaysApply: false
 - 必须明确类型定义
 - 使用 `unknown` 代替 `any` 处理未知类型
 
+### 禁止使用 any
+**项目严格要求禁止使用 `any` 类型**。所有类型必须明确定义。
+
+#### 错误处理类型定义
+使用正确的类型替代 `any`：
+
+```typescript
+// ✅ 正确：使用 AxiosError 类型
+import axios, { type AxiosError } from 'axios';
+
+try {
+  await axios.put('/api/post/fav', data);
+} catch (error) {
+  const axiosError = error as AxiosError<{ message?: string }>;
+  const errorMsg = axiosError.response?.data?.message || '操作失败';
+}
+
+// ❌ 错误：使用 any 类型
+try {
+  await axios.put('/api/post/fav', data);
+} catch (error) {
+  const errorMsg = (error as any)?.response?.data?.message || '操作失败';
+}
+```
+
+#### 未知类型处理
+使用 `unknown` 代替 `any`：
+
+```typescript
+// ✅ 正确：使用 unknown
+function processData(data: unknown) {
+  if (typeof data === 'string') {
+    return data.toUpperCase();
+  }
+  throw new Error('Invalid data type');
+}
+
+// ❌ 错误：使用 any
+function processData(data: any) {
+  return data.toUpperCase();
+}
+```
+
+#### 第三方库类型
+为第三方库定义类型：
+
+```typescript
+// ✅ 正确：定义接口类型
+interface ExternalApiResponse {
+  id: number;
+  name: string;
+}
+
+const data = await fetch('/api/external').then(r => r.json() as ExternalApiResponse);
+
+// ❌ 错误：使用 any
+const data = await fetch('/api/external').then(r => r.json() as any);
+```
+
 ### 类型导入优先
 优先使用 `type` 导入类型：
 ```typescript

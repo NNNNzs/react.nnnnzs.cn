@@ -199,6 +199,20 @@ model TbComment {
   @@map("tb_comment")
 }
 
+// 点赞记录表
+// 用于记录用户点赞行为，支持 IP 防刷
+model TbLikeRecord {
+  id          Int      @id @default(autoincrement())
+  target_type String   @db.VarChar(50)  // 目标类型：POST, COLLECTION, COMMENT
+  target_id   Int                        // 目标ID
+  ip_address  String   @db.VarChar(45)   // IPv4 或 IPv6
+  created_at  DateTime @default(now())
+
+  @@index([target_type, target_id, ip_address], name: "idx_target_ip")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_like_record")
+}
+
 // 实体变更日志表
 // 用于记录文章、合集等实体的字段变更历史
 model TbEntityChangeLog {

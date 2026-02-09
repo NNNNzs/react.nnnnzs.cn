@@ -71,6 +71,36 @@ export function errorResponse(message = '操作失败', data: unknown = null): A
 }
 ```
 
+### API 错误响应规范
+**所有 API 路由必须使用统一的 errorResponse DTO**，禁止手动构建响应对象：
+
+```typescript
+// ✅ 正确：使用 errorResponse DTO
+import { successResponse, errorResponse } from '@/dto/response.dto';
+
+export async function POST(request: NextRequest) {
+  if (!identifier) {
+    return NextResponse.json(errorResponse('identifier 参数缺失'), { status: 400 });
+  }
+
+  if (!canLikeThis) {
+    return NextResponse.json(errorResponse('您已经点过赞了'), { status: 429 });
+  }
+
+  return NextResponse.json(successResponse({ message: '操作成功' }));
+}
+
+// ❌ 错误：手动构建响应对象
+export async function POST(request: NextRequest) {
+  if (!identifier) {
+    return NextResponse.json({
+      status: false,
+      message: 'identifier 参数缺失',
+    }, { status: 400 });
+  }
+}
+```
+
 ### HTTP 状态码
 - **200**: 成功
 - **201**: 创建成功
@@ -78,6 +108,7 @@ export function errorResponse(message = '操作失败', data: unknown = null): A
 - **401**: 未授权/未登录
 - **403**: 无权限
 - **404**: 资源不存在
+- **429**: 请求过于频繁（防刷限制）
 - **500**: 服务器错误
 
 ## 服务层规范
@@ -1298,3 +1329,82 @@ const ensureAuth = async () => {
 - [MCP 官方文档](https://modelcontextprotocol.io)
 - [MCP 规范](https://spec.modelcontextprotocol.io)
 - 项目文档：`docs/mcp_resources_tags.md`
+
+## IP 地址获取规范
+
+### 概述
+项目提供统一的客户端 IP 地址获取工具，支持多种代理和 CDN 环境。
+
+### IP 获取工具
+**位置**：`src/lib/ip.ts`
+
+```typescript
+import { getClientIp } from '@/lib/ip';
+
+// 在 API 路由中使用
+export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  // 使用 IP 进行防刷、限流等操作
+}
+```
+
+### 支持的代理头部
+按优先级依次检查：
+1. `x-forwarded-for` - 代理服务器（取第一个 IP）
+2. `x-real-ip` - Nginx 等
+3. `cf-connecting-ip` - Cloudflare
+
+### IP 格式验证
+工具会自动验证 IP 格式（IPv4/IPv6），无效的 IP 会被跳过。
+
+### 环境差异处理
+- **开发环境**：无法获取 IP 时返回 `127.0.0.1` 并记录警告日志
+- **生产环境**：无法获取 IP 时抛出错误
+
+```typescript
+// 开发环境警告
+⚠️ 无法获取客户端 IP，使用开发环境固定值。生产环境请确保配置正确的代理头部。
+
+// 生产环境错误
+Error: 无法获取客户端真实 IP 地址，请检查代理服务器配置（x-forwarded-for、x-real-ip 或 cf-connecting-ip）
+```
+
+### 使用场景
+- IP 防刷（点赞、投票等）
+- 访问限流
+- 地理位置分析
+- 安全审计
+
+### 防刷实现示例
+```typescript
+import { getClientIp } from '@/lib/ip';
+import { getRedisClient } from '@/lib/redis';
+
+export async function canLike(targetType: string, targetId: number, request: NextRequest) {
+  const ip = getClientIp(request);
+  const redis = getRedisClient();
+  const cacheKey = `like:${targetType}:${targetId}:${ip}`;
+
+  // 检查缓存
+  const cached = await redis.get(cacheKey);
+  if (cached) return false;
+
+  // 检查数据库
+  const existing = await prisma.tbLikeRecord.findFirst({
+    where: {
+      target_type: targetType,
+      target_id: targetId,
+      ip_address: ip,
+      created_at: { gte: timeLimit }
+    }
+  });
+
+  return !existing;
+}
+```
+
+### 注意事项
+1. **代理配置**：确保反向代理正确传递 IP 头部
+2. **IP 伪造**：`x-forwarded-for` 可被伪造，不应作为唯一安全依据
+3. **IPv6 支持**：工具自动支持 IPv6 地址格式
+4. **缓存策略**：建议使用 Redis 缓存减少数据库查询

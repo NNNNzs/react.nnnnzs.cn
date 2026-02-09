@@ -131,6 +131,19 @@ model TbEntityChangeLog {
   @@index([created_by, created_at])
   @@map("tb_entity_change_log")
 }
+
+// 示例：点赞记录表（IP 防刷）
+model TbLikeRecord {
+  id          Int      @id @default(autoincrement())
+  target_type String   @db.VarChar(50)  // POST, COLLECTION, COMMENT
+  target_id   Int
+  ip_address  String   @db.VarChar(45)   // IPv4/IPv6
+  created_at  DateTime @default(now())
+
+  @@index([target_type, target_id, ip_address], name: "idx_target_ip")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_like_record")
+}
 ```
 
 ## 数据库迁移规范
