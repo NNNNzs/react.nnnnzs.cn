@@ -43,6 +43,35 @@ export function serializePost(post: TbPost): SerializedPost {
 }
 
 /**
+ * 生成 URL 安全的 slug
+ *
+ * 参考 RFC3986:
+ * - 非保留字符: a-z A-Z 0-9 - . _ ~ (无需编码)
+ * - 保留字符有特殊含义，在 slug 中应避免
+ *
+ * 转换规则:
+ * - 空格 → -
+ * - + → -
+ * - 其他保留字符 (#, ?, /, &, = 等) → -
+ * - 多个连续 - → 单个 -
+ * - 首尾 - → 去除
+ */
+function generateSlug(title: string): string {
+  return title
+    .trim()
+    // 空格和特殊字符替换为连字符
+    .replace(/[\s+#?/&=,;!$'()*\[\]@]+/g, '-')
+    // 中文标点替换为连字符
+    .replace(/[，；！？：""''（）【】《》]+/g, '-')
+    // 冒号替换为连字符（中文冒号和英文冒号）
+    .replace(/[:：]+/g, '-')
+    // 多个连字符合并为单个
+    .replace(/-+/g, '-')
+    // 去除首尾连字符
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
  * 生成文章路径
  */
 function genPath(title: string, date: Date | string): string {
@@ -50,7 +79,7 @@ function genPath(title: string, date: Date | string): string {
   const year = dateObj.format('YYYY');
   const month = dateObj.format('MM');
   const day = dateObj.format('DD');
-  const slug = title.trim().replace(/\s+/g, '-');
+  const slug = generateSlug(title);
   return `/${year}/${month}/${day}/${slug}`;
 }
 

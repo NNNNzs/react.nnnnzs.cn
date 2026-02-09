@@ -52,7 +52,8 @@
       "mcp__MyBlog__update_article",
       "Skill(frontend-design)",
       "Bash(pnpm add:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []
