@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MdEditor, type MdEditorProps } from 'md-editor-rt';
+import { MdEditor, type EditorProps } from 'md-editor-rt';
 import 'md-editor-rt/lib/style.css';
 import '@/style/markdownEditor.css';
 import axios from 'axios';
@@ -25,9 +25,6 @@ interface MarkdownEditorProps {
    */
   preview?: boolean;
 }
-
-// 用于存储正在输入的中文，避免被截断
-let isComposing = false;
 
 /**
  * Markdown 编辑器组件
@@ -95,37 +92,10 @@ export default function MarkdownEditor({
   };
 
   /**
-   * 处理中文输入法开始
-   */
-  const handleCompositionStart = useCallback(() => {
-    isComposing = true;
-  }, []);
-
-  /**
-   * 处理中文输入法结束
-   */
-  const handleCompositionEnd = useCallback((e: any) => {
-    // 等待一下确保输入完成
-    setTimeout(() => {
-      isComposing = false;
-      // 触发 onChange 更新父组件
-      const textarea = editorRef.current?.querySelector?.('textarea.md-editor-textarea');
-      if (textarea) {
-        const inputEvent = new Event('input', { bubbles: true });
-        textarea.dispatchEvent(inputEvent);
-      }
-    }, 0);
-  }, []);
-
-  /**
    * 处理编辑器内容变化
-   * 处理中文输入法：等待 composition 结束
    */
   const handleChange = useCallback((val: string) => {
-    // 只有在非中文输入状态下才更新值
-    if (!isComposing) {
-      onChange?.(val);
-    }
+    onChange?.(val);
   }, [onChange]);
 
   return (
@@ -134,8 +104,6 @@ export default function MarkdownEditor({
         ref={editorRef}
         modelValue={value}
         onChange={handleChange}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
         preview={preview ?? true}
         onUploadImg={onUploadImg}
         placeholder={placeholder}
