@@ -17,7 +17,7 @@ import {
 
 import dayjs from "dayjs";
 import { unstable_cache } from "next/cache";
-import { getPostByPath, getPostList } from "@/services/post";
+import { getPostByPath, getPostList, getPostByTitle } from "@/services/post";
 
 import { getCollectionsByPostId } from "@/services/collection";
 import PostLikeButton from "./PostLikeButton";
@@ -74,7 +74,20 @@ async function getPost(params: PageProps["params"]): Promise<Post | null> {
 
     console.log("🔍 获取文章 - 文章路径:", path);
 
-    return await getCachedPost(path);
+    // 优先通过 path 查询
+    const postByPath = await getCachedPost(path);
+    if (postByPath) {
+      return postByPath;
+    }
+
+    // path 查询失败，尝试通过 title 查询（兼容老旧地址）
+    const decodedTitle = decodeURIComponent(title);
+    console.log("🔍 path 查询失败，尝试通过 title 查询:", title,'decode',decodedTitle);
+    const postByTitle = await getPostByTitle(decodedTitle);
+    if (postByTitle) {
+      console.log("✅ 通过 title 查询成功，文章 ID:", postByTitle.id);
+    }
+    return postByTitle;
   } catch (error) {
     console.error("❌ 获取文章详情失败:", error);
     return null;
