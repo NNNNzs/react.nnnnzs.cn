@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
+import { SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -26,17 +27,17 @@ export default function HeaderUserMenu() {
     {
       key: "admin",
       label: <Link href="/c">管理后台</Link>,
-      icon: <span className="material-symbols-outlined">edit</span>,
+      icon: <SettingOutlined />,
     },
     {
       key: "user",
       label: <Link href="/c/user/info">个人资料</Link>,
-      icon: <span className="material-symbols-outlined">person</span>,
+      icon: <UserOutlined />,
     },
     {
       key: "settings",
       label: <Link href="/c/user">设置</Link>,
-      icon: <span className="material-symbols-outlined">settings</span>,
+      icon: <SettingOutlined />,
     },
     {
       type: "divider",
@@ -44,7 +45,7 @@ export default function HeaderUserMenu() {
     {
       key: "logout",
       label: "退出登录",
-      icon: <span className="material-symbols-outlined text-red-600 dark:text-red-400">logout</span>,
+      icon: <LogoutOutlined className="text-red-600 dark:text-red-400" />,
       onClick: async () => {
         await logout();
         // 退出后返回当前页面
@@ -59,7 +60,7 @@ export default function HeaderUserMenu() {
       {user ? (
         <Dropdown menu={{ items: menuItems }} placement="bottomRight">
           <Space className="cursor-pointer">
-            <Avatar size={32} icon={<span className="material-symbols-outlined">person</span>} src={user.avatar} />
+            <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />
             <span className="text-sm font-medium text-slate-900 dark:text-white">
               {user.nickname}
             </span>
@@ -71,7 +72,7 @@ export default function HeaderUserMenu() {
           className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
         >
           <span>登录</span>
-          <span className="material-symbols-outlined text-sm">login</span>
+          <LoginOutlined className="text-sm" />
         </Link>
       )}
     </div>

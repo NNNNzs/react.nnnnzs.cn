@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ArrowUpOutlined } from "@ant-design/icons";
 
 export default function BackToTop() {
   const [isVisible, setIsVisible] = useState(false);
@@ -35,9 +36,7 @@ export default function BackToTop() {
           className="fixed bottom-8 right-8 p-3 rounded-full bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-lg border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-600 dark:hover:border-blue-400 transition-all hidden md:flex items-center justify-center group z-50"
           aria-label="返回顶部"
         >
-          <span className="material-symbols-outlined group-hover:-translate-y-1 transition-transform">
-            arrow_upward
-          </span>
+          <ArrowUpOutlined className="group-hover:-translate-y-1 transition-transform" />
         </button>
       )}
     </>

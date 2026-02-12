@@ -53,7 +53,9 @@
       "Skill(frontend-design)",
       "Bash(pnpm add:*)",
       "Bash(npm run build:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

@@ -9,6 +9,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dayjs from "dayjs";
+import { EyeOutlined, HeartOutlined } from "@ant-design/icons";
 import type { Post } from "@/types";
 import { optimizeImageUrl, ImageOptimizationType } from "@/lib/image";
 import { getTagClassName } from "@/lib/tagColors";
@@ -102,11 +103,11 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
         {/* 底部元信息 */}
         <div className="flex items-center gap-4 text-xs text-text-muted-light dark:text-text-muted-dark border-t border-border-light dark:border-border-dark pt-4 mt-auto">
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">visibility</span>
+            <EyeOutlined className="text-sm" />
             {post.visitors || 0}
           </span>
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">favorite_border</span>
+            <HeartOutlined className="text-sm" />
             {post.likes || 0}
           </span>
         </div>

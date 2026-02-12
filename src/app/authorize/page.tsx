@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Typography, Alert, Spin, Select } from 'antd';
-import { SafetyOutlined, UserOutlined, LockOutlined, ClockCircleOutlined, CheckOutlined, RightOutlined } from '@ant-design/icons';
+import { SafetyOutlined, UserOutlined, LockOutlined, ClockCircleOutlined, CheckOutlined, RightOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDarkMode } from '@/hooks/useDarkMode';
@@ -221,8 +221,8 @@ function AuthorizePageContent() {
         className="absolute top-6 right-6 p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-colors z-20"
         aria-label="切换主题"
       >
-        <span className="material-symbols-outlined dark:hidden text-slate-700">dark_mode</span>
-        <span className="material-symbols-outlined hidden dark:block text-amber-500">light_mode</span>
+        <MoonOutlined className="dark:hidden text-slate-700" />
+        <SunOutlined className="hidden dark:block text-amber-500" />
       </motion.button>
 
       <motion.div

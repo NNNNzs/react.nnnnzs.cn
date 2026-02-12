@@ -9,7 +9,7 @@ import React, { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
-import { EditOutlined } from "@ant-design/icons";
+import { EditOutlined, CodeOutlined, BulbOutlined, MenuOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
@@ -110,7 +110,7 @@ export default function Header() {
                 href="/"
                 className="flex items-center gap-2 text-xl font-bold tracking-tight text-primary hover:opacity-80 transition-opacity"
               >
-                <span className="material-symbols-outlined text-2xl">code_blocks</span>
+                <CodeOutlined className="text-2xl" />
                 <span>NNNNzs</span>
               </Link>
 
@@ -130,9 +130,7 @@ export default function Header() {
                           hover:bg-indigo-100 dark:hover:bg-indigo-900/40
                           transition-all border border-indigo-100 dark:border-indigo-800/50"
                       >
-                        <span className="material-symbols-outlined text-[18px] group-hover/ai:animate-pulse">
-                          psychology
-                        </span>
+                        <BulbOutlined className="text-[18px] group-hover/ai:animate-pulse" />
                         {item.label}
                       </Link>
                     );
@@ -192,8 +190,8 @@ export default function Header() {
                 className="p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
                 aria-label="切换暗色模式"
               >
-                <span className="material-symbols-outlined dark:hidden">dark_mode</span>
-                <span className="material-symbols-outlined hidden dark:block">light_mode</span>
+                <MoonOutlined className="dark:hidden" />
+                <SunOutlined className="hidden dark:block" />
               </button>
 
               {/* 用户信息 */}
@@ -206,7 +204,7 @@ export default function Header() {
                 className="md:hidden p-2 rounded-md text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none"
                 onClick={() => setDrawerOpen(true)}
               >
-                <span className="material-symbols-outlined">menu</span>
+                <MenuOutlined />
               </button>
             </div>
           </div>
@@ -265,9 +263,7 @@ export default function Header() {
             }}
             className="text-left text-text-main-light dark:text-text-main-dark mb-2 flex items-center gap-2"
           >
-            <span className="material-symbols-outlined">
-              {isDark ? "light_mode" : "dark_mode"}
-            </span>
+            {isDark ? <SunOutlined /> : <MoonOutlined />}
             {isDark ? "切换到亮色" : "切换到暗色"}
           </button>
         </div>

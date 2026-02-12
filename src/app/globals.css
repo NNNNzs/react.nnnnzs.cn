@@ -77,23 +77,41 @@ body {
   }
 }
 
-/* 字体配置: Inter + Noto Sans SC */
+/* 系统字体配置: 优先使用各平台最佳字体 */
 @layer base {
   html {
-    font-family: var(--font-inter), var(--font-noto-sans-sc),
+    /* 英文优先: San Francisco (macOS) -> Segoe UI (Windows) -> Roboto (Android) */
+    /* 中文优先: PingFang SC (macOS) -> Microsoft YaHei (Windows) -> Noto Sans (Android) */
+    font-family:
+      /* 系统默认英文 */
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",
-      "Noto Sans",
+      /* macOS 英文 */
+      "San Francisco",
+      "Helvetica Neue",
+      /* Windows 英文 */
+      "Segoe UI",
+      /* Android 英文 */
+      Roboto,
+      /* 通用英文 */
       Helvetica,
       Arial,
+      /* macOS 中文 */
       "PingFang SC",
       "Hiragino Sans GB",
+      /* Windows 中文 */
       "Microsoft YaHei",
       "微软雅黑",
+      /* Android 中文 */
+      "Noto Sans SC",
+      /* 降级 */
       sans-serif,
+      /* Emoji */
       "Apple Color Emoji",
-      "Segoe UI Emoji";
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      "Noto Color Emoji";
   }
 
   code,
@@ -101,29 +119,17 @@ body {
   kbd,
   samp {
     font-family:
-      ui-monospace,
-      SFMono-Regular,
+      /* macOS 等宽 */
       "SF Mono",
-      Menlo,
-      Consolas,
-      "Liberation Mono",
+      "Monaco",
+      /* Windows 等宽 */
+      "Cascadia Code",
+      "Consolas",
+      /* Linux 等宽 */
+      "Ubuntu Mono",
+      /* 通用等宽 */
       "Courier New",
       monospace;
-  }
-
-  /* Material Symbols Outlined */
-  .material-symbols-outlined {
-    font-family: 'Material Symbols Outlined';
-    font-weight: normal;
-    font-style: normal;
-    font-size: 24px;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
-    display: inline-block;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
   }
 }
 
