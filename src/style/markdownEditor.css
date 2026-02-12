@@ -21,6 +21,17 @@
   height: 100%;
 }
 
+/* 确保编辑器可以接收粘贴事件 */
+.custom-md-editor textarea,
+.custom-md-editor .md-editor-textarea {
+  pointer-events: auto !important;
+}
+
+/* 确保粘贴功能不被阻止 */
+.custom-md-editor .md-editor-copnter {
+  user-select: text !important;
+}
+
 /* Markdown 预览暗色模式样式 */
 .md-dark-preview .md-editor-preview,
 .md-dark-preview .md-editor-preview-wrapper {

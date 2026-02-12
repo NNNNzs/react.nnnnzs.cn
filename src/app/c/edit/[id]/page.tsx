@@ -77,7 +77,7 @@ export default function EditPostPage() {
       const response = await axios.get("/api/post/tags");
       if (response.data.status) {
         const tagList = response.data.data.filter(
-          (e: [string, number]) => e[0]
+          (e: [string, number]) => e[0],
         );
         setTags(tagList);
       }
@@ -109,9 +109,13 @@ export default function EditPostPage() {
 
         let collectionIds: number[] = [];
         try {
-          const collectionsRes = await axios.get(`/api/post/${params.id}/collections`);
+          const collectionsRes = await axios.get(
+            `/api/post/${params.id}/collections`,
+          );
           if (collectionsRes.data.status) {
-            collectionIds = collectionsRes.data.data.map((c: { id: number }) => c.id);
+            collectionIds = collectionsRes.data.data.map(
+              (c: { id: number }) => c.id,
+            );
           }
         } catch (error) {
           console.error("加载文章合集失败:", error);
@@ -146,20 +150,21 @@ export default function EditPostPage() {
    */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
 
       if (cmdOrCtrl) {
         switch (e.key.toLowerCase()) {
-          case 's':
+          case "s":
             e.preventDefault();
             handleSubmit();
             break;
-          case ',':
+          case ",":
             e.preventDefault();
             setSettingsDrawerOpen((prev) => !prev);
             break;
-          case 'p':
+          case "p":
             e.preventDefault();
             setPreviewDrawerOpen((prev) => !prev);
             break;
@@ -167,8 +172,8 @@ export default function EditPostPage() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [form, content]);
 
   /**
@@ -205,7 +210,7 @@ export default function EditPostPage() {
             console.error("生成描述失败:", error);
             message.error("生成描述失败");
           },
-        }
+        },
       );
     } catch (error) {
       console.error("生成描述失败:", error);
@@ -237,11 +242,14 @@ export default function EditPostPage() {
       const values = form.getFieldsValue();
       setLoading((prev) => ({ ...prev, submit: true }));
 
-      console.log('📋 提交表单数据:', values);
+      console.log("📋 提交表单数据:", values);
 
       // 处理日期字段
-      const formDate = values.date ? dayjs(values.date).format("YYYY-MM-DD HH:mm:ss") : null;
-      const shouldUpdateDate = isNewPost || (originalDate && formDate !== originalDate);
+      const formDate = values.date
+        ? dayjs(values.date).format("YYYY-MM-DD HH:mm:ss")
+        : null;
+      const shouldUpdateDate =
+        isNewPost || (originalDate && formDate !== originalDate);
 
       // 构建提交数据
       const postData: Record<string, unknown> = {
@@ -272,19 +280,19 @@ export default function EditPostPage() {
           const collectionIds = postData.collection_ids as number[];
 
           if (collectionIds.length > 0) {
-            console.log('📝 创建文章后关联合集:', { newId, collectionIds });
+            console.log("📝 创建文章后关联合集:", { newId, collectionIds });
             try {
               await Promise.all(
                 collectionIds.map((collectionId: number) =>
                   axios.post(`/api/collection/${collectionId}/posts`, {
                     post_ids: [newId],
-                  })
-                )
+                  }),
+                ),
               );
-              console.log('✅ 合集关联成功');
+              console.log("✅ 合集关联成功");
             } catch (collectionError) {
-              console.error('❌ 合集关联失败:', collectionError);
-              message.warning('文章创建成功，但合集关联失败，请手动添加');
+              console.error("❌ 合集关联失败:", collectionError);
+              message.warning("文章创建成功，但合集关联失败，请手动添加");
             }
           }
 
@@ -294,14 +302,20 @@ export default function EditPostPage() {
       } else {
         await axios.patch(`/api/post/${params.id}`, postData);
 
-        const currentCollectionsRes = await axios.get(`/api/post/${params.id}/collections`);
+        const currentCollectionsRes = await axios.get(
+          `/api/post/${params.id}/collections`,
+        );
         const currentCollectionIds = currentCollectionsRes.data.status
           ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
           : [];
 
         const collectionIds = postData.collection_ids as number[];
-        const toAdd = collectionIds.filter((id: number) => !currentCollectionIds.includes(id));
-        const toRemove = currentCollectionIds.filter((id: number) => !collectionIds.includes(id));
+        const toAdd = collectionIds.filter(
+          (id: number) => !currentCollectionIds.includes(id),
+        );
+        const toRemove = currentCollectionIds.filter(
+          (id: number) => !collectionIds.includes(id),
+        );
 
         if (toAdd.length > 0) {
           try {
@@ -309,12 +323,12 @@ export default function EditPostPage() {
               toAdd.map((collectionId: number) =>
                 axios.post(`/api/collection/${collectionId}/posts`, {
                   post_ids: [params.id],
-                })
-              )
+                }),
+              ),
             );
           } catch (addError) {
-            console.error('❌ 添加到合集失败:', addError);
-            message.error('添加到合集失败');
+            console.error("❌ 添加到合集失败:", addError);
+            message.error("添加到合集失败");
           }
         }
 
@@ -324,12 +338,12 @@ export default function EditPostPage() {
               toRemove.map((collectionId: number) =>
                 axios.delete(`/api/collection/${collectionId}/posts`, {
                   data: { post_ids: [params.id] },
-                })
-              )
+                }),
+              ),
             );
           } catch (removeError) {
-            console.error('❌ 从合集移除失败:', removeError);
-            message.error('从合集移除失败');
+            console.error("❌ 从合集移除失败:", removeError);
+            message.error("从合集移除失败");
           }
         }
 
@@ -363,9 +377,10 @@ export default function EditPostPage() {
   const isPublished = hideValue === "0";
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col">
       <Form
         form={form}
+        className="h-full flex flex-col"
         initialValues={{
           date: dayjs(),
           updated: dayjs(),
@@ -376,16 +391,17 @@ export default function EditPostPage() {
         }}
       >
         {/* 极简顶部栏 */}
-        <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-3">
+        <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-3 mb-4">
           <div className="flex items-center gap-4">
             {/* 左侧：状态指示 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Tooltip title={isPublished ? "已发布" : "隐藏中"}>
-                <div className={`w-2 h-2 rounded-full ${isPublished ? "bg-green-500" : "bg-amber-500"}`} />
+                <div
+                  className={`w-2 h-2 rounded-full ${isPublished ? "bg-green-500" : "bg-amber-500"}`}
+                />
               </Tooltip>
               <Form.Item name="hide" className="mb-0" noStyle>
                 <Radio.Group
-                  size="small"
                   optionType="button"
                   buttonStyle="solid"
                   className="opacity-60 hover:opacity-100 transition-opacity"
@@ -397,29 +413,28 @@ export default function EditPostPage() {
             </div>
 
             {/* 中间：标题输入 */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <Form.Item
                 name="title"
                 className="mb-0"
+                noStyle
                 rules={[{ required: true, message: "请输入标题" }]}
               >
                 <Input
                   placeholder="无标题文章"
-                  bordered={false}
-                  className="text-lg font-semibold px-0"
+                  className="text-lg font-semibold"
                   style={{ fontSize: 18, fontWeight: 600 }}
                 />
               </Form.Item>
             </div>
 
             {/* 右侧：快捷标签 + 操作按钮 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {/* 快捷标签选择 */}
               <Form.Item name="tags" className="mb-0" noStyle>
                 <Select
                   mode="tags"
-                  size="small"
-                  maxTagCount={1}
+                  maxTagCount={3}
                   placeholder="+ 标签"
                   bordered={false}
                   suffixIcon={<TagsOutlined className="text-neutral-400" />}
@@ -432,43 +447,46 @@ export default function EditPostPage() {
                     value: tag[0],
                     label: tag[0],
                   }))}
-                  style={{ minWidth: 80 }}
+                  style={{ minWidth: 200 }}
                   className="opacity-60 hover:opacity-100 transition-opacity"
                 />
               </Form.Item>
 
               <Divider type="vertical" className="h-6 mx-1" />
 
-              {/* 快速操作 */}
-              <Tooltip title="预览 (Cmd+P)">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => setPreviewDrawerOpen(true)}
-                />
-              </Tooltip>
+              {/* 快速操作 - 用 Form.Item 包裹以统一高度 */}
+              <Form.Item className="mb-0" noStyle>
+                <Tooltip title="预览 (Cmd+P)">
+                  <Button
+                    type="text"
+                    icon={<EyeOutlined />}
+                    onClick={() => setPreviewDrawerOpen(true)}
+                  />
+                </Tooltip>
+              </Form.Item>
 
-              <Tooltip title="设置 (Cmd+,)">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<SettingOutlined />}
-                  onClick={() => setSettingsDrawerOpen(true)}
-                />
-              </Tooltip>
+              <Form.Item className="mb-0" noStyle>
+                <Tooltip title="设置 (Cmd+,)">
+                  <Button
+                    type="text"
+                    icon={<SettingOutlined />}
+                    onClick={() => setSettingsDrawerOpen(true)}
+                  />
+                </Tooltip>
+              </Form.Item>
 
-              <Tooltip title="保存 (Cmd+S)">
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={handleSubmit}
-                  loading={loading.submit}
-                  icon={<SaveOutlined />}
-                >
-                  保存
-                </Button>
-              </Tooltip>
+              <Form.Item className="mb-0" noStyle>
+                <Tooltip title="保存 (Cmd+S)">
+                  <Button
+                    type="primary"
+                    onClick={handleSubmit}
+                    loading={loading.submit}
+                    icon={<SaveOutlined />}
+                  >
+                    保存
+                  </Button>
+                </Tooltip>
+              </Form.Item>
             </div>
           </div>
         </div>
@@ -481,224 +499,230 @@ export default function EditPostPage() {
         >
           <Input />
         </Form.Item>
-      </Form>
 
-      {/* 主编辑区 */}
-      <div className="flex-1 overflow-hidden">
-        <MarkdownEditor
-          className="h-full"
-          value={content}
-          onChange={(value) => {
-            setContent(value);
-            form.setFieldsValue({ content: value });
-          }}
-          placeholder="开始写作..."
-          preview={false}
-        />
-      </div>
-
-      {/* 右侧设置抽屉 */}
-      <Drawer
-        title={
-          <div className="flex items-center gap-2">
-            <SettingOutlined />
-            <span>文章设置</span>
-          </div>
-        }
-        placement="right"
-        width={400}
-        open={settingsDrawerOpen}
-        onClose={() => setSettingsDrawerOpen(false)}
-        styles={{
-          body: { padding: 24 },
-        }}
-      >
-        <Form form={form} layout="vertical">
-          {/* 文章元信息 */}
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
-              元信息
-            </h4>
-
-            <Form.Item label="描述" name="description">
-              <Input.TextArea
-                placeholder="文章描述"
-                autoSize={{ minRows: 3, maxRows: 6 }}
-                showCount
-                maxLength={500}
-              />
-            </Form.Item>
-
-            <Form.Item label="背景图" name="cover">
-              <MediaUpload placeholder="背景图URL" defaultAspectRatio={16 / 9} />
-            </Form.Item>
-          </div>
-
-          <Divider className="my-6" />
-
-          {/* 分类 */}
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
-              分类
-            </h4>
-
-            <Form.Item label="标签" name="tags">
-              <Select
-                mode="multiple"
-                placeholder="选择标签"
-                filterOption={(input, option) =>
-                  (option?.label ?? "")
-                    .toLowerCase()
-                    .includes(input.toLowerCase())
-                }
-                options={tags.map((tag) => ({
-                  value: tag[0],
-                  label: tag[0],
-                }))}
-              />
-            </Form.Item>
-
-            <Form.Item label="所属合集" name="collection_ids">
-              <CollectionSelector placeholder="选择合集（可多选）" mode="multiple" />
-            </Form.Item>
-          </div>
-
-          <Divider className="my-6" />
-
-          {/* 时间设置 */}
-          <div>
-            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
-              时间
-            </h4>
-
-            <Form.Item
-              label="发布日期"
-              name="date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker
-                showTime
-                format="YYYY-MM-DD HH:mm"
-                className="w-full"
-              />
-            </Form.Item>
-
-            <Form.Item label="更新日期" name="updated">
-              <DatePicker
-                showTime
-                format="YYYY-MM-DD HH:mm"
-                disabled
-                className="w-full"
-              />
-            </Form.Item>
-          </div>
-
-          {/* AI 工具 */}
-          <Divider className="my-6" />
-          <div>
-            <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
-              AI 辅助
-            </h4>
-            <Space direction="vertical" className="w-full">
-              <Button
-                block
-                icon={<TagsOutlined />}
-                onClick={genDescription}
-                loading={loading.generateDescription}
-              >
-                生成描述
-              </Button>
-              <Button
-                block
-                icon={<FolderOutlined />}
-                onClick={genCover}
-              >
-                生成背景图
-              </Button>
-            </Space>
-          </div>
-        </Form>
-      </Drawer>
-
-      {/* 预览抽屉 */}
-      <Drawer
-        title={
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <EyeOutlined />
-              <span>预览</span>
-            </div>
-            <div className="text-sm text-neutral-400">
-              {form.getFieldValue("title") || "无标题文章"}
-            </div>
-          </div>
-        }
-        placement="right"
-        width={800}
-        open={previewDrawerOpen}
-        onClose={() => setPreviewDrawerOpen(false)}
-        styles={{
-          body: { padding: 0, background: "#fafafa" },
-        }}
-      >
-        <div className="h-full overflow-y-auto">
-          <article className="max-w-3xl mx-auto px-8 py-12 bg-white min-h-full shadow-sm">
-            {/* 标题 */}
-            <h1 className="text-4xl font-bold text-neutral-900 mb-6">
-              {form.getFieldValue("title") || "无标题文章"}
-            </h1>
-
-            {/* 元信息 */}
-            <div className="flex items-center gap-4 text-sm text-neutral-500 mb-8 pb-6 border-b border-neutral-200">
-              <span>
-                {dayjs(form.getFieldValue("date")).format("YYYY年MM月DD日")}
-              </span>
-              {(form.getFieldValue("tags") || []).length > 0 && (
-                <>
-                  <span>·</span>
-                  <div className="flex gap-2">
-                    {form.getFieldValue("tags").map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 bg-neutral-100 rounded text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* 描述 */}
-            {form.getFieldValue("description") && (
-              <div className="text-lg text-neutral-600 leading-relaxed mb-8 p-6 bg-neutral-50 rounded-lg border-l-4 border-neutral-300">
-                {form.getFieldValue("description")}
-              </div>
-            )}
-
-            {/* 内容 */}
-            <MarkdownPreview content={content} />
-
-            {/* 底部 */}
-            <div className="mt-16 pt-8 border-t border-neutral-200 text-center text-sm text-neutral-400">
-              <p>本文由 {user?.nickname || user?.account} 创作</p>
-              <p className="mt-1">
-                最后更新：{dayjs(form.getFieldValue("updated")).format("YYYY-MM-DD HH:mm")}
-              </p>
-            </div>
-          </article>
+        {/* 主编辑区 */}
+        <div className="flex-1 overflow-hidden">
+          <MarkdownEditor
+            className="h-full"
+            value={content}
+            onChange={(value) => {
+              setContent(value);
+              form.setFieldsValue({ content: value });
+            }}
+            placeholder="开始写作..."
+            preview={false}
+          />
         </div>
-      </Drawer>
 
-      {/* 快捷键提示 */}
-      <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
-        <Space split={<span>·</span>}>
-          <span>Cmd+S 保存</span>
-          <span>Cmd+, 设置</span>
-          <span>Cmd+P 预览</span>
-        </Space>
-      </div>
+        {/* 右侧设置抽屉 */}
+        <Drawer
+          title={
+            <div className="flex items-center gap-2">
+              <SettingOutlined />
+              <span>文章设置</span>
+            </div>
+          }
+          placement="right"
+          width={400}
+          open={settingsDrawerOpen}
+          onClose={() => setSettingsDrawerOpen(false)}
+          styles={{
+            body: { padding: 24 },
+          }}
+        >
+          {/* 抽屉内使用同一个 Form 实例，通过 Form.Item 包裹，无需新建 form */}
+          <div className="drawer-form-content">
+            {/* 文章元信息 */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+                元信息
+              </h4>
+
+              <Form.Item label="描述" name="description">
+                <Input.TextArea
+                  placeholder="文章描述"
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                  showCount
+                  maxLength={500}
+                />
+              </Form.Item>
+
+              <Form.Item label="背景图" name="cover">
+                <MediaUpload
+                  placeholder="背景图URL"
+                  defaultAspectRatio={16 / 9}
+                />
+              </Form.Item>
+            </div>
+
+            <Divider className="my-6" />
+
+            {/* 分类 */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+                分类
+              </h4>
+
+              <Form.Item label="标签" name="tags">
+                <Select
+                  mode="multiple"
+                  placeholder="选择标签"
+                  filterOption={(input, option) =>
+                    (option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                  options={tags.map((tag) => ({
+                    value: tag[0],
+                    label: tag[0],
+                  }))}
+                />
+              </Form.Item>
+
+              <Form.Item label="所属合集" name="collection_ids">
+                <CollectionSelector
+                  placeholder="选择合集（可多选）"
+                  mode="multiple"
+                />
+              </Form.Item>
+            </div>
+
+            <Divider className="my-6" />
+
+            {/* 时间设置 */}
+            <div>
+              <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+                时间
+              </h4>
+
+              <Form.Item
+                label="发布日期"
+                name="date"
+                rules={[{ required: true }]}
+              >
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm"
+                  className="w-full"
+                />
+              </Form.Item>
+
+              <Form.Item label="更新日期" name="updated">
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm"
+                  disabled
+                  className="w-full"
+                />
+              </Form.Item>
+            </div>
+
+            {/* AI 工具 */}
+            <Divider className="my-6" />
+            <div>
+              <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
+                AI 辅助
+              </h4>
+              <Space direction="vertical" className="w-full">
+                <Button
+                  block
+                  icon={<TagsOutlined />}
+                  onClick={genDescription}
+                  loading={loading.generateDescription}
+                >
+                  生成描述
+                </Button>
+                <Button block icon={<FolderOutlined />} onClick={genCover}>
+                  生成背景图
+                </Button>
+              </Space>
+            </div>
+          </div>
+        </Drawer>
+
+        {/* 预览抽屉 */}
+        <Drawer
+          title={
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <EyeOutlined />
+                <span>预览</span>
+              </div>
+              <div className="text-sm text-neutral-400">
+                {form.getFieldValue("title") || "无标题文章"}
+              </div>
+            </div>
+          }
+          placement="right"
+          width={800}
+          open={previewDrawerOpen}
+          onClose={() => setPreviewDrawerOpen(false)}
+          styles={{
+            body: { padding: 0, background: "#fafafa" },
+          }}
+        >
+          <div className="h-full overflow-y-auto">
+            <article className="max-w-3xl mx-auto px-8 py-12 bg-white min-h-full shadow-sm">
+              {/* 标题 */}
+              <h1 className="text-4xl font-bold text-neutral-900 mb-6">
+                {form.getFieldValue("title") || "无标题文章"}
+              </h1>
+
+              {/* 元信息 */}
+              <div className="flex items-center gap-4 text-sm text-neutral-500 mb-8 pb-6 border-b border-neutral-200">
+                <span>
+                  {dayjs(form.getFieldValue("date")).format("YYYY年MM月DD日")}
+                </span>
+                {(form.getFieldValue("tags") || []).length > 0 && (
+                  <>
+                    <span>·</span>
+                    <div className="flex gap-2">
+                      {form.getFieldValue("tags").map((tag: string) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 bg-neutral-100 rounded text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 描述 */}
+              {form.getFieldValue("description") && (
+                <div className="text-lg text-neutral-600 leading-relaxed mb-8 p-6 bg-neutral-50 rounded-lg border-l-4 border-neutral-300">
+                  {form.getFieldValue("description")}
+                </div>
+              )}
+
+              {/* 内容 */}
+              <MarkdownPreview content={content} />
+
+              {/* 底部 */}
+              <div className="mt-16 pt-8 border-t border-neutral-200 text-center text-sm text-neutral-400">
+                <p>本文由 {user?.nickname || user?.account} 创作</p>
+                <p className="mt-1">
+                  最后更新：
+                  {dayjs(form.getFieldValue("updated")).format(
+                    "YYYY-MM-DD HH:mm",
+                  )}
+                </p>
+              </div>
+            </article>
+          </div>
+        </Drawer>
+
+        {/* 快捷键提示 */}
+        <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
+          <Space split={<span>·</span>}>
+            <span>Cmd+S 保存</span>
+            <span>Cmd+, 设置</span>
+            <span>Cmd+P 预览</span>
+          </Space>
+        </div>
+      </Form>
     </div>
   );
 }
