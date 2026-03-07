@@ -273,7 +273,7 @@ async function handleClientCredentialsGrant(request: NextRequest): Promise<NextR
 async function handleAuthorizationCodeGrant(
   code: string,
   client_id: string,
-  client_secret: string,
+  client_secret: string | null | undefined,
   redirect_uri?: string,
   code_verifier?: string
 ): Promise<NextResponse> {

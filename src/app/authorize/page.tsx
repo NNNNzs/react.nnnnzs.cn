@@ -76,13 +76,25 @@ function AuthorizePageContent() {
         password: values.password
       });
 
-      if (response.data.status) {
+      // /api/auth/login 直接返回 token，不是 { status: true, data: {...} } 结构
+      if (response.data.token) {
+        // 保存 token 到 cookie
+        const token = response.data.token;
+        const TOKEN_KEY = 'blog-token';
+        document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=2592000`; // 30 天
+
         setIsLoggedIn(true);
+      } else if (response.data.error) {
+        // OAuth 2.0 标准错误响应
+        setError(response.data.error_description || response.data.error || '登录失败');
       } else {
-        setError(response.data.message || '登录失败');
+        setError('登录失败：未收到 token');
       }
     } catch (err: unknown) {
-      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '登录失败';
+      const errorResponse = err as { response?: { data?: { error?: string; error_description?: string } } };
+      const errorMessage = errorResponse?.response?.data?.error_description
+        || errorResponse?.response?.data?.error
+        || '登录失败';
       setError(errorMessage);
     } finally {
       setLoading(false);

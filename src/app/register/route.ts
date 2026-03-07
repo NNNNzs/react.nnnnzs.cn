@@ -41,7 +41,9 @@ export async function POST(request: NextRequest) {
     // 返回标准 OAuth 2.0 客户端注册响应
     return NextResponse.json({
       client_id,
-      client_secret: null,  // 公共客户端，不需要 secret
+      // 使用空字符串代替 null，避免某些客户端解析失败
+      // 实际认证应该使用 PKCE，不使用这个 secret
+      client_secret: '',  // 公共客户端，使用 PKCE，不需要 secret
       client_id_issued_at: Math.floor(Date.now() / 1000),
       client_secret_expires_at: 0,  // 0 表示永不过期
       client_name,
