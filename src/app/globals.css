@@ -66,13 +66,18 @@ body {
 }
 
 @keyframes dots {
-  0%, 20% {
+
+  0%,
+  20% {
     content: '.';
   }
+
   40% {
     content: '..';
   }
-  60%, 100% {
+
+  60%,
+  100% {
     content: '...';
   }
 }
@@ -192,4 +197,8 @@ body {
 .md-editor-preview .md-editor-code .md-editor-code-head {
   z-index: 20 !important;
   top: var(--header-height) !important;
+}
+
+.md-editor.md-editor-previewOnly .md-editor-preview {
+  padding: 0 24px;
 }
