@@ -141,8 +141,6 @@ docker-compose -f docker-compose.local.yml up -d
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-详细文档：[Docker 部署完整指南](./docs/DOCKER_DEPLOYMENT.md)
-
 ##  默认账号
 
 - **账号**: admin
@@ -240,7 +238,7 @@ src/
 - OAuth 2.0 认证
 - 博客合集管理
 
-详见：[向量检索设计](./docs/designs/vector-search-design.md)、[AI 聊天系统设计](./docs/designs/chat-system-design.md)
+详见：[向量化系统](./docs/designs/vector/overview.md)、[RAG 聊天系统](./docs/designs/chat/rag-chat.md)
 
 ##  权限系统
 
@@ -309,6 +307,11 @@ pnpm analyze:render   # 渲染性能分析
 - [Prisma](https://www.prisma.io/docs)
 - [Ant Design 6.x](https://ant.design/components)
 - [Qdrant](https://qdrant.tech/documentation)
+
+### 项目文档
+- [设计文档索引](./docs/designs/README.md) - 功能模块设计文档
+- [技术参考文档](./docs/reference/README.md) - 技术说明和调试指南
+- [开发计划](./docs/plans/README.md) - 待实施功能计划
 
 ##  License
 

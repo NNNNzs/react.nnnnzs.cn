@@ -1,4 +1,8 @@
-# AI 聊天系统设计文档
+# RAG 聊天系统
+
+> **状态**: ✅ 已实施
+> **创建日期**: 2026-01-17
+> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md)
 
 ## 概述
 
@@ -11,8 +15,6 @@
 - **流式响应**：使用 SSE（Server-Sent Events）实现实时流式输出
 - **工具调用**：支持可扩展的工具系统（当前实现 `search_articles` 工具）
 - **对话历史**：支持多轮对话上下文管理
-
----
 
 ## 架构设计
 
@@ -72,13 +74,9 @@ flowchart TB
 | **搜索工具** | `src/services/ai/tools/search-articles.ts` | 文章检索工具实现 |
 | **SSE 工具** | `src/lib/sse.ts` | SSE 流式响应创建和事件发送 |
 
----
+## 数据结构
 
-## 技术实现
-
-### 数据结构
-
-#### ReAct 步骤类型
+### ReAct 步骤类型
 
 ```typescript
 // SSE 事件类型
@@ -114,7 +112,7 @@ interface ReactStep {
 }
 ```
 
-#### 工具定义
+### 工具定义
 
 ```typescript
 // 工具接口
@@ -140,9 +138,9 @@ class ToolRegistry {
 }
 ```
 
-### 关键流程
+## 关键流程
 
-#### 1. ReAct 循环流程
+### ReAct 循环流程
 
 ```mermaid
 flowchart TD
@@ -169,7 +167,7 @@ flowchart TD
     K --> O["[4] 返回 SSE 流式响应"]
 ```
 
-#### 2. SSE 流式响应
+### SSE 流式响应
 
 ```typescript
 // API 路由中的 SSE 创建
@@ -202,171 +200,6 @@ data: {"content": "根据知识库，找到了以下文章..."}
 event: done
 data: null
 ```
-
-#### 3. 工具调用解析
-
-由于模型不支持原生 function calling，使用手写 JSON-RPC 解析：
-
-```typescript
-// 从 LLM 输出中提取工具调用
-const toolCallMatch = llmOutput.match(/```json\n([\s\S]*?)\n```/);
-const toolCall = JSON.parse(toolCallMatch[1]);
-
-// 执行工具
-const result = await toolRegistry.callTool(
-  toolCall.method,
-  toolCall.params
-);
-
-// 格式化为 JSON-RPC 响应
-const response = formatJsonRpcResponse({
-  result,
-  id: toolCall.id,
-});
-```
-
-### 代码示例
-
-#### 创建 ReAct Agent
-
-```typescript
-// src/app/api/chat/route.ts
-
-import { createReactAgent } from '@/lib/react-agent';
-import { toolRegistry } from '@/services/ai/tools';
-import { searchArticlesTool } from '@/services/ai/tools/search-articles';
-
-// 注册工具
-toolRegistry.register(searchArticlesTool);
-
-// 构建系统指令
-const systemInstruction = `你是一个智能助手，使用 ReAct 范式来回答问题。
-
-**工具使用说明：**
-${toolRegistry.getToolsDescription()}
-
-**ReAct 工作流程：**
-1. **思考 (Thought)**：分析用户问题，思考需要做什么
-2. **行动 (Action)**：如果需要查询知识库，使用工具调用格式
-3. **观察 (Observation)**：查看工具返回的结果
-4. **重复**：根据需要重复思考-行动-观察循环
-5. **回答 (Answer)**：当有足够信息时，给出最终答案
-`;
-
-// 创建模型
-const model = await createOpenAIModel({
-  scenario: 'chat',
-  temperature: 0.7,
-  maxTokens: 2000,
-});
-
-// 创建 Agent
-const agent = createReactAgent({
-  model,
-  systemPrompt: systemInstruction,
-  maxIterations: 5,
-  verbose: true,
-});
-```
-
-#### search_articles 工具实现
-
-```typescript
-// src/services/ai/tools/search-articles.ts
-
-import { searchArticles } from '@/services/embedding';
-
-export const searchArticlesTool: Tool = {
-  name: 'search_articles',
-  description: '搜索博客文章，支持语义检索和关键词匹配',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: '搜索查询',
-      },
-      limit: {
-        type: 'number',
-        description: '返回结果数量（默认 5）',
-      },
-    },
-    required: ['query'],
-  },
-  executor: async (params) => {
-    const { query, limit = 5 } = params as { query: string; limit?: number };
-
-    // 调用向量检索
-    const results = await searchArticles({
-      query,
-      limit,
-      filters: { hide: '0' },  // 只搜索公开文章
-    });
-
-    return {
-      articles: results.map((r) => ({
-        title: r.title,
-        url: `/20${r.year}/${r.month}/${r.date}/${r.slug}`,
-        snippet: r.content.substring(0, 200),
-        relevance: r.score,
-      })),
-    };
-  },
-};
-```
-
-#### 前端 ReAct 步骤展示
-
-```tsx
-// src/app/chat/page.tsx
-
-import { Collapse } from 'antd';
-
-const MessageContent: React.FC<MessageContentProps> = ({
-  content,
-  reactSteps = [],
-}) => {
-  if (reactSteps.length === 0) {
-    return <XMarkdown>{content}</XMarkdown>;
-  }
-
-  return (
-    <Collapse
-      items={reactSteps.map((step, index) => ({
-        key: index,
-        label: getStepLabel(step.type),
-        children: renderStepContent(step),
-      }))}
-    />
-  );
-};
-
-// SSE 流式响应解析
-const parseSSE = async (response: Response) => {
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader!.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value);
-    const events = parseSSEStream(chunk);
-
-    for (const event of events) {
-      // 更新消息状态
-      if (event.type === 'thought') {
-        addReactStep({ type: 'thought', content: event.data.content });
-      } else if (event.type === 'action') {
-        addReactStep({ type: 'action', toolCall: event.data });
-      }
-      // ... 其他事件类型
-    }
-  }
-};
-```
-
----
 
 ## 使用指南
 
@@ -442,8 +275,6 @@ toolRegistry.register(myTool);
 
 3. **更新系统指令**：工具描述会自动添加到系统指令中。
 
----
-
 ## 性能考虑
 
 ### 优化策略
@@ -478,8 +309,6 @@ toolRegistry.register(myTool);
 - 工具调用成功率
 - SSE 事件丢失率
 
----
-
 ## 安全考虑
 
 ### 安全措施
@@ -506,8 +335,6 @@ toolRegistry.register(myTool);
 | Prompt 注入 | 系统指令被覆盖 | 输入过滤、指令隔离 |
 | 工具调用攻击 | 未授权操作 | 权限检查、参数验证 |
 | API 密钥泄露 | LLM 服务被滥用 | 环境变量隔离、定期轮换 |
-
----
 
 ## 扩展性
 
@@ -538,8 +365,6 @@ toolRegistry.register(myTool);
 - **检索策略**：向量检索、关键词检索、混合检索
 - **前端组件**：可定制化 UI 主题
 
----
-
 ## 参考资料
 
 ### ReAct Agent 论文
@@ -556,14 +381,14 @@ toolRegistry.register(myTool);
 
 ### 项目相关
 
-- [向量检索设计](./vector-search-design.md)
-- [RAG 系统重构](./rag-system-refactor.md)
+- [语义搜索](../search/semantic-search.md)
+- [向量化总览](../vector/overview.md)
 - [前端开发规范](../../.cursor/rules/frontend.mdc)
 - [后端开发规范](../../.cursor/rules/backend.mdc)
 
 ---
 
-**文档版本**：v1.0
+**文档版本**：v2.0
 **创建日期**：2026-01-17
-**最后更新**：2026-01-17
+**最后更新**：2026-03-12
 **状态**：✅ 已实现

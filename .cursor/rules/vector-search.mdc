@@ -1,111 +1,127 @@
 ---
-description: "向量检索系统规范"
-globs: ["src/services/embedding/**", "src/services/vector/**", "src/app/api/ai/**"]
+description: "向量检索与向量化系统规范"
+globs: ["src/services/embedding/**", "src/lib/qdrant.ts", "src/app/api/ai/**"]
 alwaysApply: false
 ---
 
-# 向量检索系统
+# 向量检索与向量化系统
 
 ## 设计文档
 
-**详细设计**: [向量检索设计文档](../../docs/designs/vector-search-design.md)
+**详细设计文档**:
+- [向量化总览](../../docs/designs/vector/overview.md) - 系统整体架构
+- [文本切片](../../docs/designs/vector/chunking.md) - Markdown 分块策略
+- [向量存储](../../docs/designs/vector/storage.md) - Qdrant 集成
+- [向量化队列](../../docs/designs/vector/queue.md) - 异步队列系统
+- [语义搜索](../../docs/designs/search/semantic-search.md) - 向量检索
 
 在修改向量检索相关代码前，请先阅读设计文档以了解整体架构。
 
 ## 核心组件
 
-### 文本预处理
-**位置**: `src/services/embedding/preprocess.ts`
+### 文本切片
+**位置**: `src/services/embedding/text-splitter.ts`
 
 **关键规范**:
-- 必须保留代码块内容（不清理代码块）
-- 移除多余的空白字符
-- 标准化 Markdown 格式
+- 必须保留代码块标记 `[语言块]`
+- 保留行内代码内容（移除反引号）
+- 优先按 Markdown 标题结构分块
+- 最大 chunk 大小: 500 字符
+- 重叠区域: 100 字符
 
-### 内容分块
-**位置**: `src/services/embedding/chunker.ts`
-
-**分块策略**:
-- 最大 chunk 大小: 500 tokens
-- 重叠区域: 50 tokens
-- 优先在段落边界分割
-- 代码块单独作为一个 chunk
-
-### 嵌入生成
-**位置**: `src/services/embedding/index.ts`
+### 向量化服务
+**位置**: `src/services/embedding/simple-embedder.ts`
 
 **使用模型**:
-- OpenAI `text-embedding-3-small`
-- 维度: 1536
+- BAAI/bge-large-zh-v1.5
+- 维度: 1024
+- API: SiliconFlow
 
-**性能优化**:
-- 批量处理（最多 100 个文本）
-- 实现错误重试机制
+**向量化流程**:
+1. 删除旧向量
+2. 文本切片
+3. 批量生成向量
+4. 插入 Qdrant
 
 ### 向量存储
-**位置**: `src/services/vector/index.ts`
+**位置**: `src/services/embedding/vector-store.ts`
 
 **集合配置**:
 ```typescript
 collection_name: "blog_posts"
-vector_size: 1536
+vector_size: 1024
 distance: "Cosine"
 ```
 
 **Payload 结构**:
 - `post_id`: 文章 ID
 - `chunk_index`: 块索引
-- `content`: 块内容
-- `created_at`: 创建时间
+- `chunk_text`: 块内容
+- `title`: 文章标题
+- `hide`: 是否隐藏
+- `created_at`: 创建时间戳
 
-### 相似度检索
-**位置**: `src/services/vector/search.ts`
+### 队列系统
+**位置**: `src/services/embedding/embedding-queue.ts`
+
+**队列配置**:
+- 并发数: 2
+- 最大重试: 2 次
+- 重试延迟: 5000ms
+
+**优先级**:
+- 1: 手动触发
+- 5: 正常业务
+- 10: 批量处理
+
+### 语义搜索
+**位置**: `src/services/embedding/search.ts`
 
 **默认参数**:
 - `limit`: 10
 - `scoreThreshold`: 0.7
 
 **返回结果**:
-- `post_id`: 文章 ID
+- `postId`: 文章 ID
 - `score`: 相似度分数 (0-1)
 - `content`: 匹配的文本片段
 
 ## 开发规范
 
-### 修改嵌入逻辑
-1. 先阅读 `docs/designs/vector-search-design.md`
-2. 确保理解增量更新机制
+### 修改向量化逻辑
+1. 先阅读 `docs/designs/vector/overview.md`
+2. 确保理解全量更新机制
 3. 修改后测试向量化功能
 4. 验证检索质量
 
 ### 添加新的嵌入模型
-1. 实现 `EmbeddingProvider` 接口
-2. 在设计文档中记录新模型
-3. 更新相关配置
+1. 修改 `src/services/embedding/embedding.ts`
+2. 更新 Qdrant collection 的 vector_size
+3. 在设计文档中记录新模型
 4. 进行性能对比测试
 
 ### 性能优化
-- 使用批量处理
-- 实现缓存机制（Redis）
-- 异步处理向量化任务
+- 使用批量处理（每批 10 个文本）
+- 异步队列处理（不阻塞 API 响应）
+- Redis 缓存搜索结果
 - 监控 API 调用次数和成本
 
 ## 注意事项
 
 ⚠️ **重要**:
-- 文章更新时必须触发向量化更新
-- 使用增量更新（仅更新变更的块）
+- 文章更新时必须添加到向量化队列
+- 使用队列系统异步执行（不要同步等待）
 - 处理 API 限流错误
-- 记录向量化失败日志
+- 记录向量化状态到 `rag_status` 和 `rag_error`
 
 ❌ **不要做的事**:
-- 发送完整文章内容到客户端
+- 发送向量数据到客户端
 - 在客户端直接调用 Embedding API
-- 忽略内容哈希对比（会导致重复向量化）
+- 同步等待向量化完成（会阻塞 API）
 - 删除文章时不同步删除向量
 
 ✅ **应该做的事**:
-- 使用内容哈希避免重复向量化
-- 异步执行向量化任务
+- 使用队列系统异步处理向量化
 - 实现重试机制处理 API 错误
-- 定期清理无效的向量数据
+- 全量更新向量（删除旧的，插入新的）
+- 定期检查 `rag_status` 和 `rag_error`

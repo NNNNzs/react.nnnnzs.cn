@@ -35,12 +35,14 @@
 - **开发时使用**: `/vercel-react-best-practices` skill
 
 #### 向量检索与向量化
-- **[向量检索设计](docs/designs/vector-search-design.md)** - 基于 Qdrant 的语义搜索系统
-- **[向量化系统设计](docs/designs/embedding-design.md)** - 文章向量化的完整实现方案
-- **[RAG 系统重构](docs/designs/rag-system-refactor.md)** - 向量化系统的重构总结
+- **[向量化总览](docs/designs/vector/overview.md)** - 向量化系统完整介绍
+- **[文本切片](docs/designs/vector/chunking.md)** - Markdown 分块策略
+- **[向量存储](docs/designs/vector/storage.md)** - Qdrant 集成和操作
+- **[向量化队列](docs/designs/vector/queue.md)** - 异步队列系统
+- **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
 #### AI 对话系统
-- **[AI 聊天系统设计](docs/designs/chat-system-design.md)** - 基于 ReAct Agent 的 RAG 聊天机器人
+- **[RAG 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的 RAG 聊天机器人
 
 #### 权限与认证
 - **[权限系统设计](docs/designs/permission-design.md)** - 多层权限防护架构
@@ -50,7 +52,7 @@
 - **[博客合集功能设计](docs/designs/collection-design.md)** - 文章合集管理功能
 
 #### 基础设施
-- **[队列系统设计](docs/designs/queue-design.md)** - 异步任务队列系统
+- **[队列系统](docs/designs/vector/queue.md)** - 异步任务队列系统（已整合到向量化模块）
 
 ## 📋 计划文档目录
 
