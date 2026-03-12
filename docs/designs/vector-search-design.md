@@ -18,18 +18,13 @@
 
 ### 整体架构
 
-```
-文章创建/更新
-    ↓
-文本预处理
-    ↓
-内容分块 (Chunking)
-    ↓
-嵌入生成 (Embedding)
-    ↓
-向量存储 (Qdrant)
-    ↓
-检索索引
+```mermaid
+flowchart LR
+    A["文章创建/更新"] --> B["文本预处理"]
+    B --> C["内容分块 Chunking"]
+    C --> D["嵌入生成 Embedding"]
+    D --> E["向量存储 Qdrant"]
+    E --> F["检索索引"]
 ```
 
 ### 核心组件

@@ -18,53 +18,54 @@
 
 ### 整体架构
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   业务层（post.ts）                       │
-│  - createPost() / updatePost()                          │
-│  - queueEmbedPost() 添加任务到队列                        │
-│  - 更新 rag_status 和 rag_error                         │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                 队列系统（embedding-queue.ts）             │
-│  - 内存优先级队列                                        │
-│  - 并发控制（Concurrency = 2）                           │
-│  - 错误重试（Max Retries = 2）                           │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              向量化服务（simple-embedder.ts）              │
-│  1. 删除旧向量（deleteVectorsByPostId）                  │
-│  2. 文本切片（splitMarkdownIntoChunks）                  │
-│  3. 批量生成向量（embedTexts）                           │
-│  4. 插入新向量（insertVectors）                          │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│               文本切片（text-splitter.ts）                 │
-│  - 按标题分块（splitMarkdownByHeadings）                 │
-│  - 普通文本切片（splitTextIntoChunks）                   │
-│  - 内容清理（normalizeContent）                          │
-│    ├─ 保留代码块标记：[语言块]                           │
-│    ├─ 保留行内代码内容                                   │
-│    └─ 移除 Markdown 语法                                │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              Embedding API（SiliconFlow）                 │
-│  - 模型：BAAI/bge-large-zh-v1.5                         │
-│  - 维度：1024                                            │
-│  - 批量调用：减少请求次数                                │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                  Qdrant 向量数据库                        │
-│  - Collection: blog_posts                               │
-│  - Vector Size: 1024                                     │
-│  - Distance: Cosine                                     │
-│  - Payload: postId, chunkIndex, chunkText, title, hide   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Business["业务层 post.ts"]
+        A1["createPost / updatePost"]
+        A2["queueEmbedPost 添加任务到队列"]
+        A3["更新 rag_status 和 rag_error"]
+    end
+
+    subgraph Queue["队列系统 embedding-queue.ts"]
+        B1["内存优先级队列"]
+        B2["并发控制 Concurrency = 2"]
+        B3["错误重试 Max Retries = 2"]
+    end
+
+    subgraph Embedder["向量化服务 simple-embedder.ts"]
+        C1["1. 删除旧向量<br/>deleteVectorsByPostId"]
+        C2["2. 文本切片<br/>splitMarkdownIntoChunks"]
+        C3["3. 批量生成向量<br/>embedTexts"]
+        C4["4. 插入新向量<br/>insertVectors"]
+    end
+
+    subgraph Splitter["文本切片 text-splitter.ts"]
+        D1["按标题分块<br/>splitMarkdownByHeadings"]
+        D2["普通文本切片<br/>splitTextIntoChunks"]
+        D3["内容清理<br/>normalizeContent"]
+        D4["保留代码块标记: 语言块"]
+        D5["保留行内代码内容"]
+        D6["移除 Markdown 语法"]
+    end
+
+    subgraph API["Embedding API SiliconFlow"]
+        E1["模型: BAAI/bge-large-zh-v1.5"]
+        E2["维度: 1024"]
+        E3["批量调用: 减少请求次数"]
+    end
+
+    subgraph Qdrant["Qdrant 向量数据库"]
+        F1["Collection: blog_posts"]
+        F2["Vector Size: 1024"]
+        F3["Distance: Cosine"]
+        F4["Payload: postId, chunkIndex,<br/>chunkText, title, hide"]
+    end
+
+    Business --> Queue
+    Queue --> Embedder
+    Embedder --> Splitter
+    Embedder --> API
+    Embedder --> Qdrant
 ```
 
 ### 核心组件

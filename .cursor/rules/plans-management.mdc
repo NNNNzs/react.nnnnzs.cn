@@ -31,6 +31,13 @@ docs/plans/
 ## 解决方案
 提出的技术方案和设计思路
 
+### 架构图（使用 Mermaid）
+```mermaid
+flowchart TB
+    A[组件A] --> B[组件B]
+    B --> C[组件C]
+```
+
 ## 实施步骤
 1. [ ] 待办事项 1
 2. [ ] 待办事项 2
@@ -46,6 +53,18 @@ docs/plans/
 ## 备注
 其他需要记录的信息
 ```
+
+### 图表规范
+
+计划文档中的所有图表必须使用 **Mermaid** 格式：
+
+- ✅ 使用 `flowchart` 绘制流程图和架构图
+- ✅ 使用 `sequenceDiagram` 绘制交互流程
+- ✅ 使用 `stateDiagram` 绘制状态机
+- ❌ 禁止使用 ASCII 艺术图
+- ❌ 禁止使用图片格式的图表
+
+详见：[代码风格规范 - 文档图表规范](.cursor/rules/code-style.mdc)
 
 ## 计划状态管理
 

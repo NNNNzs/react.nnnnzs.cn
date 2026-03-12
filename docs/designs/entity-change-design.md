@@ -61,32 +61,31 @@ model TbEntityChangeLog {
 
 ### 服务层架构
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         业务层                                │
-│  (post.ts, collection.ts, category.ts, tag.ts)               │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         │ 调用变更检测
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 entity-change-detector.ts                    │
-│              检测实体变更并生成变更记录                        │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         │ 保存变更记录
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  entity-change-log.ts                        │
-│              变更日志的 CRUD 操作                             │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         │ 数据库操作
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Prisma ORM                              │
-│                  tb_entity_change_log 表                      │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Business["业务层"]
+        A["post.ts"]
+        B["collection.ts"]
+        C["category.ts"]
+        D["tag.ts"]
+    end
+
+    subgraph Detector["entity-change-detector.ts"]
+        E["检测实体变更并生成变更记录"]
+    end
+
+    subgraph LogService["entity-change-log.ts"]
+        F["变更日志的 CRUD 操作"]
+    end
+
+    subgraph Database["数据库"]
+        G["Prisma ORM"]
+        H["tb_entity_change_log 表"]
+    end
+
+    Business -->|"调用变更检测"| Detector
+    Detector -->|"保存变更记录"| LogService
+    LogService -->|"数据库操作"| Database
 ```
 
 ### 核心服务

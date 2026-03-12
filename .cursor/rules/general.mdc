@@ -191,6 +191,123 @@ async function getUserInfo(userId: string): Promise<User> {
 }
 ```
 
+## 文档图表规范
+
+### 使用 Mermaid 图表
+
+项目所有文档中的图表必须使用 **Mermaid** 格式，禁止使用 ASCII 艺术图或图片。
+
+#### 支持的图表类型
+
+| 图表类型 | Mermaid 关键字 | 使用场景 |
+|---------|---------------|---------|
+| 流程图 | `flowchart` | 业务流程、架构图、算法流程 |
+| 时序图 | `sequenceDiagram` | API 调用、组件交互 |
+| 状态图 | `stateDiagram` | 状态机、生命周期 |
+| 类图 | `classDiagram` | 类结构、接口关系 |
+| 实体关系图 | `erDiagram` | 数据库关系 |
+| 甘特图 | `gantt` | 项目计划、时间线 |
+| 饼图 | `pie` | 数据占比 |
+| 用户旅程图 | `journey` | 用户体验流程 |
+
+#### 使用示例
+
+```markdown
+## 系统架构
+
+```mermaid
+flowchart TB
+    A[前端] --> B[API 层]
+    B --> C[服务层]
+    C --> D[数据库]
+```
+
+## API 调用流程
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Database
+
+    Client->>API: GET /api/users
+    API->>Database: 查询用户
+    Database-->>API: 返回数据
+    API-->>Client: JSON 响应
+```
+```
+
+#### 编写规范
+
+1. **图表类型选择**
+   - 架构图：使用 `flowchart TB`（从上到下）
+   - 横向流程：使用 `flowchart LR`（从左到右）
+   - 交互流程：使用 `sequenceDiagram`
+   - 数据关系：使用 `erDiagram`
+
+2. **节点命名**
+   ```mermaid
+   flowchart TB
+       A[用户登录] --> B{验证成功?}
+       B -->|是| C[进入系统]
+       B -->|否| D[显示错误]
+   ```
+
+3. **子图分组**
+   ```mermaid
+   flowchart TB
+       subgraph 前端层
+           A[React 组件]
+           B[状态管理]
+       end
+
+       subgraph 后端层
+           C[API 路由]
+           D[服务层]
+       end
+
+       A --> C
+   ```
+
+4. **样式定制**
+   ```mermaid
+   flowchart TB
+       A[开始] --> B[结束]
+
+       style A fill:#e1f5e1,stroke:#2ecc71
+       style B fill:#ffe1e1,stroke:#e74c3c
+   ```
+
+#### 最佳实践
+
+- **保持简洁**：每个图表只展示一个核心概念
+- **添加标题**：图表前添加描述性标题
+- **使用中文**：节点名称使用中文便于理解
+- **层级清晰**：使用子图分组相关组件
+- **颜色辅助**：关键节点使用颜色突出
+
+#### 在线编辑器
+
+使用 [Mermaid Live Editor](https://mermaid.live) 进行可视化编辑和预览。
+
+```typescript
+/**
+ * 获取用户信息
+ * @param userId 用户ID
+ * @returns 用户信息对象
+ */
+async function getUserInfo(userId: string): Promise<User> {
+  // 从缓存中获取用户信息
+  const cachedUser = await redis.get(`user:${userId}`)
+  if (cachedUser) return JSON.parse(cachedUser)
+
+  // 缓存不存在，从数据库查询
+  const user = await prisma.tbUser.findUnique({ where: { id: userId } })
+
+  return user
+}
+```
+
 ## 环境变量
 
 ### 命名规范

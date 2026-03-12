@@ -18,41 +18,47 @@
 
 ### 整体架构
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    前端层 (chat/page.tsx)                │
-│  - Ant Design X 组件                                     │
-│  - SSE 流式响应解析                                       │
-│  - ReAct 步骤可视化（Collapse 折叠面板）                  │
-└─────────────────────────────────────────────────────────┘
-                          ↓ HTTP POST /api/chat
-┌─────────────────────────────────────────────────────────┐
-│                 API 层 (api/chat/route.ts)               │
-│  - 参数验证                                              │
-│  - 用户身份识别                                          │
-│  - 系统指令构建                                          │
-│  - ReAct Agent 调度                                      │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              ReAct Agent (lib/react-agent.ts)            │
-│  - Thought → Action → Observation 循环                  │
-│  - 工具调用解析                                          │
-│  - SSE 事件流推送                                        │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────┬───────────────────────────────────┐
-│   工具系统层          │         LLM 层                    │
-│ (services/ai/tools)  │     (ChatOpenAI)                  │
-│  - search_articles   │  - OpenAI Compatible API          │
-│  - JSON-RPC 2.0      │  - 流式生成                        │
-└──────────────────────┴───────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│           检索服务层 (services/embedding)                │
-│  - 向量搜索（Qdrant）                                    │
-│  - 文章排序和过滤                                        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Frontend["前端层 chat/page.tsx"]
+        A1["Ant Design X 组件"]
+        A2["SSE 流式响应解析"]
+        A3["ReAct 步骤可视化<br/>Collapse 折叠面板"]
+    end
+
+    subgraph API["API 层 api/chat/route.ts"]
+        B1["参数验证"]
+        B2["用户身份识别"]
+        B3["系统指令构建"]
+        B4["ReAct Agent 调度"]
+    end
+
+    subgraph Agent["ReAct Agent lib/react-agent.ts"]
+        C1["Thought → Action → Observation 循环"]
+        C2["工具调用解析"]
+        C3["SSE 事件流推送"]
+    end
+
+    subgraph Tools["工具系统层 services/ai/tools"]
+        D1["search_articles"]
+        D2["JSON-RPC 2.0"]
+    end
+
+    subgraph LLM["LLM 层 ChatOpenAI"]
+        E1["OpenAI Compatible API"]
+        E2["流式生成"]
+    end
+
+    subgraph Search["检索服务层 services/embedding"]
+        F1["向量搜索 Qdrant"]
+        F2["文章排序和过滤"]
+    end
+
+    Frontend -->|HTTP POST /api/chat| API
+    API --> Agent
+    Agent --> Tools
+    Agent --> LLM
+    Tools --> Search
 ```
 
 ### 核心组件
@@ -138,29 +144,29 @@ class ToolRegistry {
 
 #### 1. ReAct 循环流程
 
-```
-[1] 用户问题输入
-     ↓
-[2] 构建系统指令
-     - 注入通用信息（网站名、时间、用户状态）
-     - 注入工具描述
-     - 注入对话历史
-     ↓
-[3] 开始 ReAct 循环（最多 maxIterations 次）
-     ├─ [3.1] Thought：LLM 思考需要做什么
-     │    ↓
-     ├─ [3.2] Action：LLM 决定是否调用工具
-     │    ↓
-     ├─ [3.3] 如果需要调用工具
-     │    ├─ 解析 JSON-RPC 2.0 格式的工具调用
-     │    ├─ 执行工具（如 search_articles）
-     │    ├─ 获取工具结果
-     │    └─ 回到 [3.1]
-     │    ↓
-     └─ [3.4] 如果不需要工具
-          └─ 生成最终答案
-     ↓
-[4] 返回 SSE 流式响应
+```mermaid
+flowchart TD
+    A["[1] 用户问题输入"] --> B["[2] 构建系统指令"]
+    B --> C["注入通用信息<br/>网站名、时间、用户状态"]
+    B --> D["注入工具描述"]
+    B --> E["注入对话历史"]
+    C --> F["[3] 开始 ReAct 循环<br/>最多 maxIterations 次"]
+    D --> F
+    E --> F
+
+    F --> G["[3.1] Thought<br/>LLM 思考需要做什么"]
+    G --> H["[3.2] Action<br/>LLM 决定是否调用工具"]
+
+    H --> I{"需要调用工具?"}
+    I -->|是| J["[3.3] 工具调用流程"]
+    I -->|否| K["[3.4] 生成最终答案"]
+
+    J --> L["解析 JSON-RPC 2.0 格式的工具调用"]
+    L --> M["执行工具<br/>如 search_articles"]
+    M --> N["获取工具结果"]
+    N --> G
+
+    K --> O["[4] 返回 SSE 流式响应"]
 ```
 
 #### 2. SSE 流式响应
