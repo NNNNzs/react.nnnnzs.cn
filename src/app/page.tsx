@@ -3,7 +3,6 @@
  * 首页数据在构建时静态生成，加载更多通过客户端 API 调用
  */
 
-import React from "react";
 import { getPostList } from "@/services/post";
 import { unstable_cache } from "next/cache";
 import HomePageContainer from "@/components/HomePageContainer";
@@ -30,6 +29,9 @@ const getCachedPosts = unstable_cache(
     tags: ['home', 'post-list'],
   }
 );
+
+// 强制静态生成，避免每次请求重新执行服务端组件导致客户端 state 被重置
+export const dynamic = 'force-static';
 
 export default async function Home() {
   // 静态获取第一页数据（不再依赖 searchParams，实现 SSG）

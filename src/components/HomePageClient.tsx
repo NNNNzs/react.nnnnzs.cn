@@ -8,6 +8,7 @@ import type { Post } from '@/types';
 interface HomePageClientProps {
   posts: Post[];
   hasMore: boolean;
+  loading?: boolean;
   onLoadMore: () => void;
 }
 
@@ -21,6 +22,7 @@ const SCROLL_CACHE_KEY = 'home_scroll_position';
 export default function HomePageClient({
   posts,
   hasMore,
+  loading,
   onLoadMore,
 }: HomePageClientProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -168,7 +170,7 @@ export default function HomePageClient({
               className="cursor-pointer px-8 py-3 rounded-full border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary hover:border-primary transition-all text-sm font-medium shadow-sm hover:shadow-md"
               onClick={onLoadMore}
             >
-              加载更多文章
+              {loading ? '加载中...' : '加载更多文章'}
             </button>
           </div>
         )}
