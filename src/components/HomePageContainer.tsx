@@ -1,40 +1,51 @@
 'use client';
 
-import React, { useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useCallback } from 'react';
 import HomePageClient from '@/components/HomePageClient';
 import type { Post } from '@/types';
+
+const PAGE_SIZE = 10;
 
 interface HomePageContainerProps {
   posts: Post[];
   total: number;
-  currentPageNum: number;
 }
 
 /**
  * 首页容器组件
- * 负责处理加载更多的逻辑，通过更新 URL 参数触发服务端重新渲染
+ * 负责处理加载更多的逻辑，通过客户端 API 调用加载更多文章
  */
 export default function HomePageContainer({
-  posts,
+  posts: initialPosts,
   total,
-  currentPageNum,
 }: HomePageContainerProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   /**
-   * 加载更多
-   * 通过更新 URL 的 pageNum 参数，触发服务端重新渲染
+   * 加载更多 - 通过客户端 API 调用
    */
-  const handleLoadMore = useCallback(() => {
-    const nextPageNum = currentPageNum + 1;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('pageNum', String(nextPageNum));
+  const handleLoadMore = useCallback(async () => {
+    if (loading) return;
     
-    // 使用 replace 更新 URL，触发服务端重新渲染
-    router.replace(`/?${params.toString()}`, { scroll: false });
-  }, [currentPageNum, router, searchParams]);
+    const nextPage = currentPage + 1;
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/post/list?pageNum=${nextPage}&pageSize=${PAGE_SIZE}&hide=0`);
+      const json = await res.json();
+
+      if (json.success && json.data?.record) {
+        setPosts(prev => [...prev, ...json.data.record]);
+        setCurrentPage(nextPage);
+      }
+    } catch (error) {
+      console.error('加载更多文章失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, loading]);
 
   // 计算是否还有更多数据
   const hasMore = posts.length < total;
