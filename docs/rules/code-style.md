@@ -1,7 +1,3 @@
----
-description: "代码风格和命名规范"
-alwaysApply: false
----
 # 代码风格规范
 
 ## 命名规范

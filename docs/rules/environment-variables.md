@@ -1,8 +1,3 @@
----
-description: "环境变量配置规范"
-globs: [".env*"]
-alwaysApply: false
----
 
 # 环境变量配置
 

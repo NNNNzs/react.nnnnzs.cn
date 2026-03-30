@@ -1,8 +1,3 @@
----
-description: "项目概述和技术栈"
-globs: []
-alwaysApply: false
----
 
 # 项目概述
 

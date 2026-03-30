@@ -1,5 +1,11 @@
 # 实体变更日志系统设计
 
+> **本文档定位**: 技术设计文档 - 说明实体变更追踪系统的设计原理和实现方案
+>
+> **开发实施规范**详见:
+> - [后端开发规范](../rules/backend.md) - API 路由和服务层实现
+> - [数据库开发规范](../rules/database.md) - 数据模型设计和触发器
+
 ## 概述
 
 实体变更日志系统用于记录和追踪项目中关键实体（文章、合集、分类、标签等）的字段变更历史。该系统提供了完整的变更追踪能力，支持审计、回滚和数据恢复等场景。
@@ -470,8 +476,8 @@ const userActivity = await prisma.tbEntityChangeLog.groupBy({
 
 ## 相关文档
 
-- [数据库规范](.cursor/rules/database.mdc)
-- [目录结构](.cursor/rules/directory-structure.mdc)
+- [数据库规范](../rules/database.md)
+- [目录结构](../rules/directory-structure.md)
 - [评论系统设计](./comment-system-design.md)
 
 ## 更新日志

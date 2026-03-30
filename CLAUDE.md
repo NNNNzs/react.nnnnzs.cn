@@ -1,28 +1,30 @@
 # CLAUDE.md
 
-本项目使用 **Cursor IDE 规则系统** 进行开发规范管理。所有详细规则已拆分到 `.cursor/rules/` 目录下，本文档仅作为快速索引。
+本项目使用 **开发规范文档系统** 进行开发规范管理。所有详细规则已拆分到 `docs/rules/` 目录下，本文档仅作为快速索引。
 
 ## 📁 规则文档目录
 
 ### 项目基础
-- **[项目概述](.cursor/rules/project-overview.mdc)** - 技术栈、框架版本
-- **[目录结构](.cursor/rules/directory-structure.mdc)** - 完整目录树和职责说明
-- **[环境变量](.cursor/rules/environment-variables.mdc)** - 配置规范和必需变量
-- **[包管理](.cursor/rules/package-management.mdc)** - pnpm 使用和常用命令
-- **[Git 规范](.cursor/rules/git-conventions.mdc)** - Commit 格式和分支策略
-- **[代码风格](.cursor/rules/code-style.mdc)** - 命名规范、TypeScript 规范、注释规范
+- **[项目概述](docs/rules/project-overview.md)** - 技术栈、框架版本
+- **[目录结构](docs/rules/directory-structure.md)** - 完整目录树和职责说明
+- **[环境变量](docs/rules/environment-variables.md)** - 配置规范和必需变量
+- **[包管理](docs/rules/package-management.md)** - pnpm 使用和常用命令
+- **[Git 规范](docs/rules/git-conventions.md)** - Commit 格式和分支策略
+- **[代码风格](docs/rules/code-style.md)** - 命名规范、TypeScript 规范、注释规范
 
 ### 开发规范
-- **[前端开发](.cursor/rules/frontend.mdc)** - Next.js App Router、React 19、Ant Design 6.x
-- **[后端开发](.cursor/rules/backend.mdc)** - API 路由、服务层、AI 工具选择
-- **[数据库开发](.cursor/rules/database.mdc)** - Prisma Schema、迁移、查询优化
-- **[权限系统](.cursor/rules/permission.mdc)** - 多层权限防护、角色定义、API 权限检查
+- **[前端开发](docs/rules/frontend.md)** - Next.js App Router、React 19、Ant Design 6.x
+- **[后端开发](docs/rules/backend.md)** - API 路由、服务层、AI 工具选择
+- **[数据库开发](docs/rules/database.md)** - Prisma Schema、迁移、查询优化
+- **[权限系统](docs/rules/permission.md)** - 多层权限防护、角色定义、API 权限检查
 
 ### 功能模块
-- **[向量检索](.cursor/rules/vector-search.mdc)** - 文章向量化、语义搜索、Qdrant 集成
+- **[向量检索](docs/rules/vector-search.md)** - 文章向量化、语义搜索、Qdrant 集成
 
 ### 项目管理
-- **[计划管理](.cursor/rules/plans-management.mdc)** - 计划文档生命周期、完成后处理流程
+- **[计划管理](docs/rules/plans-management.md)** - 计划文档生命周期、完成后处理流程
+
+> 详细索引请查看：**[开发规范文档](docs/rules/README.md)**
 
 ## 📂 设计文档目录
 
@@ -77,27 +79,27 @@
 ## 🚀 快速开始
 
 ### 首次使用
-1. 阅读 [项目概述](.cursor/rules/project-overview.mdc) 了解技术栈
-2. 阅读 [目录结构](.cursor/rules/directory-structure.mdc) 了解代码组织
-3. 配置环境变量（参考 [环境变量](.cursor/rules/environment-variables.mdc)）
+1. 阅读 [项目概述](docs/rules/project-overview.md) 了解技术栈
+2. 阅读 [目录结构](docs/rules/directory-structure.md) 了解代码组织
+3. 配置环境变量（参考 [环境变量](docs/rules/environment-variables.md)）
 4. 运行 `pnpm install` 安装依赖
 5. 运行 `pnpm dev` 启动开发服务器
 
 ### 日常开发
-- **前端开发**: 参考 [前端开发规范](.cursor/rules/frontend.mdc)
-- **后端开发**: 参考 [后端开发规范](.cursor/rules/backend.mdc)
-- **API 开发**: 参考 [权限系统](.cursor/rules/permission.mdc) 确保安全
-- **数据库变更**: 参考 [数据库规范](.cursor/rules/database.mdc)
+- **前端开发**: 参考 [前端开发规范](docs/rules/frontend.md)
+- **后端开发**: 参考 [后端开发规范](docs/rules/backend.md)
+- **API 开发**: 参考 [权限系统](docs/rules/permission.md) 确保安全
+- **数据库变更**: 参考 [数据库规范](docs/rules/database.md)
 
 ### Git 提交
-参考 [Git 规范](.cursor/rules/git-conventions.mdc)：
+参考 [Git 规范](docs/rules/git-conventions.md)：
 ```bash
 feat(scope): 简短描述
 fix(scope): 简短描述
 ```
 
 ### 计划管理
-参考 [计划管理规范](.cursor/rules/plans-management.mdc)：
+参考 [计划管理规范](docs/rules/plans-management.md)：
 - 计划完成后及时清理或移至设计文档
 - 保持 `docs/plans/` 目录整洁
 
@@ -110,7 +112,7 @@ fix(scope): 简短描述
 - **API 权限验证**（核心防护）
 - 服务层过滤
 
-详见：[权限系统](.cursor/rules/permission.mdc)
+详见：[权限系统](docs/rules/permission.md)
 
 ### 管理后台布局
 管理后台页面使用 `overflow-hidden` 固定高度，需遵循特定的 flex 布局：
@@ -123,21 +125,21 @@ fix(scope): 简短描述
 </div>
 ```
 
-详见：[前端开发规范](.cursor/rules/frontend.mdc)
+详见：[前端开发规范](docs/rules/frontend.md)
 
 ### AI 工具选择
 根据模型提供商选择对应工具：
 - **Anthropic Claude**: `@anthropic-ai/sdk`（官方 SDK）
 - **OpenAI**: `@langchain/openai`（LangChain 包装）
 
-详见：[后端开发规范](.cursor/rules/backend.mdc)
+详见：[后端开发规范](docs/rules/backend.md)
 
 ## 📝 文档约定
 
-### Cursor 规则文件
-- 格式：MDC (Markdown with frontmatter)
-- 位置：`.cursor/rules/*.mdc`
-- 作用：自动化规范检查、AI 辅助编码
+### 规范文档
+- 格式：Markdown (`.md`)
+- 位置：`docs/rules/*.md`
+- 作用：开发规范指导、AI 辅助编码
 
 ### 设计文档
 - 位置：`docs/designs/*.md`
@@ -169,16 +171,16 @@ pnpm analyze:bundle   # 包大小分析
 ```
 **重要** 在后台```npm run dev``` 启动了服务，任务完成后，要kill掉杀死，而不是一直挂着，影响我看日志
 
-更多命令：[包管理](.cursor/rules/package-management.mdc)
+更多命令：[包管理](docs/rules/package-management.md)
 
 ## ⚠️ 重要提示
 
 ### 项目结构变更
 当涉及目录结构或架构变更时，**必须**同步更新规范文件：
-1. 更新受影响的 `.cursor/rules/*.mdc` 文件
+1. 更新受影响的 `docs/rules/*.md` 文件
 2. 在 commit message 中注明规范文件更新
 
-详见：[Git 规范](.cursor/rules/git-conventions.mdc)
+详见：[Git 规范](docs/rules/git-conventions.md)
 
 ### 计划完成后处理
 计划状态变为 **✅ 已完成** 时，**必须**执行清理：
@@ -186,7 +188,7 @@ pnpm analyze:bundle   # 包大小分析
 - 无价值的计划 → 删除
 - 更新 `docs/plans/README.md`
 
-详见：[计划管理](.cursor/rules/plans-management.mdc)
+详见：[计划管理](docs/rules/plans-management.md)
 
 ### TypeScript 严格模式
 项目已启用严格模式：
@@ -194,7 +196,7 @@ pnpm analyze:bundle   # 包大小分析
 - 必须明确类型定义
 - 使用 `unknown` 代替 `any`
 
-详见：[代码风格](.cursor/rules/code-style.mdc)
+详见：[代码风格](docs/rules/code-style.md)
 
 ## 🔗 相关资源
 

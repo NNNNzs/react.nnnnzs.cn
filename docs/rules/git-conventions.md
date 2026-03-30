@@ -1,8 +1,3 @@
----
-description: "Git 提交和分支规范"
-globs: [".git*"]
-alwaysApply: false
----
 
 # Git 规范
 
@@ -128,7 +123,7 @@ fix bug
 ### 更新步骤
 1. 完成代码变更
 2. 立即检查相关规范文件
-3. 更新受影响的 `.cursor/rules/*.mdc` 文件
+3. 更新受影响的 `docs/rules/*.md` 文件
 4. 在 commit message 中注明
 
 示例：
@@ -137,7 +132,7 @@ feat(hooks): 添加自定义 hooks 目录并更新规范
 
 - 创建 src/hooks 目录
 - 添加常用 hooks（useAuth, usePost）
-- 更新 directory-structure.mdc
+- 更新 directory-structure.md
 ```
 
 ## .gitignore 规则

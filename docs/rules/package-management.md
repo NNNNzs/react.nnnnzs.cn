@@ -1,8 +1,3 @@
----
-description: "包管理和常用命令"
-globs: ["package.json", "pnpm-lock.yaml"]
-alwaysApply: false
----
 
 # 包管理和常用命令
 

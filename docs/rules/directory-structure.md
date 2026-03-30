@@ -1,7 +1,3 @@
----
-description: "项目目录结构说明"
-alwaysApply: false
----
 # 目录结构
 
 ## 完整目录树
@@ -101,9 +97,9 @@ src/
 
 docs/                             # 项目文档
 ├── plans/                        # 项目计划列表
-└── designs/                      # 功能详细设计文档
+├── designs/                      # 功能详细设计文档
+└── rules/                        # 开发规范文档
 
-.cursor/rules/                    # Cursor IDE 规范文件
 prisma/                           # Prisma Schema 定义
 ```
 

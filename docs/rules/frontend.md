@@ -1,10 +1,14 @@
----
-description: "前端开发规范 - React/Next.js 组件和页面"
-globs: ["src/app/**/*.tsx", "src/components/**/*.tsx", "src/contexts/**/*.tsx"]
-alwaysApply: false
----
 
 # 前端开发规范
+
+> **本文档定位**: 开发者操作手册 - 说明如何正确实现前端页面和组件
+>
+> 本规范定义了 Next.js App Router、React 19、Ant Design 等前端开发标准。
+>
+> **相关功能设计文档**:
+> - [合集功能设计](../designs/collection-design.md) - 文章合集的前端实现
+> - [评论系统设计](../designs/comment-system-design.md) - 评论功能的前端组件
+> - [性能优化计划](../designs/performance-optimization-plan.md) - 前端性能优化实施记录
 
 ## Next.js App Router 约定
 

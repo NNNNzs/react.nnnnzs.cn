@@ -1,8 +1,13 @@
----
-description: "数据库开发规范 - Prisma ORM 和 MySQL"
-alwaysApply: false
----
 # 数据库开发规范
+
+> **本文档定位**: 开发者操作手册 - 说明如何正确使用 Prisma 和 MySQL
+>
+> 本规范定义了数据库模型定义、迁移、查询优化等开发标准。
+>
+> **相关功能设计文档**:
+> - [实体变更日志设计](../designs/entity-change-design.md) - 数据变更追踪系统的数据库设计
+> - [评论系统设计](../designs/comment-system-design.md) - 评论功能的数据库模型
+> - [合集功能设计](../designs/collection-design.md) - 文章合集的数据库设计
 
 ## 数据库技术栈
 

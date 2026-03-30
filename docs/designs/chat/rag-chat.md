@@ -383,8 +383,8 @@ toolRegistry.register(myTool);
 
 - [语义搜索](../search/semantic-search.md)
 - [向量化总览](../vector/overview.md)
-- [前端开发规范](../../.cursor/rules/frontend.mdc)
-- [后端开发规范](../../.cursor/rules/backend.mdc)
+- [前端开发规范](../../rules/frontend.md)
+- [后端开发规范](../../rules/backend.md)
 
 ---
 

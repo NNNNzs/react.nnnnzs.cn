@@ -128,7 +128,7 @@ docs/designs/
 
 ## 🔗 相关资源
 
-- [Cursor 规则](../../.cursor/rules/) - 项目开发规范
+- [开发规范](../../docs/rules/) - 项目开发规范
 - [技术参考](../reference/) - 技术文档索引
 - [计划文档](../plans/) - 开发计划
 

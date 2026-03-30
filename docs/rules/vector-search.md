@@ -1,21 +1,21 @@
----
-description: "向量检索与向量化系统规范"
-globs: ["src/services/embedding/**", "src/lib/qdrant.ts", "src/app/api/ai/**"]
-alwaysApply: false
----
 
-# 向量检索与向量化系统
+# 向量检索与向量化系统开发规范
 
-## 设计文档
+> **本文档定位**: 开发者操作手册 - 说明如何正确使用向量检索相关功能
+>
+> 本规范定义了向量检索系统的核心组件、开发规范和注意事项。
+>
+> **设计原理和架构**详见: [向量化系统总览](../designs/vector/overview.md)
 
-**详细设计文档**:
-- [向量化总览](../../docs/designs/vector/overview.md) - 系统整体架构
-- [文本切片](../../docs/designs/vector/chunking.md) - Markdown 分块策略
-- [向量存储](../../docs/designs/vector/storage.md) - Qdrant 集成
-- [向量化队列](../../docs/designs/vector/queue.md) - 异步队列系统
-- [语义搜索](../../docs/designs/search/semantic-search.md) - 向量检索
+## 📚 相关设计文档
 
-在修改向量检索相关代码前，请先阅读设计文档以了解整体架构。
+在修改向量检索相关代码前，建议先阅读设计文档以了解整体架构：
+
+- [向量化总览](../designs/vector/overview.md) - 系统整体架构
+- [文本切片](../designs/vector/chunking.md) - Markdown 分块策略
+- [向量存储](../designs/vector/storage.md) - Qdrant 集成
+- [向量化队列](../designs/vector/queue.md) - 异步队列系统
+- [语义搜索](../designs/search/semantic-search.md) - 向量检索实现
 
 ## 核心组件
 

@@ -1,8 +1,3 @@
----
-description: "项目计划管理规范"
-globs: ["docs/plans/**/*.md"]
-alwaysApply: false
----
 
 # 项目计划管理规范
 
@@ -64,7 +59,7 @@ flowchart TB
 - ❌ 禁止使用 ASCII 艺术图
 - ❌ 禁止使用图片格式的图表
 
-详见：[代码风格规范 - 文档图表规范](.cursor/rules/code-style.mdc)
+详见：[代码风格规范 - 文档图表规范](code-style.md)
 
 ## 计划状态管理
 
@@ -164,7 +159,7 @@ rm docs/plans/feature-name.md
    - 更新 `project-overview.mdc`
 
 2. **如果涉及技术栈变更**
-   - 更新 `project-overview.mdc`
+   - 更新 `project-overview.md`
    - 更新相关的技术规范
 
 3. **如果引入新的开发模式**
@@ -188,8 +183,8 @@ mv docs/plans/vector-search.md docs/designs/vector-search.md
 # 编辑设计文档，移除待办事项，保留技术细节
 
 # 创建规则引用
-# .cursor/rules/vector-search.mdc 中引用：
-# "详见：docs/designs/vector-search.md"
+# docs/rules/vector-search.md 中引用：
+# "详见：docs/designs/vector/overview.md"
 ```
 
 ### 示例 2：一次性重构 → 删除

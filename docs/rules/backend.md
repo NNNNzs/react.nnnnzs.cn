@@ -1,8 +1,14 @@
----
-description: "后端开发规范 - API 路由和服务层"
-alwaysApply: false
----
 # 后端开发规范
+
+> **本文档定位**: 开发者操作手册 - 说明如何正确实现后端 API 和服务层
+>
+> 本规范定义了 Next.js API 路由、服务层、认证授权等开发标准。
+>
+> **相关功能设计文档**:
+> - [权限系统设计](../designs/permission-design.md) - 多层权限防护架构
+> - [MCP OAuth 2.0 设计](../designs/mcp-oauth-design.md) - OAuth 认证集成
+> - [评论系统设计](../designs/comment-system-design.md) - 评论功能实现
+> - [实体变更日志设计](../designs/entity-change-design.md) - 数据追踪系统
 
 ## API 路由规范
 

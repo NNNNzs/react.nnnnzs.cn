@@ -1,7 +1,13 @@
 # MCP OAuth 2.0 认证升级总结
 
-**时间**: 2026-01-15
-**目标**: 将 MCP 服务从自定义 Headers 认证升级为 OAuth 2.0 标准，兼容 Claude Code CLI
+> **本文档定位**: 技术设计文档 - 说明 MCP OAuth 2.0 认证的设计方案和实施步骤
+>
+> **时间**: 2026-01-15
+> **目标**: 将 MCP 服务从自定义 Headers 认证升级为 OAuth 2.0 标准，兼容 Claude Code CLI
+>
+> **开发实施规范**详见:
+> - [后端开发规范](../rules/backend.md) - MCP API 路由实现
+> - [权限系统开发规范](../rules/permission.md) - OAuth 权限验证
 
 ---
 
