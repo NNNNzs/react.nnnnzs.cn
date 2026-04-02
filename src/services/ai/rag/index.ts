@@ -1,5 +1,5 @@
 /**
- * 简单 RAG (Retrieval-Augmented Generation) 服务
+ * RAG (Retrieval-Augmented Generation) 服务
  * 基于 LangChain 实现，复用现有的 AI 模块和向量检索
  *
  * 架构：
@@ -8,6 +8,10 @@
  * 3. 调用 LLM 生成答案
  * 4. 带标签的流式返回（展示中间步骤）
  */
+
+// 导出 RAG Agent 服务（ReAct 范式）
+export { chatRAGAgentStream } from './agent';
+export type { RAGAgentParams } from './agent';
 
 import { ChatPromptTemplate, createAIChain } from '@/lib/ai';
 import { embedText } from '@/services/embedding/embedding';
