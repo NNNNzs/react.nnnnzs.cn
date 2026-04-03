@@ -1,13 +1,13 @@
 /**
  * 聊天 API 路由
  * POST /api/chat
- * 使用简单 RAG 架构和 SSE 流式响应
+ * 使用 ReAct Agent 驱动的 RAG 架构和 SSE 流式响应
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseUrl, getUserFromToken } from '@/lib/auth';
 import dayjs from 'dayjs';
-import { chatRAGStream } from '@/services/ai/rag';
+import { chatRAGAgentStream } from '@/services/ai/rag';
 import { createStreamResponse } from '@/lib/stream';
 
 /**
@@ -29,7 +29,7 @@ interface ChatRequest {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message } = body as ChatRequest;
+    const { message, history } = body as ChatRequest;
 
     // 参数验证
     if (!message || message.trim().length === 0) {
@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
       ? `用户已登录，昵称：${user.nickname || user.account}${user.role ? `（${user.role}）` : ''}`
       : '用户未登录（游客模式）';
 
-    // 调用 RAG 服务（流式响应）
-    const stream = await chatRAGStream({
+    // 调用 RAG Agent 服务（流式响应，ReAct 范式）
+    const stream = await chatRAGAgentStream({
       question: message,
       userInfo,
       siteName,
       currentTime,
       baseUrl,
-      retrievalLimit: 10,
+      history: history || [],
     });
 
     // 返回流式响应（使用 createStreamResponse 确保正确的分块传输）
@@ -81,6 +81,6 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: true,
-    message: '聊天 API 正常运行（简单 RAG 模式）',
+    message: '聊天 API 正常运行（ReAct Agent 驱动的 RAG 模式）',
   });
 }
