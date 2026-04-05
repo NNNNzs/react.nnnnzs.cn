@@ -132,10 +132,8 @@ export const chatRAGAgentStream = async (
   return new ReadableStream({
     async start(controller) {
       try {
-        // 构建系统提示词
-        controller.enqueue(
-          tagGenerator.generateThink('🧠 **正在初始化 RAG Agent...\n**')
-        );
+        // 状态提示
+        controller.enqueue(tagGenerator.generateThink('正在初始化 RAG Agent...'));
 
         const systemPrompt = await buildRAGAgentSystemPrompt(params);
 
@@ -152,12 +150,11 @@ export const chatRAGAgentStream = async (
 
         const agent = createReactAgent(agentConfig);
 
-        controller.enqueue(
-          tagGenerator.generateThink('🔍 **开始思考和检索...\n**')
-        );
+        controller.enqueue(tagGenerator.generateThink('开始思考和检索...'));
 
-        // 开始 content 标签
-        controller.enqueue(tagGenerator.startContent());
+        // ReAct 循环状态追踪
+        let stepIndex = 0;
+        let inThoughtStep = false;
 
         // 运行 Agent
         await agent.run({
@@ -165,31 +162,40 @@ export const chatRAGAgentStream = async (
           history,
           onEvent: async (event) => {
             switch (event.type) {
-              case 'thought':
-                // 思考过程 - 发送到 think 标签
-                // 注意：这里需要重新打开 think 标签
-                // 但由于 StreamTagGenerator 的限制，我们直接发送内容
-                // 前端会处理这些内容的显示
-                const thoughtText = typeof event.data === 'string' ? event.data : '';
-                if (thoughtText) {
-                  controller.enqueue(encoder.encode(thoughtText));
+              case 'thought': {
+                // 模型流式输出思考内容
+                const text = typeof event.data === 'string' ? event.data : '';
+                if (text) {
+                  if (!inThoughtStep) {
+                    // 开始新的 thought step
+                    stepIndex++;
+                    inThoughtStep = true;
+                    controller.enqueue(tagGenerator.startStep('thought', stepIndex));
+                  }
+                  controller.enqueue(encoder.encode(text));
                 }
                 break;
+              }
 
-              case 'action':
-                // 工具调用 - 显示正在搜索
+              case 'action': {
+                // 结束流式 thought step
+                if (inThoughtStep) {
+                  controller.enqueue(tagGenerator.endStep());
+                  inThoughtStep = false;
+                }
+
                 const actionData = event.data as { method?: string; params?: Record<string, unknown> };
                 if (actionData.method === 'search_articles') {
                   const query = actionData.params?.query || '';
                   const limit = actionData.params?.limit || 5;
                   controller.enqueue(
-                    encoder.encode(`\n\n🔍 *正在搜索：${query}（共 ${limit} 篇）...*\n\n`)
+                    tagGenerator.generateStep('action', stepIndex, `搜索文章：${query}（共 ${limit} 篇）`)
                   );
                 }
                 break;
+              }
 
-              case 'observation':
-                // 工具结果 - 显示检索到的文章
+              case 'observation': {
                 const obsData = event.data as { result?: { results?: Array<{ title: string; score?: number }> } };
                 if (obsData.result?.results) {
                   const results = obsData.result.results;
@@ -197,40 +203,56 @@ export const chatRAGAgentStream = async (
                     .map((r, i) => `${i + 1}. ${r.title}`)
                     .join('\n');
                   controller.enqueue(
-                    encoder.encode(`\n📚 *找到 ${results.length} 篇相关文章：*\n${resultText}\n\n`)
+                    tagGenerator.generateStep('observation', stepIndex, `找到 ${results.length} 篇相关文章：\n${resultText}`)
                   );
                 }
                 break;
+              }
 
-              case 'answer':
-                // 最终答案 - 发送到 content
+              case 'answer': {
+                // 结束可能未关闭的 thought step
+                if (inThoughtStep) {
+                  controller.enqueue(tagGenerator.endStep());
+                  inThoughtStep = false;
+                }
+                // 开始 content 标签输出最终答案
+                controller.enqueue(tagGenerator.startContent());
                 const answerText = typeof event.data === 'string' ? event.data : '';
                 if (answerText) {
                   controller.enqueue(encoder.encode(answerText));
                 }
                 break;
+              }
 
-              case 'error':
-                // 错误信息
+              case 'error': {
+                if (inThoughtStep) {
+                  controller.enqueue(tagGenerator.endStep());
+                  inThoughtStep = false;
+                }
                 const errorData = event.data as { message?: string };
-                console.error('❌ RAG Agent 错误:', errorData.message);
+                console.error('RAG Agent 错误:', errorData.message);
                 controller.enqueue(
-                  encoder.encode(`\n\n❌ *抱歉，处理过程中出现错误：${errorData.message}*\n`)
+                  tagGenerator.generateThink(`处理出错：${errorData.message}`)
                 );
                 break;
+              }
 
-              case 'done':
-                // 完成 - 结束 content 标签并关闭流
+              case 'done': {
+                if (inThoughtStep) {
+                  controller.enqueue(tagGenerator.endStep());
+                  inThoughtStep = false;
+                }
                 controller.enqueue(tagGenerator.endContent());
                 controller.close();
                 break;
+              }
             }
           },
         });
       } catch (error) {
-        console.error('❌ RAG Agent 运行失败:', error);
+        console.error('RAG Agent 运行失败:', error);
         controller.enqueue(
-          tagGenerator.generateThink(`❌ *RAG Agent 运行失败：${error instanceof Error ? error.message : '未知错误'}*\n`)
+          tagGenerator.generateThink(`RAG Agent 运行失败：${error instanceof Error ? error.message : '未知错误'}`)
         );
         controller.error(error);
       }

@@ -108,6 +108,7 @@ export class ReactAgent {
       // ReAct 循环
       let iteration = 0;
       let shouldContinue = true;
+      let hasToolExecuted = false;
 
       while (shouldContinue && iteration < this.maxIterations) {
         iteration++;
@@ -195,45 +196,63 @@ export class ReactAgent {
           
           // 继续下一轮迭代
           shouldContinue = true;
+          hasToolExecuted = true;
         } else {
           // 没有工具调用，说明得出了最终答案
           if (this.verbose) {
             console.log('✅ 模型给出最终答案');
           }
 
+          // 处理模型返回空响应的情况（工具执行后模型未生成答案）
+          if (!responseText.trim()) {
+            if (hasToolExecuted) {
+              console.warn('⚠️ 模型返回空响应，已执行过工具，使用兜底提示');
+              await onEvent?.({
+                type: 'answer',
+                data: '抱歉，我在检索到了相关文章后未能生成有效的回答。请尝试换个方式提问。',
+              });
+            } else {
+              console.warn('⚠️ 模型返回空响应，未执行工具');
+              await onEvent?.({
+                type: 'answer',
+                data: '抱歉，我暂时无法回答这个问题。请稍后再试。',
+              });
+            }
+            shouldContinue = false;
+            break;
+          }
+
           // 移除响应中的工具调用相关内容（如果有）
           let cleanedResponse = this.cleanResponse(responseText);
-          
+
           if (this.verbose) {
             console.log('📝 原始响应长度:', responseText.length);
             console.log('📝 清理后响应长度:', cleanedResponse.length);
             console.log('📝 清理后响应内容:', cleanedResponse.substring(0, 200));
           }
-          
+
           // 如果清理后为空，尝试更宽松的清理方式
           if (!cleanedResponse.trim()) {
-            // 只移除代码块标记，保留内容
             cleanedResponse = responseText
               .replace(/```json-rpc\s*/g, '')
               .replace(/```\s*/g, '')
               .trim();
-            
+
             if (this.verbose) {
               console.log('📝 宽松清理后响应长度:', cleanedResponse.length);
             }
           }
-          
+
           // 如果还是为空，使用原始响应（移除明显的 JSON-RPC 结构）
           if (!cleanedResponse.trim()) {
-            // 尝试提取 JSON-RPC 代码块之外的内容
             const jsonRpcBlockRegex = /```json-rpc\s*[\s\S]*?```/g;
             cleanedResponse = responseText.replace(jsonRpcBlockRegex, '').trim();
-            
+
             if (this.verbose) {
               console.warn('⚠️ 清理后的响应为空，使用原始响应（移除代码块）');
             }
           }
-          
+
           // 发送最终答案（确保有内容）
           const finalAnswer = cleanedResponse.trim() || responseText.trim();
           if (finalAnswer) {

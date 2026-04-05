@@ -3,7 +3,7 @@
  * 包含客户端和服务端的流式响应处理
  */
 
-import { StreamTagParser, type StreamTag } from './stream-tags';
+import { StreamTagParser, type StreamTag, type StepType } from './stream-tags';
 
 /**
  * 创建流式响应的选项
@@ -49,7 +49,12 @@ export interface StreamTagProcessOptions {
    * think 标签回调函数，收到 think 标签时调用
    */
   onThink?: (content: string) => void;
-  
+
+  /**
+   * step 标签回调函数，收到 step 标签时调用
+   */
+  onStep?: (content: string, stepType: StepType, stepIndex: number) => void;
+
   /**
    * content 标签回调函数，每次收到 content 标签内容时调用（流式）
    */
@@ -155,7 +160,7 @@ export const processStreamResponseWithTags = async (
   response: Response,
   options: StreamTagProcessOptions = {}
 ): Promise<void> => {
-  const { onThink, onContent, onComplete, onError } = options;
+  const { onThink, onStep, onContent, onComplete, onError } = options;
 
   if (!response.ok) {
     const error = new Error(`HTTP error! status: ${response.status}`);
@@ -181,6 +186,8 @@ export const processStreamResponseWithTags = async (
         parser.finish((tag: StreamTag) => {
           if (tag.type === 'think') {
             onThink?.(tag.content);
+          } else if (tag.type === 'step') {
+            onStep?.(tag.content, tag.stepType!, tag.stepIndex!);
           } else if (tag.type === 'content') {
             onContent?.(tag.content);
           }
@@ -194,6 +201,8 @@ export const processStreamResponseWithTags = async (
         parser.parseChunk(value, (tag: StreamTag) => {
           if (tag.type === 'think') {
             onThink?.(tag.content);
+          } else if (tag.type === 'step') {
+            onStep?.(tag.content, tag.stepType!, tag.stepIndex!);
           } else if (tag.type === 'content') {
             onContent?.(tag.content);
           }

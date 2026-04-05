@@ -3,8 +3,8 @@
 /**
  * 聊天页面
  * 使用 Ant Design X 组件实现知识库检索对话
- * 使用简单 RAG 架构（单步检索 → 生成）
- * 支持 Think 组件展示思考过程和打字机效果
+ * 使用 ReAct Agent 驱动的 RAG 架构
+ * 支持多轮 ReAct 循环步骤展示和打字机效果
  */
 
 import React, {
@@ -18,12 +18,34 @@ import {
   UserOutlined,
   RobotOutlined,
   ClearOutlined,
+  BulbOutlined,
+  SearchOutlined,
+  FileTextOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import { Bubble, Sender, Think } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
-import { Typography, Button, message as antdMessage } from "antd";
+import { Typography, Button, Collapse, message as antdMessage } from "antd";
+import type { StepType } from "@/lib/stream-tags";
 
 const { Title } = Typography;
+
+/**
+ * 单个 ReAct 步骤
+ */
+interface ReactStep {
+  type: StepType;
+  content: string;
+  isStreaming?: boolean;
+}
+
+/**
+ * 一轮 ReAct 循环（thought + action + observation）
+ */
+interface ReactLoop {
+  index: number;
+  steps: ReactStep[];
+}
 
 /**
  * 消息类型定义
@@ -32,10 +54,59 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  thoughts: string[]; // 思考过程列表
+  thoughts: string[];
+  reactLoops: ReactLoop[];
   loading?: boolean;
-  expanded?: boolean; // 思考面板展开状态
+  expanded?: boolean;
 }
+
+/**
+ * 步骤图标和标签配置
+ */
+const STEP_CONFIG: Record<
+  StepType,
+  { icon: React.ReactNode; label: string; color: string }
+> = {
+  thought: { icon: <BulbOutlined />, label: "思考", color: "#faad14" },
+  action: { icon: <SearchOutlined />, label: "搜索", color: "#1890ff" },
+  observation: { icon: <FileTextOutlined />, label: "结果", color: "#52c41a" },
+};
+
+/**
+ * 过滤 thought 中的 JSON-RPC 代码块
+ */
+function filterJsonRpc(text: string): string {
+  return text.replace(/```json-rpc\s*[\s\S]*?```/g, "").trim();
+}
+
+/**
+ * ReactStepItem 组件 - 展示单个 ReAct 步骤
+ */
+const ReactStepItem: React.FC<{ step: ReactStep }> = React.memo(({ step }) => {
+  const config = STEP_CONFIG[step.type];
+
+  const displayContent = useMemo(() => {
+    if (step.type !== "thought") return step.content;
+    return step.isStreaming ? step.content : filterJsonRpc(step.content);
+  }, [step.content, step.type, step.isStreaming]);
+
+  if (!displayContent) return null;
+
+  return (
+    <div className="flex items-start gap-2 text-sm leading-relaxed">
+      <span style={{ color: config.color, marginTop: 2 }}>{config.icon}</span>
+      <span className="font-medium text-gray-500 shrink-0">{config.label}</span>
+      <span className="text-gray-700">
+        {displayContent}
+        {step.isStreaming && (
+          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle" />
+        )}
+      </span>
+    </div>
+  );
+});
+
+ReactStepItem.displayName = "ReactStepItem";
 
 /**
  * MessageContent 组件属性
@@ -43,6 +114,7 @@ interface ChatMessage {
 interface MessageContentProps {
   content: string;
   thoughts: string[];
+  reactLoops: ReactLoop[];
   loading?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
@@ -50,62 +122,99 @@ interface MessageContentProps {
 
 /**
  * MessageContent 组件
- * 使用 Think 组件展示思考过程和最终答案
+ * 使用 Think 展示状态提示，Collapse 展示 ReAct 多轮循环，XMarkdown 展示最终答案
  */
-const MessageContent: React.FC<MessageContentProps> = React.memo(({
-  content,
-  thoughts = [],
-  loading,
-  expanded,
-  onToggle,
-}) => {
-  // 将所有思考内容合并为一个字符串
-  const thoughtContent = useMemo(() => {
-    return thoughts.join('\n\n---\n\n');
-  }, [thoughts]);
+const MessageContent: React.FC<MessageContentProps> = React.memo(
+  ({
+    content,
+    thoughts = [],
+    reactLoops = [],
+    loading,
+    expanded,
+    onToggle,
+  }) => {
+    const thoughtContent = useMemo(() => {
+      return thoughts.join("\n\n");
+    }, [thoughts]);
 
-  // 使用 useMemo 计算标题和展开状态
-  const [title, defaultExpanded] = useMemo(() => {
-    if (loading) {
-      return ['正在思考...', true];
-    } else {
-      return ['思考完成', false];
-    }
-  }, [loading]);
+    const [title, defaultExpanded] = useMemo(() => {
+      if (loading) {
+        return ["正在思考...", true];
+      }
+      return ["思考完成", false];
+    }, [loading]);
 
-  // 优先使用传入的 expanded，否则使用默认值
-  const isExpanded = expanded !== undefined ? expanded : defaultExpanded;
+    const isExpanded = expanded !== undefined ? expanded : defaultExpanded;
 
-  return (
-    <div>
-      {loading && !content && thoughts.length === 0 ? (
-        <div className="text-gray-400 flex items-center gap-2">
-          <RobotOutlined spin />
-          <span>正在思考...</span>
-        </div>
-      ) : (
-        <>
-          {/* 思考过程折叠面板 */}
-          {thoughts.length > 0 && (
-            <Think
-              title={title}
-              loading={loading}
-              expanded={isExpanded}
-              onClick={onToggle}
-            >
-              {thoughtContent}
-            </Think>
-          )}
+    const collapseItems = useMemo(() => {
+      return reactLoops.map((loop) => ({
+        key: `loop-${loop.index}`,
+        label: (
+          <span className="flex items-center gap-2">
+            <span>第 {loop.index} 轮检索</span>
+            {loop.steps.some((s) => s.isStreaming) && <LoadingOutlined />}
+          </span>
+        ),
+        children: (
+          <div className="space-y-2">
+            {loop.steps.map((step, stepIdx) => (
+              <ReactStepItem key={`${loop.index}-${stepIdx}`} step={step} />
+            ))}
+          </div>
+        ),
+      }));
+    }, [reactLoops]);
 
-          {/* 正文内容 */}
-          {content && <XMarkdown>{content}</XMarkdown>}
-        </>
-      )}
-    </div>
-  );
-});
+    // 默认只展开最后一轮
+    const defaultActiveKeys = useMemo(() => {
+      if (reactLoops.length === 0) return [];
+      return [`loop-${reactLoops[reactLoops.length - 1].index}`];
+    }, [reactLoops]);
 
-MessageContent.displayName = 'MessageContent';
+    return (
+      <div>
+        {loading &&
+        !content &&
+        thoughts.length === 0 &&
+        reactLoops.length === 0 ? (
+          <div className="text-gray-400 flex items-center gap-2">
+            <RobotOutlined spin />
+            <span>正在思考...</span>
+          </div>
+        ) : (
+          <>
+            {/* 状态提示（初始化信息） */}
+            {thoughts.length > 0 && (
+              <Think
+                title={title}
+                loading={loading}
+                expanded={isExpanded}
+                onClick={onToggle}
+              >
+                {thoughtContent}
+              </Think>
+            )}
+
+            {/* ReAct 多轮循环展示 */}
+            {reactLoops.length > 0 && (
+              <Collapse
+                size="small"
+                defaultActiveKey={defaultActiveKeys}
+                className="mb-3"
+                items={collapseItems}
+              />
+            )}
+
+            {/* 最终答案 */}
+            {content && <XMarkdown>{content}</XMarkdown>}
+          </>
+        )}
+      </div>
+    );
+  },
+);
+
+MessageContent.displayName = "MessageContent";
 
 /**
  * 聊天页面组件
@@ -141,6 +250,7 @@ export default function ChatPage() {
         role: "user",
         content: text,
         thoughts: [],
+        reactLoops: [],
       };
 
       // 添加 AI 消息占位符
@@ -150,8 +260,9 @@ export default function ChatPage() {
         role: "assistant",
         content: "",
         thoughts: [],
+        reactLoops: [],
         loading: true,
-        expanded: true, // 初始展开
+        expanded: true,
       };
 
       setMessages((prev) => [...prev, userMessage, aiMessage]);
@@ -177,68 +288,125 @@ export default function ChatPage() {
         }
 
         // 使用流式标签解析器
-        const { processStreamResponseWithTags } = await import('@/lib/stream');
+        const { processStreamResponseWithTags } = await import("@/lib/stream");
         await processStreamResponseWithTags(response, {
           onThink: (thinkContent) => {
-            console.log('💭 思考:', thinkContent);
-            // 添加到思考列表
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== aiMessageId) return msg;
+                return { ...msg, thoughts: [...msg.thoughts, thinkContent] };
+              }),
+            );
+          },
+          onStep: (stepContent, stepType, stepIndex) => {
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
 
-                return {
-                  ...msg,
-                  thoughts: [...msg.thoughts, thinkContent],
-                };
-              })
+                const loops = [...msg.reactLoops];
+
+                // 确保 loops 数组有足够长度
+                while (loops.length < stepIndex) {
+                  loops.push({ index: loops.length + 1, steps: [] });
+                }
+
+                const currentLoop = { ...loops[stepIndex - 1] };
+
+                if (stepType === "thought") {
+                  // thought 是流式的，追加到最后一个 thought 步骤
+                  const lastStep =
+                    currentLoop.steps[currentLoop.steps.length - 1];
+                  if (
+                    lastStep &&
+                    lastStep.type === "thought" &&
+                    lastStep.isStreaming
+                  ) {
+                    const updatedSteps = [...currentLoop.steps];
+                    updatedSteps[updatedSteps.length - 1] = {
+                      ...lastStep,
+                      content: lastStep.content + stepContent,
+                    };
+                    currentLoop.steps = updatedSteps;
+                  } else {
+                    // 新建 thought 步骤，同时将前一个 thought 标记为完成
+                    const updatedSteps = currentLoop.steps.map((s) =>
+                      s.type === "thought" && s.isStreaming
+                        ? { ...s, isStreaming: false }
+                        : s,
+                    );
+                    currentLoop.steps = [
+                      ...updatedSteps,
+                      {
+                        type: "thought",
+                        content: stepContent,
+                        isStreaming: true,
+                      },
+                    ];
+                  }
+                } else {
+                  // action / observation 是完整的，将前一个 thought 标记为完成
+                  const updatedSteps = currentLoop.steps.map((s) =>
+                    s.type === "thought" && s.isStreaming
+                      ? { ...s, isStreaming: false }
+                      : s,
+                  );
+                  currentLoop.steps = [
+                    ...updatedSteps,
+                    {
+                      type: stepType,
+                      content: stepContent,
+                      isStreaming: false,
+                    },
+                  ];
+                }
+
+                loops[stepIndex - 1] = currentLoop;
+                return { ...msg, reactLoops: loops };
+              }),
             );
           },
           onContent: (contentChunk) => {
-            // 累积内容
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
-
-                const newContent = msg.content + contentChunk;
-                return {
-                  ...msg,
-                  content: newContent,
-                };
-              })
+                return { ...msg, content: msg.content + contentChunk };
+              }),
             );
           },
           onComplete: () => {
-            console.log('✅ 流式响应完成');
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
-
                 return {
                   ...msg,
                   loading: false,
-                  expanded: false, // 完成后自动折叠
+                  expanded: false,
+                  reactLoops: msg.reactLoops.map((loop) => ({
+                    ...loop,
+                    steps: loop.steps.map((step) => ({
+                      ...step,
+                      isStreaming: false,
+                    })),
+                  })),
                 };
-              })
+              }),
             );
           },
           onError: (error) => {
-            console.error('❌ 流式响应错误:', error);
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
-
                 return {
                   ...msg,
                   loading: false,
                   content: error.message,
                 };
-              })
+              }),
             );
           },
         });
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
-          // 请求被取消，不显示错误
           return;
         }
 
@@ -246,12 +414,12 @@ export default function ChatPage() {
           prev.map((msg) =>
             msg.id === aiMessageId
               ? {
-                ...msg,
-                content: error instanceof Error ? error.message : "请求失败",
-                loading: false,
-              }
-              : msg
-          )
+                  ...msg,
+                  content: error instanceof Error ? error.message : "请求失败",
+                  loading: false,
+                }
+              : msg,
+          ),
         );
         antdMessage.error(error instanceof Error ? error.message : "请求失败");
       } finally {
@@ -259,7 +427,7 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [isRequesting]
+    [isRequesting],
   );
 
   /**
@@ -276,14 +444,13 @@ export default function ChatPage() {
         avatar: () => <UserOutlined />,
       },
     }),
-    []
+    [],
   );
 
   /**
    * 清空消息
    */
   const handleClear = useCallback(() => {
-    // 取消进行中的请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -299,8 +466,8 @@ export default function ChatPage() {
   const toggleMessageExpanded = useCallback((messageId: string) => {
     setMessages((prev) =>
       prev.map((msg) =>
-        msg.id === messageId ? { ...msg, expanded: !msg.expanded } : msg
-      )
+        msg.id === messageId ? { ...msg, expanded: !msg.expanded } : msg,
+      ),
     );
   }, []);
 
@@ -319,6 +486,7 @@ export default function ChatPage() {
             <MessageContent
               content={msg.content}
               thoughts={msg.thoughts}
+              reactLoops={msg.reactLoops}
               loading={msg.loading}
               expanded={msg.expanded}
               onToggle={() => toggleMessageExpanded(msg.id)}
@@ -404,7 +572,7 @@ export default function ChatPage() {
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <Typography.Text type="secondary" className="text-center">
-                “我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。”
+                &quot;我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。&quot;
               </Typography.Text>
             </div>
           ) : (
