@@ -1,52 +1,40 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import HomePageClient from '@/components/HomePageClient';
 import type { Post } from '@/types';
-
-const PAGE_SIZE = 10;
 
 interface HomePageContainerProps {
   posts: Post[];
   total: number;
+  currentPageNum: number;
 }
 
 /**
  * 首页容器组件
- * 负责处理加载更多的逻辑，通过客户端 API 调用加载更多文章
+ * 负责处理加载更多的逻辑，通过更新 URL 参数触发服务端重新渲染
  */
 export default function HomePageContainer({
-  posts: initialPosts,
+  posts,
   total,
+  currentPageNum,
 }: HomePageContainerProps) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
-  const [loading, setLoading] = useState(false);
-  const loadingRef = useRef(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   /**
-   * 加载更多 - 通过客户端 API 调用
+   * 加载更多
+   * 通过更新 URL 的 pageNum 参数，触发服务端重新渲染
    */
-  const handleLoadMore = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
+  const handleLoadMore = useCallback(() => {
+    const nextPageNum = currentPageNum + 1;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('pageNum', String(nextPageNum));
 
-    try {
-      // 使用当前 posts 长度计算下一页，避免依赖 state 闭包
-      const nextPage = Math.floor(posts.length / PAGE_SIZE) + 1;
-      const res = await fetch(`/api/post/list?pageNum=${nextPage}&pageSize=${PAGE_SIZE}&hide=0`);
-      const json = await res.json();
-
-      if (json.status && json.data?.record) {
-        setPosts(prev => [...prev, ...json.data.record]);
-      }
-    } catch (error) {
-      console.error('加载更多文章失败:', error);
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-    }
-  }, [posts.length]);
+    // 使用 replace 更新 URL，触发服务端重新渲染
+    router.replace(`/?${params.toString()}`, { scroll: false });
+  }, [currentPageNum, router, searchParams]);
 
   // 计算是否还有更多数据
   const hasMore = posts.length < total;
@@ -55,7 +43,6 @@ export default function HomePageContainer({
     <HomePageClient
       posts={posts}
       hasMore={hasMore}
-      loading={loading}
       onLoadMore={handleLoadMore}
     />
   );

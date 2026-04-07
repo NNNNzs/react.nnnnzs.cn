@@ -1,6 +1,6 @@
 /**
- * 首页 - 文章列表（SSG 静态生成）
- * 首页数据在构建时静态生成，加载更多通过客户端 API 调用
+ * 首页 - 文章列表
+ * 参考 nnnnzs.cn/pages/index.vue 的设计
  */
 
 import { getPostList } from "@/services/post";
@@ -10,6 +10,12 @@ import Footer from "@/components/Footer";
 
 // 每页固定条数
 const PAGE_SIZE = 10;
+
+interface HomeProps {
+  searchParams: Promise<{
+    pageNum?: string;
+  }>;
+}
 
 /**
  * 获取首页文章列表（使用 unstable_cache + 标签）
@@ -30,18 +36,26 @@ const getCachedPosts = unstable_cache(
   }
 );
 
-// 强制静态生成，避免每次请求重新执行服务端组件导致客户端 state 被重置
-export const dynamic = 'force-static';
+export default async function Home({ searchParams }: HomeProps) {
+  // 从 URL query 参数读取页码，默认为 1
+  const params = await searchParams;
+  const pageNum = params.pageNum ? parseInt(params.pageNum, 10) : 1;
 
-export default async function Home() {
-  // 静态获取第一页数据（不再依赖 searchParams，实现 SSG）
-  const { record, total } = await getCachedPosts(PAGE_SIZE);
+  // 确保参数有效
+  const validPageNum = pageNum > 0 ? pageNum : 1;
+
+  // 计算需要加载的总条数（pageNum 页 × 每页10条）
+  const totalItemsToLoad = validPageNum * PAGE_SIZE;
+
+  // 获取所有需要的数据（从第1页到当前页）
+  const { record, total } = await getCachedPosts(totalItemsToLoad);
 
   return (
     <>
-      <HomePageContainer 
-        posts={record} 
+      <HomePageContainer
+        posts={record}
         total={total}
+        currentPageNum={validPageNum}
       />
       <Footer />
     </>
