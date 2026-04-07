@@ -48,9 +48,7 @@ jobs:
       || github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      ACR_REGISTRY: ccr.ccs.tencentyun.com
-      IMAGE_NAME: ccr.ccs.tencentyun.com/nnnnzs/react.nnnnzs.cn
-      LOCAL_IMAGE: react-nnnnzs-cn:release
+      IMAGE_NAME: nnnnzs/react-nnnnzs-cn
 
     steps:
       - name: 检出代码
@@ -76,15 +74,23 @@ jobs:
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 构建 Docker 镜像（本地加载，不推送）
+      - name: 登录 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.prod
           platforms: linux/amd64
-          push: false
-          load: true
-          tags: ${{ env.LOCAL_IMAGE }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
           cache-from: type=gha,scope=release-build
           cache-to: type=gha,scope=release-build,mode=max
           build-args: |
@@ -98,20 +104,7 @@ jobs:
             WX_APP_ID=${{ secrets.WX_APP_ID }}
             WX_APP_SECRET=${{ secrets.WX_APP_SECRET }}
 
-      - name: 导出镜像为 tar.gz
-        run: |
-          docker save ${{ env.LOCAL_IMAGE }} | gzip > /tmp/image.tar.gz
-          echo "镜像大小："
-          ls -lh /tmp/image.tar.gz
-
-      - name: 上传镜像为 GitHub Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/image.tar.gz
-          retention-days: 1
-
-      - name: 服务器下载镜像并部署
+      - name: 服务器部署
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -119,52 +112,12 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
-            set -e
-
-            # 获取 GitHub artifact 下载链接
-            # 使用 GitHub CLI 或直接用 API 下载
-            RUN_ID=${{ github.run_id }}
-            ARTIFACT_NAME="docker-image"
-            GH_TOKEN="Bearer ${{ secrets.GITHUB_TOKEN }}"
-
-            echo "==> 下载 Docker 镜像 artifact..."
-            mkdir -p /tmp/docker-deploy
-            cd /tmp/docker-deploy
-
-            # 使用 GitHub REST API 下载 artifact
-            curl -L \
-              -H "Authorization: ${GH_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
-              -o artifact-list.json
-
-            # 解析获取下载 URL
-            DOWNLOAD_URL=$(cat artifact-list.json | jq -r '.artifacts[] | select(.name=="docker-image") | .archive_download_url')
-            curl -L -H "Authorization: ${GH_TOKEN}" "${DOWNLOAD_URL}" -o image.zip
-            unzip -o image.zip
-            rm -f image.zip artifact-list.json
-
-            echo "==> 加载 Docker 镜像..."
-            docker load < /tmp/docker-deploy/image.tar.gz
-
-            echo "==> 登录腾讯云 ACR..."
-            echo "${{ secrets.ACR_PASSWORD }}" | docker login --username="${{ secrets.ACR_USERNAME }}" --password-stdin ${{ env.ACR_REGISTRY }}
-
-            echo "==> 推送镜像到 ACR..."
-            docker tag ${{ env.LOCAL_IMAGE }} ${{ env.IMAGE_NAME }}:latest
-            docker push ${{ env.IMAGE_NAME }}:latest
-
-            echo "==> 清理临时文件..."
-            rm -rf /tmp/docker-deploy
-
-            echo "==> 执行部署脚本..."
             cd ${{ secrets.DEPLOY_DIR }}
             if [ -f "${{ secrets.DEPLOY_SCRIPT }}" ]; then
               bash "${{ secrets.DEPLOY_SCRIPT }}"
             else
               ${{ secrets.DEPLOY_SCRIPT }}
             fi
-
             echo "✅ 部署完成！"
 
       - name: 生成构建摘要
@@ -177,7 +130,7 @@ jobs:
           echo "- **镜像名称**: \`${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit SHA**: \`${{ steps.version.outputs.SHORT_SHA }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **构建时间**: \`${{ steps.version.outputs.BUILD_DATE }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **部署方式**: GitHub Artifact 下载 + 服务器端推送到 ACR" >> $GITHUB_STEP_SUMMARY
+          echo "- **部署方式**: 推送到 Docker Hub + 服务器拉取部署" >> $GITHUB_STEP_SUMMARY
 
       - name: 发送部署成功通知
         if: success()

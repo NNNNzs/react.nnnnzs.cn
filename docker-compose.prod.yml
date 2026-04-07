@@ -1,14 +1,13 @@
 version: "3.8"
 
 # 生产环境 Docker Compose 配置
-# 镜像通过 GitHub Actions 构建后，使用 docker save 导出为 tar 包
-# 通过 scp 传输到服务器，使用 docker load 加载到本地
-# 不再从 DockerHub 拉取镜像
+# 镜像通过 GitHub Actions 构建后推送到 Docker Hub
+# 服务器通过 docker-compose pull 拉取最新镜像
 
 services:
   react-nnnnzs-cn:
-    # 使用阿里云 ACR 上的镜像
-    image: ccr.ccs.tencentyun.com/nnnnzs/react.nnnnzs.cn:latest
+    # 使用 Docker Hub 上的镜像
+    image: nnnnzs/react-nnnnzs-cn:latest
     container_name: react-nnnnzs-cn-prod
     restart: unless-stopped
     ports:

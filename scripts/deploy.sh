@@ -12,8 +12,7 @@ NC='\033[0m' # No Color
 
 # 配置
 COMPOSE_FILE="docker-compose.prod.yml"
-ACR_REGISTRY="ccr.ccs.tencentyun.com"
-IMAGE_NAME="${ACR_REGISTRY}/nnnnzs/react.nnnnzs.cn"
+IMAGE_NAME="nnnnzs/react-nnnnzs-cn"
 CONTAINER_NAME="react-nnnnzs-cn-prod"
 
 # 打印带颜色的消息
@@ -50,19 +49,19 @@ check_env() {
     fi
 }
 
-# 登录阿里云 ACR（如果需要）
-login_acr() {
-    # 如果提供了 ACR 用户名和密码，则登录
-    if [ -n "$ACR_USERNAME" ] && [ -n "$ACR_PASSWORD" ]; then
-        print_info "登录阿里云 ACR..."
-        echo "$ACR_PASSWORD" | docker login --username="$ACR_USERNAME" --password-stdin "$ACR_REGISTRY" || true
+# 登录 Docker Hub（如果需要）
+login_registry() {
+    # 如果提供了 Docker Hub 用户名和密码，则登录
+    if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+        print_info "登录 Docker Hub..."
+        echo "$DOCKERHUB_TOKEN" | docker login --username="$DOCKERHUB_USERNAME" --password-stdin docker.io || true
     fi
 }
 
 # 拉取最新镜像
 pull_image() {
     print_info "正在拉取最新镜像..."
-    login_acr
+    login_registry
     docker-compose -f $COMPOSE_FILE pull
 }
 
@@ -168,12 +167,12 @@ Docker 快速部署脚本
   $0 rollback        # 回滚到上一个版本
 
 环境变量:
-  ACR_USERNAME         阿里云 ACR 用户名（可选，用于登录拉取镜像）
-  ACR_PASSWORD         阿里云 ACR 密码（可选，用于登录拉取镜像）
+  DOCKERHUB_USERNAME   Docker Hub 用户名（可选，用于登录拉取镜像）
+  DOCKERHUB_TOKEN      Docker Hub Token（可选，用于登录拉取镜像）
 
 注意:
-  如果镜像仓库需要认证，请设置 ACR_USERNAME 和 ACR_PASSWORD 环境变量
-  或在执行部署前手动登录: docker login --username=<用户名> $ACR_REGISTRY
+  如果镜像仓库需要认证，请设置 DOCKERHUB_USERNAME 和 DOCKERHUB_TOKEN 环境变量
+  或在执行部署前手动登录: docker login --username=<用户名> docker.io
 
 EOF
 }
