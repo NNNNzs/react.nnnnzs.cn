@@ -202,3 +202,8 @@ body {
 .md-editor.md-editor-previewOnly .md-editor-preview {
   padding: 0 24px;
 }
+
+.x-markdown a{
+  color: var(--color-primary) !important;
+  text-decoration: none !important;
+}

@@ -270,6 +270,14 @@ export default function ChatPage() {
       setContent("");
 
       try {
+        // 构建历史对话（排除当前正在添加的消息）
+        const history = messages
+          .filter((msg) => msg.id !== userMessageId && msg.id !== aiMessageId)
+          .map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          }));
+
         // 发起流式请求
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -278,6 +286,7 @@ export default function ChatPage() {
           },
           body: JSON.stringify({
             message: text,
+            history,
           }),
           signal: abortController.signal,
         });

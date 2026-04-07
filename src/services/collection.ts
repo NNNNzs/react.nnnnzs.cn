@@ -473,3 +473,63 @@ export async function incrementCollectionLikes(id: number) {
     return false;
   }
 }
+
+/**
+ * 合集简要信息（用于 RAG 上下文）
+ */
+export interface CollectionSummary {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  articleCount: number;
+  postIds: number[];
+}
+
+/**
+ * 获取所有已发布合集的简要信息
+ * 用于 RAG Agent 上下文，包含合集名称、描述和文章 ID 列表
+ */
+export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
+  const prisma = await getPrisma();
+
+  const collections = await prisma.tbCollection.findMany({
+    where: {
+      status: 1,
+      is_delete: 0,
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      description: true,
+      article_count: true,
+      collectionPosts: {
+        select: {
+          post_id: true,
+        },
+        where: {
+          post: {
+            is_delete: 0,
+            hide: '0',
+          },
+        },
+        orderBy: {
+          sort_order: 'asc',
+        },
+      },
+    },
+    orderBy: {
+      article_count: 'desc',
+    },
+  });
+
+  return collections.map((collection) => ({
+    id: collection.id,
+    title: collection.title,
+    slug: collection.slug,
+    description: collection.description,
+    articleCount: collection.collectionPosts.length,
+    postIds: collection.collectionPosts.map((cp) => cp.post_id),
+  }));
+}

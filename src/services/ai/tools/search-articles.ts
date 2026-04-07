@@ -36,7 +36,7 @@ export const searchArticlesTool: Tool = {
     },
     limit: {
       type: 'number',
-      description: '返回结果数量限制，默认为 5，可适当调整',
+      description: '返回结果数量限制，默认为 5，建议根据涉及标签的文章数量设置（可高达 100）',
       required: false,
     },
   },
@@ -52,10 +52,10 @@ export const searchArticlesTool: Tool = {
         };
       }
 
-      if (limit < 1 || limit > 20) {
+      if (limit < 1 || limit > 100) {
         return {
           success: false,
-          error: 'limit 必须在 1-20 之间',
+          error: 'limit 必须在 1-100 之间',
         };
       }
 

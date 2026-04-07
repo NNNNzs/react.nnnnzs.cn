@@ -7,6 +7,8 @@
 import { createReactAgent, type ReactAgentConfig, type HistoryMessage } from '@/lib/react-agent';
 import { createOpenAIModel } from '@/lib/ai';
 import { getAllTags } from '@/services/tag';
+import { getAllCollectionsSummary } from '@/services/collection';
+import { toolRegistry } from '@/services/ai/tools';
 import { StreamTagGenerator } from '@/lib/stream-tags';
 import '@/services/ai/tools/register'; // 确保工具已注册
 
@@ -41,7 +43,70 @@ async function buildRAGAgentSystemPrompt(
   
   // 获取标签信息
   const articleTags = await getAllTags();
-  const tags = articleTags.map((tag) => `${tag[0]}（${tag[1]}篇）`).join(', ');
+
+  // 按文章数量排序，方便模型理解分布
+  const sortedTags = [...articleTags].sort((a, b) => b[1] - a[1]);
+  const tagCount = articleTags.length;
+  const totalArticles = articleTags.reduce((sum, [, count]) => sum + count, 0);
+
+  // 格式化标签列表，突出显示主要标签
+  const formatTags = () => {
+    if (sortedTags.length === 0) return '暂无标签';
+
+    // 前 5 个标签单独列出
+    const topTags = sortedTags.slice(0, 5).map(([tag, count]) => `${tag}（${count}篇）`).join('、');
+    const remaining = sortedTags.length - 5;
+
+    if (remaining > 0) {
+      return `${topTags}等 ${tagCount} 个标签（共 ${totalArticles} 篇文章）`;
+    }
+    return `${topTags}（共 ${totalArticles} 篇文章）`;
+  };
+
+  // 获取合集信息
+  const collections = await getAllCollectionsSummary();
+
+  // 格式化合集信息
+  const formatCollections = () => {
+    if (collections.length === 0) return '暂无合集';
+
+    const collectionList = collections
+      .slice(0, 10)
+      .map((col) => {
+        const desc = col.description ? ` - ${col.description}` : '';
+        return `• 《${col.title}》（${col.articleCount} 篇）${desc}`;
+      })
+      .join('\n');
+
+    if (collections.length > 10) {
+      return `${collectionList}\n... 等共 ${collections.length} 个合集`;
+    }
+    return collectionList;
+  };
+
+  // 计算检索量建议的基准值
+  const getLimitGuidelines = () => {
+    if (sortedTags.length === 0) return 'limit=5（默认）';
+
+    const medianCount = sortedTags[Math.floor(sortedTags.length / 2)][1];
+    const maxCount = sortedTags[0][1];
+
+    // 生成智能化的 limit 建议
+    return `**核心原则：根据涉及标签的实际文章数量设置 limit**
+     - 如果问题涉及某个标签，limit 应该接近或等于该标签的文章数量
+     - 例如：若用户询问"忧伤感怀"，该标签有 43 篇文章，则 limit 应设为 40-45
+     - 例如：若用户询问"技术"相关，该标签有 47 篇文章，则 limit 应设为 45-50
+     - 如果问题涉及多个标签，limit 可以设置为各标签文章数的总和
+
+     **参考建议**：
+     * 小标签（<10 篇）：limit 设为该标签的全部文章数
+     * 中等标签（10-30 篇）：limit 设为该标签文章数的 80%-100%
+     * 大标签（>30 篇）：limit 设为该标签文章数的 70%-90%，避免上下文过长
+
+     **特殊场景**：
+     * 通用闲聊：limit=3-5 即可
+     * 确认事实：limit=5-10 即可`;
+  };
 
   return `你是站长 NNNNzs 作为博客内容的回答器。博客是我的"人生之书"是一个媒介，一个连接"现在的我"、"过去的我"与"读者"的接口。
 以主人公第一人称的视角回答问题，不要使用其他称呼，回答问题要富有艺术，追求质感，涵盖了用典、文艺与哲学感。
@@ -54,46 +119,53 @@ async function buildRAGAgentSystemPrompt(
 **登录用户状态：**
 ${userInfo}
 
-**知识库标签和文章数量：**
-${tags}
+**知识库规模：**
+${formatTags()}
+
+**文章合集：**
+${formatCollections()}
 
 **你的能力：**
-你有一个搜索工具可以查询博客文章。在回答问题之前，你需要先思考是否需要搜索文章。
+你有两个搜索工具可以查询博客文章。在回答问题之前，你需要先思考是否需要搜索文章。
+
+**可用工具：**
+1. **search_articles** - 基于向量相似度的语义搜索（理解问题意图）
+2. **search_posts_meta** - 按时间、热度、分类等维度查询（结构化查询）
+3. **search_collection** - 指定合集中的文章搜索
 
 **思考流程（ReAct 范式）：**
-1. **Thought**：分析用户问题，判断是否需要检索文章。
+1. **Thought**：分析用户问题，判断检索策略。
    - 如果问题涉及博客内容、个人经历、技术文章等，需要检索
    - 如果是通用知识、闲聊等，可以直接回答
-   - 根据问题复杂度决定检索数量（limit）：
-     * 简单事实问题（如"Vue 3 有什么特性"）：limit=3-5
-     * 复杂分析问题（如"聊聊我的技术成长"）：limit=8-12
-     * 对比/总结类问题（如"2023年我去过哪些地方"）：limit=15-20
-     * 旅游/回忆类问题（涉及多个主题）：limit=15-20
+   - **工具选择**：
+     * 时间/热度相关问题（"最近在忙什么"、"最受欢迎的文章"、"2024年的文章"）→ 使用 search_posts_meta
+     * 语义理解问题（"忧伤感怀表达了什么"、"你如何看待技术"）→ 使用 search_articles
+     * 合集相关问题 → 使用 search_collection
+   - **设置 limit**：
+     ${getLimitGuidelines()}
 
-2. **Action**：如果需要检索，调用 search_articles 工具。
-   - 优化查询：将口语化问题转换为更适合向量检索的关键词
-   - 设置合适的 limit 参数
+2. **Action**：选择合适的工具并设置参数。
+   - **结构化查询（search_posts_meta）**：
+     * sort_by: "date"（发布时间）、"updated"（更新时间）、"visitors"（浏览量）、"likes"（点赞数）
+     * sort_order: "desc"（降序）、"asc"（升序）
+     * date_from/date_to: 时间范围，如 "2024-01-01"
+     * tags: 标签筛选
+     * category: 分类筛选
+     * limit: 10-30 即可
+   - **语义搜索（search_articles）**：
+     * query: 问题关键词或标签名
+     * limit: 根据标签文章数量设置，不要吝啬
+   - **合集搜索（search_collection）**：
+     * collection: 合集的 slug 标识符
+     * query: 可选的筛选关键词
 
 3. **Observation**：查看检索结果。
    - 如果结果足够，进入步骤 4
-   - 如果结果不理想（数量少或相关度低），可以改写查询再次检索
+   - 如果结果不理想，改写查询再次检索
 
 4. **Answer**：基于检索结果生成最终答案。
 
-**重要：工具调用格式（JSON-RPC 2.0）**
-当你需要调用工具时，必须使用以下 JSON-RPC 格式，包裹在 \`\`\`json-rpc 代码块中：
-
-\`\`\`json-rpc
-{
-  "jsonrpc": "2.0",
-  "method": "search_articles",
-  "params": {
-    "query": "搜索关键词",
-    "limit": 5
-  },
-  "id": 1
-}
-\`\`\`
+${toolRegistry.getToolsDescription()}
 
 **回答要求：**
 1. **仅基于检索到的知识库内容回答问题** - 不要编造或使用外部信息
