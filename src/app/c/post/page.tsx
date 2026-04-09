@@ -283,10 +283,6 @@ function AdminPageContent() {
       // 添加缓存控制：使用默认缓存策略（1分钟）
       const response = await axios.get('/api/post/list', {
         params,
-        // 添加请求标识，用于缓存键
-        headers: {
-          'X-Cache-Key': `posts-${JSON.stringify(params)}`,
-        },
       });
 
       if (response.data.status) {
@@ -319,19 +315,6 @@ function AdminPageContent() {
           const response = await axios.delete(`/api/post/${post.id}`);
           if (response.data.status) {
             message.success('删除成功');
-            // 清除缓存，确保下次加载是最新的
-            const cacheKey = `posts-${JSON.stringify({
-              pageNum: urlState.current,
-              pageSize: urlState.pageSize,
-              hide: urlState.hideFilter,
-              query: urlState.searchText,
-              created_by: urlState.ownerFilter === 'mine' ? user?.id : undefined,
-              is_delete: urlState.includeDeleted ? 1 : undefined,
-            })}`;
-
-            // 这里可以调用缓存清除函数
-            // clearCache(cacheKey);
-
             // 删除后重新加载当前页数据（使用 URL 状态）
             loadPosts(urlState.current, urlState.pageSize);
           } else {
