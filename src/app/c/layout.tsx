@@ -9,7 +9,7 @@ import React, { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Layout, Menu, message } from "antd";
 import type { MenuProps } from "antd";
-import { FileTextOutlined, SettingOutlined, UserOutlined, BookOutlined, ClusterOutlined, SearchOutlined } from "@ant-design/icons";
+import { FileTextOutlined, SettingOutlined, UserOutlined, BookOutlined, ClusterOutlined, SearchOutlined, MessageOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { isAdmin } from "@/types/role";
@@ -41,6 +41,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     // 管理员专属菜单
     if (isAdmin(user?.role)) {
       items.push(
+        {
+          key: "/c/comments",
+          icon: <MessageOutlined />,
+          label: "评论管理",
+        },
         {
           key: "/c/collections",
           icon: <BookOutlined />,
@@ -91,7 +96,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     if (!loading && user) {
       // 定义管理员专属路径
       // 注意：/c/user/info 是个人中心，所有用户都可以访问，所以只拦截 /c/user
-      const adminOnlyPaths = ['/c/collections', '/c/config', '/c/user', '/c/queue', '/c/vector-search'];
+      const adminOnlyPaths = ['/c/comments', '/c/collections', '/c/config', '/c/user', '/c/queue', '/c/vector-search'];
       const isAdminPath = adminOnlyPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
 
       // 个人中心页面例外处理
@@ -112,6 +117,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     // 定义所有需要预加载的管理路由
     const routes = [
       '/c/post',
+      '/c/comments',
       '/c/collections',
       '/c/config',
       '/c/user',

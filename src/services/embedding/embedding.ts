@@ -88,13 +88,14 @@ export async function embedTexts(
       const vectors = await embeddings.embedDocuments(batch);
       allVectors.push(...vectors);
     } catch (error) {
-      // 如果遇到 413 错误，减小批次大小重试
-      if (
+      // 检查是否为 413 错误（请求体过大）
+      const is413Error =
         error instanceof Error &&
         (error.message.includes('413') ||
           error.message.includes('Request Entity Too Large') ||
-          (error as { status?: number }).status === 413)
-      ) {
+          'status' in error && (error as { status: number }).status === 413);
+
+      if (is413Error) {
         console.warn(
           `⚠️ 遇到 413 错误，减小批次大小从 ${batchSize} 到 ${Math.max(10, Math.floor(batchSize / 2))} 重试`
         );
