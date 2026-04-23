@@ -61,7 +61,7 @@ flowchart TB
     end
 
     subgraph Qdrant["Qdrant 向量数据库"]
-        F1["Collection: blog_posts"]
+        F1["Collection: post_vectors"]
         F2["Vector Size: 1024"]
         F3["Distance: Cosine"]
         F4["Payload: postId, chunkIndex,<br/>chunkText, title, hide"]
@@ -85,17 +85,27 @@ flowchart TB
 | **向量存储** | `src/services/embedding/vector-store.ts` | Qdrant CRUD 操作 | [向量存储](./storage.md) |
 | **初始化脚本** | `src/instrumentation.ts` | 应用启动时创建 Qdrant 集合 | [向量存储](./storage.md) |
 
-## 环境变量配置
+## 配置管理
 
+### 数据库配置（推荐）
+Embedding API 和 Qdrant 的配置均已迁移到数据库 `tb_config` 表：
+
+**Embedding 配置**（通过 `src/lib/ai-config.ts` 读取，场景: `embedding`）：
+- `embedding.api_key`: API 密钥
+- `embedding.model`: 模型名称（如 BAAI/bge-large-zh-v1.5）
+- `embedding.base_url`: API 基础 URL
+
+**Qdrant 配置**（通过 `src/lib/vector-db-config.ts` 读取）：
+- `qdrant.url`: Qdrant 服务地址
+- `qdrant.api_key`: API 密钥（可选）
+- `qdrant.timeout`: 超时时间（默认 30000ms）
+
+### 环境变量回退
+数据库配置不存在时，回退到环境变量：
 ```env
-# Embedding API 配置
-BLOG_EMBEDDING_API_KEY=sk-xxx
-BLOG_EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
-BLOG_EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
-
-# Qdrant 配置
 QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=your-api-key  # 可选，如果启用了鉴权
+QDRANT_API_KEY=your-api-key  # 可选
+QDRANT_TIMEOUT=30000
 ```
 
 ## 数据结构
@@ -106,7 +116,7 @@ QDRANT_API_KEY=your-api-key  # 可选，如果启用了鉴权
 // src/lib/qdrant.ts
 
 export const QDRANT_COLLECTION_CONFIG = {
-  NAME: 'blog_posts',
+  NAME: 'post_vectors',
   DIMENSION: 1024,        // BAAI/bge-large-zh-v1.5 向量维度
   DISTANCE: 'Cosine',     // 余弦相似度
 };
@@ -225,8 +235,8 @@ services:
 ### 安全措施
 
 1. **API 密钥管理**
-   - 使用环境变量存储密钥
-   - 不在代码中硬编码密钥
+   - 使用数据库 `tb_config` 表存储密钥
+   - 环境变量仅作为回退配置
    - 定期轮换密钥
 
 2. **权限验证**

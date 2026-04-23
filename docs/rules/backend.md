@@ -740,7 +740,8 @@ ${instruction}`;
 #### OpenAI 服务实现示例
 
 ```typescript
-// src/app/api/chat/route.ts - 聊天API（使用 OpenAI LangChain）
+// src/app/api/chat/route.ts - OpenAI LangChain 调用示例
+// 注意：实际聊天 API 使用 ReAct Agent（详见 designs/chat/rag-chat.md）
 import {
   ChatPromptTemplate,
   createAIChain,
@@ -837,7 +838,7 @@ export async function POST(request: NextRequest) {
 
 #### OpenAI 流式 API 路由
 ```typescript
-// src/app/api/chat/route.ts（使用 OpenAI LangChain）
+// OpenAI LangChain 流式 API 路由示例（注意：实际聊天 API 使用 ReAct Agent，见 chat/rag-chat.md）
 import { NextRequest, NextResponse } from 'next/server';
 import { createAIChain, streamFromChain, ChatPromptTemplate } from '@/lib/ai';
 
@@ -1227,49 +1228,18 @@ pnpm dev
 
 ### MCP 认证规范
 
-#### ⚠️ 认证方式改造计划
+#### 当前状态：已完成 OAuth 2.0 改造 ✅
 
-**当前状态**: 使用自定义头部 `x-mcp-account`/`x-mcp-password` 进行认证
-**目标状态**: 使用标准 `Authorization: Bearer <token>` 方式
+MCP 服务器已从自定义头部认证升级为标准 OAuth 2.0 Bearer Token 认证。
 
-**问题**: 当前实现**不兼容**官方 MCP 客户端，因为：
-1. 官方客户端只支持标准 OAuth 2.0 Bearer Token
-2. MCP SDK 通过 `req.auth` 传递 `AuthInfo` 对象
-3. 自定义头部无法被标准客户端识别
+**认证方式**：使用 `Authorization: Bearer <token>` 标准方式
+**认证适配器**：`src/services/mcpAuth.ts`
+**详细设计**：[MCP OAuth 2.0 认证设计](../designs/mcp-oauth-design.md)
 
-**详细计划**: `docs/MCP_AUTH_REFACTOR_PLAN.md`
+#### 认证实现
 
-#### 当前实现（待改造）
 ```typescript
-// src/app/api/mcp/route.ts:82-83
-const account = headers.get('x-mcp-account') || process.env.MCP_USER_ACCOUNT;
-const password = headers.get('x-mcp-password') || process.env.MCP_USER_PASSWORD;
-```
-
-#### 目标实现
-```typescript
-// 1. 创建认证适配器
-// src/services/mcpAuth.ts
-import { validateToken } from '@/lib/auth';
-import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider';
-
-export const mcpAuthVerifier: OAuthTokenVerifier = {
-  async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const user = await validateToken(token);
-    if (!user) throw new Error("Invalid token");
-
-    return {
-      token,
-      clientId: `mcp-client-${user.id}`,
-      scopes: ['read', 'write'],
-      expiresAt: undefined,
-      extra: { userId: user.id, role: user.role }
-    };
-  }
-};
-
-// 2. 更新 MCP 路由认证逻辑
-// src/app/api/mcp/route.ts
+// MCP 路由中的认证
 const ensureAuth = async () => {
   const authHeader = headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -1284,57 +1254,25 @@ const ensureAuth = async () => {
 };
 ```
 
-#### 迁移步骤
+#### OAuth 2.0 端点
 
-1. **准备阶段**
-   - 备份当前 `src/app/api/mcp/route.ts`
-   - 确认测试环境可用
+| 端点 | 说明 |
+|------|------|
+| `/authorize` | OAuth 授权页面 |
+| `/token` | Token 获取端点 |
+| `/introspect` | Token 检查端点 |
+| `/revoke` | Token 撤销端点 |
 
-2. **实施阶段**
-   - 创建 `src/services/mcpAuth.ts`
-   - 更新 MCP 路由认证逻辑
-   - 保持所有工具功能不变
-
-3. **验证阶段**
-   - 测试 Bearer token 认证
-   - 验证所有 MCP 工具
-   - 确认错误处理
-
-4. **客户端改造**
-   ```typescript
-   // 改造前
-   fetch('/api/mcp', {
-     headers: {
-       'x-mcp-account': 'admin',
-       'x-mcp-password': 'password'
-     }
-   })
-
-   // 改造后
-   const token = await login(); // 先登录获取 token
-   fetch('/api/mcp', {
-     headers: {
-       'Authorization': `Bearer ${token}`
-     }
-   })
-   ```
-
-#### 预计工作量
-- 核心改造: 2-3 小时
-- 测试验证: 1-2 小时
-- 文档更新: 30 分钟
-- **总计**: 3.5-5.5 小时
-
-#### 相关文件
-- `src/app/api/mcp/route.ts` - 主要改造文件
-- `src/services/mcpAuth.ts` - 新增认证适配器（待创建）
-- `src/lib/auth.ts` - 现有 Token 验证函数（可复用）
-- `docs/MCP_AUTH_REFACTOR_PLAN.md` - 完整计划文档
+#### 长期 Token（LTK）
+- 格式：`LTK_` 前缀
+- 有效期：30 天或永久
+- 存储位置：`LongTermToken` 表
+- 认证中间件：`src/lib/long-term-token-auth.ts`
 
 #### 参考资料
 - [MCP 官方文档](https://modelcontextprotocol.io)
 - [MCP 规范](https://spec.modelcontextprotocol.io)
-- 项目文档：`docs/mcp_resources_tags.md`
+- [MCP OAuth 2.0 设计](../designs/mcp-oauth-design.md)
 
 ## IP 地址获取规范
 

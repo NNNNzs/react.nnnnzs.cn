@@ -21,7 +21,7 @@
 - ✅ 多工具协作（需要工具链调用）
 
 **你的实际场景**：
-- ❌ 只有 1 个工具（`search_articles`）
+- ❌ 只有 3 个工具（`search_articles`、`search_posts_meta`、`search_collection`），但使用模式仍是单步查询
 - ❌ 单步查询（问题 → 搜索 → 答案）
 - ❌ 不需要多步推理
 

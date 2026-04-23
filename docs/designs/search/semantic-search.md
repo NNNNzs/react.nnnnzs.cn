@@ -339,7 +339,7 @@ export async function hybridSearch(
 
 ```bash
 # 检查 Qdrant 集合信息
-curl http://localhost:6333/collections/blog_posts
+curl http://localhost:6333/collections/post_vectors
 
 # 查看向量数量
 ```

@@ -28,10 +28,25 @@
 // src/lib/qdrant.ts
 
 export const QDRANT_COLLECTION_CONFIG = {
-  NAME: 'blog_posts',
+  COLLECTION_NAME: 'post_vectors',    // 集合名称
   DIMENSION: 1024,        // BAAI/bge-large-zh-v1.5 向量维度
-  DISTANCE: 'Cosine',     // 余弦相似度
+  VECTOR_FIELD: 'embedding',
+  POST_ID_FIELD: 'post_id',
+  CHUNK_INDEX_FIELD: 'chunk_index',
+  CHUNK_TEXT_FIELD: 'chunk_text',
+  HIDE_FIELD: 'hide',
+  METADATA_FIELDS: ['post_id', 'chunk_index', 'chunk_text', 'title', 'created_at', 'hide'] as const,
 };
+```
+
+### 配置读取
+
+- **数据库配置**（推荐）：通过 `src/lib/vector-db-config.ts` 从 `tb_config` 表读取
+  - `qdrant.url`: 服务地址
+  - `qdrant.api_key`: API 密钥（可选）
+  - `qdrant.timeout`: 超时时间（可选，默认 30000ms）
+- **环境变量回退**：数据库配置不存在时回退到 `QDRANT_URL`、`QDRANT_API_KEY`、`QDRANT_TIMEOUT`
+- **客户端缓存**：5 分钟 TTL，支持配置热更新
 
 export interface VectorDataItem {
   postId: number;
@@ -94,29 +109,35 @@ export async function initQdrantCollection() {
 // src/services/embedding/vector-store.ts
 
 /**
- * 批量插入向量
+ * 批量插入向量（每批 100 条）
+ * 使用整数 ID: postId * 100000 + chunkIndex
  */
 export async function insertVectors(
   items: VectorDataItem[]
 ): Promise<number> {
-  const points = items.map((item) => ({
-    id: `${item.postId}_${item.chunkIndex}`,  // 唯一 ID
-    vector: item.embedding,
-    payload: {
-      post_id: item.postId,
-      chunk_index: item.chunkIndex,
-      chunk_text: item.chunkText,
-      title: item.title,
-      hide: item.hide || '0',
-      created_at: item.createdAt,
-    },
-  }));
+  const BATCH_SIZE = 100;
+  let insertedCount = 0;
 
-  const response = await qdrantClient.upsert(COLLECTION_NAME, {
-    points,
-  });
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    const points = batch.map((item) => ({
+      id: item.postId * 100000 + item.chunkIndex,  // 整数 ID
+      vector: item.embedding,
+      payload: {
+        post_id: item.postId,
+        chunk_index: item.chunkIndex,
+        chunk_text: item.chunkText,
+        title: item.title,
+        hide: item.hide || '0',
+        created_at: item.createdAt,
+      },
+    }));
 
-  return response.status === 'completed' ? items.length : 0;
+    await qdrantClient.upsert(COLLECTION_NAME, { points });
+    insertedCount += batch.length;
+  }
+
+  return insertedCount;
 }
 ```
 
@@ -144,15 +165,17 @@ export async function deleteVectorsByPostId(postId: number): Promise<void> {
 
 ```typescript
 /**
- * 相似度检索
+ * 相似度检索（默认只搜索公开文章 hide='0'）
  */
 export async function searchSimilar(
   queryVector: number[],
   limit: number = 10,
   scoreThreshold: number = 0.7,
-  filters?: Record<string, unknown>
+  options?: { includeHidden?: boolean }
 ): Promise<SearchResult[]> {
-  const filter = filters ? buildFilter(filters) : undefined;
+  const filter = options?.includeHidden !== true
+    ? { must: [{ key: 'hide', match: { value: '0' } }] }
+    : undefined;
 
   const response = await qdrantClient.search(COLLECTION_NAME, {
     vector: queryVector,
@@ -227,10 +250,13 @@ async function findSimilarArticles(query: string) {
 ## 环境变量
 
 ```env
-# Qdrant 配置
+# Qdrant 配置（已迁移至数据库，以下作为后备配置）
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=your-api-key  # 可选，如果启用了鉴权
+QDRANT_TIMEOUT=30000
 ```
+
+> Embedding API 配置已迁移到数据库 `tb_config` 表（`embedding.*` 键），不再使用环境变量。
 
 ## 部署方式
 
@@ -331,13 +357,11 @@ docker run -p 6333:6333 \
 ```
 
 ```typescript
-// 客户端连接时提供 API Key
-import { QdrantClient } from '@qdrant/js-client-rest';
+// 客户端连接（通过配置管理器）
+import { getQdrantClient } from '@/lib/qdrant';
 
-const client = new QdrantClient({
-  url: process.env.QDRANT_URL,
-  apiKey: process.env.QDRANT_API_KEY,
-});
+const client = await getQdrantClient();
+// 配置从数据库 tb_config 读取，回退到环境变量
 ```
 
 ### 网络隔离

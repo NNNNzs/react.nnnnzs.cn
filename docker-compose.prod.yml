@@ -10,8 +10,9 @@ services:
     image: nnnnzs/react-nnnnzs-cn:latest
     container_name: react-nnnnzs-cn-prod
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+
+    # 使用 host 网络模式，容器与宿主机共享网络栈
+    network_mode: host
 
     # 加载环境变量文件
     env_file:
@@ -24,13 +25,6 @@ services:
     # 持久化日志和缓存
     volumes:
       - ./logs:/app/logs
-
-    # 连接宿主机服务（MySQL, Redis 等）
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    networks:
-      - react-nnnnzs-network
 
     # 健康检查
     healthcheck:
@@ -47,10 +41,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-networks:
-  react-nnnnzs-network:
-    driver: bridge
-
-volumes:
-  nextjs_cache:

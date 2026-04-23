@@ -35,7 +35,10 @@
 **使用模型**:
 - BAAI/bge-large-zh-v1.5
 - 维度: 1024
-- API: SiliconFlow
+
+**配置读取**:
+- Embedding API 配置：从数据库 `tb_config` 表读取（`embedding.api_key`, `embedding.model`, `embedding.base_url`）
+- 配置工具：`src/lib/ai-config.ts`（场景: `embedding`）
 
 **向量化流程**:
 1. 删除旧向量
@@ -46,12 +49,18 @@
 ### 向量存储
 **位置**: `src/services/embedding/vector-store.ts`
 
-**集合配置**:
+**集合配置**（`src/lib/qdrant.ts`）:
 ```typescript
-collection_name: "blog_posts"
-vector_size: 1024
-distance: "Cosine"
+COLLECTION_NAME: 'post_vectors'
+DIMENSION: 1024
+// 距离: Cosine
 ```
+
+**配置读取**:
+- Qdrant 连接配置：从数据库 `tb_config` 表读取（`qdrant.url`, `qdrant.api_key`, `qdrant.timeout`）
+- 回退机制：数据库配置不存在时回退到环境变量（`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_TIMEOUT`）
+- 客户端缓存：5 分钟 TTL
+- 配置工具：`src/lib/vector-db-config.ts`
 
 **Payload 结构**:
 - `post_id`: 文章 ID
@@ -95,15 +104,16 @@ distance: "Cosine"
 4. 验证检索质量
 
 ### 添加新的嵌入模型
-1. 修改 `src/services/embedding/embedding.ts`
-2. 更新 Qdrant collection 的 vector_size
-3. 在设计文档中记录新模型
-4. 进行性能对比测试
+1. 在数据库 `tb_config` 表中更新 `embedding.model`、`embedding.base_url` 等配置
+2. 修改 `src/services/embedding/embedding.ts`（如需特殊处理）
+3. 更新 Qdrant collection 的 vector_size（`src/lib/qdrant.ts`）
+4. 在设计文档中记录新模型
+5. 进行性能对比测试
 
 ### 性能优化
-- 使用批量处理（每批 10 个文本）
+- 使用批量处理（每批 100 个向量插入）
 - 异步队列处理（不阻塞 API 响应）
-- Redis 缓存搜索结果
+- Qdrant 客户端单例 + 配置缓存（5 分钟 TTL）
 - 监控 API 调用次数和成本
 
 ## 注意事项

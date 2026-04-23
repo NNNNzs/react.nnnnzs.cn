@@ -19,7 +19,7 @@
   - `@ant-design/icons`: `^6.1.0`
   - `@ant-design/nextjs-registry`: `^1.3.0`
   - **重要**：使用新 API，如 `Space` 组件的 `orientation` 而非 `direction`
-- Tailwind CSS 4.1.17
+- Tailwind CSS 4.2.x
 - CSS Modules 支持
 
 ### 数据层

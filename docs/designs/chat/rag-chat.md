@@ -13,7 +13,7 @@
 - **ReAct Agent**：使用 Thought-Action-Observation 循环进行多步推理
 - **向量检索**：基于 Qdrant 的语义搜索，检索相关文章
 - **流式响应**：使用 SSE（Server-Sent Events）实现实时流式输出
-- **工具调用**：支持可扩展的工具系统（当前实现 `search_articles` 工具）
+- **工具调用**：支持可扩展的工具系统（当前实现 3 个工具）
 - **对话历史**：支持多轮对话上下文管理
 
 ## 架构设计
@@ -42,8 +42,9 @@ flowchart TB
     end
 
     subgraph Tools["工具系统层 services/ai/tools"]
-        D1["search_articles"]
-        D2["JSON-RPC 2.0"]
+        D1["search_articles（向量语义搜索）"]
+        D2["search_posts_meta（元数据搜索）"]
+        D3["search_collection（合集搜索）"]
     end
 
     subgraph LLM["LLM 层 ChatOpenAI"]
@@ -70,8 +71,11 @@ flowchart TB
 | **聊天页面** | `src/app/chat/page.tsx` | 用户界面、SSE 解析、ReAct 步骤展示 |
 | **聊天 API** | `src/app/api/chat/route.ts` | 请求处理、Agent 调度、系统指令构建 |
 | **ReAct Agent** | `src/lib/react-agent.ts` | Thought-Action-Observation 循环实现 |
+| **RAG Agent** | `src/services/ai/rag/agent.ts` | 系统指令构建、Agent 流程协调 |
 | **工具系统** | `src/services/ai/tools/` | 工具注册、调用解析、结果格式化 |
-| **搜索工具** | `src/services/ai/tools/search-articles.ts` | 文章检索工具实现 |
+| **搜索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具 |
+| **元数据搜索** | `src/services/ai/tools/search-posts-meta.ts` | 按时间/热度/分类搜索 |
+| **合集搜索** | `src/services/ai/tools/search-collection.ts` | 合集内文章搜索 |
 | **SSE 工具** | `src/lib/sse.ts` | SSE 流式响应创建和事件发送 |
 
 ## 数据结构
@@ -245,7 +249,7 @@ data: null
 1. **定义工具**（`src/services/ai/tools/my-tool.ts`）：
 
 ```typescript
-import type { Tool } from './types';
+import type { Tool } from './index';
 
 export const myTool: Tool = {
   name: 'my_tool',
@@ -264,7 +268,7 @@ export const myTool: Tool = {
 };
 ```
 
-2. **注册工具**（`src/app/api/chat/route.ts`）：
+2. **注册工具**（`src/services/ai/tools/index.ts`）：
 
 ```typescript
 import { toolRegistry } from '@/services/ai/tools';
@@ -311,6 +315,18 @@ toolRegistry.register(myTool);
 
 ## 安全考虑
 
+## 配置管理
+
+### AI 模型配置
+聊天系统的 AI 模型配置从数据库 `tb_config` 表读取（场景: `chat`），包括：
+- `chat.api_key`: API 密钥
+- `chat.model`: 模型名称
+- `chat.base_url`: API 基础 URL
+- `chat.temperature`: 温度参数
+- `chat.max_tokens`: 最大 Token 数
+
+配置通过 `src/lib/ai-config.ts` 读取，内存缓存 5 分钟 TTL。
+
 ### 安全措施
 
 1. **权限验证**
@@ -334,7 +350,7 @@ toolRegistry.register(myTool);
 |------|------|----------|
 | Prompt 注入 | 系统指令被覆盖 | 输入过滤、指令隔离 |
 | 工具调用攻击 | 未授权操作 | 权限检查、参数验证 |
-| API 密钥泄露 | LLM 服务被滥用 | 环境变量隔离、定期轮换 |
+| API 密钥泄露 | LLM 服务被滥用 | 数据库存储、环境变量隔离、定期轮换 |
 
 ## 扩展性
 
