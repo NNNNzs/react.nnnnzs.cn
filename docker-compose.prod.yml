@@ -21,6 +21,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - HOSTNAME=0.0.0.0
 
     # 持久化日志和缓存
     volumes:
