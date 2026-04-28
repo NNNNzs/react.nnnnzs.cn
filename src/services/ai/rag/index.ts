@@ -9,9 +9,13 @@
  * 4. 带标签的流式返回（展示中间步骤）
  */
 
-// 导出 RAG Agent 服务（ReAct 范式）
-export { chatRAGAgentStream } from './agent';
-export type { RAGAgentParams } from './agent';
+// 导出 RAG Agent 服务（ReAct 范式）—— 使用 LangGraph 实现
+export { chatRAGAgentStream } from './langgraph-agent';
+export type { RAGAgentParams } from './langgraph-agent';
+
+// 旧版手写 ReAct Agent（保留，不再使用）
+// export { chatRAGAgentStream } from './agent';
+// export type { RAGAgentParams } from './agent';
 
 import { ChatPromptTemplate, createAIChain } from '@/lib/ai';
 import { embedText } from '@/services/embedding/embedding';
