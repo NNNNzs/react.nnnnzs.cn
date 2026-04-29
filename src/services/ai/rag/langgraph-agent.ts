@@ -255,6 +255,11 @@ export const chatRAGAgentStream = async (
                 controller.enqueue(tagGenerator.endStep());
                 inThoughtStep = false;
               }
+              // 关闭可能未完成的 content 标签（模型先回答后决定调用工具）
+              if (inContentTag) {
+                controller.enqueue(tagGenerator.endContent());
+                inContentTag = false;
+              }
 
               stepIndex++;
               const toolInfo = extractToolCallInfo(toolCalls);
@@ -267,27 +272,27 @@ export const chatRAGAgentStream = async (
               continue;
             }
 
-            // 有文本内容
-            if (content && typeof content === 'string' && content.trim()) {
-              // 如果之前执行过工具且还没进入回答阶段，说明这是最终答案
-              if (hasToolExecuted && phase !== 'answering') {
-                phase = 'answering';
-                if (inThoughtStep) {
-                  controller.enqueue(tagGenerator.endStep());
-                  inThoughtStep = false;
+            // 有文本内容（不含 .trim()，避免过滤掉 \n 等空白字符 chunk）
+            if (content && typeof content === 'string') {
+              // 之前执行过工具：这是工具调用后的最终答案
+              if (hasToolExecuted) {
+                if (phase !== 'answering') {
+                  phase = 'answering';
+                  if (inThoughtStep) {
+                    controller.enqueue(tagGenerator.endStep());
+                    inThoughtStep = false;
+                  }
+                  if (!inContentTag) {
+                    controller.enqueue(tagGenerator.startContent());
+                    inContentTag = true;
+                  }
                 }
+              }
+              // 还没执行过工具的文本 = 直接回答，用 content 标签
+              else {
                 if (!inContentTag) {
                   controller.enqueue(tagGenerator.startContent());
                   inContentTag = true;
-                }
-              }
-              // 还没执行过工具的文本 = 思考内容
-              else if (!hasToolExecuted) {
-                phase = 'thinking';
-                if (!inThoughtStep) {
-                  stepIndex++;
-                  inThoughtStep = true;
-                  controller.enqueue(tagGenerator.startStep('thought', stepIndex));
                 }
               }
 
