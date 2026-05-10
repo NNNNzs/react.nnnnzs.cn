@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown } from 'antd';
+import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown, Card, List } from 'antd';
 import type { TableColumnsType, MenuProps } from 'antd';
 import {
   EditOutlined,
@@ -19,6 +19,7 @@ import {
   SyncOutlined,
   ReloadOutlined,
   HistoryOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -28,6 +29,7 @@ import { isAdmin } from '@/types/role';
 import { useCachedApi } from '@/hooks/useCachedApi';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -129,6 +131,7 @@ function AdminPageContent() {
   const { user } = useAuth();
   const urlState = useUrlState();
   const updateUrl = useUpdateUrl();
+  const { isMobile } = useBreakpoint();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -457,9 +460,9 @@ function AdminPageContent() {
   }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText, urlState.ownerFilter, urlState.includeDeleted]);
 
   /**
-   * 表格列定义
+   * 桌面端表格列定义
    */
-  const columns: TableColumnsType<Post> = [
+  const desktopColumns: TableColumnsType<Post> = [
     {
       title: 'ID',
       dataIndex: 'id',
@@ -540,87 +543,178 @@ function AdminPageContent() {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: Post) => (
-        <Space wrap>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          >
-            查看
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            icon={<HistoryOutlined />}
-            onClick={() => handleViewChangeHistory(record)}
-          >
-            变更历史
-          </Button>
-          <Button
-            type="link"
-            icon={<ReloadOutlined />}
-            onClick={() => handleUpdateEmbedding(record)}
-          >
-            更新向量
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
+      render: (_: unknown, record: Post) => {
+        // 移动端：主操作（编辑）直接显示，次要操作收入 Dropdown
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'view', icon: <EyeOutlined />, label: '查看', onClick: () => handleView(record) },
+                  { key: 'edit', icon: <EditOutlined />, label: '编辑', onClick: () => handleEdit(record) },
+                  { key: 'history', icon: <HistoryOutlined />, label: '变更历史', onClick: () => handleViewChangeHistory(record) },
+                  { key: 'embed', icon: <ReloadOutlined />, label: '更新向量', onClick: () => handleUpdateEmbedding(record) },
+                  { type: 'divider' as const },
+                  { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => handleDelete(record) },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        // 桌面端：保持原有按钮组
+        return (
+          <Space wrap>
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => handleView(record)}
+            >
+              查看
+            </Button>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              icon={<HistoryOutlined />}
+              onClick={() => handleViewChangeHistory(record)}
+            >
+              变更历史
+            </Button>
+            <Button
+              type="link"
+              icon={<ReloadOutlined />}
+              onClick={() => handleUpdateEmbedding(record)}
+            >
+              更新向量
+            </Button>
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+            >
+              删除
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
+
+  /**
+   * 渲染单篇文章的移动端卡片
+   */
+  const renderMobileCard = (post: Post) => {
+    const ragStatus = post.rag_status || 'pending';
+    const statusConfig: Record<string, { color: string; text: string }> = {
+      pending: { color: 'default', text: '待处理' },
+      processing: { color: 'processing', text: '处理中' },
+      completed: { color: 'success', text: '已完成' },
+      failed: { color: 'error', text: '失败' },
+    };
+    const ragConf = statusConfig[ragStatus] || statusConfig.pending;
+
+    return (
+      <Card
+        key={post.id}
+        size="small"
+        className="mb-3"
+        title={
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium truncate">{post.title || `#${post.id}`}</span>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'view', icon: <EyeOutlined />, label: '查看', onClick: () => handleView(post) },
+                  { key: 'edit', icon: <EditOutlined />, label: '编辑', onClick: () => handleEdit(post) },
+                  { key: 'history', icon: <HistoryOutlined />, label: '变更历史', onClick: () => handleViewChangeHistory(post) },
+                  { key: 'embed', icon: <ReloadOutlined />, label: '更新向量', onClick: () => handleUpdateEmbedding(post) },
+                  { type: 'divider' as const },
+                  { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => handleDelete(post) },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          </div>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          <Tag color={post.hide === '0' ? 'success' : 'default'}>
+            {post.hide === '0' ? '显示' : '隐藏'}
+          </Tag>
+          <Tag color={ragConf.color}>{ragConf.text}</Tag>
+          {Array.isArray(post.tags) && post.tags.length > 0 && post.tags.map((tag, i) => (
+            <Tag key={i} color="blue">{tag}</Tag>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+          <span>{dayjs(post.date).format('YYYY-MM-DD HH:mm')}</span>
+          <span>👁️ {post.visitors || 0} &nbsp; ❤️ {post.likes || 0}</span>
+        </div>
+      </Card>
+    );
+  };
+
+  // 移动端分页配置（简化）
+  const mobilePaginationConfig = {
+    current: pagination.current,
+    pageSize: pagination.pageSize,
+    total: pagination.total,
+    showTotal: (total: number) => `共 ${total} 篇`,
+    size: 'small' as const,
+  };
 
   return (
     <>
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold">文章管理</h1>
-          <Space>
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'all',
-                    label: '全部更新',
-                    onClick: () => handleBatchUpdateEmbeddings('all'),
-                  },
-                  {
-                    key: 'failed',
-                    label: '只更新失败的文章',
-                    onClick: () => handleBatchUpdateEmbeddings('failed'),
-                  },
-                ],
-              }}
-            >
-              <Button
-                icon={<SyncOutlined />}
-                loading={embeddingLoading}
-                size="large"
+        {/* 标题栏 */}
+        <div className={`mb-4 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
+          <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>文章管理</h1>
+          <Space size={isMobile ? 'small' : 'middle'}>
+            {!isMobile && (
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'all',
+                      label: '全部更新',
+                      onClick: () => handleBatchUpdateEmbeddings('all'),
+                    },
+                    {
+                      key: 'failed',
+                      label: '只更新失败的文章',
+                      onClick: () => handleBatchUpdateEmbeddings('failed'),
+                    },
+                  ],
+                }}
               >
-                批量更新向量
-              </Button>
-            </Dropdown>
+                <Button
+                  icon={<SyncOutlined />}
+                  loading={embeddingLoading}
+                  size="large"
+                >
+                  批量更新向量
+                </Button>
+              </Dropdown>
+            )}
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
-              size="large"
+              size={isMobile ? 'middle' : 'large'}
             >
-              创建新文章
+              {isMobile ? '新建' : '创建新文章'}
             </Button>
           </Space>
         </div>
@@ -656,98 +750,117 @@ function AdminPageContent() {
           </div>
         )}
 
-        {/* 搜索和筛选 */}
-        <div className="mb-4 flex gap-4 shrink-0">
+        {/* 搜索和筛选 - 移动端 flex-wrap 自动换行 */}
+        <div className={`mb-4 shrink-0 ${isMobile ? 'flex flex-col gap-2' : 'flex gap-4'}`}>
           <Search
             placeholder="搜索标题或内容"
             allowClear
             enterButton={<SearchOutlined />}
-            size="large"
+            size={isMobile ? 'middle' : 'large'}
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
             onPressEnter={(e) => {
-              // 阻止默认的表单提交行为，避免页面刷新
               e.preventDefault();
               updateQueryParams({ q: searchInputValue, page: 1 });
             }}
-            style={{ maxWidth: 400 }}
+            style={isMobile ? { width: '100%' } : { maxWidth: 400 }}
           />
-          {/* 创建者筛选 - 仅管理员可见 */}
-          {isAdmin(user?.role) && (
+          <div className={isMobile ? 'flex flex-wrap gap-2' : 'flex gap-4'}>
+            {/* 创建者筛选 - 仅管理员可见 */}
+            {isAdmin(user?.role) && (
+              <Select
+                placeholder="创建者"
+                size={isMobile ? 'middle' : 'large'}
+                style={{ width: isMobile ? 'auto' : 120, minWidth: isMobile ? 90 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
+                value={urlState.ownerFilter}
+                onChange={(value) => updateQueryParams({ owner: value || 'mine', page: 1 })}
+                options={[
+                  { label: '我创建的', value: 'mine' },
+                  { label: '全部', value: 'all' },
+                ]}
+              />
+            )}
+            {/* 是否包含已删除 - 仅管理员可见 */}
+            {isAdmin(user?.role) && (
+              <Select
+                placeholder="已删除"
+                size={isMobile ? 'middle' : 'large'}
+                style={{ width: isMobile ? 'auto' : 140, minWidth: isMobile ? 90 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
+                value={urlState.includeDeleted ? true : undefined}
+                onChange={(value) => updateQueryParams({ is_delete: value ? '1' : undefined, page: 1 })}
+                options={[
+                  { label: '仅未删除', value: false },
+                  { label: '含已删除', value: true },
+                ]}
+              />
+            )}
             <Select
-              placeholder="创建者筛选"
-              size="large"
-              style={{ width: 120 }}
-              value={urlState.ownerFilter}
-              onChange={(value) => updateQueryParams({ owner: value || 'mine', page: 1 })}
-              options={[
-                { label: '我创建的', value: 'mine' },
-                { label: '全部', value: 'all' },
-              ]}
+              placeholder="状态"
+              allowClear
+              size={isMobile ? 'middle' : 'large'}
+              style={{ width: isMobile ? 'auto' : 120, minWidth: isMobile ? 80 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
+              value={hideFilter === 'all' ? undefined : hideFilter}
+              onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}
+              options={
+                isAdmin(user?.role)
+                  ? [
+                      { label: '全部', value: 'all' },
+                      { label: '显示', value: '0' },
+                      { label: '隐藏', value: '1' },
+                    ]
+                  : [
+                      { label: '显示', value: '0' },
+                      { label: '隐藏', value: '1' },
+                    ]
+              }
             />
-          )}
-          {/* 是否包含已删除 - 仅管理员可见 */}
-          {isAdmin(user?.role) && (
-            <Select
-              placeholder="已删除文章"
-              size="large"
-              style={{ width: 140 }}
-              value={urlState.includeDeleted ? true : undefined}
-              onChange={(value) => updateQueryParams({ is_delete: value ? '1' : undefined, page: 1 })}
-              options={[
-                { label: '仅未删除', value: false },
-                { label: '包含已删除', value: true },
-              ]}
-            />
-          )}
-          <Select
-            placeholder="状态筛选"
-            allowClear
-            size="large"
-            style={{ width: 120 }}
-            value={hideFilter === 'all' ? undefined : hideFilter}
-            onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}
-            options={
-              isAdmin(user?.role)
-                ? [
-                    { label: '全部', value: 'all' },
-                    { label: '显示', value: '0' },
-                    { label: '隐藏', value: '1' },
-                  ]
-                : [
-                    { label: '显示', value: '0' },
-                    { label: '隐藏', value: '1' },
-                  ]
-            }
-          />
+          </div>
         </div>
 
-        {/* 文章列表 - 使用flex-1占据剩余空间，高度动态计算 */}
-        <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
-          <Table
-            columns={columns}
-            dataSource={posts}
-            rowKey="id"
-            loading={loading}
-            scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showTotal: (total) => `共 ${total} 篇文章`,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              pageSizeOptions: ['10', '20', '50', '100'],
-            }}
-            onChange={(paginationConfig) => {
-              updateQueryParams({
-                page: paginationConfig.current || 1,
-                pageSize: paginationConfig.pageSize || 20,
-              });
-            }}
-          />
-        </div>
+        {/* 文章列表 */}
+        {isMobile ? (
+          /* 移动端：卡片列表 */
+          <div className="flex-1 overflow-auto">
+            <List
+              dataSource={posts}
+              loading={loading}
+              renderItem={(post) => renderMobileCard(post)}
+              pagination={{
+                ...mobilePaginationConfig,
+                onChange: (page, pageSize) => {
+                  updateQueryParams({ page, pageSize });
+                },
+              }}
+            />
+          </div>
+        ) : (
+          /* 桌面端：表格 */
+          <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
+            <Table
+              columns={desktopColumns}
+              dataSource={posts}
+              rowKey="id"
+              loading={loading}
+              scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showTotal: (total) => `共 ${total} 篇文章`,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
+              onChange={(paginationConfig) => {
+                updateQueryParams({
+                  page: paginationConfig.current || 1,
+                  pageSize: paginationConfig.pageSize || 20,
+                });
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
 

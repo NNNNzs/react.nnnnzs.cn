@@ -1,20 +1,35 @@
 /**
  * 管理后台布局
  * 包含左侧菜单和右侧内容区域
+ * 移动端(<768px): Sider 隐藏，Drawer 抽屉替代
+ * 桌面端(≥768px): 保持固定 Sider 布局
  */
 
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Layout, Menu, message } from "antd";
+import { Layout, Menu, message, Drawer } from "antd";
 import type { MenuProps } from "antd";
-import { FileTextOutlined, SettingOutlined, UserOutlined, BookOutlined, ClusterOutlined, SearchOutlined, MessageOutlined, SoundOutlined } from "@ant-design/icons";
+import {
+  FileTextOutlined,
+  SettingOutlined,
+  UserOutlined,
+  BookOutlined,
+  ClusterOutlined,
+  SearchOutlined,
+  MessageOutlined,
+  SoundOutlined,
+  MenuOutlined,
+} from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { isAdmin } from "@/types/role";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const { Sider, Content } = Layout;
+
+const MOBILE_BREAKPOINT = 768;
 
 /**
  * 管理后台布局组件
@@ -24,6 +39,8 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading } = useAuth();
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
+  const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   /**
    * 动态生成菜单项
@@ -178,9 +195,13 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   /**
    * 处理菜单点击
    */
-  const handleMenuClick: MenuProps["onClick"] = (e) => {
+  const handleMenuClick: NonNullable<MenuProps["onClick"]> = useCallback((e) => {
     router.push(e.key);
-  };
+    // 移动端点击菜单后自动关闭抽屉
+    if (isMobile) {
+      setDrawerOpen(false);
+    }
+  }, [router, isMobile]);
 
   // 如果正在加载或未登录，显示加载状态
   if (loading || !user) {
@@ -191,6 +212,55 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // 移动端：隐藏 Sider，使用 Drawer + 全宽内容区
+  if (isMobile) {
+    return (
+      <Layout className="h-[calc(100vh-var(--header-height))]">
+        {/* 移动端顶部菜单切换按钮 */}
+        <div
+          className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0"
+        >
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="打开菜单"
+          >
+            <MenuOutlined className="text-lg" />
+          </button>
+          <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
+            管理后台
+          </span>
+        </div>
+
+        {/* 主内容区占满全宽 */}
+        <Content className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 px-3 py-4">
+          {children}
+        </Content>
+
+        {/* 移动端抽屉菜单 */}
+        <Drawer
+          title="管理后台"
+          placement="left"
+          onClose={() => setDrawerOpen(false)}
+          open={drawerOpen}
+          width={260}
+          styles={{
+            body: { padding: 0 },
+          }}
+        >
+          <Menu
+            mode="inline"
+            selectedKeys={[pathname]}
+            items={menuItems}
+            onClick={handleMenuClick}
+            className="border-r-0"
+          />
+        </Drawer>
+      </Layout>
+    );
+  }
+
+  // 桌面端：保持原有布局不变
   return (
     <Layout className="h-[calc(100vh-var(--header-height))]">
       <Sider
