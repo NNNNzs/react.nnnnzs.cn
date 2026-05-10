@@ -19,7 +19,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 2
 
       - name: 检查最新提交信息
         id: commit-check
@@ -32,7 +32,7 @@ jobs:
           echo "更改的文件:"
           echo "$CHANGED_FILES"
 
-          # 检查是否仅更改了 docs 目录或 .md 文件
+          # 检查是否仅更改了 docs 目录、.md 文件或 CI 配置
           NON_DOCS_COUNT=$(echo "$CHANGED_FILES" | grep -vE '^docs/' | grep -vE '\.md$' | grep -vE '^\.github/' | wc -l)
 
           # 跳过 docs: 和 chore: 开头的提交

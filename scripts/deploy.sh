@@ -62,7 +62,9 @@ login_registry() {
 pull_image() {
     print_info "正在拉取最新镜像..."
     login_registry
-    docker-compose -f $COMPOSE_FILE pull
+    # 使用 docker pull 而非 docker-compose pull，确保拿到真正的 latest
+    # docker-compose pull 有时因为缓存认为镜像已是最新，不会实际拉取
+    docker pull ${IMAGE_NAME}:latest
 }
 
 # 停止旧容器
