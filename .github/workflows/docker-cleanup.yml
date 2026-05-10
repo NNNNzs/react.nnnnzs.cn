@@ -27,6 +27,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: 调试认证信息
+        run: |
+          echo "🔑 用户名长度: $(echo -n "${{ secrets.DOCKERHUB_USERNAME }}" | wc -c)"
+          echo "🔑 Token 长度: $(echo -n "${{ secrets.DOCKERHUB_TOKEN }}" | wc -c)"
+          echo "🔑 Token 前10位: $(echo "${{ secrets.DOCKERHUB_TOKEN }}" | head -c 10)..."
+          # 测试认证
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
+            "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags/?page_size=1")
+          echo "🔑 认证测试 (GET tags): HTTP ${HTTP_CODE}"
+
       - name: 获取并清理旧 tags
         env:
           KEEP_COUNT: ${{ github.event.inputs.keep_count || '3' }}
@@ -64,11 +75,13 @@ jobs:
           echo "📋 找到 ${#ALL_TAGS[@]} 个 tags:"
           printf '   %s\n' "${ALL_TAGS[@]}"
 
-          # 分离 latest 和版本 tags
+          # 只保留 vYYYY.MM.DD.HH 格式的版本 tags
           VERSION_TAGS=()
           for tag in "${ALL_TAGS[@]}"; do
-            if [ "$tag" != "latest" ]; then
+            if [[ "$tag" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}$ ]]; then
               VERSION_TAGS+=("$tag")
+            else
+              echo "   ⏭️  跳过非版本 tag: ${tag}"
             fi
           done
 
@@ -106,16 +119,19 @@ jobs:
           DELETED=0
           FAILED=0
           for tag in "${TO_DELETE[@]}"; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            RESP=$(curl -s -w "\n%{http_code}" \
               -X DELETE \
               -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
               "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags/${tag}/")
+            HTTP_CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | sed '$d')
 
             if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
               echo "   ✅ 已删除: ${tag}"
               DELETED=$((DELETED + 1))
             else
               echo "   ❌ 删除失败: ${tag} (HTTP ${HTTP_CODE})"
+              [ -n "$BODY" ] && echo "      响应: ${BODY}"
               FAILED=$((FAILED + 1))
             fi
           done
