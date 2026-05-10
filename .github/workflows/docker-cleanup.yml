@@ -1,0 +1,124 @@
+name: Docker Hub 清理旧镜像
+
+on:
+  schedule:
+    # 每周日凌晨 3 点运行（北京时间）
+    - cron: '0 19 * * 0'
+  workflow_dispatch:
+    inputs:
+      keep_count:
+        description: '保留最新版本数（不含 latest）'
+        required: false
+        default: '3'
+
+env:
+  IMAGE_NAME: nnnnzs/react-nnnnzs-cn
+  TZ: Asia/Shanghai
+
+jobs:
+  cleanup:
+    name: 清理旧镜像
+    runs-on: ubuntu-latest
+    steps:
+      - name: 登录 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 获取并清理旧 tags
+        env:
+          KEEP_COUNT: ${{ github.event.inputs.keep_count || '3' }}
+        run: |
+          echo "🕐 当前时间: $(date +'%Y-%m-%d %H:%M:%S %Z')"
+          echo "📦 镜像: ${{ env.IMAGE_NAME }}"
+          echo "💾 保留最新 ${KEEP_COUNT} 个版本（不含 latest）"
+          echo "---"
+
+          # 获取所有 tags（分页处理）
+          ALL_TAGS=()
+          PAGE=1
+          while true; do
+            RESPONSE=$(curl -s -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
+              "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags?page_size=100&page=${PAGE}")
+
+            # 提取 tag 名称
+            TAGS=$(echo "$RESPONSE" | jq -r '.results[].name' 2>/dev/null)
+            if [ -z "$TAGS" ]; then
+              break
+            fi
+
+            while IFS= read -r tag; do
+              ALL_TAGS+=("$tag")
+            done <<< "$TAGS"
+
+            # 检查是否有下一页
+            NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
+            if [ -z "$NEXT" ]; then
+              break
+            fi
+            PAGE=$((PAGE + 1))
+          done
+
+          echo "📋 找到 ${#ALL_TAGS[@]} 个 tags:"
+          printf '   %s\n' "${ALL_TAGS[@]}"
+
+          # 分离 latest 和版本 tags
+          VERSION_TAGS=()
+          for tag in "${ALL_TAGS[@]}"; do
+            if [ "$tag" != "latest" ]; then
+              VERSION_TAGS+=("$tag")
+            fi
+          done
+
+          echo ""
+          echo "📊 版本 tags: ${#VERSION_TAGS[@]} 个"
+
+          # 按版本号排序（vYYYY.MM.DD.HH 格式，字典序即时间序）
+          IFS=$'\n' SORTED_TAGS=($(printf '%s\n' "${VERSION_TAGS[@]}" | sort -r))
+          unset IFS
+
+          echo "🔤 排序后前 5 个:"
+          for i in 0 1 2 3 4; do
+            [ $i -lt ${#SORTED_TAGS[@]} ] && echo "   [$((i+1))] ${SORTED_TAGS[$i]}"
+          done
+
+          # 确定要删除的 tags
+          TO_DELETE=()
+          for i in "${!SORTED_TAGS[@]}"; do
+            if [ $i -ge $KEEP_COUNT ]; then
+              TO_DELETE+=("${SORTED_TAGS[$i]}")
+            fi
+          done
+
+          echo ""
+          if [ ${#TO_DELETE[@]} -eq 0 ]; then
+            echo "✅ 没有需要清理的 tags"
+            exit 0
+          fi
+
+          echo "🗑️  将删除 ${#TO_DELETE[@]} 个 tags:"
+          printf '   %s\n' "${TO_DELETE[@]}"
+          echo ""
+
+          # 删除 tags
+          DELETED=0
+          FAILED=0
+          for tag in "${TO_DELETE[@]}"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X DELETE \
+              -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
+              "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags/${tag}/")
+
+            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "   ✅ 已删除: ${tag}"
+              DELETED=$((DELETED + 1))
+            else
+              echo "   ❌ 删除失败: ${tag} (HTTP ${HTTP_CODE})"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo ""
+          echo "📊 清理完成: 成功 ${DELETED} 个, 失败 ${FAILED} 个"
