@@ -43,11 +43,11 @@ jobs:
           fi
           echo "✅ JWT Token 获取成功 (长度: ${#TOKEN})"
 
-          # 获取所有 tags（通过 Registry API）
+          # 获取所有 tags（Basic Auth 可用）
           ALL_TAGS=()
           PAGE=1
           while true; do
-            RESPONSE=$(curl -s -H "Authorization: Bearer ${TOKEN}" \
+            RESPONSE=$(curl -s -u "${DOCKER_USER}:${DOCKER_PASS}" \
               "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags?page_size=100&page=${PAGE}")
 
             TAGS=$(echo "$RESPONSE" | jq -r '.results[].name' 2>/dev/null)
