@@ -1,15 +1,12 @@
 name: Docker Release
 
-# 推送到 main 分支时触发，跳过 docs: 和 chore: 开头的提交
+# 推送到 main 分支时触发，在 job 中判断是否跳过
 on:
   push:
     branches:
       - main
     tags:
       - 'v*.*.*'
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
 
 jobs:
   skip-check:
@@ -30,10 +27,21 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" ${{ github.sha }})
           echo "提交信息: ${COMMIT_MSG}"
 
+          # 获取更改的文件列表
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          echo "更改的文件:"
+          echo "$CHANGED_FILES"
+
+          # 检查是否仅更改了 docs 目录或 .md 文件
+          NON_DOCS_COUNT=$(echo "$CHANGED_FILES" | grep -vE '^docs/' | grep -vE '\.md$' | grep -vE '^\.github/' | wc -l)
+
           # 跳过 docs: 和 chore: 开头的提交
           if echo "$COMMIT_MSG" | grep -qE '^(docs|chore)(\(.+\))?:'; then
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "⏭️ 跳过构建：${COMMIT_MSG}"
+            echo "⏭️ 跳过构建（提交信息）：${COMMIT_MSG}"
+          elif [ "$NON_DOCS_COUNT" -eq 0 ]; then
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "⏭️ 跳过构建（仅 docs 更改）"
           else
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "🔨 需要构建：${COMMIT_MSG}"
