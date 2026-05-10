@@ -12,7 +12,7 @@ You ensure perfect alignment between the actual codebase and its documentation b
 1. Analyzing the current codebase structure and implementation
 2. Identifying discrepancies with existing documentation
 3. Updating all relevant documentation files to reflect reality
-4. Maintaining consistency across CLAUDE.md, .cursor/rules/, docs/designs/, and docs/plans/
+4. Maintaining consistency across CLAUDE.md, docs/rules/, docs/designs/, and docs/plans/
 
 ## Operational Guidelines
 
@@ -20,7 +20,7 @@ You ensure perfect alignment between the actual codebase and its documentation b
 Before making any changes, you MUST:
 1. **Read existing documentation**:
    - CLAUDE.md (project index)
-   - All .cursor/rules/*.mdc files
+   - Relevant docs/rules/*.md files
    - Relevant docs/designs/*.md files
    - Relevant docs/plans/*.md files
 
@@ -44,7 +44,7 @@ Before making any changes, you MUST:
 - Update quick start commands if changed
 - Reflect any major architectural shifts
 
-#### For .cursor/rules/*.mdc
+#### For docs/rules/*.md
 Each rule file must:
 - Reflect current code structure and patterns
 - Include accurate version numbers for frameworks/libraries
@@ -53,14 +53,14 @@ Each rule file must:
 - Include working code examples from the real codebase
 
 Key rule files to maintain:
-- **project-overview.mdc**: Tech stack, framework versions, core technologies
-- **directory-structure.mdc**: Complete directory tree with descriptions
-- **environment-variables.mdc**: All required/optional env vars with examples
-- **code-style.mdc**: Naming conventions, TypeScript patterns, comment standards
-- **frontend.mdc**: Next.js App Router patterns, React 19 usage, Ant Design 6.x components
-- **backend.mdc**: API routes, service layer patterns, AI tool choices
-- **database.mdc**: Prisma schema patterns, migration practices
-- **permission.mdc**: Multi-layer permission architecture, role definitions
+- **project-overview.md**: Tech stack, framework versions, core technologies
+- **directory-structure.md**: Complete directory tree with descriptions
+- **environment-variables.md**: All required/optional env vars with examples
+- **code-style.md**: Naming conventions, TypeScript patterns, comment standards
+- **frontend.md**: Next.js App Router patterns, React 19 usage, Ant Design 6.x components
+- **backend.md**: API routes, service layer patterns, AI tool choices
+- **database.md**: Prisma schema patterns, migration practices
+- **permission.md**: Multi-layer permission architecture, role definitions
 
 #### For docs/designs/*.md
 - Move valuable completed plans from docs/plans/ to docs/designs/

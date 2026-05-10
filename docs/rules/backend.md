@@ -129,10 +129,21 @@ AI 相关服务统一组织在 `src/services/ai/` 目录下，按功能拆分：
 
 ```
 src/services/ai/
-├── anthropic/        # Anthropic 官方 SDK 工具类（新建）
+├── anthropic/        # Anthropic 官方 SDK 工具类
 │   ├── client.ts     # 客户端和配置
 │   ├── stream.ts     # 流式响应处理
 │   └── index.ts      # 统一导出
+├── rag/              # RAG Agent 服务
+│   ├── agent.ts      # 旧版 Agent 系统指令构建（保留兼容）
+│   ├── langgraph-agent.ts  # LangGraph ReAct Agent 实现（当前使用）
+│   └── index.ts      # Agent 统一导出
+├── tools/            # ReAct Agent 工具系统
+│   ├── search-articles.ts    # 向量语义搜索工具
+│   ├── search-posts-meta.ts  # 元数据搜索工具
+│   ├── search-collection.ts  # 合集搜索工具
+│   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
+│   ├── register.ts           # 工具注册辅助
+│   └── index.ts              # 工具统一导出
 ├── text/              # AI文本处理服务（使用 Anthropic）
 │   └── index.ts
 ├── description/       # 文章描述生成服务（使用 Anthropic）
@@ -153,12 +164,20 @@ import { streamAnthropicMessagesWithSystem } from '@/services/ai/anthropic';
 // ✅ 正确：导入 OpenAI LangChain 工具（需要 OpenAI 时）
 import { createAIChain, streamFromChain } from '@/lib/ai';
 
+// ✅ 正确：导入 LangGraph Agent
+import { createChatAgent } from '@/services/ai/rag/langgraph-agent';
+
+// ✅ 正确：导入 LangChain 格式工具
+import { chatTools } from '@/services/ai/tools/langchain-tools';
+
 // ❌ 错误：不要混用两套工具
 // 不要用 LangChain 调用 Anthropic，不要用官方 SDK 调用 OpenAI
 ```
 
 **目录职责**：
 - `anthropic/` - Anthropic 官方 SDK 工具类，提供直接调用接口
+- `rag/` - RAG Agent 服务，包含 LangGraph 和旧版 Agent 实现
+- `tools/` - ReAct Agent 的工具系统，包含自定义格式和 LangChain 格式
 - `text/` - AI 文本处理相关功能（使用 Anthropic）
 - `description/` - 文章描述生成功能（使用 Anthropic）
 - `utils/` - 共享的工具函数（主要用于 OpenAI 的 LangChain 提示词模板）

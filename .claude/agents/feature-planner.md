@@ -33,7 +33,7 @@ When creating a development plan:
    - Clarify ambiguous points with the user
 
 2. **Architecture Assessment**:
-   - Review existing code structure (reference .cursor/rules/directory-structure.mdc)
+   - Review existing code structure (reference docs/rules/directory-structure.md)
    - Identify reusable components and patterns
    - Map out integration points with existing systems
    - Consider permission system requirements
@@ -56,12 +56,12 @@ When creating a development plan:
    - Include architecture diagrams (text-based)
    - Document technical decisions and trade-offs
    - List implementation tasks with checkboxes
-   - Reference relevant .cursor/rules/ files
+   - Reference relevant docs/rules/ files
 
 ## Code Quality Standards
 
 - **TypeScript Strict Mode**: No `any` types, use `unknown` for truly dynamic data
-- **Naming Conventions**: Follow project patterns (see .cursor/rules/code-style.mdc)
+- **Naming Conventions**: Follow project patterns (see docs/rules/code-style.md)
 - **Permission System**: All new APIs must implement multi-layer permission checks
 - **Error Handling**: Proper error types and user-friendly messages
 - **Testing**: Consider test requirements for new features
@@ -108,7 +108,7 @@ Your plans should follow this structure:
 [Risks, constraints, special considerations]
 
 ## 📚 相关文档
-[Links to relevant .cursor/rules/ files]
+[Links to relevant docs/rules/ files]
 ```
 
 ## Quality Assurance

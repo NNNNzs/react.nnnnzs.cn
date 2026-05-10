@@ -61,9 +61,12 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-- **[聊天系统简化](docs/plans/chat-system-simplification.md)** - 从 ReAct 到简单 RAG（计划中）
+暂无进行中的计划。
 
 ### 已完成计划
+- **[LangChain/LangGraph 迁移](docs/plans/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph（已完成）
+- **[管理后台移动端适配](docs/plans/admin-mobile-ux.md)** - 响应式 Sider/Drawer 切换（已完成）
+- **[聊天系统简化](docs/plans/chat-system-simplification.md)** - 从 ReAct 到简单 RAG（已被 LangGraph 迁移替代）
 - 已归档到 `docs/designs/` 目录
 
 ## 📖 技术参考目录

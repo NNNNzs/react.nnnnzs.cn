@@ -1,18 +1,20 @@
 # RAG 聊天系统
 
-> **状态**: ✅ 已实施
+> **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
-> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md)
+> **最后更新**: 2026-05-10
+> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [LangChain 迁移计划](../../plans/chat-langchain-migration.md)
 
 ## 概述
 
-本项目实现了一个基于 **ReAct（Reasoning and Acting）Agent** 的 RAG 聊天机器人，通过向量检索增强 LLM 的回答能力，提供基于博客知识库的智能问答服务。
+本项目实现了一个基于 **LangGraph ReAct Agent** 的 RAG 聊天机器人，通过向量检索增强 LLM 的回答能力，提供基于博客知识库的智能问答服务。
 
 ### 核心特性
 
-- **ReAct Agent**：使用 Thought-Action-Observation 循环进行多步推理
+- **LangGraph ReAct Agent**：使用 `createReactAgent` 进行多步推理（替代原手写 ReAct 循环）
+- **原生 Function Calling**：使用 LangChain `tool()` + zod schema 定义工具（替代 JSON-RPC）
 - **向量检索**：基于 Qdrant 的语义搜索，检索相关文章
-- **流式响应**：使用 SSE（Server-Sent Events）实现实时流式输出
+- **流式响应**：使用 SSE（Server-Sent Events）+ XML 标签协议实现实时流式输出
 - **工具调用**：支持可扩展的工具系统（当前实现 3 个工具）
 - **对话历史**：支持多轮对话上下文管理
 
@@ -32,13 +34,13 @@ flowchart TB
         B1["参数验证"]
         B2["用户身份识别"]
         B3["系统指令构建"]
-        B4["ReAct Agent 调度"]
+        B4["LangGraph Agent 调度"]
     end
 
-    subgraph Agent["ReAct Agent lib/react-agent.ts"]
-        C1["Thought → Action → Observation 循环"]
-        C2["工具调用解析"]
-        C3["SSE 事件流推送"]
+    subgraph Agent["LangGraph Agent services/ai/rag/langgraph-agent.ts"]
+        C1["createReactAgent（LangGraph 预构建）"]
+        C2["streamEvents 事件流"]
+        C3["XML 标签流式协议转换"]
     end
 
     subgraph Tools["工具系统层 services/ai/tools"]
@@ -70,12 +72,15 @@ flowchart TB
 |------|------|------|
 | **聊天页面** | `src/app/chat/page.tsx` | 用户界面、SSE 解析、ReAct 步骤展示 |
 | **聊天 API** | `src/app/api/chat/route.ts` | 请求处理、Agent 调度、系统指令构建 |
-| **ReAct Agent** | `src/lib/react-agent.ts` | Thought-Action-Observation 循环实现 |
-| **RAG Agent** | `src/services/ai/rag/agent.ts` | 系统指令构建、Agent 流程协调 |
-| **工具系统** | `src/services/ai/tools/` | 工具注册、调用解析、结果格式化 |
+| **LangGraph Agent** | `src/services/ai/rag/langgraph-agent.ts` | LangGraph `createReactAgent` 实现 |
+| **旧版 Agent** | `src/lib/react-agent.ts` | 旧版手写 ReAct 循环（保留兼容） |
+| **Agent 编排** | `src/services/ai/rag/agent.ts` | 旧版系统指令构建、流程协调 |
+| **Agent 统一入口** | `src/services/ai/rag/index.ts` | Agent 选择和统一导出 |
+| **LangChain 工具** | `src/services/ai/tools/langchain-tools.ts` | LangChain `tool()` + zod schema 定义 |
 | **搜索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具 |
 | **元数据搜索** | `src/services/ai/tools/search-posts-meta.ts` | 按时间/热度/分类搜索 |
 | **合集搜索** | `src/services/ai/tools/search-collection.ts` | 合集内文章搜索 |
+| **流式标签** | `src/lib/stream-tags.ts` | XML 标签流式协议（前后端通信） |
 | **SSE 工具** | `src/lib/sse.ts` | SSE 流式响应创建和事件发送 |
 
 ## 数据结构

@@ -98,6 +98,7 @@ src/app/
 | `/c/user` | `/c/user` | 用户管理 |
 | `/c/user/info` | `/c/user/info` | 用户信息 |
 | `/c/config` | `/c/config` | 配置管理 |
+| - | `/c/tts` | 语音合成页面（新增） |
 
 ## 🔗 路由示例
 
@@ -163,6 +164,17 @@ src/app/
 1. 用户在个人中心 `/c/user/info` 通过 FaceRegistrationCard 组件拍照注册
 2. 登录页 `/login` 新增「人脸登录」Tab，拍照后调用 `/api/face/login` 识别
 3. 使用腾讯云 IAI 服务的 1:N 人脸搜索（SearchFaces API）
+
+### 语音合成 API 端点（新增）
+
+```
+/api/tts/synthesize    # 语音合成（POST，对接小米 MiMo TTS API）
+```
+
+**语音合成流程**：
+1. 用户在管理后台 `/c/tts` 页面输入文本
+2. 前端调用 `/api/tts/synthesize` 发送文本
+3. 后端代理请求到小米 MiMo TTS API，返回音频数据
 
 ## 📝 路径生成规则
 

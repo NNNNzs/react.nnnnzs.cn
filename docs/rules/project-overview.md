@@ -31,6 +31,7 @@
 ### AI 工具库
 - **Anthropic**：`@anthropic-ai/sdk` - 官方 SDK，用于 Claude 模型
 - **OpenAI**：`@langchain/openai` + `@langchain/core` - LangChain 包装
+- **LangGraph**：`@langchain/langgraph` - ReAct Agent 编排（聊天系统）
 - **注意**：两套工具独立使用，根据模型提供商选择
 
 ### 其他工具库
@@ -40,6 +41,8 @@
 - bcrypt：密码加密
 - zod：运行时类型验证
 - `tencentcloud-sdk-nodejs-iai`：腾讯云人脸识别 SDK
+- `multer`：文件上传中间件
+- `framer-motion`：动画库
 
 ## 核心功能
 
@@ -58,10 +61,11 @@
 
 ### AI 功能
 - ✅ AI 文本处理（润色、摘要、翻译）
-- ✅ AI 对话聊天（RAG 模式）
+- ✅ AI 对话聊天（LangGraph ReAct Agent + RAG）
 - ✅ 语义搜索（基于 Qdrant）
 - ✅ 文章向量化
 - ✅ AI 配置管理（数据库驱动）
+- ✅ 语音合成（TTS，对接小米 MiMo TTS API）
 
 ### 用户系统
 - ✅ 多种登录方式（账号密码、GitHub、微信、人脸识别）
@@ -81,3 +85,4 @@
 - ✅ 分类归档
 - ✅ 标签筛选
 - ✅ 合集展示
+- ✅ 管理后台移动端适配（响应式 Sider/Drawer 切换）

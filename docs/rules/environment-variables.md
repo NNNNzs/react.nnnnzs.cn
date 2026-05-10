@@ -1,4 +1,3 @@
-
 # 环境变量配置
 
 ## 命名规范
@@ -17,22 +16,39 @@
 
 ### 数据库配置
 ```bash
-DATABASE_URL="mysql://user:password@host:port/database"
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=your_mysql_password
+DB_DATABASE=blog
+DATABASE_URL="mysql://root:your_mysql_password@localhost:3306/blog"
 ```
+
+> **说明**：
+> - `DB_*` 变量用于迁移脚本
+> - `DATABASE_URL` 用于 Prisma ORM
+> - 两者数据库名必须保持一致
 
 ### Redis 配置
 ```bash
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
-REDIS_DB=0
+REDIS_DB=1
+```
+
+### 应用配置
+```bash
+NODE_ENV=development
+PORT=3000
+JWT_SECRET=your-secret-key-here-change-in-production
 ```
 
 ### GitHub OAuth
 ```bash
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-GITHUB_REDIRECT_URI=
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_REDIRECT_URI=http://localhost:3000/api/github/callback
 ```
 
 ### 微信登录
@@ -40,6 +56,12 @@ GITHUB_REDIRECT_URI=
 WECHAT_CORP_ID=
 WECHAT_AGENT_ID=
 WECHAT_SECRET=
+```
+
+### 微信小程序
+```bash
+WX_APP_ID=your-wechat-app-id
+WX_APP_SECRET=your-wechat-app-secret
 ```
 
 ### 腾讯 COS (文件上传)
@@ -53,76 +75,6 @@ CDN_URL=https://static.your-domain.com
 
 > **双重命名支持**：代码同时支持 `COS_` 前缀命名（`COS_SECRET_ID`、`COS_SECRET_KEY`、`COS_BUCKET`、`COS_REGION`、`COS_CDN_URL`），优先使用无前缀的变量名。
 
-### AI 服务（已迁移至数据库）⚠️ 重要变更
-
-**旧方式**（已废弃）：
-```bash
-# ❌ 不再使用这些环境变量进行 AI 配置
-ANTHROPIC_API_KEY=sk-...
-OPENAI_API_KEY=sk-...
-BLOG_EMBEDDING_API_KEY=sk-...
-```
-
-**新方式**（推荐）：
-- AI 模型配置已迁移到数据库 `tb_config` 表
-- 支持的场景：`chat`、`embedding`、`ai_text`、`description`
-- 配置格式：`{scenario}.{config_key}`（如 `chat.api_key`）
-- 在系统配置管理页面添加 AI 配置
-- 或使用 `scripts/batch-add-ai-configs.js` 批量添加
-- 参考 `scripts/README-AI-CONFIG.md`
-
-**配置读取机制**（`src/lib/ai-config.ts`）：
-1. 从数据库 `tb_config` 表读取对应场景的配置
-2. 内存缓存 5 分钟 TTL
-3. 验证必需配置（api_key、model）存在性
-
-**例外**：Anthropic 官方 SDK（`src/services/ai/anthropic/client.ts`）仍直接读取环境变量：
-```bash
-# 以下环境变量仍被 Anthropic SDK 使用
-ANTHROPIC_AUTH_TOKEN=sk-...
-ANTHROPIC_BASE_URL=https://...
-```
-
-**配置方式说明**：
-1. 通过管理后台配置页面添加 AI 模型（推荐）
-2. 使用数据库脚本批量添加配置
-3. Anthropic SDK 例外：仍需配置环境变量
-
-### Qdrant 向量数据库（已迁移至数据库）⚠️ 重要变更
-
-**旧方式**（已废弃）：
-```bash
-# ❌ 不再推荐使用这些环境变量
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=your-api-key
-```
-
-**新方式**（推荐）：
-- Qdrant 配置已迁移到数据库 `tb_config` 表
-- 在系统配置管理页面添加以下配置：
-  - `qdrant.url`: Qdrant 服务地址（如 http://localhost:6333）
-  - `qdrant.api_key`: API 密钥（可选）
-  - `qdrant.timeout`: 超时时间（可选，默认 30000 毫秒）
-- 或使用 `pnpm run config:add-vector-db` 批量添加配置模板
-
-**保留的环境变量**（作为后备配置）：
-```bash
-# 如果数据库中没有配置，会回退到这些环境变量
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=your-api-key
-QDRANT_TIMEOUT=30000
-```
-
-**配置方式说明**：
-1. 通过管理后台配置页面添加 Qdrant 配置（推荐）
-2. 使用脚本添加配置模板：`pnpm run config:add-vector-db`
-3. 环境变量作为后备配置，确保兼容性
-
-### 站点配置
-```bash
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
 ### 腾讯云人脸识别（IAI）
 ```bash
 TENCENT_IAI_REGION=ap-shanghai
@@ -133,6 +85,49 @@ FACE_GROUP_ID=blog_users
 > - `TENCENT_IAI_REGION`：腾讯云 IAI 服务区域，默认 `ap-shanghai`
 > - `FACE_GROUP_ID`：腾讯云人员库 GroupId，需在腾讯云控制台手动创建
 > - 认证凭据复用腾讯云 COS 的 `SecretId` 和 `SecretKey` 环境变量
+
+### 站点配置
+```bash
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### Docker 部署配置（可选）
+```bash
+DOCKER_HUB_TOKEN=your-docker-hub-token
+DOCKERHUB_USERNAME=your-dockerhub-username
+```
+
+## 已迁移至数据库的配置
+
+以下配置已从环境变量迁移到数据库 `tb_config` 表，通过**系统配置管理页面**配置：
+
+### AI 服务配置
+- 聊天模型（`chat.api_key`, `chat.model` 等）
+- 向量化模型（`embedding.api_key`, `embedding.model` 等）
+- AI 文本生成（`ai_text.*`）
+- 描述生成（`description.*`）
+
+详见：[scripts/README-AI-CONFIG.md](../../scripts/README-AI-CONFIG.md)
+
+### Qdrant 向量数据库
+- `qdrant.url`：Qdrant 服务地址
+- `qdrant.api_key`：API 密钥
+- `qdrant.timeout`：超时时间
+
+**后备环境变量**（可选）：
+```bash
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-qdrant-api-key
+QDRANT_TIMEOUT=30000
+```
+
+### TTS 语音合成
+- `tts.api_key`：MiMo API 密钥
+- `tts.base_url`：API 基地址
+- `tts.default_model`：默认模型
+- `tts.default_voice`：默认音色
+
+详见：[TTS 功能设计](../designs/tts-page.md)
 
 ## 配置文件
 

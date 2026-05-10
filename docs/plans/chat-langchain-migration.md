@@ -4,8 +4,9 @@
 
 **目标**：将当前手写的 ReAct Agent 聊天系统完全迁移至 LangChain 技术栈，包括 LangGraph Agent、LangChain Tools、LangChain RAG，同时保留前端 ReAct 步骤可视化。
 
-**状态**：计划中
+**状态**：已完成
 **创建日期**：2026-04-28
+**完成日期**：2026-05-10
 
 ---
 

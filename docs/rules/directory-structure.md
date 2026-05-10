@@ -9,7 +9,9 @@ src/
 │   │   ├── post/                 # 博客文章 API
 │   │   ├── user/                 # 用户认证 API
 │   │   ├── ai/                   # AI 生成端点
-│   │   ├── chat/                 # 聊天 API (ReAct Agent + SSE)
+│   │   ├── chat/                 # 聊天 API (LangGraph ReAct Agent + SSE)
+│   │   ├── tts/                  # 语音合成 API (TTS)
+│   │   │   └── synthesize/       # 语音合成端点
 │   │   ├── mcp/                  # Model Context Protocol
 │   │   ├── oauth/                # OAuth 2.0 端点
 │   │   ├── comment/              # 评论 API
@@ -39,7 +41,8 @@ src/
 │   │   ├── edit/[id]/            # 文章编辑器
 │   │   ├── post/                 # 文章管理
 │   │   ├── user/                 # 用户管理
-│   │   └── config/               # 配置管理
+│   │   ├── config/               # 配置管理
+│   │   ├── tts/                  # 语音合成页面 (TTS)
 │   ├── tags/                     # 标签页面
 │   ├── archives/                 # 归档页面
 │   ├── chat/                     # AI 聊天界面
@@ -80,7 +83,10 @@ src/
 │   ├── ai.ts                     # OpenAI LangChain 抽象层
 │   ├── ai-config.ts              # AI 配置管理（数据库驱动）
 │   ├── ai-text.ts                # AI 文本处理工具函数
-│   ├── react-agent.ts            # ReAct Agent 核心逻辑
+│   ├── react-agent.ts            # 旧版 ReAct Agent 核心逻辑（保留兼容）
+│   ├── sse.ts                    # SSE 服务端推送工具
+│   ├── stream-tags.ts            # XML 标签流式协议（前后端通信）
+│   ├── stream.ts                 # 流式响应基础工具
 │   ├── qdrant.ts                 # Qdrant 客户端（单例+配置热更新）
 │   ├── vector-db-config.ts       # 向量数据库配置（数据库驱动）
 │   ├── permission.ts             # 权限检查工具
@@ -97,9 +103,14 @@ src/
 │   │   ├── tools/                # ReAct Agent 工具注册和实现
 │   │   │   ├── search-articles.ts    # 向量语义搜索工具
 │   │   │   ├── search-posts-meta.ts  # 元数据搜索工具
-│   │   │   └── search-collection.ts  # 合集搜索工具
+│   │   │   ├── search-collection.ts  # 合集搜索工具
+│   │   │   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
+│   │   │   ├── register.ts           # 工具注册辅助
+│   │   │   └── index.ts              # 工具统一导出
 │   │   ├── rag/                  # RAG Agent 服务
-│   │   │   └── agent.ts          # Agent 系统指令构建
+│   │   │   ├── agent.ts          # 旧 Agent 系统指令构建（保留兼容）
+│   │   │   ├── langgraph-agent.ts # LangGraph ReAct Agent 实现
+│   │   │   └── index.ts          # Agent 统一导出
 │   │   └── utils/                # AI 提示词模板 (OpenAI)
 │   ├── embedding/                # 文本嵌入服务（队列+切片+存储）
 │   │   ├── embedding-queue.ts    # 异步向量化队列
@@ -122,6 +133,12 @@ src/
 │   └── post-version.ts           # 文章版本控制
 │
 ├── hooks/                        # 自定义 React Hooks
+│   ├── useBreakpoint.ts          # 响应式断点检测（管理后台移动端适配）
+│   ├── useCachedApi.ts           # 带缓存的 API 请求
+│   ├── useConfig.ts              # 系统配置 Hook
+│   ├── useDarkMode.ts            # 暗色模式 Hook
+│   ├── useRouteMatch.ts          # 路由匹配 Hook
+│   └── useScrollProgress.ts      # 滚动进度 Hook
 ├── types/                        # TypeScript 类型定义 (重新导出)
 ├── config/                       # 项目配置常量
 ├── generated/                    # 自动生成的代码（Prisma Client）
@@ -144,10 +161,11 @@ prisma/                           # Prisma Schema 定义
 核心业务逻辑，所有数据库操作通过此层进行。
 
 ### `/src/services/ai/tools` - AI 工具系统
-ReAct Agent 的工具注册、定义和实现。当前包含 3 个工具：
+ReAct Agent 的工具注册、定义和实现。当前包含 3 个工具，同时支持自定义格式和 LangChain 格式：
 - `search_articles`: 向量语义搜索
 - `search_posts_meta`: 按时间/热度/分类等维度查询
 - `search_collection`: 指定合集中的文章搜索
+- `langchain-tools.ts`: LangChain `tool()` + zod schema 格式的工具定义（用于 LangGraph Function Calling）
 
 ### `/src/lib` - 工具库
 通用的工具函数和配置。其中 `ai-config.ts` 和 `vector-db-config.ts` 负责从数据库 `tb_config` 表读取配置。
