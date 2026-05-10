@@ -151,6 +151,19 @@ src/app/
 /api/oauth/token       # OAuth Token API
 ```
 
+### 人脸识别 API 端点（新增）
+
+```
+/api/face/register     # 人脸注册/删除（POST 注册，DELETE 删除）
+/api/face/login        # 人脸登录（POST）
+/api/face/status       # 人脸注册状态查询（GET）
+```
+
+**人脸识别流程**：
+1. 用户在个人中心 `/c/user/info` 通过 FaceRegistrationCard 组件拍照注册
+2. 登录页 `/login` 新增「人脸登录」Tab，拍照后调用 `/api/face/login` 识别
+3. 使用腾讯云 IAI 服务的 1:N 人脸搜索（SearchFaces API）
+
 ## 📝 路径生成规则
 
 ### 文章 path 字段

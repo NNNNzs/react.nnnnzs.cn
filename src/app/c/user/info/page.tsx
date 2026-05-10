@@ -36,6 +36,7 @@ import MediaUpload from "@/components/MediaUpload";
 import ImageCropper from "@/components/ImageCropper";
 import WechatBindCard from "@/components/WechatBindCard";
 import GithubBindCard from "@/components/GithubBindCard";
+import FaceRegistrationCard from "@/components/FaceRegistrationCard";
 import LongTermTokenCard from "@/components/LongTermTokenCard";
 import OAuthTokenCard from "@/components/OAuthTokenCard";
 import { isAdmin } from "@/types/role";
@@ -397,6 +398,13 @@ export default function UserInfoPage() {
         <GithubBindCard
           isBound={!!userInfo?.github_id}
           githubUsername={userInfo?.github_username || undefined}
+          onStatusChange={handleWechatStatusChange}
+        />
+      </div>
+
+      {/* 人脸识别注册卡片 */}
+      <div className="mt-6">
+        <FaceRegistrationCard
           onStatusChange={handleWechatStatusChange}
         />
       </div>

@@ -1352,3 +1352,69 @@ export async function canLike(targetType: string, targetId: number, request: Nex
 2. **IP 伪造**：`x-forwarded-for` 可被伪造，不应作为唯一安全依据
 3. **IPv6 支持**：工具自动支持 IPv6 地址格式
 4. **缓存策略**：建议使用 Redis 缓存减少数据库查询
+
+## 人脸识别服务
+
+### 概述
+项目集成腾讯云人脸识别（IAI）服务，支持用户通过摄像头拍照进行注册和登录。采用腾讯云人员库 1:N 人脸搜索方案。
+
+### 服务层
+**位置**：`src/services/face.ts`
+
+SDK：`tencentcloud-sdk-nodejs-iai`
+
+```typescript
+import { createPerson, searchFaces, deletePerson, toPersonId, fromPersonId } from '@/services/face';
+
+// 注册人脸
+await createPerson(personId, nickname, imageBase64);
+
+// 搜索人脸（1:N 匹配）
+const result = await searchFaces(imageBase64);
+// result: { personId: string, score: number } | null
+
+// 删除人员
+await deletePerson(personId);
+
+// PersonId 与 userId 转换
+const personId = toPersonId(userId);   // user_123
+const userId = fromPersonId(personId);  // 123
+```
+
+**关键参数**：
+- `MATCH_THRESHOLD = 80`：人脸搜索匹配阈值，低于此分数视为不匹配
+- PersonId 格式：`user_${userId}`
+- 认证凭据复用 COS 的 `SecretId` / `SecretKey` 环境变量
+- 区域配置：`TENCENT_IAI_REGION`，默认 `ap-shanghai`
+- 人员库：`FACE_GROUP_ID` 环境变量
+
+### API 路由
+
+| 端点 | 方法 | 说明 | 认证 |
+|------|------|------|------|
+| `/api/face/register` | POST | 注册/更新人脸 | Token 认证 |
+| `/api/face/register` | DELETE | 删除人脸注册 | Token 认证 |
+| `/api/face/login` | POST | 人脸登录 | 无需认证 |
+| `/api/face/status` | GET | 查询人脸注册状态 | Token 认证 |
+
+#### 注册流程（POST /api/face/register）
+1. 验证用户 Token
+2. 接收 base64 人脸图片
+3. 先尝试删除已有人员（处理历史脏数据）
+4. 调用 `CreatePerson` 创建新人员
+5. 更新 `tbUser.face_person_id` 字段
+
+#### 登录流程（POST /api/face/login）
+1. 接收 base64 人脸图片
+2. 调用 `SearchFaces` 在人员库中搜索匹配
+3. 从匹配的 PersonId 解析用户 ID
+4. 验证用户状态（存在且未禁用）
+5. 生成 Token 并写入 Cookie
+
+### 数据库变更
+`TbUser` 模型新增 `face_person_id` 字段（String?），存储腾讯云人员 PersonId。
+
+### 安全注意事项
+- 人脸登录 API 无需认证（公开端点），但匹配阈值确保安全性
+- 注册/删除操作需要 Token 认证
+- 用户状态检查（`status !== 1`）防止禁用用户登录

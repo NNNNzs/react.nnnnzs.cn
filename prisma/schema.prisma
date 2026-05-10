@@ -63,6 +63,7 @@ model TbUser {
   github_access_token String?   @db.Text // GitHub Access Token
   work_wechat_id      String?   @db.VarChar(255)
   wx_open_id          String?   @db.VarChar(255) // 微信小程序 openID
+  face_person_id      String?   @db.VarChar(64)  // 腾讯云人脸识别 PersonId
   status              Int       @default(1)
 
   // 关联关系

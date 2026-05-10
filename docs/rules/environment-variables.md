@@ -123,6 +123,17 @@ QDRANT_TIMEOUT=30000
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
+### 腾讯云人脸识别（IAI）
+```bash
+TENCENT_IAI_REGION=ap-shanghai
+FACE_GROUP_ID=blog_users
+```
+
+> **说明**：
+> - `TENCENT_IAI_REGION`：腾讯云 IAI 服务区域，默认 `ap-shanghai`
+> - `FACE_GROUP_ID`：腾讯云人员库 GroupId，需在腾讯云控制台手动创建
+> - 认证凭据复用腾讯云 COS 的 `SecretId` 和 `SecretKey` 环境变量
+
 ## 配置文件
 
 ### 开发环境

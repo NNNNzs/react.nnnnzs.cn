@@ -7,10 +7,11 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
+import FaceCamera from '@/components/FaceCamera';
 
 /** Token Cookie 名称，与服务端保持一致 */
 const TOKEN_KEY = 'blog-token';
@@ -25,6 +26,8 @@ function LoginPage() {
   const [allowRegister, setAllowRegister] = useState(true);
   const [checkingConfig, setCheckingConfig] = useState(true);
   const [activeTab, setActiveTab] = useState('login');
+  const [faceLoading, setFaceLoading] = useState(false);
+  const [faceCaptured, setFaceCaptured] = useState<string | null>(null);
 
   /**
    * 检查是否允许注册
@@ -134,6 +137,34 @@ function LoginPage() {
     window.location.href = `/api/github/auth?action=login&redirect=${encodeURIComponent(redirect)}`;
   };
 
+  /**
+   * 人脸登录拍照回调
+   */
+  const handleFaceCapture = async (base64: string) => {
+    setFaceCaptured(base64);
+    setFaceLoading(true);
+    try {
+      const response = await axios.post('/api/face/login', { image: base64 });
+      if (response.data.status) {
+        const { token } = response.data.data;
+        document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+        await refreshUser();
+        message.success('人脸登录成功！');
+        const redirect = searchParams.get('redirect') || '/c';
+        router.push(redirect);
+      } else {
+        message.error(response.data.message || '人脸识别失败');
+        setFaceCaptured(null);
+      }
+    } catch (error: unknown) {
+      const msg = axios.isAxiosError(error) ? error.response?.data?.message : '人脸识别失败';
+      message.error(msg || '人脸识别失败');
+      setFaceCaptured(null);
+    } finally {
+      setFaceLoading(false);
+    }
+  };
+
   // 显示加载状态
   if (checkingConfig) {
     return (
@@ -237,6 +268,36 @@ function LoginPage() {
           >
             使用 GitHub 登录
           </Button>
+        </div>
+      ),
+    },
+    {
+      key: 'face',
+      label: (
+        <span>
+          <ScanOutlined />
+          人脸登录
+        </span>
+      ),
+      children: (
+        <div className="flex flex-col items-center py-4">
+          {faceLoading ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="text-lg text-blue-600">识别中...</div>
+              <p className="text-sm text-gray-500">正在验证人脸信息</p>
+            </div>
+          ) : (
+            <>
+              <FaceCamera
+                onCapture={handleFaceCapture}
+                width={280}
+                height={280}
+              />
+              <p className="mt-3 text-center text-sm text-gray-500">
+                请将面部对准引导框后点击拍照
+              </p>
+            </>
+          )}
         </div>
       ),
     },

@@ -976,3 +976,76 @@ MediaUpload（对外组件，业务层使用）
 - 避免过度使用客户端组件
 - 注意 hydration 错误
 - 合理使用缓存策略
+
+## 人脸识别组件
+
+### FaceCamera 摄像头拍照组件
+
+**位置**：`src/components/FaceCamera/index.tsx`
+
+通用摄像头拍照组件，用于人脸识别场景。开启前置摄像头，提供拍照功能，返回 base64 图片。
+
+#### 功能特性
+- 自动开启前置摄像头
+- 支持前后摄像头切换
+- 前置摄像头自动镜像翻转
+- 人脸引导框（圆形边框）
+- 错误处理（权限拒绝等）
+
+#### 使用示例
+```tsx
+import FaceCamera from '@/components/FaceCamera';
+
+<FaceCamera
+  onCapture={(base64) => {
+    // base64: data:image/jpeg;base64,...
+    console.log('拍照结果', base64);
+  }}
+  width={300}
+  height={300}
+/>
+```
+
+#### Props
+```typescript
+interface FaceCameraProps {
+  /** 拍照回调，返回 base64 图片 */
+  onCapture: (base64: string) => void;
+  /** 摄像头预览宽度，默认 320 */
+  width?: number;
+  /** 摄像头预览高度，默认 240 */
+  height?: number;
+}
+```
+
+### FaceRegistrationCard 人脸注册卡片组件
+
+**位置**：`src/components/FaceRegistrationCard/index.tsx`
+
+用户个人信息页面的人脸注册管理卡片。自行管理注册状态，通过 `/api/face/status` 获取真实状态。
+
+#### 功能特性
+- 自动查询并显示当前人脸注册状态
+- 已注册：显示状态信息、支持更新照片和关闭人脸登录
+- 未注册：显示功能说明和开启按钮
+- 内嵌 FaceCamera 组件的注册弹窗
+
+#### 使用示例
+```tsx
+import FaceRegistrationCard from '@/components/FaceRegistrationCard';
+
+// 在用户信息页中使用
+<FaceRegistrationCard
+  onStatusChange={() => {
+    // 注册状态变更回调（可选）
+  }}
+/>
+```
+
+#### 依赖
+- `FaceCamera` - 摄像头拍照组件
+- `/api/face/status` - 注册状态查询
+- `/api/face/register` - 注册/删除操作
+
+#### 已使用页面
+- **用户信息页** (`src/app/c/user/info/page.tsx`)

@@ -68,6 +68,7 @@
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "tencentcloud-sdk-nodejs-iai": "^4.1.223",
     "undici": "^7.24.6",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"

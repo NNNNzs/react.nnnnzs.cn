@@ -20,7 +20,11 @@ src/
 │   │   ├── health/               # 健康检查 API
 │   │   ├── search/               # 搜索 API
 │   │   ├── wechat/               # 微信集成 API
-│   │   └── github/               # GitHub 集成
+│   │   ├── github/               # GitHub 集成
+│   │   └── face/                 # 人脸识别 API
+│   │       ├── register/route.ts # 人脸注册/删除（POST/DELETE）
+│   │       ├── login/route.ts    # 人脸登录（POST）
+│   │       └── status/route.ts   # 人脸注册状态（GET）
 │   ├── .well-known/              # OAuth 发现端点
 │   ├── [year]/[month]/[date]/[title]/  # 博客文章页面
 │   ├── collections/[slug]/       # 合集详情页
@@ -51,6 +55,8 @@ src/
 │   ├── EntityChangeHistoryModal/ # 变更历史弹窗
 │   ├── PostLikeButton/           # 文章点赞按钮
 │   ├── CollectionLikeButton/     # 合集点赞按钮
+│   ├── FaceCamera/               # 摄像头拍照组件（人脸识别）
+│   ├── FaceRegistrationCard/     # 人脸注册卡片组件
 │   └── (shared UI components)    # 其他共享组件
 │
 ├── contexts/                     # React Contexts
@@ -110,6 +116,7 @@ src/
 │   ├── like-record.ts            # 点赞记录服务
 │   ├── entity-change-detector.ts # 变更检测服务
 │   ├── entity-change-log.ts      # 变更日志服务
+│   ├── face.ts                   # 腾讯云人脸识别（IAI）服务
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务
 │   └── post-version.ts           # 文章版本控制
