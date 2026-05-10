@@ -179,9 +179,11 @@ export default function TTSPage() {
         model: modelId,
         voice: voiceId || undefined,
         instruction: instruction.trim() || undefined,
+      }, {
+        timeout: 60000,
       });
 
-      if (res.data?.code === 0 && res.data?.data?.audio) {
+      if (res.data?.data?.audio) {
         const { audio, elapsed, model, voice, format } = res.data.data;
         const audioBlob = base64ToBlob(audio, `audio/${format || "wav"}`);
         const url = URL.createObjectURL(audioBlob);

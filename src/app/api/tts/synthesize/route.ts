@@ -130,19 +130,40 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('MiMo TTS API error:', response.status, errorText);
+      // 尝试解析 JSON 错误体，提取更友好的错误信息
+      let detail = errorText.slice(0, 500);
+      try {
+        const errorJson = JSON.parse(errorText);
+        detail = errorJson?.error?.message || errorJson?.message || errorJson?.error?.type || JSON.stringify(errorJson).slice(0, 500);
+      } catch {
+        // 非 JSON 响应，使用原始文本
+      }
       return NextResponse.json(
-        errorResponse(`TTS API 调用失败 (${response.status}): ${errorText.slice(0, 200)}`),
+        errorResponse(`TTS API 调用失败 (${response.status}): ${detail}`),
         { status: 502 }
       );
     }
 
     const result = await response.json();
 
+    // 检查 MiMo API 返回的业务错误（HTTP 200 但内容为错误信息）
+    const apiError = result?.error?.message || result?.error?.type;
+    if (apiError) {
+      console.error('MiMo TTS API business error:', JSON.stringify(result).slice(0, 500));
+      return NextResponse.json(
+        errorResponse(`TTS API 错误: ${apiError}`),
+        { status: 502 }
+      );
+    }
+
     // 提取音频数据
     const audioData = result?.choices?.[0]?.message?.audio?.data;
     if (!audioData) {
       console.error('MiMo TTS API unexpected response:', JSON.stringify(result).slice(0, 500));
-      return NextResponse.json(errorResponse('TTS API 返回数据异常，未包含音频数据'), { status: 502 });
+      return NextResponse.json(
+        errorResponse(`TTS API 返回数据异常，未包含音频数据。响应: ${JSON.stringify(result).slice(0, 300)}`),
+        { status: 502 }
+      );
     }
 
     return NextResponse.json(
