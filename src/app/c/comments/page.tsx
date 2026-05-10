@@ -5,9 +5,9 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Table, Button, Input, Space, Tag, message, Modal, Select, Tooltip } from 'antd';
+import { Button, Input, Space, Tag, message, Modal, Select, Tooltip, Card } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   DeleteOutlined,
@@ -20,6 +20,8 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin } from '@/types/role';
+import ResponsiveTable from '@/components/ResponsiveTable';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -137,52 +139,13 @@ function CommentsPageContent() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [tableScrollHeight, setTableScrollHeight] = useState<number | undefined>(undefined);
+  const { isMobile } = useBreakpoint();
 
   const pagination = useMemo(() => ({
     current: urlState.current,
     pageSize: urlState.pageSize,
     total: total,
   }), [urlState, total]);
-
-  /**
-   * 动态计算表格滚动高度
-   */
-  useEffect(() => {
-    const updateScrollHeight = () => {
-      if (tableContainerRef.current) {
-        const containerHeight = tableContainerRef.current.clientHeight;
-        if (containerHeight > 0) {
-          const scrollHeight = containerHeight - 104;
-          setTableScrollHeight(Math.max(scrollHeight, 300));
-        }
-      }
-    };
-
-    updateScrollHeight();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateScrollHeight();
-    });
-
-    if (tableContainerRef.current) {
-      resizeObserver.observe(tableContainerRef.current);
-    }
-
-    let resizeTimer: NodeJS.Timeout;
-    const handleResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(updateScrollHeight, 100);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', handleResize);
-      if (resizeTimer) clearTimeout(resizeTimer);
-    };
-  }, []);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值
@@ -415,20 +378,73 @@ function CommentsPageContent() {
     },
   ];
 
+  /**
+   * 移动端评论卡片渲染
+   */
+  const renderMobileCard = (record: Comment) => (
+    <Card key={record.id} size="small" className="mb-3">
+      {/* 顶部：评论者 + 状态 + 删除按钮 */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Button
+            type="link"
+            size="small"
+            icon={<UserOutlined />}
+            onClick={() => handleViewUser(record)}
+            className="!p-0"
+          >
+            {record.user.nickname}
+          </Button>
+          <Tag color={record.status === 1 ? 'success' : 'default'}>
+            {record.status === 1 ? '正常' : '隐藏'}
+          </Tag>
+        </div>
+        <Button
+          type="link"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          onClick={() => handleDelete(record)}
+        >
+          删除
+        </Button>
+      </div>
+
+      {/* 中间：评论内容 */}
+      <div className="mb-2 text-sm text-gray-700 line-clamp-3">
+        {record.content}
+      </div>
+
+      {/* 底部：所属文章 + 评论时间 */}
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <Button
+          type="link"
+          size="small"
+          icon={<FileTextOutlined />}
+          onClick={() => handleViewPost(record)}
+          className="!p-0 text-xs"
+        >
+          {record.post.title || `文章 #${record.post.id}`}
+        </Button>
+        <span>{dayjs(record.created_at).format('YYYY-MM-DD HH:mm')}</span>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold">评论管理</h1>
+          <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>评论管理</h1>
         </div>
 
         {/* 搜索和筛选 */}
-        <div className="mb-4 flex gap-4 shrink-0">
+        <div className={`mb-4 shrink-0 ${isMobile ? 'flex flex-col gap-2' : 'flex gap-4'}`}>
           <Search
             placeholder="搜索评论内容"
             allowClear
             enterButton={<SearchOutlined />}
-            size="large"
+            size={isMobile ? 'middle' : 'large'}
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
@@ -436,13 +452,13 @@ function CommentsPageContent() {
               e.preventDefault();
               updateQueryParams({ q: searchInputValue, page: 1 });
             }}
-            style={{ maxWidth: 400 }}
+            style={isMobile ? { width: '100%' } : { maxWidth: 400 }}
           />
           <Select
             placeholder="状态筛选"
             allowClear
-            size="large"
-            style={{ width: 120 }}
+            size={isMobile ? 'middle' : 'large'}
+            style={isMobile ? { width: '100%' } : { width: 120 }}
             value={urlState.statusFilter === 'all' ? undefined : urlState.statusFilter}
             onChange={(value) => updateQueryParams({ status: value || 'all', page: 1 })}
             options={[
@@ -454,30 +470,28 @@ function CommentsPageContent() {
         </div>
 
         {/* 评论列表 */}
-        <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
-          <Table
-            columns={columns}
-            dataSource={comments}
-            rowKey="id"
-            loading={loading}
-            scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showTotal: (total) => `共 ${total} 条评论`,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              pageSizeOptions: ['10', '20', '50', '100'],
-            }}
-            onChange={(paginationConfig) => {
-              updateQueryParams({
-                page: paginationConfig.current || 1,
-                pageSize: paginationConfig.pageSize || 20,
-              });
-            }}
-          />
-        </div>
+        <ResponsiveTable
+          columns={columns}
+          dataSource={comments}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 条评论`,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+          }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
+        />
       </div>
     </div>
   );

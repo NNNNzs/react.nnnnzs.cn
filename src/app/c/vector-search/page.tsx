@@ -12,6 +12,7 @@ import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin } from '@/types/role';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -26,6 +27,7 @@ interface SearchResult {
 
 export default function VectorSearchPage() {
   const { user } = useAuth();
+  const { isMobile } = useBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -99,7 +101,7 @@ export default function VectorSearchPage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* 页面标题 */}
         <div className="mb-6">
-          <Title level={2} className="mb-2">向量检索测试</Title>
+          <Title level={isMobile ? 4 : 2} className="mb-2">向量检索测试</Title>
           <Text type="secondary">测试语义搜索功能，查找相关文章片段</Text>
         </div>
 
@@ -174,17 +176,17 @@ export default function VectorSearchPage() {
         {searchResults.length > 0 && (
           <Card>
             <Row gutter={16} className="mb-4">
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic title="找到结果" value={searchResults.length} />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic
                   title="最高相关度"
                   value={Math.round(searchResults[0]?.score * 100)}
                   suffix="%"
                 />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic
                   title="平均相关度"
                   value={Math.round(
@@ -205,14 +207,14 @@ export default function VectorSearchPage() {
                   className="flex flex-col items-start"
                 >
                   <div className="w-full">
-                    <div className="flex items-start justify-between mb-2">
-                      <Space>
+                    <div className={`mb-2 ${isMobile ? 'flex flex-col gap-1' : 'flex items-start justify-between'}`}>
+                      <Space wrap>
                         <Text strong>#{index + 1}</Text>
                         <Text strong>{item.title}</Text>
                         <Tag color="blue">文章ID: {item.postId}</Tag>
                         <Tag color="cyan">片段: {item.chunkIndex}</Tag>
                       </Space>
-                      <Space>
+                      <Space wrap>
                         <Tag color="green">
                           相关度: {Math.round(item.score * 100)}%
                         </Tag>

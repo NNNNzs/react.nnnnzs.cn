@@ -37,6 +37,7 @@ import CollectionSelector from "@/components/CollectionSelector";
 import MediaUpload from "@/components/MediaUpload";
 import { fetchAndProcessStream } from "@/lib/stream";
 import MarkdownPreview from "@/components/MarkdownPreview";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export default function EditPostPage() {
   const [previewDrawerOpen, setPreviewDrawerOpen] = useState(false);
 
   const isNewPost = params.id === "new";
+  const { isMobile } = useBreakpoint();
 
   /**
    * 检查权限
@@ -391,8 +393,8 @@ export default function EditPostPage() {
         }}
       >
         {/* 极简顶部栏 */}
-        <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-3 mb-4">
-          <div className="flex items-center gap-4">
+        <div className="shrink-0 border-b border-neutral-200 bg-white px-3 md:px-6 py-3 mb-2 md:mb-4">
+          <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
             {/* 左侧：状态指示 */}
             <div className="flex items-center gap-2 shrink-0">
               <Tooltip title={isPublished ? "已发布" : "隐藏中"}>
@@ -400,16 +402,18 @@ export default function EditPostPage() {
                   className={`w-2 h-2 rounded-full ${isPublished ? "bg-green-500" : "bg-amber-500"}`}
                 />
               </Tooltip>
-              <Form.Item name="hide" className="mb-0" noStyle>
-                <Radio.Group
-                  optionType="button"
-                  buttonStyle="solid"
-                  className="opacity-60 hover:opacity-100 transition-opacity"
-                >
-                  <Radio.Button value="0">发布</Radio.Button>
-                  <Radio.Button value="1">隐藏</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
+              {!isMobile && (
+                <Form.Item name="hide" className="mb-0" noStyle>
+                  <Radio.Group
+                    optionType="button"
+                    buttonStyle="solid"
+                    className="opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    <Radio.Button value="0">发布</Radio.Button>
+                    <Radio.Button value="1">隐藏</Radio.Button>
+                  </Radio.Group>
+                </Form.Item>
+              )}
             </div>
 
             {/* 中间：标题输入 */}
@@ -422,39 +426,42 @@ export default function EditPostPage() {
               >
                 <Input
                   placeholder="无标题文章"
-                  className="text-lg font-semibold"
-                  style={{ fontSize: 18, fontWeight: 600 }}
+                  className={`font-semibold ${isMobile ? '' : 'text-lg'}`}
+                  style={{ fontSize: isMobile ? 14 : 18, fontWeight: 600 }}
                 />
               </Form.Item>
             </div>
 
             {/* 右侧：快捷标签 + 操作按钮 */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* 快捷标签选择 */}
-              <Form.Item name="tags" className="mb-0" noStyle>
-                <Select
-                  mode="tags"
-                  maxTagCount={3}
-                  placeholder="+ 标签"
-                  bordered={false}
-                  suffixIcon={<TagsOutlined className="text-neutral-400" />}
-                  filterOption={(input, option) =>
-                    (option?.label ?? "")
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
-                  options={tags.map((tag) => ({
-                    value: tag[0],
-                    label: tag[0],
-                  }))}
-                  style={{ minWidth: 200 }}
-                  className="opacity-60 hover:opacity-100 transition-opacity"
-                />
-              </Form.Item>
+            <div className={`flex items-center shrink-0 ${isMobile ? 'gap-1' : 'gap-2'}`}>
+              {/* 快捷标签选择 - 桌面端显示 */}
+              {!isMobile && (
+                <>
+                  <Form.Item name="tags" className="mb-0" noStyle>
+                    <Select
+                      mode="tags"
+                      maxTagCount={3}
+                      placeholder="+ 标签"
+                      bordered={false}
+                      suffixIcon={<TagsOutlined className="text-neutral-400" />}
+                      filterOption={(input, option) =>
+                        (option?.label ?? "")
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
+                      options={tags.map((tag) => ({
+                        value: tag[0],
+                        label: tag[0],
+                      }))}
+                      style={{ minWidth: 200 }}
+                      className="opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                  </Form.Item>
 
-              <Divider type="vertical" className="h-6 mx-1" />
+                  <Divider type="vertical" className="h-6 mx-1" />
+                </>
+              )}
 
-              {/* 快速操作 - 用 Form.Item 包裹以统一高度 */}
               <Form.Item className="mb-0" noStyle>
                 <Tooltip title="预览 (Cmd+P)">
                   <Button
@@ -481,9 +488,10 @@ export default function EditPostPage() {
                     type="primary"
                     onClick={handleSubmit}
                     loading={loading.submit}
-                    icon={<SaveOutlined />}
+                    icon={isMobile ? <SaveOutlined /> : undefined}
+                    size={isMobile ? 'middle' : 'middle'}
                   >
-                    保存
+                    {isMobile ? '' : '保存'}
                   </Button>
                 </Tooltip>
               </Form.Item>
@@ -714,14 +722,16 @@ export default function EditPostPage() {
           </div>
         </Drawer>
 
-        {/* 快捷键提示 */}
-        <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
-          <Space split={<span>·</span>}>
-            <span>Cmd+S 保存</span>
-            <span>Cmd+, 设置</span>
-            <span>Cmd+P 预览</span>
-          </Space>
-        </div>
+        {/* 快捷键提示 - 仅桌面端显示 */}
+        {!isMobile && (
+          <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
+            <Space split={<span>·</span>}>
+              <span>Cmd+S 保存</span>
+              <span>Cmd+, 设置</span>
+              <span>Cmd+P 预览</span>
+            </Space>
+          </div>
+        )}
       </Form>
     </div>
   );

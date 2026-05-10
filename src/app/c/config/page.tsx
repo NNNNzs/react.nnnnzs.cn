@@ -9,13 +9,11 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useRef,
   useMemo,
   Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Table,
   Button,
   Input,
   Space,
@@ -24,6 +22,7 @@ import {
   Modal,
   Form,
   Select,
+  Card,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -35,6 +34,8 @@ import {
 import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import ResponsiveTable from "@/components/ResponsiveTable";
 import type { QueryConfigCondition } from "@/dto/config.dto";
 import type { TbConfig } from "@/generated/prisma-client";
 import { isAdmin } from "@/types/role";
@@ -135,11 +136,7 @@ function ConfigPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Config | null>(null);
   const [form] = Form.useForm();
-
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [tableScrollHeight, setTableScrollHeight] = useState<
-    number | undefined
-  >(undefined);
+  const { isMobile } = useBreakpoint();
 
   const statusFilter = urlState.statusFilter;
 
@@ -161,38 +158,6 @@ function ConfigPageContent() {
     }),
     [urlState, total]
   );
-
-  /**
-   * 动态计算表格滚动高度
-   */
-  useEffect(() => {
-    const updateScrollHeight = () => {
-      if (tableContainerRef.current) {
-        const containerHeight = tableContainerRef.current.clientHeight;
-        if (containerHeight > 0) {
-          const scrollHeight = containerHeight - 104;
-          setTableScrollHeight(Math.max(scrollHeight, 300));
-        }
-      }
-    };
-
-    updateScrollHeight();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateScrollHeight();
-    });
-
-    if (tableContainerRef.current) {
-      resizeObserver.observe(tableContainerRef.current);
-    }
-
-    window.addEventListener("resize", updateScrollHeight);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateScrollHeight);
-    };
-  }, []);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值
@@ -459,38 +424,100 @@ function ConfigPageContent() {
     },
   ];
 
+  /**
+   * 移动端配置卡片渲染
+   */
+  const renderMobileCard = (record: Config) => (
+    <Card size="small" className="mb-2">
+      {/* 顶部：标题 + 状态 */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-medium text-base truncate flex-1 mr-2">
+          {record.title || record.key}
+        </span>
+        <Tag color={record.status === 1 ? "success" : "default"}>
+          {record.status === 1 ? "启用" : "禁用"}
+        </Tag>
+      </div>
+      {/* 中间：Key + 备注 */}
+      <div className="mb-2">
+        <div className="font-mono text-sm text-gray-500 truncate">
+          {record.key}
+        </div>
+        {record.remark && (
+          <div className="text-sm text-gray-400 line-clamp-2 mt-1">
+            {record.remark}
+          </div>
+        )}
+      </div>
+      {/* 底部：更新时间 + 操作按钮 */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-400">
+          {record.updated_at
+            ? dayjs(record.updated_at).format("YYYY-MM-DD HH:mm")
+            : "-"}
+        </span>
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+          >
+            删除
+          </Button>
+        </Space>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* 标题栏 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold">配置管理</h1>
+          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
+            配置管理
+          </h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
-            size="large"
+            size={isMobile ? "middle" : "large"}
           >
-            创建新配置
+            {isMobile ? "新建" : "创建新配置"}
           </Button>
         </div>
 
         {/* 搜索和筛选 */}
-        <div className="mb-4 flex gap-4 shrink-0">
+        <div
+          className={`mb-4 shrink-0 ${
+            isMobile ? "flex flex-col gap-2" : "flex gap-4"
+          }`}
+        >
           <Search
             placeholder="搜索标题或Key"
             allowClear
             enterButton={<SearchOutlined />}
-            size="large"
+            size={isMobile ? "middle" : "large"}
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
-            style={{ maxWidth: 400 }}
+            style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
           />
           <Select
             placeholder="状态筛选"
             allowClear
-            size="large"
-            style={{ width: 120 }}
+            size={isMobile ? "middle" : "large"}
+            style={isMobile ? { width: "100%" } : { width: 120 }}
             value={statusFilter === "all" ? undefined : statusFilter}
             onChange={(value) =>
               updateQueryParams({ status: value || "all", page: 1 })
@@ -504,30 +531,28 @@ function ConfigPageContent() {
         </div>
 
         {/* 配置列表 */}
-        <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
-          <Table
-            columns={columns}
-            dataSource={configs}
-            rowKey="id"
-            loading={loading}
-            scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showTotal: (total) => `共 ${total} 条配置`,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              pageSizeOptions: ["10", "20", "50", "100"],
-            }}
-            onChange={(paginationConfig) => {
-              updateQueryParams({
-                page: paginationConfig.current || 1,
-                pageSize: paginationConfig.pageSize || 20,
-              });
-            }}
-          />
-        </div>
+        <ResponsiveTable
+          columns={columns}
+          dataSource={configs}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 条配置`,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ["10", "20", "50", "100"],
+          }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
+        />
       </div>
 
       {/* 创建/编辑弹窗 */}

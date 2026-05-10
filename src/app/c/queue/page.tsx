@@ -14,6 +14,7 @@ import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin } from '@/types/role';
 import { useRouter } from 'next/navigation';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text } = Typography;
 
@@ -35,6 +36,7 @@ interface EmbedStatus {
 export default function QueueMonitorPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { isMobile } = useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const [taskStatuses, setTaskStatuses] = useState<Map<number, EmbedStatus>>(new Map());
@@ -238,7 +240,7 @@ export default function QueueMonitorPage() {
         {/* 页面标题 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
           <div>
-            <Title level={2} className="mb-0">向量化队列监控</Title>
+            <Title level={isMobile ? 4 : 2} className="mb-0">向量化队列监控</Title>
             <Text type="secondary">实时监控文章向量化处理进度</Text>
           </div>
           <Button
@@ -264,7 +266,7 @@ export default function QueueMonitorPage() {
 
         {/* 统计卡片 */}
         <Row gutter={16} className="mb-6 shrink-0">
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card>
               <Statistic
                 title="队列中"
@@ -273,7 +275,7 @@ export default function QueueMonitorPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card>
               <Statistic
                 title="处理中"
@@ -282,7 +284,7 @@ export default function QueueMonitorPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card>
               <Statistic
                 title="已完成"
@@ -291,7 +293,7 @@ export default function QueueMonitorPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card>
               <Statistic
                 title="失败"

@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Table, Button, Space, Tag, message, Modal, Switch } from 'antd';
+import { Button, Space, Tag, message, Modal, Switch, Card } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
@@ -24,12 +24,15 @@ import { isAdmin } from '@/types/role';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
 import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';
+import ResponsiveTable from '@/components/ResponsiveTable';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { confirm } = Modal;
 
 export default function CollectionsManagePage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { isMobile } = useBreakpoint();
 
   const [collections, setCollections] = useState<SerializedCollection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,6 +154,84 @@ export default function CollectionsManagePage() {
       message.error('更新状态失败');
     }
   };
+
+  /**
+   * 渲染单个合集的移动端卡片
+   */
+  const renderMobileCard = (record: SerializedCollection) => (
+    <Card key={record.id} size="small" className="mb-3">
+      <div className="flex gap-3">
+        {/* 左侧缩略图 */}
+        {record.cover && (
+          <div className="shrink-0">
+            <Image
+              src={optimizeImageUrl(record.cover, ImageOptimizationType.SMALL_THUMBNAIL)}
+              alt="封面"
+              width={64}
+              height={40}
+              unoptimized={true}
+              className="w-16 h-10 object-cover rounded"
+              sizes="64px"
+            />
+          </div>
+        )}
+        {/* 右侧信息 */}
+        <div className="flex-1 min-w-0">
+          {/* 标题行：标题 + 状态开关 */}
+          <div className="flex items-center justify-between gap-2">
+            <a
+              href={`/collections/${record.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline font-medium truncate"
+            >
+              {record.title}
+            </a>
+            <Switch
+              checked={record.status === 1}
+              onChange={() => handleToggleStatus(record.id, record.status)}
+              checkedChildren="显示"
+              unCheckedChildren="隐藏"
+              size="small"
+            />
+          </div>
+          {/* 信息行：文章数 + 创建日期 */}
+          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+            <Tag color="blue">{record.article_count} 篇</Tag>
+            <span>{dayjs(record.created_at).format('YYYY-MM-DD')}</span>
+          </div>
+          {/* 操作行 */}
+          <div className="mt-2 flex items-center gap-1">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => router.push(`/c/collections/${record.id}`)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<HistoryOutlined />}
+              onClick={() => handleViewChangeHistory(record)}
+            >
+              变更历史
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id, record.title)}
+            >
+              删除
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 
   // 表格列定义
   const columns: TableColumnsType<SerializedCollection> = [
@@ -275,37 +356,36 @@ export default function CollectionsManagePage() {
     <>
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        {/* 头部操作栏 */}
+        {/* 头部操作栏 - 响应式 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold">合集管理</h1>
+          <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>合集管理</h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => router.push('/c/collections/new')}
-            size="large"
+            size={isMobile ? 'middle' : 'large'}
           >
-            创建合集
+            {isMobile ? '新建' : '创建合集'}
           </Button>
         </div>
 
-        {/* 表格容器 - 使用flex-1占据剩余空间 */}
-        <div className="flex-1 min-h-0">
-          <Table
-            columns={columns}
-            dataSource={collections}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              ...pagination,
-              showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (page, pageSize) => {
-                loadCollections(page, pageSize);
-              },
-            }}
-            scroll={{ y: 'calc(100vh - var(--header-height) - 300px)' }}
-          />
-        </div>
+        {/* 响应式表格/卡片 */}
+        <ResponsiveTable
+          columns={columns}
+          dataSource={collections}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+            onChange: (page, pageSize) => {
+              loadCollections(page, pageSize);
+            },
+          }}
+          scroll={{ y: 'calc(100vh - var(--header-height) - 300px)' }}
+        />
       </div>
     </div>
 

@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { SerializedCollection } from '@/dto/collection.dto';
 import type { SerializedPost } from '@/dto/post.dto';
 import dayjs from 'dayjs';
@@ -41,6 +42,7 @@ export default function CollectionPostsPage() {
   const router = useRouter();
   const params = useParams();
   const collectionId = params.id as string;
+  const { isMobile } = useBreakpoint();
 
   const [collection, setCollection] = useState<SerializedCollection | null>(null);
   const [allArticles, setAllArticles] = useState<SerializedPost[]>([]);
@@ -265,7 +267,7 @@ export default function CollectionPostsPage() {
                 placeholder="搜索文章标题或描述"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: 300, marginBottom: 16 }}
+                style={{ width: isMobile ? '100%' : 300, marginBottom: 16 }}
                 prefix={<SearchOutlined />}
               />
 
@@ -332,16 +334,19 @@ export default function CollectionPostsPage() {
                   {selectedArticles.map((article, index) => (
                     <div
                       key={article.id}
-                      className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded hover:shadow-sm transition-shadow"
+                      className={`p-4 bg-white border border-gray-200 rounded hover:shadow-sm transition-shadow ${isMobile ? 'flex flex-col gap-2' : 'flex items-center gap-4'}`}
                     >
                       {/* 序号 */}
-                      <div className="text-2xl font-bold text-gray-400 w-8 text-center">
+                      <div className={`text-2xl font-bold text-gray-400 text-center ${isMobile ? 'hidden' : 'w-8 shrink-0'}`}>
                         {String(index + 1).padStart(2, '0')}
                       </div>
 
                       {/* 文章信息 */}
-                      <div className="flex-1">
-                        <div className="font-medium">{article.title}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {isMobile && <span className="text-sm text-gray-400">#{index + 1}</span>}
+                          <span className="font-medium">{article.title}</span>
+                        </div>
                         <div className="text-sm text-gray-500 line-clamp-1">
                           {article.description}
                         </div>
@@ -352,7 +357,7 @@ export default function CollectionPostsPage() {
                       </div>
 
                       {/* 操作按钮 */}
-                      <Space>
+                      <Space size="small" wrap={isMobile}>
                         <Button
                           size="small"
                           disabled={index === 0}

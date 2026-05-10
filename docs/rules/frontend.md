@@ -741,6 +741,110 @@ export default function AdminPage() {
 - 合集编辑页：`src/app/c/collections/[id]/page.tsx:125-250`
 - 合集文章管理：`src/app/c/collections/[id]/posts/page.tsx:203-383`
 
+## 管理后台移动端适配规范 ⚠️ IMPORTANT
+
+### 布局适配
+
+管理后台在 `<768px` 移动端下，`src/app/c/layout.tsx` 已将 Sider 替换为 Drawer 抽屉菜单。**页面内部**需要单独适配。
+
+### 断点检测
+
+使用 `useBreakpoint` Hook 检测移动端，无需自建：
+
+```tsx
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+
+const { isMobile } = useBreakpoint(); // 默认 768px
+```
+
+### 列表页面：ResponsiveTable 组件 ⚠️ IMPORTANT
+
+管理后台所有**表格列表页面**（评论、合集、配置、用户、文章）必须使用 `ResponsiveTable` 组件，**禁止直接使用 `<Table>`**。
+
+```tsx
+import ResponsiveTable from '@/components/ResponsiveTable';
+
+<ResponsiveTable
+  columns={columns}              // 桌面端表格列
+  dataSource={data}
+  rowKey="id"
+  loading={loading}
+  renderMobileCard={(record) => (  // 移动端卡片渲染
+    <Card size="small" className="mb-3">
+      <div className="font-medium">{record.title}</div>
+      <div className="text-xs text-gray-400">{dayjs(record.date).format('YYYY-MM-DD')}</div>
+    </Card>
+  )}
+  pagination={pagination}
+  onChange={(paginationConfig) => { /* ... */ }}
+/>
+```
+
+**组件特性：**
+- 桌面端：渲染 Ant Design `<Table>`，内置 ResizeObserver 自动计算滚动高度
+- 移动端：渲染 Ant Design `<List>` + 自定义卡片，分页自动简化为 `size: 'small'`
+- 无需手动管理 `tableContainerRef`、`tableScrollHeight` 和 ResizeObserver
+
+**移动端卡片设计规范：**
+- 每条数据一张卡片，纵向排列
+- 标题行：主标题 + 关键状态 Tag
+- 信息行：次要信息（时间、数量等），使用 `text-xs text-gray-400`
+- 操作行：主操作（编辑）直接显示，次要操作收入 `Dropdown` 或精简为图标
+
+### 筛选栏响应式
+
+筛选栏需要根据移动端自动调整布局：
+
+```tsx
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+
+const { isMobile } = useBreakpoint();
+
+// 外层容器
+<div className={`mb-4 shrink-0 ${isMobile ? 'flex flex-col gap-2' : 'flex gap-4'}`}>
+  <Search
+    size={isMobile ? 'middle' : 'large'}
+    style={isMobile ? { width: '100%' } : { maxWidth: 400 }}
+  />
+  <Select
+    size={isMobile ? 'middle' : 'large'}
+    style={{ width: isMobile ? '100%' : 120 }}
+  />
+</div>
+```
+
+### 标题栏响应式
+
+```tsx
+<div className={`mb-6 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
+  <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>页面标题</h1>
+  <Button
+    type="primary"
+    size={isMobile ? 'middle' : 'large'}
+  >
+    {isMobile ? '新建' : '创建新标题'}
+  </Button>
+</div>
+```
+
+### 统计卡片响应式（Row/Col）
+
+```tsx
+<Row gutter={16}>
+  <Col xs={12} sm={6}>  {/* 移动端 2 列，桌面端 4 列 */}
+    <Card><Statistic title="队列中" value={count} /></Card>
+  </Col>
+</Row>
+```
+
+### 编辑页面顶部栏
+
+编辑文章页 (`/c/edit/[id]`) 移动端需要精简顶部栏：
+- 移动端隐藏标签选择器（移至设置抽屉内）
+- 移动端保存按钮只显示图标，不显示文字
+- 隐藏底部快捷键提示
+- 增大标题输入区域占比
+
 ## 媒体上传规范
 
 ### 通用媒体上传组件 ⚠️ IMPORTANT

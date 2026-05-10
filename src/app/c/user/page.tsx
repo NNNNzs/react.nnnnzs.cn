@@ -9,13 +9,11 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useRef,
   useMemo,
   Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Table,
   Button,
   Input,
   Space,
@@ -25,6 +23,7 @@ import {
   Form,
   Select,
   Switch,
+  Card,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -39,6 +38,8 @@ import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import type { QueryUserCondition, UserInfo } from "@/dto/user.dto";
 import { UserRole, RoleDisplayNames, getRoleOptions, isAdmin } from "@/types/role";
+import ResponsiveTable from "@/components/ResponsiveTable";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -138,10 +139,7 @@ function UserPageContent() {
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [form] = Form.useForm();
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [tableScrollHeight, setTableScrollHeight] = useState<
-    number | undefined
-  >(undefined);
+  const { isMobile } = useBreakpoint();
 
   const roleFilter = urlState.roleFilter;
   const statusFilter = urlState.statusFilter;
@@ -164,38 +162,6 @@ function UserPageContent() {
       router.push("/c/post");
     }
   }, [user, router]);
-
-  /**
-   * 动态计算表格滚动高度
-   */
-  useEffect(() => {
-    const updateScrollHeight = () => {
-      if (tableContainerRef.current) {
-        const containerHeight = tableContainerRef.current.clientHeight;
-        if (containerHeight > 0) {
-          const scrollHeight = containerHeight - 104;
-          setTableScrollHeight(Math.max(scrollHeight, 300));
-        }
-      }
-    };
-
-    updateScrollHeight();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateScrollHeight();
-    });
-
-    if (tableContainerRef.current) {
-      resizeObserver.observe(tableContainerRef.current);
-    }
-
-    window.addEventListener("resize", updateScrollHeight);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateScrollHeight);
-    };
-  }, []);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值
@@ -511,89 +477,169 @@ function UserPageContent() {
     },
   ];
 
+  /**
+   * 角色颜色映射
+   */
+  const roleColorMap = {
+    [UserRole.ADMIN]: "red",
+    [UserRole.USER]: "blue",
+    [UserRole.GUEST]: "default",
+  };
+
+  /**
+   * 渲染移动端用户卡片
+   */
+  const renderMobileCard = (record: UserInfo) => {
+    const roleValue = (record.role || UserRole.GUEST) as UserRole;
+    return (
+      <Card size="small" className="mb-2">
+        {/* 顶部：昵称 + 角色 + 状态 */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-bold text-base">{record.nickname}</span>
+          <Space>
+            <Tag color={roleColorMap[roleValue]}>
+              {RoleDisplayNames[roleValue] || record.role}
+            </Tag>
+            <Tag color={record.status === 1 ? "success" : "default"}>
+              {record.status === 1 ? "启用" : "禁用"}
+            </Tag>
+          </Space>
+        </div>
+
+        {/* 中间：账号 · 邮箱 · 手机号 */}
+        <div className="text-gray-500 text-sm mb-2">
+          {[record.account, record.mail || null, record.phone || null]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+
+        {/* 底部：注册日期 + 操作按钮 */}
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400 text-xs">
+            {record.registered_time
+              ? dayjs(record.registered_time).format("YYYY-MM-DD")
+              : "-"}
+          </span>
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<LockOutlined />}
+              onClick={() => handleResetPassword(record)}
+            >
+              重置密码
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              disabled={record.role === UserRole.ADMIN}
+            >
+              删除
+            </Button>
+          </Space>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* 标题栏 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold">用户管理</h1>
+          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
+            用户管理
+          </h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
-            size="large"
+            size={isMobile ? "middle" : "large"}
           >
-            创建新用户
+            {isMobile ? "新建" : "创建新用户"}
           </Button>
         </div>
 
         {/* 搜索和筛选 */}
-        <div className="mb-4 flex gap-4 shrink-0">
+        <div className={`mb-4 shrink-0 ${isMobile ? "flex flex-col gap-2" : "flex gap-4"}`}>
           <Search
             placeholder="搜索账号、昵称或邮箱"
             allowClear
             enterButton={<SearchOutlined />}
-            size="large"
+            size={isMobile ? "middle" : "large"}
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
-            style={{ maxWidth: 400 }}
+            style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
           />
-          <Select
-            placeholder="角色筛选"
-            allowClear
-            size="large"
-            style={{ width: 140 }}
-            value={roleFilter === "all" ? undefined : roleFilter}
-            onChange={(value) =>
-              updateQueryParams({ role: value || "all", page: 1 })
-            }
-            options={[
-              { label: "全部角色", value: "all" },
-              ...getRoleOptions(),
-            ]}
-          />
-          <Select
-            placeholder="状态筛选"
-            allowClear
-            size="large"
-            style={{ width: 120 }}
-            value={statusFilter === "all" ? undefined : statusFilter}
-            onChange={(value) =>
-              updateQueryParams({ status: value || "all", page: 1 })
-            }
-            options={[
-              { label: "全部", value: "all" },
-              { label: "启用", value: "1" },
-              { label: "禁用", value: "0" },
-            ]}
-          />
+          <div className={isMobile ? "flex gap-2" : "contents"}>
+            <Select
+              placeholder="角色筛选"
+              allowClear
+              size={isMobile ? "middle" : "large"}
+              style={isMobile ? { width: "50%" } : { width: 140 }}
+              value={roleFilter === "all" ? undefined : roleFilter}
+              onChange={(value) =>
+                updateQueryParams({ role: value || "all", page: 1 })
+              }
+              options={[
+                { label: "全部角色", value: "all" },
+                ...getRoleOptions(),
+              ]}
+            />
+            <Select
+              placeholder="状态筛选"
+              allowClear
+              size={isMobile ? "middle" : "large"}
+              style={isMobile ? { width: "50%" } : { width: 120 }}
+              value={statusFilter === "all" ? undefined : statusFilter}
+              onChange={(value) =>
+                updateQueryParams({ status: value || "all", page: 1 })
+              }
+              options={[
+                { label: "全部", value: "all" },
+                { label: "启用", value: "1" },
+                { label: "禁用", value: "0" },
+              ]}
+            />
+          </div>
         </div>
 
         {/* 用户列表 */}
-        <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
-          <Table
-            columns={columns}
-            dataSource={users}
-            rowKey="id"
-            loading={loading}
-            scroll={tableScrollHeight ? { y: tableScrollHeight, x: 1200 } : { x: 1200 }}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showTotal: (total) => `共 ${total} 个用户`,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              pageSizeOptions: ["10", "20", "50", "100"],
-            }}
-            onChange={(paginationConfig) => {
-              updateQueryParams({
-                page: paginationConfig.current || 1,
-                pageSize: paginationConfig.pageSize || 20,
-              });
-            }}
-          />
-        </div>
+        <ResponsiveTable<UserInfo>
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          scroll={{ x: 1200 }}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 个用户`,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ["10", "20", "50", "100"],
+          }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
+        />
       </div>
 
       {/* 创建/编辑弹窗 */}
