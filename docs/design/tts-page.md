@@ -182,3 +182,4 @@ interface TTSSynthesizeResponse {
 5. **音频播放**: 前端使用 `Audio` API 播放 base64 解码后的音频
 6. **音频下载**: 使用 `Blob` + `URL.createObjectURL` 实现下载
 7. **UI 框架**: 继续使用 Ant Design (antd) 组件库，与现有后台风格一致
+# Build Sun May 10 10:35:27 AM CST 2026
