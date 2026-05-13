@@ -18,7 +18,7 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
 interface FaceCameraProps {
   /** 捕获到人脸时的回调（base64） */
@@ -32,9 +32,8 @@ const STABLE_THRESHOLD = 3;
 /** 检测间隔（ms） */
 const DETECT_INTERVAL = 200;
 
-/** CDN 模型加载地址 */
-const MODEL_URL =
-  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/models/tiny_face_detector_model';
+/** 模型文件路径（从 public/models 目录加载） */
+const MODEL_URL = '/models';
 
 export default function FaceCamera({
   onCapture,
@@ -69,9 +68,7 @@ export default function FaceCamera({
       try {
         setModelLoading(true);
         // 使用 face-api.js 内置的权重加载，传入包含模型文件的目录 URL
-        await faceapi.nets.tinyFaceDetector.load(
-          MODEL_URL.substring(0, MODEL_URL.lastIndexOf('/')),
-        );
+        await faceapi.nets.tinyFaceDetector.load(MODEL_URL);
         if (!cancelled) {
           setModelReady(true);
           setModelLoading(false);
@@ -469,7 +466,7 @@ export default function FaceCamera({
 
       {!captured && streaming && modelError && (
         <p className="text-center text-xs text-gray-400">
-          模型下载失败，请确保网络可访问 cdn.jsdelivr.net，或手动拍照使用
+          模型加载失败，请刷新页面重试，或手动拍照使用
         </p>
       )}
     </div>
