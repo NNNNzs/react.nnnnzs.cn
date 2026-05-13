@@ -1,20 +1,24 @@
 /**
  * 摄像头人脸拍照组件
- * 支持自动人脸检测（Chrome/Edge）和手动拍照两种模式
- * 检测到人脸稳定后自动截取，无需点击按钮
+ * 使用 face-api.js (TinyFaceDetector) 在浏览器端实时检测人脸
+ * 检测到人脸稳定后自动截取，无需手动点击拍照
+ *
+ * 模型加载：浏览器从 CDN 加载模型文件，不需服务端存储
  */
 
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Button, message } from 'antd';
+import { Button } from 'antd';
 import {
   CameraOutlined,
   ReloadOutlined,
   SwapOutlined,
   LoadingOutlined,
   CheckCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
+import * as faceapi from 'face-api.js';
 
 interface FaceCameraProps {
   /** 捕获到人脸时的回调（base64） */
@@ -23,10 +27,14 @@ interface FaceCameraProps {
   height?: number;
 }
 
-// 连续多少帧检测到人脸后才认为稳定
+/** 连续多少帧检测到人脸后才认为稳定 */
 const STABLE_THRESHOLD = 3;
-// 检测间隔（ms）
+/** 检测间隔（ms） */
 const DETECT_INTERVAL = 200;
+
+/** CDN 模型加载地址 */
+const MODEL_URL =
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/models/tiny_face_detector_model';
 
 export default function FaceCamera({
   onCapture,
@@ -37,20 +45,51 @@ export default function FaceCamera({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const detectorRef = useRef<FaceDetector | null>(null);
   const detectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableCountRef = useRef(0);
-  const capturedRef = useRef(false); // 避免重复 capture
-  const autoSupportedRef = useRef(false);
+  const capturedRef = useRef(false);
 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modelReady, setModelReady] = useState(false);
+  const [modelLoading, setModelLoading] = useState(true);
+  const [modelError, setModelError] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [faceBox, setFaceBox] = useState<DOMRectReadOnly | null>(null);
-  const [autoSupported, setAutoSupported] = useState(false);
+
+  /**
+   * 加载 TinyFaceDetector 模型
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadModel = async () => {
+      try {
+        setModelLoading(true);
+        // 使用 face-api.js 内置的权重加载，传入包含模型文件的目录 URL
+        await faceapi.nets.tinyFaceDetector.load(
+          MODEL_URL.substring(0, MODEL_URL.lastIndexOf('/')),
+        );
+        if (!cancelled) {
+          setModelReady(true);
+          setModelLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setModelReady(false);
+          setModelLoading(false);
+          setModelError(true);
+        }
+      }
+    };
+
+    loadModel();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * 停止流
@@ -62,20 +101,19 @@ export default function FaceCamera({
     }
     setStreaming(false);
     stopDetection();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * 绘制检测框叠加层
    */
   const drawFaceBox = useCallback(
-    (box: DOMRectReadOnly | null) => {
+    (box: faceapi.IRect | null) => {
       const overlay = overlayRef.current;
       if (!overlay) return;
       const ctx = overlay.getContext('2d');
       if (!ctx) return;
 
       ctx.clearRect(0, 0, overlay.width, overlay.height);
-
       if (!box) return;
 
       const scaleX = overlay.width / (videoRef.current?.videoWidth || 1);
@@ -95,24 +133,20 @@ export default function FaceCamera({
       ctx.lineWidth = 3;
       ctx.strokeRect(x, y, w, h);
 
-      // 跟角装饰
+      // 四角装饰
       const cornerLen = Math.min(w, h) * 0.15;
       ctx.strokeStyle = '#22c55e';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      // 左上
       ctx.moveTo(x, y + cornerLen);
       ctx.lineTo(x, y);
       ctx.lineTo(x + cornerLen, y);
-      // 右上
       ctx.moveTo(x + w - cornerLen, y);
       ctx.lineTo(x + w, y);
       ctx.lineTo(x + w, y + cornerLen);
-      // 左下
       ctx.moveTo(x, y + h - cornerLen);
       ctx.lineTo(x, y + h);
       ctx.lineTo(x + cornerLen, y + h);
-      // 右下
       ctx.moveTo(x + w - cornerLen, y + h);
       ctx.lineTo(x + w, y + h);
       ctx.lineTo(x + w, y + h - cornerLen);
@@ -126,59 +160,45 @@ export default function FaceCamera({
    */
   const detectOnce = useCallback(async () => {
     const video = videoRef.current;
-    const detector = detectorRef.current;
-    if (!video || !detector || capturedRef.current) return;
+    if (!video || capturedRef.current) return;
 
     try {
-      const faces = await detector.detect(video);
+      const face = await faceapi.detectSingleFace(
+        video,
+        new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }),
+      );
 
-      if (faces.length > 0) {
-        const face = faces[0];
+      if (face) {
+        const { box } = face;
+        drawFaceBox(box);
 
-        // 检查人脸是否足够大（占画面一定比例）
-        const faceArea = face.boundingBox.width * face.boundingBox.height;
-        const videoArea = video.videoWidth * video.videoHeight;
-        const ratio = faceArea / videoArea;
+        if (!faceDetected) {
+          setFaceDetected(true);
+        }
 
-        if (ratio > 0.05) {
-          setFaceBox(face.boundingBox);
-          drawFaceBox(face.boundingBox);
+        // 连续检测到人脸达到阈值 → 自动捕获
+        stableCountRef.current += 1;
+        if (stableCountRef.current >= STABLE_THRESHOLD && !capturedRef.current) {
+          capturedRef.current = true;
+          setDetecting(false);
+          setFaceDetected(false);
+          stopDetection();
 
-          if (!faceDetected) {
-            setFaceDetected(true);
-          }
-
-          // 连续检测到人脸达到阈值 → 自动捕获
-          stableCountRef.current += 1;
-          if (stableCountRef.current >= STABLE_THRESHOLD && !capturedRef.current) {
-            capturedRef.current = true;
-            setDetecting(false);
-            setFaceDetected(false);
-            stopDetection();
-
-            // 延迟一小下让用户看到检测框，再 capture
-            setTimeout(() => {
-              doCapture();
-            }, 300);
-            return;
-          }
-        } else {
-          resetFaceState();
+          // 延迟一小下让用户看到检测框
+          setTimeout(() => {
+            doCapture();
+          }, 300);
+          return;
         }
       } else {
-        resetFaceState();
+        stableCountRef.current = 0;
+        setFaceDetected(false);
+        drawFaceBox(null);
       }
     } catch {
       // 偶尔检测失败，忽略
     }
-  }, [faceDetected, drawFaceBox]);
-
-  const resetFaceState = useCallback(() => {
-    stableCountRef.current = 0;
-    setFaceDetected(false);
-    setFaceBox(null);
-    drawFaceBox(null);
-  }, [drawFaceBox]);
+  }, [faceDetected, drawFaceBox, doCapture]);
 
   /**
    * 执行捕获
@@ -203,7 +223,6 @@ export default function FaceCamera({
 
     const base64 = canvas.toDataURL('image/jpeg', 0.9);
     setCaptured(base64);
-    setFaceBox(null);
     drawFaceBox(null);
     onCapture(base64);
   }, [facingMode, drawFaceBox, onCapture]);
@@ -213,33 +232,16 @@ export default function FaceCamera({
    */
   const startDetection = useCallback(() => {
     stopDetection();
-
-    // 检查浏览器是否支持 FaceDetector
-    if (!autoSupportedRef.current) {
-      setAutoSupported(false);
-      return;
-    }
-
-    try {
-      detectorRef.current = new window.FaceDetector({
-        fastMode: true,
-        maxDetectedFaces: 1,
-      });
-    } catch {
-      setAutoSupported(false);
-      return;
-    }
-
     setDetecting(true);
     stableCountRef.current = 0;
     capturedRef.current = false;
     setFaceDetected(false);
-    setFaceBox(null);
+    drawFaceBox(null);
 
     detectionTimerRef.current = setInterval(() => {
       detectOnce();
     }, DETECT_INTERVAL);
-  }, [detectOnce]);
+  }, [detectOnce, drawFaceBox]);
 
   /**
    * 停止检测循环
@@ -250,8 +252,10 @@ export default function FaceCamera({
       detectionTimerRef.current = null;
     }
     setDetecting(false);
-    resetFaceState();
-  }, [resetFaceState]);
+    stableCountRef.current = 0;
+    setFaceDetected(false);
+    drawFaceBox(null);
+  }, [drawFaceBox]);
 
   /**
    * 启动流
@@ -262,7 +266,6 @@ export default function FaceCamera({
       setError(null);
       setCaptured(null);
       capturedRef.current = false;
-      setFaceBox(null);
       drawFaceBox(null);
 
       try {
@@ -286,12 +289,8 @@ export default function FaceCamera({
     [stopStream, width, height, drawFaceBox],
   );
 
-  // 初始化检测器支持和摄像头
+  // 初始化摄像头
   useEffect(() => {
-    const supported = typeof window !== 'undefined' && 'FaceDetector' in window;
-    autoSupportedRef.current = supported;
-    setAutoSupported(supported);
-
     startStream(facingMode);
     return () => {
       stopStream();
@@ -300,23 +299,23 @@ export default function FaceCamera({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 流就绪后启动检测
-  useEffect(() => {
-    if (streaming && autoSupportedRef.current && !capturedRef.current) {
-      // 等视频 frame 就绪再启动检测
-      const timer = setTimeout(() => {
-        startDetection();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [streaming, startDetection]);
-
   // 切换摄像头
   useEffect(() => {
     if (!streaming) return;
     startStream(facingMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
+
+  // 模型就绪 + 流就绪 → 启动检测
+  useEffect(() => {
+    if (streaming && modelReady && !capturedRef.current) {
+      const timer = setTimeout(() => {
+        startDetection();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming, modelReady]);
 
   /**
    * 手动拍照
@@ -330,7 +329,7 @@ export default function FaceCamera({
   const handleRetake = () => {
     setCaptured(null);
     capturedRef.current = false;
-    if (autoSupportedRef.current) {
+    if (modelReady) {
       startDetection();
     }
   };
@@ -390,25 +389,42 @@ export default function FaceCamera({
         </div>
 
         {/* 状态提示 */}
-        {!captured && streaming && (
+        {!captured && streaming && !captured && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-            {detecting && !faceDetected && (
+            {/* 模型加载中 */}
+            {modelLoading && (
+              <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+                <LoadingOutlined className="animate-spin" />
+                加载模型...
+              </div>
+            )}
+            {/* 检测中 */}
+            {modelReady && detecting && !faceDetected && (
               <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs text-white">
                 <LoadingOutlined className="animate-spin" />
                 检测中...
               </div>
             )}
-            {faceDetected && !captured && (
-              <div className="absolute bottom-3 flex items-center gap-1.5 rounded-full bg-green-500/80 px-3 py-1 text-xs text-white shadow">
-                <CheckCircleOutlined />
-                检测到人脸
+            {/* 模型加载失败 */}
+            {modelError && (
+              <div className="flex items-center gap-1.5 rounded-full bg-amber-500/80 px-3 py-1 text-xs text-white">
+                <WarningOutlined />
+                模型加载失败，请手动拍照
               </div>
             )}
           </div>
         )}
 
-        {/* 人脸引导框（无自动检测时的参考线） */}
-        {!captured && streaming && !autoSupported && (
+        {/* 检测到人脸提示（底部） */}
+        {!captured && streaming && faceDetected && modelReady && (
+          <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-green-500/80 px-3 py-1 text-xs text-white shadow">
+            <CheckCircleOutlined className="mr-1" />
+            检测到人脸
+          </div>
+        )}
+
+        {/* 无自动检测时的引导框 */}
+        {!captured && streaming && !modelReady && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
             <div
               className="rounded-full border-2 border-white/40"
@@ -417,13 +433,6 @@ export default function FaceCamera({
                 height: Math.min(width, height) * 0.8,
               }}
             />
-          </div>
-        )}
-
-        {/* AutoDetect 状态条 */}
-        {!captured && streaming && autoSupported && !detecting && !faceDetected && (
-          <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-amber-500/70 px-3 py-0.5 text-xs text-white">
-            请使用支持人脸检测的浏览器
           </div>
         )}
       </div>
@@ -454,19 +463,13 @@ export default function FaceCamera({
             >
               切换
             </Button>
-            {!autoSupported && (
-              <span className="self-center text-xs text-gray-400">
-                点击拍照按钮
-              </span>
-            )}
           </>
         )}
       </div>
 
-      {/* 浏览器不支持提示 */}
-      {!autoSupported && !captured && streaming && (
+      {!captured && streaming && modelError && (
         <p className="text-center text-xs text-gray-400">
-          当前浏览器不支持自动检测，请使用 Chrome/Edge 获得自动识别体验
+          模型下载失败，请确保网络可访问 cdn.jsdelivr.net，或手动拍照使用
         </p>
       )}
     </div>

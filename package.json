@@ -53,6 +53,7 @@
     "cos-nodejs-sdk-v5": "^2.15.4",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.20",
+    "face-api.js": "^0.22.2",
     "framer-motion": "^12.38.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.10.1",
