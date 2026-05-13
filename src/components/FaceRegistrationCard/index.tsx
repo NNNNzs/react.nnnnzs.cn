@@ -6,10 +6,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, Button, Space, Typography, Modal, message } from 'antd';
 import { ScanOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import FaceCamera from '@/components/FaceCamera';
+
+// face-api 依赖浏览器 API，必须禁用 SSR
+const FaceCamera = dynamic(() => import('@/components/FaceCamera'), { ssr: false });
 
 const { Title, Text } = Typography;
 

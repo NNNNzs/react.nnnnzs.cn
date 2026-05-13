@@ -5,13 +5,16 @@
 'use client';
 
 import React, { Suspense, useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
-import FaceCamera from '@/components/FaceCamera';
+
+// face-api 依赖浏览器 API，必须禁用 SSR
+const FaceCamera = dynamic(() => import('@/components/FaceCamera'), { ssr: false });
 
 /** Token Cookie 名称，与服务端保持一致 */
 const TOKEN_KEY = 'blog-token';
