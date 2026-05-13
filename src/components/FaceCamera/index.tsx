@@ -156,6 +156,33 @@ export default function FaceCamera({
   );
 
   /**
+   * 执行捕获
+   */
+  const doCapture = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 前置摄像头镜像翻转
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
+
+    const base64 = canvas.toDataURL('image/jpeg', 0.9);
+    setCaptured(base64);
+    drawFaceBox(null);
+    onCapture(base64);
+  }, [facingMode, drawFaceBox, onCapture]);
+
+  /**
    * 单次人脸检测
    */
   const detectOnce = useCallback(async () => {
@@ -199,33 +226,6 @@ export default function FaceCamera({
       // 偶尔检测失败，忽略
     }
   }, [faceDetected, drawFaceBox, doCapture]);
-
-  /**
-   * 执行捕获
-   */
-  const doCapture = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // 前置摄像头镜像翻转
-    if (facingMode === 'user') {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.drawImage(video, 0, 0);
-
-    const base64 = canvas.toDataURL('image/jpeg', 0.9);
-    setCaptured(base64);
-    drawFaceBox(null);
-    onCapture(base64);
-  }, [facingMode, drawFaceBox, onCapture]);
 
   /**
    * 启动检测循环
