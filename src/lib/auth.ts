@@ -62,6 +62,8 @@ export async function storeToken(token: string, user: User): Promise<void> {
  * 支持两种 Token 格式：
  * 1. 登录生成的 Token：存储在 user:${token}
  * 2. OAuth 生成的 Token：存储在 token:${token}
+ *
+ * 滑动续期：每次验证成功后自动延长 Token 有效期 7 天
  */
 export async function validateToken(token: string): Promise<User | null> {
   try {
@@ -70,21 +72,26 @@ export async function validateToken(token: string): Promise<User | null> {
     const userStr = await RedisService.get(redisKey);
 
     if (userStr) {
+      // 滑动续期：验证成功后自动延长 7 天
+      await RedisService.expire(redisKey, TOKEN_EXPIRE);
       return JSON.parse(userStr) as User;
     }
-    
+
     // 再尝试 OAuth Token 格式
     redisKey = `token:${token}`;
     const tokenDataStr = await RedisService.get(redisKey);
-    
+
     if (tokenDataStr) {
       const tokenData = JSON.parse(tokenDataStr);
+      // OAuth Token 也需要滑动续期
+      await RedisService.expire(redisKey, TOKEN_EXPIRE);
+
       // OAuth token 数据包含 userId，需要根据 userId 获取用户信息
       if (tokenData.userId) {
         const { getUserById } = await import('@/services/user');
         // userId可能是string或number，统一转为number
-        const userId = typeof tokenData.userId === 'string' 
-          ? parseInt(tokenData.userId, 10) 
+        const userId = typeof tokenData.userId === 'string'
+          ? parseInt(tokenData.userId, 10)
           : tokenData.userId;
         const user = await getUserById(userId);
         if (user) {
@@ -93,7 +100,7 @@ export async function validateToken(token: string): Promise<User | null> {
         }
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('验证Token失败:', error);

@@ -22,6 +22,7 @@
 
 - ~~管理后台性能优化~~ - 内容已实施，详见 [管理后台性能测试指南](../reference/ADMIN-PERFORMANCE-TEST.md)
 - ~~聊天系统简化方案~~ - 已被 LangChain/LangGraph 迁移方案替代并实施
+- ~~Token 滑动续期方案~~ - 已完成实施，移除 `src/lib/auth.ts` (2026-05-14)
 
 ---
 
