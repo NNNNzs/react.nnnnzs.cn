@@ -1377,6 +1377,37 @@ export async function canLike(targetType: string, targetId: number, request: Nex
 ### 概述
 项目集成腾讯云人脸识别（IAI）服务，支持用户通过摄像头拍照进行注册和登录。采用腾讯云人员库 1:N 人脸搜索方案。
 
+### 前端人脸检测
+
+**组件**：`src/components/FaceCamera/index.tsx`
+
+**技术方案**：
+- **前端检测**：使用 `@vladmandic/face-api`（TinyFaceDetector）在浏览器端实时检测人脸
+- **模型加载**：模型文件存储在 `public/models/` 目录，本地加载避免网络问题
+- **自动捕获**：检测到人脸稳定 3 帧后自动截取，提升用户体验
+
+**依赖**：
+```json
+{
+  "@vladmandic/face-api": "^1.7.15"
+}
+```
+
+**模型文件**：
+```
+public/models/
+├── tiny_face_detector_model-weights_manifest.json
+└── tiny_face_detector_model.bin
+```
+
+**组件特性**：
+- 实时人脸检测（200ms 间隔）
+- 绿色检测框可视化
+- 连续 3 帧稳定后自动捕获
+- 手动拍照/切换摄像头备选
+- 检测失败降级为手动模式
+- Dynamic import 禁用 SSR，避免 `TextEncoder` 服务端报错
+
 ### 服务层
 **位置**：`src/services/face.ts`
 
@@ -1437,3 +1468,11 @@ const userId = fromPersonId(personId);  // 123
 - 人脸登录 API 无需认证（公开端点），但匹配阈值确保安全性
 - 注册/删除操作需要 Token 认证
 - 用户状态检查（`status !== 1`）防止禁用用户登录
+
+### 技术架构说明
+- **前端**：浏览器端人脸检测（`@vladmandic/face-api`）→ 自动捕获人脸照片
+- **后端**：腾讯云 IAI 服务 → 人员库管理、1:N 人脸搜索
+- **优势**：
+  - 前端本地检测提升用户体验（自动捕获）
+  - 后端云端识别保证准确性（1:N 搜索）
+  - 模型本地加载避免跨防火墙问题

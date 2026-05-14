@@ -15,12 +15,13 @@
 ### 已归档
 
 - [RAG 系统重构](../designs/archive/rag-system-refactor.md) - 向量化系统简化（已完成）
+- [聊天系统 LangChain/LangGraph 迁移](../designs/archive/chat-langchain-migration.md) - 迁移至 LangGraph 技术栈（2026-05-10 完成）
+- [管理后台移动端适配优化](../designs/archive/admin-mobile-ux.md) - 响应式 Sider/Drawer 切换（commit 6f046a2 完成）
 
 ### 已删除
 
 - ~~管理后台性能优化~~ - 内容已实施，详见 [管理后台性能测试指南](../reference/ADMIN-PERFORMANCE-TEST.md)
-- ~~聊天系统简化方案~~ - 已被 LangChain/LangGraph 迁移方案替代并实施（见 [chat-langchain-migration.md](./chat-langchain-migration.md)）
-- ~~管理后台移动端适配优化~~ - 已实施完成（见 [admin-mobile-ux.md](./admin-mobile-ux.md)）
+- ~~聊天系统简化方案~~ - 已被 LangChain/LangGraph 迁移方案替代并实施
 
 ---
 
@@ -71,4 +72,4 @@
 
 ---
 
-**最后更新**: 2026-05-10
+**最后更新**: 2026-05-14
