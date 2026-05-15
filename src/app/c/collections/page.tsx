@@ -5,16 +5,17 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Button, Space, Tag, message, Modal, Switch, Card } from 'antd';
+import { Button, Input, Space, Tag, message, Modal, Switch, Card } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
   HistoryOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -27,20 +28,81 @@ import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
+const { Search } = Input;
 const { confirm } = Modal;
 
-export default function CollectionsManagePage() {
+/**
+ * 从 URL 查询参数中读取状态
+ */
+function useUrlState() {
+  const searchParams = useSearchParams();
+
+  return {
+    searchText: searchParams.get('q') || '',
+    current: parseInt(searchParams.get('page') || '1', 10),
+    pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
+  };
+}
+
+/**
+ * 查询参数类型定义
+ */
+interface QueryParams {
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 更新 URL 查询参数
+ */
+function useUpdateUrl() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  return useCallback((updates: Partial<QueryParams>) => {
+    const currentParams: QueryParams = {
+      q: searchParams.get('q') || undefined,
+      page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
+      pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined,
+    };
+
+    const mergedParams: QueryParams = {
+      ...currentParams,
+      ...updates,
+    };
+
+    const params = new URLSearchParams();
+
+    if (mergedParams.q && mergedParams.q.trim()) {
+      params.set('q', mergedParams.q.trim());
+    }
+
+    if (mergedParams.page && mergedParams.page > 1) {
+      params.set('page', mergedParams.page.toString());
+    }
+
+    if (mergedParams.pageSize && mergedParams.pageSize !== 20) {
+      params.set('pageSize', mergedParams.pageSize.toString());
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '';
+    router.replace(`${pathname}${newUrl}`, { scroll: false });
+  }, [router, pathname, searchParams]);
+}
+
+function CollectionsManagePageContent() {
   const { user } = useAuth();
   const router = useRouter();
   const { isMobile } = useBreakpoint();
+  const urlState = useUrlState();
+  const updateUrl = useUpdateUrl();
 
   const [collections, setCollections] = useState<SerializedCollection[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 20,
-    total: 0,
-  });
+  const [total, setTotal] = useState(0);
+  const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
   // 变更历史弹窗状态
   const [changeHistoryModal, setChangeHistoryModal] = useState<{
     visible: boolean;
@@ -52,6 +114,13 @@ export default function CollectionsManagePage() {
     collectionName: null,
   });
 
+  // 使用 useMemo 避免每次渲染都创建新对象
+  const pagination = useMemo(() => ({
+    current: urlState.current,
+    pageSize: urlState.pageSize,
+    total: total,
+  }), [urlState, total]);
+
   // 权限检查
   useEffect(() => {
     if (user && !isAdmin(user.role)) {
@@ -60,8 +129,15 @@ export default function CollectionsManagePage() {
     }
   }, [user, router]);
 
+  /**
+   * 当 URL 中的搜索关键词变化时，同步搜索框的值
+   */
+  useEffect(() => {
+    setSearchInputValue(urlState.searchText);
+  }, [urlState.searchText]);
+
   // 加载合集列表
-  const loadCollections = useCallback(async (page = 1, pageSize = 20) => {
+  const loadCollections = useCallback(async (pageNum?: number, pageSize?: number) => {
     if (!user) {
       message.warning('请先登录');
       return;
@@ -69,21 +145,24 @@ export default function CollectionsManagePage() {
 
     setLoading(true);
     try {
-      const res = await axios.get('/api/collections', {
-        params: {
-          pageNum: page,
-          pageSize,
-          status: 'all', // 获取所有状态的合集，包括隐藏的
-        },
-      });
+      const currentPage = pageNum ?? urlState.current;
+      const currentPageSize = pageSize ?? urlState.pageSize;
+
+      const params: Record<string, string | number> = {
+        pageNum: currentPage,
+        pageSize: currentPageSize,
+        status: 'all', // 获取所有状态的合集，包括隐藏的
+      };
+
+      if (urlState.searchText) {
+        params.query = urlState.searchText;
+      }
+
+      const res = await axios.get('/api/collections', { params });
 
       if (res.data.status) {
         setCollections(res.data.data.record);
-        setPagination({
-          current: res.data.data.pageNum,
-          pageSize: res.data.data.pageSize,
-          total: res.data.data.total,
-        });
+        setTotal(res.data.data.total);
       } else {
         message.error('获取合集列表失败');
       }
@@ -93,13 +172,23 @@ export default function CollectionsManagePage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, urlState]);
 
+  /**
+   * 统一的查询参数更新方法
+   */
+  const updateQueryParams = useCallback((updates: Partial<QueryParams>) => {
+    updateUrl(updates);
+  }, [updateUrl]);
+
+  /**
+   * 当 URL 状态变化时，重新加载数据
+   */
   useEffect(() => {
     if (user) {
-      loadCollections();
+      loadCollections(urlState.current, urlState.pageSize);
     }
-  }, [user, loadCollections]);
+  }, [user, loadCollections, urlState.current, urlState.pageSize, urlState.searchText]);
 
   // 删除合集
   const handleDelete = async (id: number, title: string) => {
@@ -115,7 +204,7 @@ export default function CollectionsManagePage() {
 
           if (res.data.status) {
             message.success('删除成功');
-            loadCollections(pagination.current, pagination.pageSize);
+            loadCollections(urlState.current, urlState.pageSize);
           } else {
             message.error(res.data.message || '删除失败');
           }
@@ -145,7 +234,7 @@ export default function CollectionsManagePage() {
 
       if (res.data.status) {
         message.success('状态更新成功');
-        loadCollections(pagination.current, pagination.pageSize);
+        loadCollections(urlState.current, urlState.pageSize);
       } else {
         message.error(res.data.message || '状态更新失败');
       }
@@ -369,6 +458,24 @@ export default function CollectionsManagePage() {
           </Button>
         </div>
 
+        {/* 搜索 */}
+        <div className="mb-4 shrink-0">
+          <Search
+            placeholder="搜索合集标题、Slug 或描述"
+            allowClear
+            enterButton={<SearchOutlined />}
+            size={isMobile ? 'middle' : 'large'}
+            value={searchInputValue}
+            onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
+            onChange={(e) => setSearchInputValue(e.target.value)}
+            onPressEnter={(e) => {
+              e.preventDefault();
+              updateQueryParams({ q: searchInputValue, page: 1 });
+            }}
+            style={isMobile ? { width: '100%' } : { maxWidth: 400 }}
+          />
+        </div>
+
         {/* 响应式表格/卡片 */}
         <ResponsiveTable
           columns={columns}
@@ -377,14 +484,20 @@ export default function CollectionsManagePage() {
           loading={loading}
           renderMobileCard={renderMobileCard}
           pagination={{
-            ...pagination,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 个合集`,
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              loadCollections(page, pageSize);
-            },
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
-          scroll={{ y: 'calc(100vh - var(--header-height) - 300px)' }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
         />
       </div>
     </div>
@@ -404,5 +517,20 @@ export default function CollectionsManagePage() {
       entityName={changeHistoryModal.collectionName || undefined}
     />
     </>
+  );
+}
+
+/**
+ * 默认导出组件，使用 Suspense 包裹以支持 useSearchParams
+ */
+export default function CollectionsManagePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div>加载中...</div>
+      </div>
+    }>
+      <CollectionsManagePageContent />
+    </Suspense>
   );
 }

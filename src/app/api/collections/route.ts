@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
     const pageNum = parseInt(searchParams.get('pageNum') || '1', 10);
     const statusParam = searchParams.get('status');
+    const query = searchParams.get('query') || '';
 
     // 参数验证
     if (pageSize < 1 || pageSize > 100) {
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
     const result = await getCollectionList({
       pageSize,
       pageNum,
+      query,
       ...(status !== undefined && { status }),
     });
 

@@ -37,15 +37,33 @@ export function serializeCollection(collection: TbCollection): SerializedCollect
 export async function getCollectionList(
   params: CollectionQueryCondition
 ): Promise<CollectionPageQueryRes> {
-  const { pageSize, pageNum, status } = params;
+  const { pageSize, pageNum, status, query } = params;
   const prisma = await getPrisma();
 
-  // 构建 where 条件：只有当 status 存在且为有效数字时才添加
-  const where: { is_delete: number; status?: number } = {
+  // 构建 where 条件
+  const where: {
+    is_delete: number;
+    status?: number;
+    OR?: Array<{
+      title?: { contains: string };
+      slug?: { contains: string };
+      description?: { contains: string };
+    }>;
+  } = {
     is_delete: 0,
   };
+
   if (status !== undefined && !isNaN(status)) {
     where.status = status;
+  }
+
+  // 添加搜索条件
+  if (query && query.trim()) {
+    where.OR = [
+      { title: { contains: query.trim() } },
+      { slug: { contains: query.trim() } },
+      { description: { contains: query.trim() } },
+    ];
   }
 
   const [data, total] = await Promise.all([

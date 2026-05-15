@@ -5,7 +5,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Button,
   Input,
@@ -18,14 +19,14 @@ import {
   Switch,
   Card,
   Transfer,
-  Table,
 } from "antd";
-import type { TableColumnsType, TransferProps } from "antd";
+import type { TableColumnsType } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
   SettingOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
@@ -34,7 +35,70 @@ import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { USER_ROLE_ASSIGN } from "@/constants/permissions";
 
+const { Search } = Input;
+
 const { confirm } = Modal;
+
+/**
+ * 从 URL 查询参数中读取状态
+ */
+function useUrlState() {
+  const searchParams = useSearchParams();
+
+  return {
+    searchText: searchParams.get('q') || '',
+    current: parseInt(searchParams.get('page') || '1', 10),
+    pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
+  };
+}
+
+/**
+ * 查询参数类型定义
+ */
+interface QueryParams {
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 更新 URL 查询参数
+ */
+function useUpdateUrl() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  return useCallback((updates: Partial<QueryParams>) => {
+    const currentParams: QueryParams = {
+      q: searchParams.get('q') || undefined,
+      page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
+      pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined,
+    };
+
+    const mergedParams: QueryParams = {
+      ...currentParams,
+      ...updates,
+    };
+
+    const params = new URLSearchParams();
+
+    if (mergedParams.q && mergedParams.q.trim()) {
+      params.set('q', mergedParams.q.trim());
+    }
+
+    if (mergedParams.page && mergedParams.page > 1) {
+      params.set('page', mergedParams.page.toString());
+    }
+
+    if (mergedParams.pageSize && mergedParams.pageSize !== 20) {
+      params.set('pageSize', mergedParams.pageSize.toString());
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '';
+    router.replace(`${pathname}${newUrl}`, { scroll: false });
+  }, [router, pathname, searchParams]);
+}
 
 interface RolePermission {
   id: number;
@@ -71,9 +135,13 @@ interface PermissionItem {
 function RolesPageContent() {
   const { hasPermission } = useAuth();
   const { isMobile } = useBreakpoint();
+  const urlState = useUrlState();
+  const updateUrl = useUpdateUrl();
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
   const [form] = Form.useForm();
@@ -86,17 +154,44 @@ function RolesPageContent() {
   const [permDataScopes, setPermDataScopes] = useState<Record<string, string>>({});
   const [permLoading, setPermLoading] = useState(false);
 
+  // 使用 useMemo 避免每次渲染都创建新对象
+  const pagination = useMemo(() => ({
+    current: urlState.current,
+    pageSize: urlState.pageSize,
+    total: total,
+  }), [urlState, total]);
+
+  /**
+   * 当 URL 中的搜索关键词变化时，同步搜索框的值
+   */
+  useEffect(() => {
+    setSearchInputValue(urlState.searchText);
+  }, [urlState.searchText]);
+
   /**
    * 加载角色列表
    */
-  const loadRoles = useCallback(async () => {
+  const loadRoles = useCallback(async (pageNum?: number, pageSize?: number) => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/admin/roles", {
-        params: { pageNum: 1, pageSize: 100 },
-      });
+
+      const currentPage = pageNum ?? urlState.current;
+      const currentPageSize = pageSize ?? urlState.pageSize;
+
+      const params: Record<string, string | number> = {
+        pageNum: currentPage,
+        pageSize: currentPageSize,
+      };
+
+      if (urlState.searchText) {
+        params.query = urlState.searchText;
+      }
+
+      const response = await axios.get("/api/admin/roles", { params });
       if (response.data.status) {
-        setRoles(response.data.data.record || []);
+        const data = response.data.data;
+        setRoles(data.record || []);
+        setTotal(data.total || 0);
       }
     } catch (error) {
       console.error("加载角色列表失败:", error);
@@ -104,7 +199,7 @@ function RolesPageContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [urlState]);
 
   /**
    * 加载所有权限码
@@ -121,9 +216,22 @@ function RolesPageContent() {
   }, []);
 
   useEffect(() => {
-    loadRoles();
     loadAllPermissions();
-  }, [loadRoles, loadAllPermissions]);
+  }, [loadAllPermissions]);
+
+  /**
+   * 统一的查询参数更新方法
+   */
+  const updateQueryParams = useCallback((updates: Partial<QueryParams>) => {
+    updateUrl(updates);
+  }, [updateUrl]);
+
+  /**
+   * 当 URL 状态变化时，重新加载数据
+   */
+  useEffect(() => {
+    loadRoles(urlState.current, urlState.pageSize);
+  }, [loadRoles, urlState.current, urlState.pageSize, urlState.searchText]);
 
   /**
    * 创建角色
@@ -452,6 +560,24 @@ function RolesPageContent() {
           </Button>
         </div>
 
+        {/* 搜索 */}
+        <div className="mb-4 shrink-0">
+          <Search
+            placeholder="搜索角色编码、名称或描述"
+            allowClear
+            enterButton={<SearchOutlined />}
+            size={isMobile ? "middle" : "large"}
+            value={searchInputValue}
+            onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
+            onChange={(e) => setSearchInputValue(e.target.value)}
+            onPressEnter={(e) => {
+              e.preventDefault();
+              updateQueryParams({ q: searchInputValue, page: 1 });
+            }}
+            style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
+          />
+        </div>
+
         {/* 角色列表 */}
         <ResponsiveTable<RoleItem>
           columns={columns}
@@ -460,7 +586,21 @@ function RolesPageContent() {
           loading={loading}
           renderMobileCard={renderMobileCard}
           scroll={{ x: 900 }}
-          pagination={false}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 个角色`,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+          }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
         />
       </div>
 

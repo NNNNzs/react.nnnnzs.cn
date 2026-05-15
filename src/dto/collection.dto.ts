@@ -69,6 +69,7 @@ export interface CollectionQueryCondition {
   pageSize: number;
   pageNum: number;
   status?: number;
+  query?: string;
 }
 
 /**

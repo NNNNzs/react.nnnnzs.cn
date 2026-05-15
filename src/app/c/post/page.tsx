@@ -6,9 +6,9 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Table, Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown, Card, List } from 'antd';
+import { Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown, Card } from 'antd';
 import type { TableColumnsType, MenuProps } from 'antd';
 import {
   EditOutlined,
@@ -30,6 +30,7 @@ import { useCachedApi } from '@/hooks/useCachedApi';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -138,10 +139,6 @@ function AdminPageContent() {
   const [total, setTotal] = useState(0);
   // 搜索框的临时输入状态（用于用户输入时显示）
   const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
-  // 表格容器引用，用于动态计算高度
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  // 表格滚动高度（基于flex-1容器动态计算，减去分页器高度）
-  const [tableScrollHeight, setTableScrollHeight] = useState<number | undefined>(undefined);
   // 批量更新向量相关状态
   const [embeddingLoading, setEmbeddingLoading] = useState(false);
   const [embeddingProgress, setEmbeddingProgress] = useState<{
@@ -162,64 +159,13 @@ function AdminPageContent() {
 
   // 直接使用 URL 状态，不维护本地 state
   const hideFilter = urlState.hideFilter;
-  
+
   // 使用 useMemo 避免每次渲染都创建新对象
   const pagination = useMemo(() => ({
     current: urlState.current,
     pageSize: urlState.pageSize,
     total: total,
   }), [urlState, total]);
-  
-  const paginationRef = useRef(pagination);
-  
-  // 保持 ref 与 pagination 同步
-  useEffect(() => {
-    paginationRef.current = pagination;
-  }, [pagination]);
-
-  /**
-   * 动态计算表格滚动高度（基于flex-1容器的高度）
-   * 高度是动态计算的，基于flex布局的剩余空间
-   */
-  useEffect(() => {
-    // 使用 useCallback 稳定函数引用
-    const updateScrollHeight = () => {
-      if (tableContainerRef.current) {
-        const containerHeight = tableContainerRef.current.clientHeight;
-        if (containerHeight > 0) {
-          // 减去分页器的高度（约64px）和表格头部的高度（约40px）
-          // 这样表格内容区域可以正确滚动
-          const scrollHeight = containerHeight - 104;
-          setTableScrollHeight(Math.max(scrollHeight, 300)); // 最小高度300px
-        }
-      }
-    };
-
-    updateScrollHeight();
-
-    // 使用 ResizeObserver 监听容器大小变化（响应flex布局变化）
-    const resizeObserver = new ResizeObserver(() => {
-      updateScrollHeight();
-    });
-
-    if (tableContainerRef.current) {
-      resizeObserver.observe(tableContainerRef.current);
-    }
-
-    // 监听窗口大小变化（带节流）
-    let resizeTimer: NodeJS.Timeout;
-    const handleResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(updateScrollHeight, 100);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', handleResize);
-      if (resizeTimer) clearTimeout(resizeTimer);
-    };
-  }, []);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值
@@ -665,15 +611,6 @@ function AdminPageContent() {
     );
   };
 
-  // 移动端分页配置（简化）
-  const mobilePaginationConfig = {
-    current: pagination.current,
-    pageSize: pagination.pageSize,
-    total: pagination.total,
-    showTotal: (total: number) => `共 ${total} 篇`,
-    size: 'small' as const,
-  };
-
   return (
     <>
     <div className="w-full h-full flex flex-col">
@@ -819,48 +756,28 @@ function AdminPageContent() {
         </div>
 
         {/* 文章列表 */}
-        {isMobile ? (
-          /* 移动端：卡片列表 */
-          <div className="flex-1 overflow-auto">
-            <List
-              dataSource={posts}
-              loading={loading}
-              renderItem={(post) => renderMobileCard(post)}
-              pagination={{
-                ...mobilePaginationConfig,
-                onChange: (page, pageSize) => {
-                  updateQueryParams({ page, pageSize });
-                },
-              }}
-            />
-          </div>
-        ) : (
-          /* 桌面端：表格 */
-          <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
-            <Table
-              columns={desktopColumns}
-              dataSource={posts}
-              rowKey="id"
-              loading={loading}
-              scroll={tableScrollHeight ? { y: tableScrollHeight } : undefined}
-              pagination={{
-                current: pagination.current,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
-                showTotal: (total) => `共 ${total} 篇文章`,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                pageSizeOptions: ['10', '20', '50', '100'],
-              }}
-              onChange={(paginationConfig) => {
-                updateQueryParams({
-                  page: paginationConfig.current || 1,
-                  pageSize: paginationConfig.pageSize || 20,
-                });
-              }}
-            />
-          </div>
-        )}
+        <ResponsiveTable<Post>
+          columns={desktopColumns}
+          dataSource={posts}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showTotal: (total) => `共 ${total} 篇文章`,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+          }}
+          onChange={(paginationConfig) => {
+            updateQueryParams({
+              page: paginationConfig.current || 1,
+              pageSize: paginationConfig.pageSize || 20,
+            });
+          }}
+        />
       </div>
     </div>
 
