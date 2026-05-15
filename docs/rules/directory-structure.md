@@ -23,10 +23,12 @@ src/
 │   │   ├── search/               # 搜索 API
 │   │   ├── wechat/               # 微信集成 API
 │   │   ├── github/               # GitHub 集成
-│   │   └── face/                 # 人脸识别 API
-│   │       ├── register/route.ts # 人脸注册/删除（POST/DELETE）
-│   │       ├── login/route.ts    # 人脸登录（POST）
-│   │       └── status/route.ts   # 人脸注册状态（GET）
+│   │   ├── face/                 # 人脸识别 API
+│   │   │   ├── register/route.ts # 人脸注册/删除（POST/DELETE）
+│   │   │   ├── login/route.ts    # 人脸登录（POST）
+│   │   │   └── status/route.ts   # 人脸注册状态（GET）
+│   │   └── image-gen/            # AI 图片生成 API（GPT Image 2）
+│   │       └── route.ts          # 文生图/图文编辑（POST）
 │   ├── .well-known/              # OAuth 发现端点
 │   ├── [year]/[month]/[date]/[title]/  # 博客文章页面
 │   ├── collections/[slug]/       # 合集详情页
@@ -43,6 +45,7 @@ src/
 │   │   ├── user/                 # 用户管理
 │   │   ├── config/               # 配置管理
 │   │   ├── tts/                  # 语音合成页面 (TTS)
+│   │   └── image-gen/            # AI 图片生成页面 (GPT Image 2)
 │   ├── tags/                     # 标签页面
 │   ├── archives/                 # 归档页面
 │   ├── chat/                     # AI 聊天界面
@@ -60,6 +63,9 @@ src/
 │   ├── CollectionLikeButton/     # 合集点赞按钮
 │   ├── FaceCamera/               # 摄像头拍照组件（人脸识别）
 │   ├── FaceRegistrationCard/     # 人脸注册卡片组件
+│   ├── ImageGen/                 # AI 图片生成组件（GPT Image 2）
+│   │   ├── ImageGenPanel.tsx     # 图片生成面板（文生图/图文编辑）
+│   │   └── ImageResultCard.tsx   # 图片生成结果卡片
 │   └── (shared UI components)    # 其他共享组件
 │
 ├── contexts/                     # React Contexts

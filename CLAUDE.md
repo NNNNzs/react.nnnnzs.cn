@@ -53,6 +53,10 @@
 #### 内容管理
 - **[博客合集功能设计](docs/designs/collection-design.md)** - 文章合集管理功能
 
+#### AI 工具
+- **[语音合成](docs/designs/tts-page.md)** - MiMo TTS 语音合成
+- **[AI 图片生成](docs/designs/image-gen.md)** - GPT Image 2 文生图/图文编辑
+
 #### 基础设施
 - **[队列系统](docs/designs/vector/queue.md)** - 异步任务队列系统（已整合到向量化模块）
 

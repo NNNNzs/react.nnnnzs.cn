@@ -8,7 +8,7 @@ import { configByKeys } from '@/services/config';
 /**
  * AI 配置场景类型
  */
-export type AIConfigScenario = 'ai_text' | 'description' | 'chat' | 'embedding';
+export type AIConfigScenario = 'ai_text' | 'description' | 'chat' | 'embedding' | 'image_gen';
 
 /**
  * AI 配置接口

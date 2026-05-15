@@ -20,6 +20,7 @@ import {
   SearchOutlined,
   MessageOutlined,
   SoundOutlined,
+  PictureOutlined,
   MenuOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,6 +85,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           label: "语音合成",
         },
         {
+          key: "/c/image-gen",
+          icon: <PictureOutlined />,
+          label: "AI 图片生成",
+        },
+        {
           key: "/c/config",
           icon: <SettingOutlined />,
           label: "配置管理",
@@ -118,7 +124,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     if (!loading && user) {
       // 定义管理员专属路径
       // 注意：/c/user/info 是个人中心，所有用户都可以访问，所以只拦截 /c/user
-      const adminOnlyPaths = ['/c/comments', '/c/collections', '/c/config', '/c/user', '/c/queue', '/c/vector-search', '/c/tts'];
+      const adminOnlyPaths = ['/c/comments', '/c/collections', '/c/config', '/c/user', '/c/queue', '/c/vector-search', '/c/tts', '/c/image-gen'];
       const isAdminPath = adminOnlyPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
 
       // 个人中心页面例外处理
@@ -147,6 +153,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/queue',
       '/c/vector-search',
       '/c/tts',
+      '/c/image-gen',
       '/c/edit/new',
     ];
 

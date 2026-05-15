@@ -99,6 +99,7 @@ src/app/
 | `/c/user/info` | `/c/user/info` | 用户信息 |
 | `/c/config` | `/c/config` | 配置管理 |
 | - | `/c/tts` | 语音合成页面（新增） |
+| - | `/c/image-gen` | AI 图片生成页面（新增） |
 
 ## 🔗 路由示例
 
@@ -175,6 +176,46 @@ src/app/
 1. 用户在管理后台 `/c/tts` 页面输入文本
 2. 前端调用 `/api/tts/synthesize` 发送文本
 3. 后端代理请求到小米 MiMo TTS API，返回音频数据
+
+### AI 图片生成 API 端点（新增）
+
+```
+/api/image-gen         # AI 图片生成（POST，对接 GPT Image 2）
+```
+
+**图片生成流程**：
+1. 用户在管理后台 `/c/image-gen` 页面输入提示词或上传参考图片
+2. 前端调用 `/api/image-gen` 发送生成请求
+3. 后端通过 micuapi.ai 中转站调用 GPT Image 2，返回图片 URL
+
+**请求参数**：
+```json
+{
+  "mode": "generate",        // "generate" | "edit"
+  "prompt": "描述文字",       // 必填
+  "image": "https://...",    // edit 模式必填
+  "size": "1024x1024",       // 可选
+  "quality": "high"          // 可选 "high" | "medium"
+}
+```
+
+**响应数据**：
+```json
+{
+  "status": true,
+  "message": "成功",
+  "data": {
+    "imageUrl": "https://oss.filenest.top/uploads/xxx.png",
+    "elapsed": "12.3s",
+    "model": "gpt-image-2"
+  }
+}
+```
+
+**配置项**（存数据库，通过配置管理页面设置）：
+- `image_gen.api_key` - API 密钥
+- `image_gen.base_url` - 中转站地址
+- `image_gen.model` - 模型名称（默认 gpt-image-2）
 
 ## 📝 路径生成规则
 
