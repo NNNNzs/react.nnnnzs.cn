@@ -59,14 +59,27 @@ export async function storeToken(token: string, user: User): Promise<void> {
 
 /**
  * 验证Token并获取用户信息
- * 支持两种 Token 格式：
- * 1. 登录生成的 Token：存储在 user:${token}
- * 2. OAuth 生成的 Token：存储在 token:${token}
+ * 支持三种 Token 格式：
+ * 1. 长期 Token（LTK_ 前缀）：存储在数据库
+ * 2. 登录生成的 Token：存储在 user:${token}
+ * 3. OAuth 生成的 Token：存储在 token:${token}
  *
  * 滑动续期：每次验证成功后自动延长 Token 有效期 7 天
  */
 export async function validateToken(token: string): Promise<User | null> {
   try {
+    // 长期 Token
+    if (token.startsWith('LTK_')) {
+      const { validateLongTermToken } = await import('@/services/token');
+      const userId = await validateLongTermToken(token);
+      if (userId) {
+        const { getUserById } = await import('@/services/user');
+        const user = await getUserById(parseInt(userId, 10));
+        return user as User ?? null;
+      }
+      return null;
+    }
+
     // 先尝试登录 Token 格式
     let redisKey = `user:${token}`;
     const userStr = await RedisService.get(redisKey);
