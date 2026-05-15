@@ -7,11 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfigById, updateConfig, deleteConfig } from '@/services/config';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
-import { isAdmin } from '@/types/role';
+import { requirePermission } from '@/lib/permission';
+import { CONFIG_VIEW, CONFIG_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 
 
@@ -23,21 +20,12 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, CONFIG_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-
-    // 检查是否是管理员
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await context.params;
 
@@ -64,21 +52,12 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, CONFIG_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-
-    // 检查是否是管理员
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await context.params;
     const body = await request.json();
@@ -101,21 +80,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, CONFIG_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-
-    // 检查是否是管理员
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await context.params;
 

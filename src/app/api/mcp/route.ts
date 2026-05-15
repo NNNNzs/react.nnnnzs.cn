@@ -4,12 +4,14 @@ import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { authenticateMcpRequestEnhanced } from '@/services/mcpAuth';
-import { createPost, updatePost, deletePost, getPostById, getPostList, getPostByTitle } from '@/services/post';
+import { validateTokenWithPermissions } from '@/lib/auth';
+import { getTokenFromRequest } from '@/lib/auth';
+import { getMcpEnabledEntries } from '@/lib/api-registry';
+import { handleMcpToApi, jsonSchemaToZod } from '@/lib/mcp-adapter';
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
-import { addPostsToCollection, removePostsFromCollection } from '@/services/collection';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import { getWritingStyleGuide, getReferenceDocs } from '@/lib/docs-resources';
+import type { AuthUser } from '@/types/auth';
 
 /**
  * 自定义 HTTP Transport
@@ -118,340 +120,49 @@ class NextJsHttpTransport implements Transport {
 function createMcpServer(headers: Headers) {
   const server = new McpServer({
     name: "React Blog MCP",
-    version: "1.0.0"
+    version: "2.0.0"
   });
 
-  // Helper to ensure auth via Bearer Token，返回已认证用户信息
-  const ensureAuth = async () => {
-    // 使用增强的认证函数，支持多种认证方式
-    return await authenticateMcpRequestEnhanced(headers);
+  // Helper to ensure auth via Bearer Token，返回已认证用户信息（包含权限）
+  const ensureAuth = async (): Promise<AuthUser> => {
+    // 先使用增强的认证函数验证身份
+    const user = await authenticateMcpRequestEnhanced(headers);
+    // 然后获取包含权限的完整用户信息
+    const token = getTokenFromRequest(headers);
+    if (!token) {
+      throw new Error("Missing authentication credentials");
+    }
+    const authUser = await validateTokenWithPermissions(token);
+    if (!authUser) {
+      throw new Error("Failed to get user permissions");
+    }
+    return authUser;
   };
 
-  server.registerTool(
-    "create_article",
-    {
-      title: "Create article",
-      description: "Create a new blog article. First read the 'blog://tags' resource to check existing tags, and 'blog://collections' resource to check existing collections. Then use matching tags or create new ones, and optionally add the article to collections. IMPORTANT: Follow the blog's writing style guide - write in first person ('我'), use conversational tone with short sentences, be authentic and informal. Check 'blog://writing_style' resource for detailed style guidelines before writing.",
-      inputSchema: {
-        title: z.string().describe("Article title"),
-        content: z.string().describe("Article content (Markdown)"),
-        category: z.string().optional().describe("Article category"),
-        tags: z.string().optional().describe("Comma-separated tags. Check 'blog://tags' resource first for existing tags, then use matching ones or create new custom tags"),
-        collections: z.string().optional().describe("Comma-separated collection IDs or slugs. Check 'blog://collections' resource first for existing collections. Use IDs (numbers) or slugs to add the article to one or more collections"),
-        description: z.string().optional().describe("Short description"),
-        cover: z.string().optional().describe("Cover image URL"),
-        hide: z.string().optional().describe("'1' to hide, '0' to show")
+  // ============================
+  // 从接口注册表自动注册 MCP 工具
+  // ============================
+  const mcpEntries = getMcpEnabledEntries();
+
+  for (const entry of mcpEntries) {
+    const inputSchema = entry.inputSchema ? jsonSchemaToZod(entry.inputSchema) : {};
+
+    server.registerTool(
+      entry.mcpToolName!,
+      {
+        title: entry.name,
+        description: entry.description || entry.name,
+        inputSchema,
+      },
+      async (args) => {
+        const user = await ensureAuth();
+        // 权限检查（功能权限 + 数据权限）统一在 handleMcpToApi 中完成
+        return await handleMcpToApi(entry, args, user, headers);
       }
-    },
-    async (args) => {
-      const user = await ensureAuth();
-      // 处理 tags：清理空格，保持逗号分隔的字符串格式
-      // createPost 会进一步处理并转换为数组或字符串
-      const tagsValue = args.tags?.trim() || undefined;
+    );
+  }
 
-      const postData: Partial<import('@/generated/prisma-client').TbPost> = {
-        ...args,
-        tags: tagsValue,
-        // 使用 MCP 登录用户作为创建人
-        created_by: user.id,
-      };
-      const result = await createPost(postData);
-
-      // 清除缓存（与 /api/post/create 保持一致）
-      revalidateTag('post', {}); // 清除所有文章列表缓存
-      revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
-
-      // 从 path 中提取 slug（最后一部分）
-      if (result.path) {
-        const slug = result.path.split('/').pop();
-        if (slug) {
-          revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-        }
-        revalidatePath(result.path); // 清除路径缓存
-      }
-
-      // 清除列表页缓存
-      revalidateTag('home', {}); // 清除首页缓存
-      revalidateTag('post-list', {}); // 清除文章列表缓存
-      revalidateTag('tags', {}); // 清除标签列表缓存
-      revalidateTag('tag-list', {}); // 清除标签列表缓存
-      revalidateTag('archives', {}); // 清除归档页缓存
-
-      // 清除标签页缓存（如果文章有标签）
-      if (result.tags) {
-        const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
-        tags.forEach((tag: string) => {
-          const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-          if (trimmedTag) {
-            revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-          }
-        });
-      }
-
-      // 处理合集关联
-      if (args.collections && result.id) {
-        try {
-          // 解析合集 ID 或 slug
-          const collectionIdentifiers = args.collections.split(',').map(s => s.trim()).filter(Boolean);
-
-          for (const identifier of collectionIdentifiers) {
-            // 判断是数字 ID 还是 slug
-            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
-
-            if (collectionId) {
-              // 使用 ID
-              await addPostsToCollection(collectionId, [result.id], undefined, user.id);
-            } else {
-              // 使用 slug，需要先查询获取 ID
-              const collections = await getCollectionList({
-                pageNum: 1,
-                pageSize: 100
-              });
-
-              const collection = collections.record.find(c => c.slug === identifier);
-              if (collection) {
-                await addPostsToCollection(collection.id, [result.id], undefined, user.id);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ [MCP] 添加文章到合集失败:', error);
-          // 不影响文章创建，只记录错误
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    }
-  );
-
-  server.registerTool(
-    "update_article",
-    {
-      title: "Update article",
-      description: "Update an existing blog article. You can also update collections by providing collection IDs or slugs. Use 'add_to_collections' to add to collections, 'remove_from_collections' to remove from collections. IMPORTANT: Follow the blog's writing style guide when updating content - write in first person ('我'), use conversational tone with short sentences, be authentic and informal. Check 'blog://writing_style' resource for detailed style guidelines.",
-      inputSchema: {
-        id: z.number().describe("Article ID"),
-        title: z.string().optional(),
-        content: z.string().optional(),
-        category: z.string().optional(),
-        tags: z.string().optional(),
-        description: z.string().optional(),
-        cover: z.string().optional(),
-        hide: z.string().optional(),
-        add_to_collections: z.string().optional().describe("Comma-separated collection IDs or slugs to ADD the article to"),
-        remove_from_collections: z.string().optional().describe("Comma-separated collection IDs or slugs to REMOVE the article from")
-      }
-    },
-    async (args) => {
-      const user = await ensureAuth();
-      const { id, add_to_collections, remove_from_collections, ...restArgs } = args;
-      const data: Partial<import('@/generated/prisma-client').TbPost> = {
-        ...restArgs,
-        // tags 保持字符串格式，updatePost 会处理
-        tags: restArgs.tags?.trim() || undefined,
-      };
-      const result = await updatePost(id, data);
-      if (!result) return { isError: true, content: [{ type: "text", text: "Article not found" }] };
-
-      // 清除缓存（与 /api/post/[id] 保持一致）
-      revalidateTag('post', {}); // 清除所有文章列表缓存
-      revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
-
-      // 从 path 中提取 slug（最后一部分）
-      if (result.path) {
-        const slug = result.path.split('/').pop();
-        if (slug) {
-          revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-        }
-        revalidatePath(result.path); // 清除路径缓存
-      }
-
-      // 清除列表页缓存
-      revalidateTag('home', {}); // 清除首页缓存
-      revalidateTag('post-list', {}); // 清除文章列表缓存
-      revalidateTag('tags', {}); // 清除标签列表缓存
-      revalidateTag('tag-list', {}); // 清除标签列表缓存
-      revalidateTag('archives', {}); // 清除归档页缓存
-
-      // 清除标签页缓存（如果文章有标签）
-      if (result.tags) {
-        const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
-        tags.forEach((tag: string) => {
-          const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-          if (trimmedTag) {
-            revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-          }
-        });
-      }
-
-      // 处理添加到合集
-      if (add_to_collections) {
-        try {
-          const collectionIdentifiers = add_to_collections.split(',').map(s => s.trim()).filter(Boolean);
-
-          for (const identifier of collectionIdentifiers) {
-            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
-
-            if (collectionId) {
-              await addPostsToCollection(collectionId, [id], undefined, user.id);
-            } else {
-              const collections = await getCollectionList({
-                pageNum: 1,
-                pageSize: 100
-              });
-              const collection = collections.record.find(c => c.slug === identifier);
-              if (collection) {
-                await addPostsToCollection(collection.id, [id], undefined, user.id);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ [MCP] 添加文章到合集失败:', error);
-        }
-      }
-
-      // 处理从合集移除
-      if (remove_from_collections) {
-        try {
-          const collectionIdentifiers = remove_from_collections.split(',').map(s => s.trim()).filter(Boolean);
-
-          for (const identifier of collectionIdentifiers) {
-            const collectionId = /^\d+$/.test(identifier) ? parseInt(identifier, 10) : null;
-
-            if (collectionId) {
-              await removePostsFromCollection(collectionId, [id], user.id);
-            } else {
-              const collections = await getCollectionList({
-                pageNum: 1,
-                pageSize: 100
-              });
-              const collection = collections.record.find(c => c.slug === identifier);
-              if (collection) {
-                await removePostsFromCollection(collection.id, [id], user.id);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ [MCP] 从合集移除文章失败:', error);
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    }
-  );
-
-  server.registerTool(
-    "delete_article",
-    {
-      title: "Delete article",
-      description: "Delete (soft delete) an article",
-      inputSchema: {
-        id: z.number().describe("Article ID")
-      }
-    },
-    async ({ id }) => {
-      await ensureAuth();
-
-      // 先获取文章信息用于缓存失效
-      const post = await getPostById(id);
-      const success = await deletePost(id);
-
-      if (success && post) {
-        // 清除缓存（与 /api/post/[id] 的 DELETE 方法保持一致）
-        revalidateTag('post', {}); // 清除所有文章列表缓存
-        revalidateTag(`post:${id}`, {}); // 清除按 ID 的缓存
-
-        // 从 path 中提取 slug（最后一部分）
-        if (post.path) {
-          const slug = post.path.split('/').pop();
-          if (slug) {
-            revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-          }
-          revalidatePath(post.path); // 清除路径缓存
-        }
-
-        // 清除列表页缓存
-        revalidateTag('home', {}); // 清除首页缓存
-        revalidateTag('post-list', {}); // 清除文章列表缓存
-        revalidateTag('tags', {}); // 清除标签列表缓存
-        revalidateTag('tag-list', {}); // 清除标签列表缓存
-        revalidateTag('archives', {}); // 清除归档页缓存
-
-        // 清除标签页缓存（如果文章有标签）
-        if (post.tags) {
-          const tags = Array.isArray(post.tags) ? post.tags : String(post.tags).split(',');
-          tags.forEach((tag: string) => {
-            const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-            if (trimmedTag) {
-              revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-            }
-          });
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: success ? "Deleted successfully" : "Failed to delete" }]
-      };
-    }
-  );
-
-  server.registerTool(
-    "get_article",
-    {
-      title: "Get article",
-      description: "Get article details by ID or Title",
-      inputSchema: {
-        id: z.number().optional().describe("Article ID"),
-        title: z.string().optional().describe("Article Title (if ID not provided)")
-      }
-    },
-    async ({ id, title }) => {
-      await ensureAuth();
-      let result;
-      if (id) {
-        result = await getPostById(id);
-      } else if (title) {
-        result = await getPostByTitle(title);
-      } else {
-        return { isError: true, content: [{ type: "text", text: "Must provide id or title" }] };
-      }
-
-      if (!result) return { isError: true, content: [{ type: "text", text: "Not found" }] };
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    }
-  );
-
-  server.registerTool(
-    "list_articles",
-    {
-      title: "List articles",
-      description: "List articles with pagination and search",
-      inputSchema: {
-        pageNum: z.number().optional().describe("Page number (default 1)"),
-        pageSize: z.number().optional().describe("Page size (default 10)"),
-        keyword: z.string().optional().describe("Search keyword"),
-        hide: z.string().optional().describe("Filter by visibility")
-      }
-    },
-    async (args) => {
-      await ensureAuth();
-      const result = await getPostList({
-        pageNum: args.pageNum ?? 1,
-        pageSize: args.pageSize ?? 10,
-        query: args.keyword,
-        hide: args.hide
-      });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    }
-  );
+  console.log(`✅ [MCP] 从接口注册表自动注册了 ${mcpEntries.length} 个工具`);
 
   // Register tags as a resource
   server.registerResource(

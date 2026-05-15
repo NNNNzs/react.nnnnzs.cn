@@ -3,11 +3,13 @@
  * 提供服务端权限验证功能
  */
 
-import { validateToken, getTokenFromRequest } from '@/lib/auth';
+import { validateToken, getTokenFromRequest, getAuthUserFromRequest } from '@/lib/auth';
 import { isAdmin, hasPermission } from '@/types/role';
 import type { User } from '@/types';
+import type { AuthUser } from '@/types/auth';
 import type { RolePermissions } from '@/types/role';
 import type { SerializedPost } from '@/dto/post.dto';
+import type { NextRequest } from 'next/server';
 
 /**
  * 从请求中验证用户身份和权限
@@ -50,9 +52,9 @@ export async function requireAdmin(
 }
 
 /**
- * 检查用户是否有指定权限
+ * 检查用户是否有指定权限（旧版本，兼容保留）
  */
-export async function requirePermission(
+export async function requirePermissionLegacy(
   headers: Headers,
   permission: keyof RolePermissions
 ): Promise<{ user: User | null; error: string | null }> {
@@ -70,11 +72,11 @@ export async function requirePermission(
 }
 
 /**
- * 创建权限中间件
+ * 创建权限中间件（旧版本，兼容保留）
  */
 export function withPermission(permission: keyof RolePermissions) {
   return async (headers: Headers) => {
-    return await requirePermission(headers, permission);
+    return await requirePermissionLegacy(headers, permission);
   };
 }
 
@@ -231,3 +233,81 @@ export function successDataResponse<T>(data: T, message?: string) {
   return { data, message, status: 200 };
 }
 
+// ============ 新版 RBAC 权限检查 ============
+
+/**
+ * 检查用户是否有指定权限码
+ *
+ * @param user AuthUser 对象
+ * @param code 权限码
+ * @returns 是否有权限
+ */
+export function hasPermissionCode(user: AuthUser, code: string): boolean {
+  return user.permissions.includes(code);
+}
+
+/**
+ * 检查用户是否有指定权限码 + 数据权限
+ *
+ * @param user AuthUser 对象
+ * @param code 权限码
+ * @param resourceOwnerId 资源所有者 ID（用于数据权限检查）
+ * @returns 是否有权限
+ */
+export function hasDataPermission(
+  user: AuthUser,
+  code: string,
+  resourceOwnerId?: number | null
+): boolean {
+  const scope = user.dataScopes[code];
+  if (!scope) return false;
+
+  // 仅接受合法的 data_scope 值
+  if (scope === 'all') return true;
+  if (scope === 'self') {
+    return resourceOwnerId != null && resourceOwnerId === user.id;
+  }
+
+  // 非法值视为无权限
+  return false;
+}
+
+/**
+ * API 路由快捷方法：需要指定权限
+ *
+ * @param request NextRequest 对象
+ * @param code 权限码
+ * @returns AuthUser 或错误信息
+ */
+export async function requirePermission(
+  request: NextRequest,
+  code: string
+): Promise<{ user: AuthUser } | { error: string; status: number }> {
+  const user = await getAuthUserFromRequest(request.headers);
+  if (!user) {
+    return { error: '未授权', status: 401 };
+  }
+
+  if (!hasPermissionCode(user, code)) {
+    return { error: `无权限执行此操作（需要 ${code}）`, status: 403 };
+  }
+
+  return { user };
+}
+
+/**
+ * API 路由快捷方法：需要认证（不限制权限）
+ *
+ * @param request NextRequest 对象
+ * @returns AuthUser 或错误信息
+ */
+export async function requireAuth(
+  request: NextRequest
+): Promise<{ user: AuthUser } | { error: string; status: number }> {
+  const user = await getAuthUserFromRequest(request.headers);
+  if (!user) {
+    return { error: '未授权', status: 401 };
+  }
+
+  return { user };
+}

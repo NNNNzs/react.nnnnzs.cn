@@ -16,7 +16,7 @@
 - **[前端开发](frontend.md)** - Next.js App Router、React 19、Ant Design 6.x
 - **[后端开发](backend.md)** - API 路由、服务层、AI 工具选择
 - **[数据库开发](database.md)** - Prisma Schema、迁移、查询优化
-- **[权限系统](permission.md)** - 多层权限防护、角色定义、API 权限检查
+- **[权限系统](permission.md)** - RBAC 权限码、requirePermission、数据权限、角色管理
 
 ### 功能模块
 - **[向量检索](vector-search.md)** - 文章向量化、语义搜索、Qdrant 集成

@@ -24,6 +24,7 @@ import {
   Select,
   Switch,
   Card,
+  Checkbox,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -32,6 +33,7 @@ import {
   PlusOutlined,
   SearchOutlined,
   LockOutlined,
+  SafetyOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
@@ -138,6 +140,13 @@ function UserPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [form] = Form.useForm();
+
+  // RBAC 角色分配相关状态
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [roleAssignUser, setRoleAssignUser] = useState<UserInfo | null>(null);
+  const [allRoles, setAllRoles] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [userRoleIds, setUserRoleIds] = useState<number[]>([]);
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const { isMobile } = useBreakpoint();
 
@@ -342,6 +351,75 @@ function UserPageContent() {
   };
 
   /**
+   * 加载所有角色列表
+   */
+  const loadAllRoles = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/admin/roles", {
+        params: { pageNum: 1, pageSize: 100 },
+      });
+      if (response.data.status) {
+        setAllRoles(response.data.data.record || []);
+      }
+    } catch (error) {
+      console.error("加载角色列表失败:", error);
+    }
+  }, []);
+
+  /**
+   * 打开角色分配弹窗
+   */
+  const handleAssignRoles = async (targetUser: UserInfo) => {
+    setRoleAssignUser(targetUser);
+    setIsRoleModalOpen(true);
+    setRoleLoading(true);
+
+    try {
+      // 加载角色列表（如果还没加载）
+      if (allRoles.length === 0) {
+        await loadAllRoles();
+      }
+      // 获取用户当前角色
+      const response = await axios.get(`/api/admin/users/${targetUser.id}/roles`);
+      if (response.data.status) {
+        const roles = response.data.data.roles || [];
+        setUserRoleIds(roles.map((r: { id: number }) => r.id));
+      }
+    } catch (error) {
+      console.error("获取用户角色失败:", error);
+      message.error("获取用户角色失败");
+    } finally {
+      setRoleLoading(false);
+    }
+  };
+
+  /**
+   * 保存用户角色
+   */
+  const handleSaveRoles = async () => {
+    if (!roleAssignUser) return;
+
+    try {
+      const response = await axios.put(`/api/admin/users/${roleAssignUser.id}/roles`, {
+        role_ids: userRoleIds,
+      });
+      if (response.data.status) {
+        message.success("用户角色更新成功");
+        setIsRoleModalOpen(false);
+        loadUsers(urlState.current, urlState.pageSize);
+      } else {
+        message.error(response.data.message || "更新失败");
+      }
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        message.error(error.response.data.message);
+      } else {
+        message.error("保存角色失败");
+      }
+    }
+  };
+
+  /**
    * 统一的查询参数更新方法
    */
   const updateQueryParams = useCallback(
@@ -445,7 +523,7 @@ function UserPageContent() {
     {
       title: "操作",
       key: "action",
-      width: 250,
+      width: 300,
       fixed: "right" as const,
       render: (_: unknown, record: UserInfo) => (
         <Space>
@@ -455,6 +533,13 @@ function UserPageContent() {
             onClick={() => handleEdit(record)}
           >
             编辑
+          </Button>
+          <Button
+            type="link"
+            icon={<SafetyOutlined />}
+            onClick={() => handleAssignRoles(record)}
+          >
+            角色
           </Button>
           <Button
             type="link"
@@ -528,6 +613,14 @@ function UserPageContent() {
               onClick={() => handleEdit(record)}
             >
               编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<SafetyOutlined />}
+              onClick={() => handleAssignRoles(record)}
+            >
+              角色
             </Button>
             <Button
               type="link"
@@ -748,6 +841,46 @@ function UserPageContent() {
             </>
           )}
         </Form>
+      </Modal>
+
+      {/* RBAC 角色分配弹窗 */}
+      <Modal
+        title={`分配角色 - ${roleAssignUser?.nickname || ""}`}
+        open={isRoleModalOpen}
+        onOk={handleSaveRoles}
+        onCancel={() => setIsRoleModalOpen(false)}
+        okText="保存"
+        cancelText="取消"
+        width={500}
+        destroyOnHidden
+        confirmLoading={roleLoading}
+      >
+        {roleAssignUser && (
+          <div>
+            <div className="mb-4 text-gray-500">
+              为用户「{roleAssignUser.nickname}」分配角色：
+            </div>
+            <Checkbox.Group
+              value={userRoleIds}
+              onChange={(checked) => setUserRoleIds(checked as number[])}
+              className="flex flex-col gap-3"
+            >
+              {allRoles.map(role => (
+                <Checkbox key={role.id} value={role.id}>
+                  <div>
+                    <span className="font-medium">{role.name}</span>
+                    <Tag className="ml-2">{role.code}</Tag>
+                  </div>
+                </Checkbox>
+              ))}
+            </Checkbox.Group>
+            {allRoles.length === 0 && !roleLoading && (
+              <div className="text-gray-400 text-center py-4">
+                暂无可用角色，请先在角色管理中创建角色
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

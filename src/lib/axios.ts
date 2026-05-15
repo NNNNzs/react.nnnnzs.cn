@@ -28,7 +28,8 @@ axios.interceptors.request.use(
  * 这些接口的 401 响应应该由调用方自行处理
  */
 const SKIP_401_REDIRECT_PATHS = [
-  '/api/user/info', // 获取用户信息接口，未登录时返回 401 但不应跳转
+  '/api/user/info',       // 获取用户信息接口，未登录时返回 401 但不应跳转
+  '/api/auth/permissions', // 权限查询接口，未登录时返回 401 但不应跳转
 ];
 
 /**
@@ -46,11 +47,12 @@ axios.interceptors.response.use(
         (path) => requestUrl.includes(path)
       );
 
-      // 未授权，且不在排除列表中，跳转到登录页
+      // 未授权，且不在排除列表中，且在管理后台页面中，跳转到登录页
       if (
         !shouldSkipRedirect &&
         typeof window !== 'undefined' &&
-        !window.location.pathname.includes('/login')
+        !window.location.pathname.includes('/login') &&
+        window.location.pathname.startsWith('/c/')
       ) {
         window.location.href = '/login';
       }

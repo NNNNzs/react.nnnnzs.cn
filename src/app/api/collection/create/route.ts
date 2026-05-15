@@ -5,14 +5,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { COLLECTION_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
-import { canManageCollections } from '@/lib/permission';
 
 // 定义合集创建的验证schema
 const createCollectionSchema = z.object({
@@ -26,18 +23,12 @@ const createCollectionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_CREATE);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以创建合集
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限创建合集'), { status: 403 });
-    }
+    const { user } = check;
 
     const body = await request.json();
 

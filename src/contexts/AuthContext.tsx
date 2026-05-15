@@ -27,6 +27,16 @@ interface AuthContextType {
     nickname: string
   ) => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** 权限码列表 */
+  permissions: string[];
+  /** 权限码 → data_scope 映射 */
+  dataScopes: Record<string, string>;
+  /** 检查用户是否有指定权限码 */
+  hasPermission: (code: string) => boolean;
+  /** 检查用户是否有指定权限码 + 数据权限 */
+  hasDataPermission: (code: string, resourceOwnerId?: number) => boolean;
+  /** 刷新用户权限（角色变更后调用） */
+  refreshPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +47,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [dataScopes, setDataScopes] = useState<Record<string, string>>({});
 
   /**
    * 获取用户信息
@@ -46,13 +58,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await axios.get("/api/user/info");
       if (response.data.status) {
         setUser(response.data.data);
+        // 获取权限信息
+        await refreshPermissions();
       }
     } catch {
       setUser(null);
+      setPermissions([]);
+      setDataScopes({});
     } finally {
       setLoading(false);
     }
   }, []);
+
+  /**
+   * 刷新权限（从服务器重新获取）
+   */
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/auth/permissions");
+      if (response.data.status) {
+        setPermissions(response.data.data.permissions || []);
+        setDataScopes(response.data.data.dataScopes || {});
+      }
+    } catch {
+      setPermissions([]);
+      setDataScopes({});
+    }
+  }, []);
+
+  /**
+   * 检查用户是否有指定权限码
+   */
+  const hasPermission = useCallback((code: string) => {
+    return permissions.includes(code);
+  }, [permissions]);
+
+  /**
+   * 检查用户是否有指定权限码 + 数据权限
+   */
+  const hasDataPermission = useCallback((code: string, resourceOwnerId?: number) => {
+    const scope = dataScopes[code];
+    if (!scope) return false;
+    if (scope === 'all') return true;
+    if (scope === 'self') {
+      return resourceOwnerId !== undefined && resourceOwnerId === user?.id;
+    }
+    return false;
+  }, [dataScopes, user]);
 
   /**
    * 登录
@@ -108,8 +160,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       register,
       refreshUser,
+      permissions,
+      dataScopes,
+      hasPermission,
+      hasDataPermission,
+      refreshPermissions,
     }),
-    [user, loading, login, logout, register, refreshUser]
+    [user, loading, login, logout, register, refreshUser, permissions, dataScopes, hasPermission, hasDataPermission, refreshPermissions]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

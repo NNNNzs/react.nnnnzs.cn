@@ -22,11 +22,23 @@ import {
   SoundOutlined,
   PictureOutlined,
   MenuOutlined,
+  SafetyOutlined,
+  KeyOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
-import { isAdmin } from "@/types/role";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import {
+  COMMENT_MANAGE,
+  COLLECTION_VIEW,
+  QUEUE_VIEW,
+  VECTOR_VIEW,
+  TTS_VIEW,
+  IMAGE_VIEW,
+  CONFIG_VIEW,
+  USER_VIEW,
+  USER_MANAGE,
+} from "@/constants/permissions";
 
 const { Sider, Content } = Layout;
 
@@ -38,14 +50,14 @@ const MOBILE_BREAKPOINT = 768;
 export default function CLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, hasPermission } = useAuth();
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
   const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   /**
    * 动态生成菜单项
-   * 普通用户只显示"文章管理"，管理员显示所有菜单
+   * 根据权限码动态显示菜单
    */
   const menuItems: MenuProps["items"] = useMemo(() => {
     const items: MenuProps["items"] = [
@@ -56,54 +68,89 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       },
     ];
 
-    // 管理员专属菜单
-    if (isAdmin(user?.role)) {
-      items.push(
-        {
-          key: "/c/comments",
-          icon: <MessageOutlined />,
-          label: "评论管理",
-        },
-        {
-          key: "/c/collections",
-          icon: <BookOutlined />,
-          label: "合集管理",
-        },
-        {
-          key: "/c/queue",
-          icon: <ClusterOutlined />,
-          label: "队列监控",
-        },
-        {
-          key: "/c/vector-search",
-          icon: <SearchOutlined />,
-          label: "向量检索",
-        },
-        {
-          key: "/c/tts",
-          icon: <SoundOutlined />,
-          label: "语音合成",
-        },
-        {
-          key: "/c/image-gen",
-          icon: <PictureOutlined />,
-          label: "AI 图片生成",
-        },
-        {
-          key: "/c/config",
-          icon: <SettingOutlined />,
-          label: "配置管理",
-        },
-        {
-          key: "/c/user",
-          icon: <UserOutlined />,
-          label: "用户管理",
-        }
-      );
+    // 根据权限码动态添加菜单
+    if (hasPermission(COMMENT_MANAGE)) {
+      items.push({
+        key: "/c/comments",
+        icon: <MessageOutlined />,
+        label: "评论管理",
+      });
+    }
+
+    if (hasPermission(COLLECTION_VIEW)) {
+      items.push({
+        key: "/c/collections",
+        icon: <BookOutlined />,
+        label: "合集管理",
+      });
+    }
+
+    if (hasPermission(QUEUE_VIEW)) {
+      items.push({
+        key: "/c/queue",
+        icon: <ClusterOutlined />,
+        label: "队列监控",
+      });
+    }
+
+    if (hasPermission(VECTOR_VIEW)) {
+      items.push({
+        key: "/c/vector-search",
+        icon: <SearchOutlined />,
+        label: "向量检索",
+      });
+    }
+
+    if (hasPermission(TTS_VIEW)) {
+      items.push({
+        key: "/c/tts",
+        icon: <SoundOutlined />,
+        label: "语音合成",
+      });
+    }
+
+    if (hasPermission(IMAGE_VIEW)) {
+      items.push({
+        key: "/c/image-gen",
+        icon: <PictureOutlined />,
+        label: "AI 图片生成",
+      });
+    }
+
+    if (hasPermission(CONFIG_VIEW)) {
+      items.push({
+        key: "/c/config",
+        icon: <SettingOutlined />,
+        label: "配置管理",
+      });
+    }
+
+    if (hasPermission(USER_VIEW)) {
+      items.push({
+        key: "/c/user",
+        icon: <UserOutlined />,
+        label: "用户管理",
+      });
+    }
+
+    if (hasPermission(USER_MANAGE)) {
+      items.push({
+        key: "/c/roles",
+        icon: <SafetyOutlined />,
+        label: "角色管理",
+      });
+    }
+
+    if (hasPermission(USER_VIEW)) {
+      items.push({
+        key: "/c/permissions",
+        icon: <KeyOutlined />,
+        label: "权限管理",
+      });
     }
 
     return items;
-  }, [user?.role]);
+  }, [hasPermission]);
 
   /**
    * 检查登录状态
@@ -118,24 +165,41 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
 
   /**
    * 路径访问权限检查
-   * 防止普通用户直接访问管理员专属页面
+   * 防止用户直接访问无权限的页面
    */
   useEffect(() => {
     if (!loading && user) {
-      // 定义管理员专属路径
-      // 注意：/c/user/info 是个人中心，所有用户都可以访问，所以只拦截 /c/user
-      const adminOnlyPaths = ['/c/comments', '/c/collections', '/c/config', '/c/user', '/c/queue', '/c/vector-search', '/c/tts', '/c/image-gen'];
-      const isAdminPath = adminOnlyPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
+      // 定义路径对应的权限码
+      const pathPermissions: Record<string, string> = {
+        '/c/comments': COMMENT_MANAGE,
+        '/c/collections': COLLECTION_VIEW,
+        '/c/config': CONFIG_VIEW,
+        '/c/user': USER_VIEW,
+        '/c/roles': USER_MANAGE,
+        '/c/permissions': USER_VIEW,
+        '/c/queue': QUEUE_VIEW,
+        '/c/vector-search': VECTOR_VIEW,
+        '/c/tts': TTS_VIEW,
+        '/c/image-gen': IMAGE_VIEW,
+      };
 
       // 个人中心页面例外处理
       const isPersonalCenter = pathname.startsWith('/c/user/info');
 
-      if (isAdminPath && !isPersonalCenter && !isAdmin(user.role)) {
-        message.warning('您没有权限访问此页面');
-        router.push('/c/post');
+      if (!isPersonalCenter) {
+        // 检查路径权限
+        for (const [path, permission] of Object.entries(pathPermissions)) {
+          if (pathname === path || pathname.startsWith(path + '/')) {
+            if (!hasPermission(permission)) {
+              message.warning('您没有权限访问此页面');
+              router.push('/c/post');
+              return;
+            }
+          }
+        }
       }
     }
-  }, [user, loading, pathname, router]);
+  }, [user, loading, pathname, router, hasPermission]);
 
   /**
    * 预加载所有管理路由
@@ -150,6 +214,8 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/config',
       '/c/user',
       '/c/user/info',
+      '/c/roles',
+      '/c/permissions',
       '/c/queue',
       '/c/vector-search',
       '/c/tts',

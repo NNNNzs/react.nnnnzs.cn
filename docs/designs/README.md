@@ -22,6 +22,9 @@ docs/designs/
 ├── comment-system-design.md         # 评论系统设计
 ├── entity-change-design.md          # 实体变更日志系统
 ├── mcp-oauth-design.md              # MCP OAuth 2.0 认证
+├── image-gen.md                     # AI 图片生成
+├── rbac-config-design.md            # 配置化 RBAC 权限系统
+├── rbac-migration-inventory.md      # RBAC 迁移清单（现有权限盘点）
 ├── performance-optimization-plan.md # 性能优化计划
 ├── permission-design.md             # 权限系统设计
 └── tts-page.md                      # TTS 语音合成功能
@@ -54,12 +57,15 @@ docs/designs/
 | [实体变更日志](entity-change-design.md) | 数据变更追踪 | ✅ 已实施 |
 | [统计系统](analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
 | [TTS 语音合成](tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
+| [AI 图片生成](image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
 
 ### 基础设施
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [权限系统](permission-design.md) | 多层权限防护 | ✅ 已实施 |
+| [权限系统](permission-design.md) | 多层权限防护（当前实现） | ✅ 已实施 |
+| [配置化 RBAC](rbac-config-design.md) | 角色权限配置化 + 统一接口注册表 + MCP 自动注册 | ✅ 已实施 |
+| [RBAC 迁移清单](rbac-migration-inventory.md) | 现有权限和 MCP 接口盘点，迁移对照表 | 📦 已归档 |
 | [MCP OAuth 2.0](mcp-oauth-design.md) | MCP 服务认证 | ✅ 已实施 |
 | [性能优化计划](performance-optimization-plan.md) | 性能优化实施记录 | ✅ 已完成 |
 
@@ -83,4 +89,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-05-10
+**最后更新**: 2026-05-15

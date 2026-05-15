@@ -48,7 +48,7 @@ model TbPost {
 // 用户表
 model TbUser {
   id                  Int       @id @default(autoincrement())
-  role                String?   @db.VarChar(255)
+  role                String?   @db.VarChar(255) // 兼容字段，过渡期保留，后续废弃
   account             String    @db.VarChar(16)
   avatar              String?   @db.VarChar(255)
   password            String    @db.VarChar(255)
@@ -72,6 +72,7 @@ model TbUser {
   collections        TbCollection[]      // 创建的合集
   comments           TbComment[]         // 用户发表的评论
   createdChangeLogs  TbEntityChangeLog[] @relation("EntityChangeLogCreator") // 创建的变更日志
+  userRoles          TbUserRole[]        // 用户角色关联（RBAC）
 
   @@map("tb_user")
 }
@@ -236,4 +237,87 @@ model TbEntityChangeLog {
   @@index([created_by, created_at], name: "idx_user_time")
   @@index([created_at], name: "idx_created_at")
   @@map("tb_entity_change_log")
+}
+
+// ============ RBAC 权限系统表 ============
+
+// 角色表
+model TbRole {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique @db.VarChar(50)   // 角色编码：admin, editor, reviewer
+  name        String    @db.VarChar(50)           // 显示名：管理员、编辑、审核员
+  description String?   @db.VarChar(255)
+  status      Int       @default(1)               // 1-启用 0-禁用
+  sort_order  Int       @default(0)               // 排序序号
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  permissions TbRolePermission[]
+  users       TbUserRole[]
+
+  @@map("tb_role")
+}
+
+// 权限码表
+model TbPermission {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique @db.VarChar(100)  // 权限码：post:create, post:delete
+  name        String    @db.VarChar(100)           // 显示名：创建文章
+  module      String    @db.VarChar(50)            // 模块：post, comment, config, user
+  type        String    @db.VarChar(20) @default("api") // menu/button/api
+  description String?   @db.VarChar(255)
+  status      Int       @default(1)
+  sort_order  Int       @default(0)
+
+  roles       TbRolePermission[]
+
+  @@map("tb_permission")
+}
+
+// 角色-权限关联表
+model TbRolePermission {
+  role_id       Int
+  permission_id Int
+  data_scope    String  @default("self") @db.VarChar(20) // 数据权限范围：self-仅本人 / all-全部
+
+  role       TbRole       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission TbPermission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+  @@map("tb_role_permission")
+}
+
+// 用户-角色关联表
+model TbUserRole {
+  user_id Int
+  role_id Int
+
+  user TbUser @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role TbRole @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, role_id])
+  @@map("tb_user_role")
+}
+
+// 接口注册表
+model TbApiRegistry {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(100)    // 接口编码：post_create
+  name            String    @db.VarChar(100)            // 接口名称
+  description     String?   @db.Text                    // 描述（MCP 工具描述）
+  module          String    @db.VarChar(50)             // 所属模块
+  api_path        String    @db.VarChar(191)            // API 路径（191字符限制，兼容MySQL 5.7索引键长度限制）
+  api_method      String    @db.VarChar(10)             // HTTP 方法（非空）
+  mcp_enabled     Int       @default(0)                 // 是否暴露 MCP：1-是 0-否
+  mcp_tool_name   String?   @db.VarChar(100)            // MCP 工具名
+  permission_code String?   @db.VarChar(100)            // 关联权限码
+  input_schema    String?   @db.Text                    // JSON Schema
+  cache_tags      String?   @db.VarChar(500)            // 缓存失效标签，逗号分隔
+  sort_order      Int       @default(0)
+  status          Int       @default(1)                 // 1-启用 0-禁用
+
+  @@unique([api_path, api_method])                      // 同一路径+方法不能重复注册
+  @@index([module])
+  @@index([mcp_enabled])
+  @@map("tb_api_registry")
 }

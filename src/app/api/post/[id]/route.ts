@@ -9,14 +9,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { POST_VIEW, POST_EDIT, POST_DELETE, POST_VIEW_DELETED } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { revalidateTag, revalidatePath } from 'next/cache';
-import { canAccessPost } from '@/lib/permission';
-import { isAdmin } from '@/types/role';
 // 定义文章更新的验证schema
 const updatePostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),
@@ -65,21 +62,16 @@ export async function GET(
 
     // 检查是否已删除：已删除的文章只有管理员可以查看
     if (post.is_delete === 1) {
-      const token = getTokenFromRequest(request.headers);
-      const user = token ? await validateToken(token) : null;
-
-      if (!isAdmin(user?.role)) {
+      const user = await getAuthUserFromRequest(request.headers);
+      if (!user || !hasDataPermission(user, POST_VIEW_DELETED)) {
         return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
       }
     }
 
     // 检查是否隐藏：隐藏文章只有管理员或作者本人可以查看
     if (post.hide === '1') {
-      const token = getTokenFromRequest(request.headers);
-      const user = token ? await validateToken(token) : null;
-
-      // 不是管理员且不是作者本人
-      if (!isAdmin(user?.role) && user?.id !== post.created_by) {
+      const user = await getAuthUserFromRequest(request.headers);
+      if (!user || !hasDataPermission(user, POST_VIEW, post.created_by)) {
         return NextResponse.json(errorResponse('无权限查看此隐藏文章'), { status: 403 });
       }
     }
@@ -101,25 +93,24 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, POST_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
+    const { user } = check;
 
     const { id } = await context.params;
     const postId = Number(id);
 
-    // 先获取文章，检查权限
+    // 先获取文章，检查数据权限
     const existingPost = await getPostById(postId);
     if (!existingPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 检查编辑权限
-    if (!canAccessPost(user, existingPost, 'edit')) {
+    // 检查数据权限
+    if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
 
@@ -196,25 +187,24 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, POST_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
+    const { user } = check;
 
     const { id } = await context.params;
     const postId = Number(id);
 
-    // 先获取文章，检查权限
+    // 先获取文章，检查数据权限
     const existingPost = await getPostById(postId);
     if (!existingPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 检查编辑权限
-    if (!canAccessPost(user, existingPost, 'edit')) {
+    // 检查数据权限
+    if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
 
@@ -299,28 +289,25 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, POST_DELETE);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
+    const { user } = check;
 
     const { id } = await context.params;
     const postId = Number(id);
 
-    // 先获取文章信息用于清除缓存和权限检查
+    // 先获取文章信息用于清除缓存和数据权限检查
     const post = await getPostById(postId);
     if (!post) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 检查删除权限
-    if (!canAccessPost(user, post, 'delete')) {
-      return NextResponse.json(errorResponse('无权限删除此文章'), {
-        status: 403,
-      });
+    // 检查数据权限
+    if (!hasDataPermission(user, POST_DELETE, post.created_by)) {
+      return NextResponse.json(errorResponse('无权限删除此文章'), { status: 403 });
     }
 
     const success = await deletePost(postId);

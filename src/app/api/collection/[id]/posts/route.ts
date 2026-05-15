@@ -7,16 +7,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { COLLECTION_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import {
   addPostsToCollection,
   removePostsFromCollection,
 } from '@/services/collection';
-import { canManageCollections } from '@/lib/permission';
 
 // 添加文章验证schema
 const addPostsSchema = z.object({
@@ -34,18 +31,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以管理合集文章
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限管理合集文章'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await params;
     const collectionId = parseInt(id, 10);
@@ -87,18 +78,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以管理合集文章
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限管理合集文章'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await params;
     const collectionId = parseInt(id, 10);

@@ -6,14 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { COLLECTION_EDIT, COLLECTION_DELETE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
-import { canManageCollections } from '@/lib/permission';
 
 // 定义合集更新的验证schema
 const updateCollectionSchema = z.object({
@@ -31,18 +28,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以更新合集
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限更新合集'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await params;
     const collectionId = parseInt(id, 10);
@@ -101,18 +92,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_DELETE);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以删除合集
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限删除合集'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await params;
     const collectionId = parseInt(id, 10);

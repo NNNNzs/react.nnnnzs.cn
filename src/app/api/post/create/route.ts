@@ -6,10 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPost } from '@/services/post';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { POST_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { revalidateTag, revalidatePath } from 'next/cache';
 
@@ -34,13 +32,12 @@ const createPostSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, POST_CREATE);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
+    const { user } = check;
 
     const body = await request.json();
 

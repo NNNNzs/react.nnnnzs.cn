@@ -5,13 +5,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { COLLECTION_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollectionOrder } from '@/services/collection';
-import { canManageCollections } from '@/lib/permission';
 
 // 调整顺序验证schema
 const updateOrderSchema = z.object({
@@ -26,18 +23,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, COLLECTION_EDIT);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    // 检查权限：只有管理员可以调整合集文章顺序
-    if (!canManageCollections(user)) {
-      return NextResponse.json(errorResponse('无权限调整合集文章顺序'), { status: 403 });
-    }
+    const { user } = check;
 
     const { id } = await params;
     const collectionId = parseInt(id, 10);

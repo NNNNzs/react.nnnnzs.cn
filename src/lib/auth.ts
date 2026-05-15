@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import type { NextRequest } from 'next/server';
 import type { User } from '@/types';
+import type { AuthUser } from '@/types/auth';
+import { resolveUserPermissions } from '@/services/permission';
 import RedisService from './redis';
 
 /**
@@ -119,6 +121,65 @@ export async function validateToken(token: string): Promise<User | null> {
     console.error('验证Token失败:', error);
     return null;
   }
+}
+
+/**
+ * 验证 Token 并获取用户信息（包含权限）
+ *
+ * 在 validateToken 基础上，额外查询用户的权限信息
+ *
+ * @param token Token 字符串
+ * @returns AuthUser 或 null
+ */
+export async function validateTokenWithPermissions(token: string): Promise<AuthUser | null> {
+  try {
+    // 先获取基本用户信息
+    const user = await validateToken(token);
+    if (!user) {
+      return null;
+    }
+
+    // 查询权限信息
+    const { permissions, dataScopes } = await resolveUserPermissions({
+      id: user.id,
+      role: user.role,
+    });
+
+    // 查询角色信息
+    const { getUserRoles } = await import('@/services/permission');
+    const userRoles = await getUserRoles(user.id);
+    const roles = userRoles.map(ur => ur.role.code);
+
+    return {
+      id: user.id,
+      account: user.account,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      role: user.role,
+      roles,
+      permissions,
+      dataScopes,
+    };
+  } catch (error) {
+    console.error('验证 Token 并获取权限失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 从请求中获取认证用户信息（包含权限）
+ *
+ * @param headers 请求头
+ * @returns AuthUser 或 null
+ */
+export async function getAuthUserFromRequest(
+  headers: Headers
+): Promise<AuthUser | null> {
+  const token = getTokenFromRequest(headers);
+  if (!token) {
+    return null;
+  }
+  return validateTokenWithPermissions(token);
 }
 
 /**

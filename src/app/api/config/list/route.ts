@@ -5,31 +5,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfigList } from '@/services/config';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
-import { isAdmin } from '@/types/role';
+import { requirePermission } from '@/lib/permission';
+import { CONFIG_VIEW } from '@/constants/permissions';
 import type { QueryConfigCondition } from '@/dto/config.dto';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function GET(request: NextRequest) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
+    // 权限检查
+    const check = await requirePermission(request, CONFIG_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-
-    // 检查是否是管理员
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
-    }
+    const { user } = check;
 
     const searchParams = request.nextUrl.searchParams;
     const pageNum = Number(searchParams.get('pageNum')) || 1;
