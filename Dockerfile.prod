@@ -66,6 +66,11 @@ ENV WX_APP_SECRET=${WX_APP_SECRET}
 # 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
 RUN pnpm prisma generate
 
+# 生成版本信息文件到 public 目录
+RUN mkdir -p public && \
+    echo "{\"version\":\"${VERSION}\",\"buildDate\":\"${BUILD_DATE}\",\"commitSha\":\"${COMMIT_SHA}\"}" > public/version.json && \
+    cat public/version.json
+
 # 构建 Next.js 应用
 RUN pnpm build
 

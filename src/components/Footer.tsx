@@ -5,12 +5,34 @@
 
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import BackToTop from "@/components/BackToTop";
 
+interface BuildInfo {
+  version: string;
+  buildDate: string;
+  commitSha: string;
+}
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
+
+  useEffect(() => {
+    // 读取构建信息
+    fetch("/version.json")
+      .then((res) => res.json())
+      .then((data) => setBuildInfo(data))
+      .catch(() => {
+        // 本地开发环境可能没有 version.json，使用默认值
+        setBuildInfo({
+          version: "dev",
+          buildDate: new Date().toISOString(),
+          commitSha: "local",
+        });
+      });
+  }, []);
 
   return (
     <footer className="mt-auto border-t border-slate-200 dark:border-slate-700 bg-gray-100 dark:bg-[#161f32]">
@@ -118,6 +140,22 @@ export default function Footer() {
             >
               皖ICP备16025009号-1
             </a>
+            {buildInfo && buildInfo.buildDate && (
+              <>
+                <br className="md:hidden" />
+                <span className="hidden md:inline"> | </span>
+                <span className="font-mono">
+                  构建于 {new Date(buildInfo.buildDate).toLocaleString("zh-CN", {
+                    timeZone: "Asia/Shanghai",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </>
+            )}
           </p>
         </div>
       </div>
