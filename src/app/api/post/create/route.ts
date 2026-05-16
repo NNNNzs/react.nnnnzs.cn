@@ -10,6 +10,31 @@ import { requirePermission } from '@/lib/permission';
 import { POST_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'post_create',
+  name: '创建文章',
+  description: '创建新博客文章，支持标签、合集、分类等。先读取 blog://tags 和 blog://collections 资源了解现有标签和合集。',
+  module: 'post',
+  method: 'POST',
+  permissionCode: POST_CREATE,
+  cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: '文章标题' },
+      content: { type: 'string', description: '文章内容（Markdown）' },
+      category: { type: 'string', description: '分类' },
+      tags: { type: 'string', description: '逗号分隔的标签' },
+      description: { type: 'string', description: '简短描述' },
+      cover: { type: 'string', description: '封面图URL' },
+      hide: { type: 'string', description: '1隐藏 0显示' },
+    },
+    required: ['title', 'content'],
+  },
+};
 
 // 定义文章创建的验证schema
 const createPostSchema = z.object({

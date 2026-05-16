@@ -14,6 +14,64 @@ import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { POST_VIEW, POST_EDIT, POST_DELETE, POST_VIEW_DELETED } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 获取文章详情接口描述 */
+export const getDescriptor: ApiDescriptor = {
+  code: 'post_get',
+  name: '获取文章',
+  module: 'post',
+  method: 'GET',
+  permissionCode: POST_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '文章ID' },
+      title: { type: 'string', description: '文章标题（ID和标题二选一）' },
+    },
+  },
+};
+
+/** 更新文章接口描述 */
+export const updateDescriptor: ApiDescriptor = {
+  code: 'post_update',
+  name: '更新文章',
+  module: 'post',
+  method: 'PUT',
+  permissionCode: POST_EDIT,
+  cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '文章ID' },
+      title: { type: 'string', description: '文章标题' },
+      content: { type: 'string', description: '文章内容（Markdown）' },
+      category: { type: 'string', description: '分类' },
+      tags: { type: 'string', description: '逗号分隔的标签' },
+      description: { type: 'string', description: '简短描述' },
+      cover: { type: 'string', description: '封面图URL' },
+      hide: { type: 'string', description: '1隐藏 0显示' },
+    },
+    required: ['id'],
+  },
+};
+
+/** 删除文章接口描述 */
+export const deleteDescriptor: ApiDescriptor = {
+  code: 'post_delete',
+  name: '删除文章',
+  module: 'post',
+  method: 'DELETE',
+  permissionCode: POST_DELETE,
+  cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '文章ID' },
+    },
+    required: ['id'],
+  },
+};
 // 定义文章更新的验证schema
 const updatePostSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200个字符').optional(),

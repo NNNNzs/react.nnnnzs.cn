@@ -315,6 +315,8 @@ model TbApiRegistry {
   cache_tags      String?   @db.VarChar(500)            // 缓存失效标签，逗号分隔
   sort_order      Int       @default(0)
   status          Int       @default(1)                 // 1-启用 0-禁用
+  auto_discovered Int       @default(1)                 // 1-自动扫描发现 0-手动添加
+  synced_at       DateTime?                             // 最后同步时间
 
   @@unique([api_path, api_method])                      // 同一路径+方法不能重复注册
   @@index([module])

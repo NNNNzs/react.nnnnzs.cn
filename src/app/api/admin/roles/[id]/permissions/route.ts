@@ -10,6 +10,50 @@ import { requirePermission } from '@/lib/permission';
 import { USER_VIEW, USER_ROLE_ASSIGN } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { prisma } from '@/lib/prisma';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 获取角色权限接口描述 */
+export const getDescriptor: ApiDescriptor = {
+  code: 'role_permission_get',
+  name: '获取角色权限',
+  module: 'admin',
+  method: 'GET',
+  permissionCode: USER_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '角色ID' },
+    },
+    required: ['id'],
+  },
+};
+
+/** 设置角色权限接口描述 */
+export const updateDescriptor: ApiDescriptor = {
+  code: 'role_permission_update',
+  name: '设置角色权限',
+  module: 'admin',
+  method: 'PUT',
+  permissionCode: USER_ROLE_ASSIGN,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '角色ID' },
+      permissions: {
+        type: 'array',
+        description: '权限列表',
+        items: {
+          type: 'object',
+          properties: {
+            code: { type: 'string', description: '权限码' },
+            data_scope: { type: 'string', description: '数据权限范围：self 或 all' },
+          },
+        },
+      },
+    },
+    required: ['id', 'permissions'],
+  },
+};
 
 // 设置角色权限验证 schema
 const setRolePermissionsSchema = z.object({
@@ -82,6 +126,25 @@ export async function GET(
       data_scope: rp.data_scope,
     }));
 
+    // 获取关联的 API 注册表信息（MCP 配置）
+    const permissionCodes = permissions.map(p => p.code);
+    const apiRegistries = await prisma.tbApiRegistry.findMany({
+      where: {
+        permission_code: { in: permissionCodes },
+        status: 1,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        api_path: true,
+        api_method: true,
+        permission_code: true,
+        mcp_enabled: true,
+        mcp_tool_name: true,
+      },
+    });
+
     return NextResponse.json(
       successResponse({
         role: {
@@ -90,6 +153,7 @@ export async function GET(
           name: role.name,
         },
         permissions,
+        apiRegistries,
       })
     );
   } catch (error) {

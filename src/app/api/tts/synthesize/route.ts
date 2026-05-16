@@ -9,6 +9,28 @@ import { getTokenFromRequest, validateToken } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getAIConfigValue } from '@/lib/ai-config';
+import { TTS_VIEW } from '@/constants/permissions';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'tts_synthesize',
+  name: '语音合成',
+  description: '使用 MiMo TTS 生成语音，支持多种音色和风格',
+  module: 'tts',
+  method: 'POST',
+  permissionCode: TTS_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      text: { type: 'string', description: '要合成的文本' },
+      model: { type: 'string', description: 'TTS 模型' },
+      voice: { type: 'string', description: '音色名称' },
+      instruction: { type: 'string', description: '风格指令' },
+    },
+    required: ['text'],
+  },
+};
 
 /**
  * 支持的模型列表

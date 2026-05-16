@@ -10,6 +10,44 @@ import { requirePermission } from '@/lib/permission';
 import { USER_VIEW, USER_MANAGE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { prisma } from '@/lib/prisma';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 获取角色列表接口描述 */
+export const listDescriptor: ApiDescriptor = {
+  code: 'role_list',
+  name: '角色列表',
+  module: 'admin',
+  method: 'GET',
+  permissionCode: USER_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pageNum: { type: 'number', description: '页码' },
+      pageSize: { type: 'number', description: '每页数量' },
+      query: { type: 'string', description: '搜索关键词' },
+    },
+  },
+};
+
+/** 创建角色接口描述 */
+export const createDescriptor: ApiDescriptor = {
+  code: 'role_create',
+  name: '创建角色',
+  module: 'admin',
+  method: 'POST',
+  permissionCode: USER_MANAGE,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      code: { type: 'string', description: '角色编码' },
+      name: { type: 'string', description: '角色名称' },
+      description: { type: 'string', description: '角色描述' },
+      status: { type: 'number', description: '状态：1-启用，0-禁用' },
+      sort_order: { type: 'number', description: '排序序号' },
+    },
+    required: ['code', 'name'],
+  },
+};
 
 // 创建角色验证 schema
 const createRoleSchema = z.object({

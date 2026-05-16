@@ -109,6 +109,17 @@ interface RolePermission {
   data_scope: string;
 }
 
+interface ApiRegistryItem {
+  id: number;
+  code: string;
+  name: string;
+  api_path: string;
+  api_method: string;
+  permission_code: string | null;
+  mcp_enabled: number;
+  mcp_tool_name: string | null;
+}
+
 interface RoleItem {
   id: number;
   code: string;
@@ -153,6 +164,10 @@ function RolesPageContent() {
   const [selectedPermCodes, setSelectedPermCodes] = useState<string[]>([]);
   const [permDataScopes, setPermDataScopes] = useState<Record<string, string>>({});
   const [permLoading, setPermLoading] = useState(false);
+
+  // MCP 配置相关状态
+  const [apiRegistries, setApiRegistries] = useState<ApiRegistryItem[]>([]);
+  const [mcpEnabledMap, setMcpEnabledMap] = useState<Record<string, boolean>>({});
 
   // 使用 useMemo 避免每次渲染都创建新对象
   const pagination = useMemo(() => ({
@@ -337,12 +352,22 @@ function RolesPageContent() {
       const response = await axios.get(`/api/admin/roles/${role.id}/permissions`);
       if (response.data.status) {
         const perms = response.data.data.permissions || [];
+        const registries = response.data.data.apiRegistries || [];
+
         setSelectedPermCodes(perms.map((p: RolePermission) => p.code));
         const scopes: Record<string, string> = {};
         perms.forEach((p: RolePermission) => {
           scopes[p.code] = p.data_scope;
         });
         setPermDataScopes(scopes);
+
+        // 设置 API 注册表和 MCP 配置
+        setApiRegistries(registries);
+        const mcpMap: Record<string, boolean> = {};
+        registries.forEach((r: ApiRegistryItem) => {
+          mcpMap[r.code] = r.mcp_enabled === 1;
+        });
+        setMcpEnabledMap(mcpMap);
       }
     } catch (error) {
       console.error("获取角色权限失败:", error);
@@ -364,8 +389,15 @@ function RolesPageContent() {
         data_scope: permDataScopes[code] || "self",
       }));
 
+      // 同时保存 MCP 配置
+      const mcpUpdates = Object.entries(mcpEnabledMap).map(([code, enabled]) => ({
+        code,
+        mcp_enabled: enabled ? 1 : 0,
+      }));
+
       const response = await axios.put(`/api/admin/roles/${managingRole.id}/permissions`, {
         permissions,
+        mcp_updates: mcpUpdates,
       });
 
       if (response.data.status) {
@@ -714,6 +746,40 @@ function RolesPageContent() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* MCP 工具配置区域 */}
+            {apiRegistries.length > 0 && (
+              <div className="mt-4">
+                <div className="mb-2 font-medium">MCP 工具配置：</div>
+                <div className="text-gray-500 text-xs mb-2">
+                  配置哪些接口可以作为 MCP 工具暴露给 AI 助手
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {apiRegistries.map(registry => (
+                    <div key={registry.code} className="flex items-center gap-2 p-2 border rounded">
+                      <div>
+                        <div className="font-medium text-sm">{registry.name}</div>
+                        <div className="text-gray-400 text-xs">
+                          {registry.api_method} {registry.api_path}
+                        </div>
+                        {registry.mcp_tool_name && (
+                          <div className="text-blue-500 text-xs">
+                            MCP: {registry.mcp_tool_name}
+                          </div>
+                        )}
+                      </div>
+                      <Switch
+                        size="small"
+                        checked={mcpEnabledMap[registry.code] || false}
+                        onChange={(checked) =>
+                          setMcpEnabledMap(prev => ({ ...prev, [registry.code]: checked }))
+                        }
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

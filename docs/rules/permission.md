@@ -202,8 +202,54 @@ export async function GET(request: NextRequest) {
 | `src/constants/permissions.ts` | 权限码常量定义（**唯一来源**） |
 | `src/lib/permission.ts` | 权限检查函数 |
 | `src/services/permission.ts` | 权限查询服务（数据库） |
-| `src/lib/api-registry.ts` | API 接口注册表 |
+| `src/types/api-descriptor.ts` | API 接口自描述类型定义 |
+| `src/lib/api-registry.ts` | API 接口注册表（运行时） |
 | `src/lib/mcp-adapter.ts` | MCP 适配器（权限检查） |
+| `scripts/sync-api-registry.ts` | 接口扫描同步脚本 |
+
+### API 接口自描述
+
+每个 `route.ts` 文件应导出 `descriptor` 常量，定义接口元数据：
+
+```typescript
+import type { ApiDescriptor } from '@/types/api-descriptor';
+import { POST_CREATE } from '@/constants/permissions';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'post_create',
+  name: '创建文章',
+  description: '创建新博客文章',
+  module: 'post',
+  method: 'POST',
+  permissionCode: POST_CREATE,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: '文章标题' },
+      content: { type: 'string', description: '文章内容' },
+    },
+    required: ['title', 'content'],
+  },
+};
+```
+
+一个文件有多个接口时，使用 `xxxDescriptor` 命名：
+
+```typescript
+export const getDescriptor: ApiDescriptor = { /* GET 接口 */ };
+export const updateDescriptor: ApiDescriptor = { /* PUT 接口 */ };
+export const deleteDescriptor: ApiDescriptor = { /* DELETE 接口 */ };
+```
+
+### 同步脚本
+
+使用 `pnpm sync:api-registry` 扫描所有 route.ts 并同步到数据库 `tb_api_registry` 表。
+
+脚本通过动态 import 读取每个文件的 descriptor 导出，支持：
+- 权限码常量自动解析
+- 多 descriptor 导出（xxxDescriptor 模式）
+- 自动禁用已删除的接口
 
 ### 核心函数
 

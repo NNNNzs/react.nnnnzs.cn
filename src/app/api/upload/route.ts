@@ -12,6 +12,22 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'upload_image',
+  name: '上传图片',
+  module: 'upload',
+  method: 'POST',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      file: { type: 'string', description: '图片文件（FormData）' },
+    },
+    required: ['file'],
+  },
+};
 
 export async function POST(request: NextRequest) {
   try {

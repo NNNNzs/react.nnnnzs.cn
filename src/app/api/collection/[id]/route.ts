@@ -11,6 +11,48 @@ import { COLLECTION_EDIT, COLLECTION_DELETE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 更新合集接口描述 */
+export const updateDescriptor: ApiDescriptor = {
+  code: 'collection_update',
+  name: '编辑合集',
+  module: 'collection',
+  method: 'PUT',
+  permissionCode: COLLECTION_EDIT,
+  cacheTags: ['collection'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '合集ID' },
+      title: { type: 'string', description: '合集标题' },
+      slug: { type: 'string', description: 'URL路径' },
+      description: { type: 'string', description: '合集描述' },
+      cover: { type: 'string', description: '封面图URL' },
+      background: { type: 'string', description: '背景图URL' },
+      color: { type: 'string', description: '主题色' },
+      status: { type: 'string', description: '状态：1-正常，0-隐藏' },
+    },
+    required: ['id'],
+  },
+};
+
+/** 删除合集接口描述 */
+export const deleteDescriptor: ApiDescriptor = {
+  code: 'collection_delete',
+  name: '删除合集',
+  module: 'collection',
+  method: 'DELETE',
+  permissionCode: COLLECTION_DELETE,
+  cacheTags: ['collection'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '合集ID' },
+    },
+    required: ['id'],
+  },
+};
 
 // 定义合集更新的验证schema
 const updateCollectionSchema = z.object({

@@ -9,6 +9,34 @@ import { getBaseUrl, getUserFromToken } from '@/lib/auth';
 import dayjs from 'dayjs';
 import { chatRAGAgentStream } from '@/services/ai/rag';
 import { createStreamResponse } from '@/lib/stream';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'chat_send',
+  name: '发送聊天消息',
+  description: '与 AI 聊天机器人对话，基于 RAG 检索博客内容回答问题',
+  module: 'chat',
+  method: 'POST',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      message: { type: 'string', description: '用户消息' },
+      history: {
+        type: 'array',
+        description: '历史消息记录',
+        items: {
+          type: 'object',
+          properties: {
+            role: { type: 'string', description: '角色：user 或 assistant' },
+            content: { type: 'string', description: '消息内容' },
+          },
+        },
+      },
+    },
+    required: ['message'],
+  },
+};
 
 /**
  * 请求体类型定义

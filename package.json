@@ -13,6 +13,7 @@
     "prisma:studio": "npx prisma studio",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:push": "npx prisma db push",
+    "sync:api-registry": "tsx scripts/sync-api-registry.ts",
     "qdrant:init": "tsx scripts/init-qdrant.ts",
     "vectors:rebuild": "tsx scripts/rebuild-vectors.ts",
     "config:add-vector-db": "tsx scripts/add-vector-db-config.ts",

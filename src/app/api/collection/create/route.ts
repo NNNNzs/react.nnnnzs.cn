@@ -10,6 +10,29 @@ import { COLLECTION_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'collection_create',
+  name: '创建合集',
+  module: 'collection',
+  method: 'POST',
+  permissionCode: COLLECTION_CREATE,
+  cacheTags: ['collection'],
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: '合集标题' },
+      slug: { type: 'string', description: 'URL路径（小写字母、数字、连字符）' },
+      description: { type: 'string', description: '合集描述' },
+      cover: { type: 'string', description: '封面图URL' },
+      background: { type: 'string', description: '背景图URL' },
+      color: { type: 'string', description: '主题色，如 #2563eb' },
+    },
+    required: ['title', 'slug'],
+  },
+};
 
 // 定义合集创建的验证schema
 const createCollectionSchema = z.object({

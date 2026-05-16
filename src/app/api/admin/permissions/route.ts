@@ -8,6 +8,22 @@ import { requirePermission } from '@/lib/permission';
 import { USER_VIEW } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { prisma } from '@/lib/prisma';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'permission_list',
+  name: '权限码列表',
+  module: 'admin',
+  method: 'GET',
+  permissionCode: USER_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      module: { type: 'string', description: '按模块筛选' },
+    },
+  },
+};
 
 /**
  * 获取所有权限码列表

@@ -9,7 +9,26 @@ import { successResponse, errorResponse } from '@/dto/response.dto';
 import type { QueryCondition } from '@/dto/post.dto';
 import { getAuthUserFromRequest } from '@/lib/auth';
 import { hasPermissionCode, hasDataPermission } from '@/lib/permission';
-import { POST_VIEW_DELETED } from '@/constants/permissions';
+import { POST_VIEW, POST_VIEW_DELETED } from '@/constants/permissions';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'post_list',
+  name: '文章列表',
+  module: 'post',
+  method: 'GET',
+  permissionCode: POST_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pageNum: { type: 'number', description: '页码（默认1）' },
+      pageSize: { type: 'number', description: '每页数量（默认10）' },
+      keyword: { type: 'string', description: '搜索关键词' },
+      hide: { type: 'string', description: '可见性过滤' },
+    },
+  },
+};
 
 export async function GET(request: NextRequest) {
   try {

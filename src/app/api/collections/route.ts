@@ -5,6 +5,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollectionList } from '@/services/collection';
+import { COLLECTION_VIEW } from '@/constants/permissions';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'collection_list',
+  name: '合集列表',
+  module: 'collection',
+  method: 'GET',
+  permissionCode: COLLECTION_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pageNum: { type: 'number', description: '页码' },
+      pageSize: { type: 'number', description: '每页数量' },
+      query: { type: 'string', description: '搜索关键词' },
+      status: { type: 'string', description: '状态筛选' },
+    },
+  },
+};
 
 export async function GET(request: NextRequest) {
   try {

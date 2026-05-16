@@ -10,6 +10,29 @@ import { getTokenFromRequest, validateToken } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getAIConfigValues } from '@/lib/ai-config';
+import { IMAGE_VIEW } from '@/constants/permissions';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+/** 接口自描述信息 */
+export const descriptor: ApiDescriptor = {
+  code: 'image_gen',
+  name: 'AI图片生成',
+  description: '使用 AI 生成图片，支持文生图和图文编辑模式',
+  module: 'image',
+  method: 'POST',
+  permissionCode: IMAGE_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', description: '模式：generate（文生图）或 edit（图文编辑）' },
+      prompt: { type: 'string', description: '提示词' },
+      image: { type: 'string', description: '参考图片URL（编辑模式必填）' },
+      size: { type: 'string', description: '图片尺寸，如 1024x1024' },
+      quality: { type: 'string', description: '图片质量：high 或 medium' },
+    },
+    required: ['mode', 'prompt'],
+  },
+};
 
 
 const VALID_QUALITIES = ['high', 'medium'] as const;
