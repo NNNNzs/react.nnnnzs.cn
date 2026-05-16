@@ -10,7 +10,7 @@ import { getTokenFromRequest, validateToken } from '@/lib/auth';
 import { isAdmin } from '@/types/role';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getAIConfigValues } from '@/lib/ai-config';
-
+import { proxyFetch } from '@/lib/proxy-fetch';
 
 const VALID_QUALITIES = ['high', 'medium'] as const;
 
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
     const startTime = Date.now();
 
-    const response = await fetch(endpoint, {
+    const response = await proxyFetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
