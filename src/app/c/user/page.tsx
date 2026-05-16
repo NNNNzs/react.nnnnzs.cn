@@ -647,10 +647,11 @@ function UserPageContent() {
   };
 
   return (
+    <>
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">
+        <div className={`mb-4 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
           <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
             用户管理
           </h1>
@@ -716,7 +717,6 @@ function UserPageContent() {
           rowKey="id"
           loading={loading}
           renderMobileCard={renderMobileCard}
-          scroll={{ x: 1200 }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
@@ -734,8 +734,9 @@ function UserPageContent() {
           }}
         />
       </div>
+    </div>
 
-      {/* 创建/编辑弹窗 */}
+    {/* 创建/编辑弹窗 */}
       <Modal
         title={editingUser ? "编辑用户" : "创建用户"}
         open={isModalOpen}
@@ -882,7 +883,7 @@ function UserPageContent() {
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }
 
