@@ -85,6 +85,7 @@
     "baseline-browser-mapping": "^2.10.13",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.0.8",
+    "fast-glob": "^3.3.3",
     "prisma": "6.2.1",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
