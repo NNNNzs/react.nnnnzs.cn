@@ -18,8 +18,8 @@ declare global {
 export const prisma =
   global.prisma ||
   new PrismaClient({
-    // log: process.env.PRISMA_HIDE_QUERY_LOG === 'true' ? ['error', 'warn'] : (process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']),
-    log:['error']
+    log: process.env.PRISMA_HIDE_QUERY_LOG === 'true' ? ['error', 'warn'] : (process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']),
+    // log:['error']
   });
 
 // 在开发环境中保存到全局变量，避免热重载时创建多个实例

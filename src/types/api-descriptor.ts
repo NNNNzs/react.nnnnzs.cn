@@ -2,8 +2,8 @@
  * API 接口自描述类型定义
  *
  * 用于 route.ts 文件导出接口元数据，实现：
- * 1. 接口注册表自动扫描
- * 2. MCP 工具自动注册
+ * 1. sync:api-registry 脚本自动扫描同步到数据库
+ * 2. MCP 工具自动注册（需在 api-registry.ts 中配置 handler）
  * 3. 权限配置管理
  */
 

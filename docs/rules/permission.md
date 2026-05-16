@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
 | `src/lib/permission.ts` | 权限检查函数 |
 | `src/services/permission.ts` | 权限查询服务（数据库） |
 | `src/types/api-descriptor.ts` | API 接口自描述类型定义 |
-| `src/lib/api-registry.ts` | API 接口注册表（运行时） |
+| `src/lib/api-registry.ts` | MCP handler 注册表 + 路由匹配索引（仅存放有 MCP handler 的接口） |
 | `src/lib/mcp-adapter.ts` | MCP 适配器（权限检查） |
 | `scripts/sync-api-registry.ts` | 接口扫描同步脚本 |
 
@@ -324,7 +324,7 @@ if (hasPermission(COLLECTION_VIEW)) {
 - [ ] 需要数据权限时是否使用了 `hasDataPermission`？
 - [ ] 公开接口是否跳过了权限检查？
 - [ ] 是否返回了正确的 HTTP 状态码？
-- [ ] 是否在 `src/lib/api-registry.ts` 中注册了接口？
+- [ ] 是否在 `route.ts` 中导出了 `ApiDescriptor`？
 
 ## 相关文档
 

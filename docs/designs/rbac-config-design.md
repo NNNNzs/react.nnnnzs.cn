@@ -4,7 +4,7 @@
 >
 > **前置文档**: [权限系统设计](permission-design.md)（当前硬编码实现）
 >
-> **目标**: 将角色和权限从代码硬编码改为数据库配置，支持动态管理角色、权限码和数据权限。同时通过统一接口注册表，一次配置同时驱动 **API 权限控制** 和 **MCP 工具自动注册**。
+> **目标**: 将角色和权限从代码硬编码改为数据库配置，支持动态管理角色、权限码和数据权限。通过 `ApiDescriptor` 自描述 + `sync:api-registry` 脚本自动同步接口元数据到数据库，同时驱动 **API 权限控制** 和 **MCP 工具自动注册**。
 >
 > **实施完成**: 2026-05-15，共 21 个权限码、2 个内置角色（admin/user）、7 个阶段全部完成。
 
@@ -12,7 +12,7 @@
 
 - [背景与现状](#背景与现状)
 - [设计目标](#设计目标)
-- [统一接口注册表](#统一接口注册表)
+- [接口自描述与同步](#接口自描述与同步)
 - [数据库设计](#数据库设计)
 - [权限码体系](#权限码体系)
 - [数据权限](#数据权限)
@@ -54,20 +54,18 @@
 2. **权限可配置** — 权限码体系，通过数据库关联到角色
 3. **数据权限可配置** — 每个角色-权限组合可配置数据范围（本人/全部）
 4. **多角色支持** — 一个用户可以拥有多个角色
-5. **统一接口注册表** — API 接口一次声明，同时驱动权限控制和 MCP 工具注册
+5. **接口自描述同步** — 每个 route.ts 导出 `ApiDescriptor`，通过 `sync:api-registry` 脚本自动同步到数据库
 6. **MCP 工具自动注册** — 将管理后台配置的接口自动暴露为 MCP 工具，无需手动 `registerTool`
 7. **向后兼容** — 现有 `TbUser.role` 字段保留，过渡期兼容
 8. **前端自适应** — 登录时获取权限列表，菜单和按钮根据权限动态渲染
 
 ---
 
-## 统一接口注册表
+## 接口自描述与同步
 
 ### 核心思路
 
-Next.js 不像 Spring Boot 有启动时类扫描和注解驱动的能力，但可以通过**声明式配置文件**实现类似效果：
-
-> 一个 API 接口在配置表中声明一次，同时产出三样东西：
+> 每个 `route.ts` 导出 `ApiDescriptor` 接口自描述，通过 `pnpm sync:api-registry` 自动同步到数据库，同时产出三样东西：
 > 1. **API 权限检查** — middleware / 路由内检查调用者是否有该权限
 > 2. **MCP 工具注册** — 自动将接口注册为 MCP tool，供 Claude 等 AI 客户端调用
 > 3. **权限管理界面** — 管理后台可配置哪些角色可以访问该接口
@@ -96,17 +94,7 @@ flowchart LR
     G --> A
 ```
 
-### 为什么 Next.js 不能用注解/装饰器
-
-| | Spring Boot | Next.js (App Router) |
-|---|---|---|
-| 路由发现 | 启动时扫描 `@Controller` 注解 | 文件系统约定，`app/api/**/route.ts` 自动映射 |
-| 元数据收集 | Class 上的 `@PreAuthorize` 可在启动时遍历 | 没有运行时遍历所有 route.ts 的能力 |
-| 装饰器执行 | Spring 容器管理生命周期 | 装饰器只在被 import 时执行，不会被全局扫描 |
-
-> 因此采用**配置表 + 代码声明**的混合方案，兼顾集中管理和类型安全。
-
-### 接口注册表 Schema
+### 数据库表结构
 
 新增 `TbApiRegistry` 表，作为接口的统一声明：
 
@@ -172,359 +160,81 @@ model TbApiRegistry {
 }
 ```
 
-### 代码侧声明（类型安全）
+### 接口自描述（Source of Truth）
 
-虽然配置存在数据库中，但在代码侧也维护一份声明，用于：
+每个 `route.ts` 文件导出 `ApiDescriptor` 常量作为接口元数据的 **Source of Truth**，通过 `pnpm sync:api-registry` 脚本自动扫描同步到数据库。
 
-1. **类型提示** — 开发时有自动补全
-2. **中间件匹配** — 启动时加载到内存，避免每次请求查数据库
-3. **构建时校验** — 确保数据库配置和代码定义一致
-4. **MCP 转发** — 通过 `handler` 字段直接引用 service 函数，避免 switch-case 硬编码
+**自描述类型**（`src/types/api-descriptor.ts`）：
 
 ```typescript
-// src/lib/api-registry.ts
-
-import type { AuthUser } from '@/lib/auth';
-
-/** MCP 工具调用的 handler 类型 */
-export type McpHandler = (
-  args: Record<string, unknown>,
-  user: AuthUser,
-) => Promise<unknown>;
-
-export interface ApiRegistryEntry {
-  code: string;
-  name: string;
-  description?: string;
-  module: string;
-  apiPath: string;
-  apiMethod: string;
-  mcpEnabled: boolean;
-  mcpToolName?: string;
-  permissionCode?: string;
-  inputSchema?: Record<string, unknown>;
-  cacheTags?: string[];
-  /** MCP 工具的处理函数，直接引用 service 层方法 */
-  handler?: McpHandler;
-  /** 数据权限检查时，从资源中提取 owner_id 的函数 */
-  getOwnerId?: (resource: unknown) => number | undefined;
+export interface ApiDescriptor {
+  code: string;          // 接口编码（唯一标识），如 post_create
+  name: string;          // 接口名称（中文）
+  description?: string;  // 详细描述（同时作为 MCP 工具描述）
+  module: string;        // 所属模块：post, collection, config 等
+  method: HttpMethod;    // HTTP 方法
+  permissionCode?: string; // 关联权限码
+  inputSchema?: Record<string, unknown>; // 输入参数 JSON Schema（用于 MCP inputSchema）
+  cacheTags?: string[];  // 缓存失效标签
 }
-
-/**
- * 接口注册表声明
- *
- * 这里是 Source of Truth（代码侧），数据库中的配置应与此保持同步。
- * 新增/修改接口时，先在这里声明，然后通过 seed 脚本同步到数据库。
- */
-export const API_REGISTRY: ApiRegistryEntry[] = [
-  // ---- 文章模块 ----
-  {
-    code: 'post_create',
-    name: '创建文章',
-    description: '创建新博客文章，支持标签、合集、分类等。先读取 blog://tags 和 blog://collections 资源了解现有标签和合集。',
-    module: 'post',
-    apiPath: '/api/post/create',
-    apiMethod: 'POST',
-    mcpEnabled: true,
-    mcpToolName: 'create_article',
-    permissionCode: 'post:create',
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: '文章标题' },
-        content: { type: 'string', description: '文章内容（Markdown）' },
-        category: { type: 'string', description: '分类' },
-        tags: { type: 'string', description: '逗号分隔的标签' },
-        collections: { type: 'string', description: '逗号分隔的合集ID或slug' },
-        description: { type: 'string', description: '简短描述' },
-        cover: { type: 'string', description: '封面图URL' },
-        hide: { type: 'string', description: '1隐藏 0显示' },
-      },
-      required: ['title', 'content'],
-    },
-    handler: async (args, user) => {
-      const { createPost } = await import('@/services/post');
-      return createPost({ ...args, created_by: user.id });
-    },
-  },
-  {
-    code: 'post_update',
-    name: '更新文章',
-    module: 'post',
-    apiPath: '/api/post/[id]',
-    apiMethod: 'PUT',
-    mcpEnabled: true,
-    mcpToolName: 'update_article',
-    permissionCode: 'post:edit',
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-        title: { type: 'string', description: '文章标题' },
-        content: { type: 'string', description: '文章内容（Markdown）' },
-        category: { type: 'string', description: '分类' },
-        tags: { type: 'string', description: '逗号分隔的标签' },
-        description: { type: 'string', description: '简短描述' },
-        cover: { type: 'string', description: '封面图URL' },
-        hide: { type: 'string', description: '1隐藏 0显示' },
-        add_to_collections: { type: 'string', description: '添加到的合集ID或slug，逗号分隔' },
-        remove_from_collections: { type: 'string', description: '移除的合集ID或slug，逗号分隔' },
-      },
-      required: ['id'],
-    },
-    handler: async (args) => {
-      const { updatePost } = await import('@/services/post');
-      return updatePost(args.id as number, args);
-    },
-    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
-  },
-  {
-    code: 'post_delete',
-    name: '删除文章',
-    module: 'post',
-    apiPath: '/api/post/[id]',
-    apiMethod: 'DELETE',
-    mcpEnabled: true,
-    mcpToolName: 'delete_article',
-    permissionCode: 'post:delete',
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-      },
-      required: ['id'],
-    },
-    handler: async (args) => {
-      const { getPostById, deletePost } = await import('@/services/post');
-      const post = await getPostById(args.id as number);
-      const success = await deletePost(args.id as number);
-      return { success, post };
-    },
-    getOwnerId: (resource) => (resource as { post?: { created_by?: number } })?.post?.created_by,
-  },
-  {
-    code: 'post_get',
-    name: '获取文章',
-    module: 'post',
-    apiPath: '/api/post/[id]',
-    apiMethod: 'GET',
-    mcpEnabled: true,
-    mcpToolName: 'get_article',
-    permissionCode: 'post:view',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-        title: { type: 'string', description: '文章标题（ID和标题二选一）' },
-      },
-    },
-    handler: async (args) => {
-      const { getPostById, getPostByTitle } = await import('@/services/post');
-      if (args.id) return getPostById(args.id as number);
-      if (args.title) return getPostByTitle(args.title as string);
-      return null;
-    },
-  },
-  {
-    code: 'post_list',
-    name: '文章列表',
-    module: 'post',
-    apiPath: '/api/post/list',
-    apiMethod: 'GET',
-    mcpEnabled: true,
-    mcpToolName: 'list_articles',
-    permissionCode: 'post:view',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        pageNum: { type: 'number', description: '页码（默认1）' },
-        pageSize: { type: 'number', description: '每页数量（默认10）' },
-        keyword: { type: 'string', description: '搜索关键词' },
-        hide: { type: 'string', description: '可见性过滤' },
-      },
-    },
-    handler: async (args) => {
-      const { getPostList } = await import('@/services/post');
-      return getPostList({
-        pageNum: (args.pageNum as number) ?? 1,
-        pageSize: (args.pageSize as number) ?? 10,
-        query: args.keyword as string | undefined,
-        hide: args.hide as string | undefined,
-      });
-    },
-  },
-  // ---- 合集模块（仅 API，不暴露 MCP）----
-  {
-    code: 'collection_create',
-    name: '创建合集',
-    module: 'collection',
-    apiPath: '/api/collection/create',
-    apiMethod: 'POST',
-    mcpEnabled: false,
-    permissionCode: 'collection:create',
-  },
-  {
-    code: 'collection_update',
-    name: '编辑合集',
-    module: 'collection',
-    apiPath: '/api/collection/[id]',
-    apiMethod: 'PUT',
-    mcpEnabled: false,
-    permissionCode: 'collection:edit',
-  },
-  {
-    code: 'collection_delete',
-    name: '删除合集',
-    module: 'collection',
-    apiPath: '/api/collection/[id]',
-    apiMethod: 'DELETE',
-    mcpEnabled: false,
-    permissionCode: 'collection:delete',
-  },
-  // ---- 配置模块 ----
-  {
-    code: 'config_update',
-    name: '修改配置',
-    module: 'config',
-    apiPath: '/api/config/[key]',
-    apiMethod: 'PUT',
-    mcpEnabled: false,
-    permissionCode: 'config:edit',
-  },
-];
 ```
 
-### 运行时查询
+**使用方式**：
 
 ```typescript
-// src/lib/api-registry.ts
+// 单接口文件：export descriptor
+export const descriptor: ApiDescriptor = {
+  code: 'post_create',
+  name: '创建文章',
+  module: 'post',
+  method: 'POST',
+  permissionCode: POST_CREATE,
+  inputSchema: { /* ... */ },
+};
 
-// 构建 api_path → entry 的索引（支持 [id] 模式匹配）
-const registryByPath: Map<string, ApiRegistryEntry> = new Map();
-const registryByPattern: ApiRegistryEntry[] = [];
-const registryByMcpTool: Map<string, ApiRegistryEntry> = new Map();
-
-for (const entry of API_REGISTRY) {
-  const key = `${entry.apiMethod}:${entry.apiPath}`;
-
-  // 区分精确路径和模式路径（含 [id] 等动态段）
-  if (entry.apiPath.includes('[')) {
-    registryByPattern.push(entry);
-  } else {
-    registryByPath.set(key, entry);
-  }
-
-  if (entry.mcpEnabled && entry.mcpToolName) {
-    registryByMcpTool.set(entry.mcpToolName, entry);
-  }
-}
-
-/**
- * 根据请求路径和方法查找接口配置
- *
- * 匹配优先级：
- * 1. 精确匹配（静态路径，如 /api/post/list）
- * 2. 模式匹配（动态路径，如 /api/post/[id]）
- *
- * 注意：精确路径和模式路径不会冲突，因为：
- * - /api/post/list → 精确匹配
- * - /api/post/123 → 模式匹配 /api/post/[id]
- */
-export function matchApiRegistry(pathname: string, method: string): ApiRegistryEntry | null {
-  // 1. 精确匹配（O(1) 查找）
-  const exact = registryByPath.get(`${method}:${pathname}`);
-  if (exact) return exact;
-
-  // 2. 模式匹配（遍历动态路径模式）
-  for (const entry of registryByPattern) {
-    if (entry.apiMethod !== method) continue;
-    if (matchRoutePattern(entry.apiPath, pathname)) {
-      return entry;
-    }
-  }
-  return null;
-}
-
-/** 获取所有启用了 MCP 的接口 */
-export function getMcpEnabledEntries(): ApiRegistryEntry[] {
-  return API_REGISTRY.filter(e => e.mcpEnabled);
-}
+// 多接口文件：export xxxDescriptor
+export const getDescriptor: ApiDescriptor = { /* GET */ };
+export const updateDescriptor: ApiDescriptor = { /* PUT */ };
+export const deleteDescriptor: ApiDescriptor = { /* DELETE */ };
 ```
+
+### 运行时层（MCP handler 注册）
+
+`src/lib/api-registry.ts` 中的 `API_REGISTRY` 数组仅用于存放 **MCP handler** 和运行时路由匹配索引，不再重复声明接口元数据。
+
+MCP handler 只对有 `handler` 函数的接口生效，当前已实现的 handler：
+
+| code | MCP 工具名 | 说明 |
+|------|-----------|------|
+| `post_create` | `create_article` | 创建文章 |
+| `post_update` | `update_article` | 更新文章 |
+| `post_delete` | `delete_article` | 删除文章 |
+| `post_get` | `get_article` | 获取文章 |
+| `post_list` | `list_articles` | 文章列表 |
+
+新增 MCP handler 时，需要同步更新 `scripts/sync-api-registry.ts` 中的 `handlerCodes` 列表。
 
 ### 代码 vs 数据库的分工
 
-| 维度 | 代码声明 (`api-registry.ts`) | 数据库 (`tb_api_registry`) |
+| 维度 | 代码侧（`route.ts` 的 `ApiDescriptor`） | 数据库 (`tb_api_registry`) |
 |------|------|------|
-| **定位** | **Source of Truth** — 接口定义、handler、默认配置 | **运行时覆盖** — 仅存储可动态调整的开关 |
-| **变更时机** | 开发时随代码提交 | 运行时通过管理界面修改 |
-| **可覆盖字段** | — | `mcp_enabled`、`description`、`input_schema` |
-| **不可覆盖字段** | `code`、`api_path`、`api_method`、`handler`、`permission_code`、`getOwnerId` | — |
-| **同步方式** | seed 脚本：代码 → 数据库（**覆盖式同步**） | 管理界面修改后独立生效 |
+| **定位** | **Source of Truth** — 接口元数据声明 | **运行时存储** — 同步自代码扫描 |
+| **变更时机** | 开发时随代码提交 | 运行 `pnpm sync:api-registry` 后 |
+| **可覆盖字段** | — | `mcp_enabled`、`mcp_tool_name`、`description` |
+| **同步方式** | `pnpm sync:api-registry`：扫描 route.ts → 写入数据库（增量同步） | 管理界面修改后独立生效 |
 
 ### 同步策略
 
-**核心原则**：代码是唯一的 Source of Truth，数据库仅存储运行时开关。
+**核心原则**：`ApiDescriptor` 是唯一的 Source of Truth，数据库通过扫描脚本自动同步。
 
 ```
 开发流程：
-1. 在 api-registry.ts 中声明接口（含 handler、permission_code 等）
-2. 运行 seed 脚本 → 同步到数据库（覆盖式）
+1. 在 route.ts 中添加/修改 ApiDescriptor
+2. 运行 pnpm sync:api-registry → 自动同步到数据库
 3. 管理后台可调整 mcp_enabled 等开关
-
-代码更新流程：
-1. 修改 api-registry.ts
-2. 运行 seed 脚本 → 覆盖数据库中的配置
-3. 管理后台的开关设置被重置为代码默认值
 ```
 
-**为什么采用覆盖式同步**：
-- 避免代码和数据库配置漂移
-- 管理后台的"覆盖"仅用于临时调整（如紧急禁用某个 MCP 工具）
-- 代码更新后，所有配置回归基准值，确保一致性
-
-**seed 脚本行为**：
-```typescript
-// prisma/seed-api-registry.ts
-async function seedApiRegistry() {
-  for (const entry of API_REGISTRY) {
-    await prisma.tbApiRegistry.upsert({
-      where: { code: entry.code },
-      create: {
-        code: entry.code,
-        name: entry.name,
-        description: entry.description,
-        module: entry.module,
-        api_path: entry.apiPath,
-        api_method: entry.apiMethod,
-        mcp_enabled: entry.mcpEnabled ? 1 : 0,
-        mcp_tool_name: entry.mcpToolName,
-        permission_code: entry.permissionCode,
-        input_schema: entry.inputSchema ? JSON.stringify(entry.inputSchema) : null,
-        cache_tags: entry.cacheTags?.join(','),
-        status: 1,
-      },
-      update: {
-        // 覆盖式更新：代码配置始终覆盖数据库
-        name: entry.name,
-        description: entry.description,
-        module: entry.module,
-        api_path: entry.apiPath,
-        api_method: entry.apiMethod,
-        mcp_tool_name: entry.mcpToolName,
-        permission_code: entry.permissionCode,
-        input_schema: entry.inputSchema ? JSON.stringify(entry.inputSchema) : null,
-        cache_tags: entry.cacheTags?.join(','),
-        // 注意：mcp_enabled 不覆盖，保留管理后台的运行时设置
-      },
-    });
-  }
-}
-```
-
-> **例外**：`mcp_enabled` 字段不覆盖，保留管理后台的运行时设置。这是唯一允许数据库覆盖代码的字段。
+> `mcp_enabled` 字段不会被脚本覆盖，保留管理后台的运行时设置。这是唯一允许数据库覆盖代码的字段。
 
 ---
 
@@ -1281,26 +991,28 @@ UPDATE tb_api_registry SET mcp_enabled = 1, mcp_tool_name = 'list_collections' W
 运行时从数据库读取 `mcp_enabled` 覆盖代码默认值：
 
 ```typescript
-export async function getEffectiveMcpEntries(): Promise<ApiRegistryEntry[]> {
-  // 从数据库读取运行时配置（仅读取 mcp_enabled 开关）
+export async function getMcpEnabledEntries(): Promise<ApiRegistryEntry[]> {
+  // 从数据库读取所有启用了 MCP 的接口
   const dbEntries = await prisma.tbApiRegistry.findMany({
-    where: { status: 1 },
-    select: { code: true, mcp_enabled: true },
+    where: { mcp_enabled: 1, status: 1 },
   });
 
-  const dbMcpOverrides = new Map(dbEntries.map(e => [e.code, !!e.mcp_enabled]));
-
-  return API_REGISTRY
-    .map(entry => {
-      // 代码是 Source of Truth，仅 mcp_enabled 可被数据库覆盖
-      const dbMcpEnabled = dbMcpOverrides.get(entry.code);
+  // 与 API_REGISTRY 中的 handler 关联（仅 API_REGISTRY 中有 handler 的接口才能注册 MCP 工具）
+  return dbEntries
+    .map(db => {
+      const codeEntry = API_REGISTRY.find(e => e.code === db.code);
+      if (!codeEntry || !codeEntry.handler) {
+        return null;
+      }
       return {
-        ...entry,
-        // 如果数据库有配置，使用数据库值；否则使用代码默认值
-        mcpEnabled: dbMcpEnabled ?? entry.mcpEnabled,
+        ...codeEntry,
+        mcpEnabled: true,
+        mcpToolName: db.mcp_tool_name || codeEntry.mcpToolName,
+        permissionCode: db.permission_code || codeEntry.permissionCode,
+        description: db.description || codeEntry.description,
       };
     })
-    .filter(e => e.mcpEnabled);
+    .filter((e): e is NonNullable<typeof e> => e !== null);
 }
 ```
 
@@ -1701,7 +1413,8 @@ export async function resolveUserPermissions(user: {
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-05-16 | 1.1.0 | 文档修正：Source of Truth 从 `API_REGISTRY` 改为 `ApiDescriptor` 自描述 + `sync:api-registry` 脚本同步 |
 | 2026-05-15 | 1.0.0 | ✅ 实施完成：7 个阶段全部落地，21 个权限码、2 个内置角色、MCP 自动注册、前端权限控制、管理界面均已实现 |
 | 2026-05-15 | 0.3.0 | 安全加固 + 设计修正：MCP 数据权限检查、handler 注册表替代 switch-case、Source of Truth 明确、兼容层逻辑修复、数据库约束完善、权限刷新机制、实施路线增加测试和回滚方案 |
-| 2026-05-15 | 0.2.0 | 新增统一接口注册表 + MCP 工具自动注册方案 |
+| 2026-05-15 | 0.2.0 | 新增接口自描述 + MCP 工具自动注册方案 |
 | 2026-05-15 | 0.1.0 | 初始设计文档（RBAC 数据库配置化） |

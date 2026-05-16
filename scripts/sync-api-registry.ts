@@ -174,7 +174,7 @@ async function main() {
   }
 
   // Disable APIs not found in code scan
-  // 保留 mcp_available=1 或 mcp_enabled=1 的接口（它们来自 API_REGISTRY 而非路由扫描）
+  // 保留 mcp_available=1 或 mcp_enabled=1 的接口（它们有 MCP handler，来自 api-registry.ts）
   const codes = extractedApis.map(a => a.code);
   const disabled = await prisma.tbApiRegistry.updateMany({
     where: {
@@ -194,7 +194,7 @@ async function main() {
   console.log(`  Disabled: ${disabled.count}`);
 
   // 标记有 MCP handler 的接口（这些 code 在 api-registry.ts 的 API_REGISTRY 中有 handler）
-  // 注意：新增接口时需要同步更新此列表
+  // 新增 MCP handler 时需要同步更新此列表
   const handlerCodes = [
     'post_create', 'post_update', 'post_delete', 'post_get', 'post_list',
   ];
