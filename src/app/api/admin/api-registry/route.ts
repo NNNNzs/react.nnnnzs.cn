@@ -149,6 +149,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(errorResponse('接口不存在'), { status: 404 });
     }
 
+    // 禁止启用没有 handler 的接口 MCP
+    if (updateData.mcp_enabled === 1 && existing.mcp_available === 0) {
+      return NextResponse.json(errorResponse('该接口未实现 MCP handler，无法启用'), { status: 400 });
+    }
+
     // 更新接口配置
     const updated = await prisma.tbApiRegistry.update({
       where: { id },

@@ -15,10 +15,8 @@ import {
   message,
   Modal,
   Form,
-  Select,
   Switch,
   Card,
-  Transfer,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -33,6 +31,7 @@ import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import PermissionTree from "@/components/PermissionTree";
 import { USER_ROLE_ASSIGN } from "@/constants/permissions";
 
 const { Search } = Input;
@@ -109,17 +108,6 @@ interface RolePermission {
   data_scope: string;
 }
 
-interface ApiRegistryItem {
-  id: number;
-  code: string;
-  name: string;
-  api_path: string;
-  api_method: string;
-  permission_code: string | null;
-  mcp_enabled: number;
-  mcp_tool_name: string | null;
-}
-
 interface RoleItem {
   id: number;
   code: string;
@@ -164,10 +152,6 @@ function RolesPageContent() {
   const [selectedPermCodes, setSelectedPermCodes] = useState<string[]>([]);
   const [permDataScopes, setPermDataScopes] = useState<Record<string, string>>({});
   const [permLoading, setPermLoading] = useState(false);
-
-  // MCP 配置相关状态
-  const [apiRegistries, setApiRegistries] = useState<ApiRegistryItem[]>([]);
-  const [mcpEnabledMap, setMcpEnabledMap] = useState<Record<string, boolean>>({});
 
   // 使用 useMemo 避免每次渲染都创建新对象
   const pagination = useMemo(() => ({
@@ -352,7 +336,6 @@ function RolesPageContent() {
       const response = await axios.get(`/api/admin/roles/${role.id}/permissions`);
       if (response.data.status) {
         const perms = response.data.data.permissions || [];
-        const registries = response.data.data.apiRegistries || [];
 
         setSelectedPermCodes(perms.map((p: RolePermission) => p.code));
         const scopes: Record<string, string> = {};
@@ -360,14 +343,6 @@ function RolesPageContent() {
           scopes[p.code] = p.data_scope;
         });
         setPermDataScopes(scopes);
-
-        // 设置 API 注册表和 MCP 配置
-        setApiRegistries(registries);
-        const mcpMap: Record<string, boolean> = {};
-        registries.forEach((r: ApiRegistryItem) => {
-          mcpMap[r.code] = r.mcp_enabled === 1;
-        });
-        setMcpEnabledMap(mcpMap);
       }
     } catch (error) {
       console.error("获取角色权限失败:", error);
@@ -389,15 +364,8 @@ function RolesPageContent() {
         data_scope: permDataScopes[code] || "self",
       }));
 
-      // 同时保存 MCP 配置
-      const mcpUpdates = Object.entries(mcpEnabledMap).map(([code, enabled]) => ({
-        code,
-        mcp_enabled: enabled ? 1 : 0,
-      }));
-
       const response = await axios.put(`/api/admin/roles/${managingRole.id}/permissions`, {
         permissions,
-        mcp_updates: mcpUpdates,
       });
 
       if (response.data.status) {
@@ -566,14 +534,6 @@ function RolesPageContent() {
     </Card>
   );
 
-  // Transfer 数据源
-  const transferDataSource = allPermissions.map(p => ({
-    key: p.code,
-    title: `${p.name} (${p.code})`,
-    module: p.module,
-    description: p.description || "",
-  }));
-
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -702,88 +662,22 @@ function RolesPageContent() {
         onCancel={() => setIsPermModalOpen(false)}
         okText="保存"
         cancelText="取消"
-        width={700}
+        width={600}
         destroyOnHidden
         confirmLoading={permLoading}
       >
-        <div>
-            <Transfer
-              dataSource={transferDataSource}
-              titles={["可选权限", "已授权限"]}
-              targetKeys={selectedPermCodes}
-              onChange={(keys) => setSelectedPermCodes(keys as string[])}
-              render={(item) => item.title}
-              listStyle={{ width: 280, height: 400 }}
-              showSearch
-              filterOption={(input, option) =>
-                (option?.title as string).toLowerCase().includes(input.toLowerCase()) ||
-                option?.module?.toLowerCase().includes(input.toLowerCase())
-              }
-              oneWay={false}
-              pagination
-            />
-            {selectedPermCodes.length > 0 && (
-              <div className="mt-4">
-                <div className="mb-2 font-medium">数据权限范围：</div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedPermCodes.map(code => {
-                    const perm = allPermissions.find(p => p.code === code);
-                    return (
-                      <div key={code} className="flex items-center gap-1">
-                        <Tag>{perm?.name || code}</Tag>
-                        <Select
-                          size="small"
-                          value={permDataScopes[code] || "self"}
-                          onChange={(value) =>
-                            setPermDataScopes(prev => ({ ...prev, [code]: value }))
-                          }
-                          style={{ width: 80 }}
-                          options={[
-                            { label: "全部", value: "all" },
-                            { label: "个人", value: "self" },
-                          ]}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* MCP 工具配置区域 */}
-            {apiRegistries.length > 0 && (
-              <div className="mt-4">
-                <div className="mb-2 font-medium">MCP 工具配置：</div>
-                <div className="text-gray-500 text-xs mb-2">
-                  配置哪些接口可以作为 MCP 工具暴露给 AI 助手
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {apiRegistries.map(registry => (
-                    <div key={registry.code} className="flex items-center gap-2 p-2 border rounded">
-                      <div>
-                        <div className="font-medium text-sm">{registry.name}</div>
-                        <div className="text-gray-400 text-xs">
-                          {registry.api_method} {registry.api_path}
-                        </div>
-                        {registry.mcp_tool_name && (
-                          <div className="text-blue-500 text-xs">
-                            MCP: {registry.mcp_tool_name}
-                          </div>
-                        )}
-                      </div>
-                      <Switch
-                        size="small"
-                        checked={mcpEnabledMap[registry.code] || false}
-                        onChange={(checked) =>
-                          setMcpEnabledMap(prev => ({ ...prev, [registry.code]: checked }))
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="text-gray-500 text-xs mb-2">
+          勾选权限后可在右侧设置数据权限范围
+        </div>
+        <PermissionTree
+          allPermissions={allPermissions}
+          selectedKeys={selectedPermCodes}
+          dataScopes={permDataScopes}
+          onCheckedChange={setSelectedPermCodes}
+          onDataScopeChange={(code, scope) =>
+            setPermDataScopes(prev => ({ ...prev, [code]: scope }))
+          }
+        />
       </Modal>
     </div>
   );

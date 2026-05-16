@@ -117,7 +117,14 @@ class NextJsHttpTransport implements Transport {
 }
 
 // Factory to create server instance with auth context
-function createMcpServer(headers: Headers) {
+async function createMcpServer(headers: Headers) {
+  // 提前认证，获取用户权限（用于动态过滤工具列表）
+  const token = getTokenFromRequest(headers);
+  let user: AuthUser | null = null;
+  if (token) {
+    user = await validateTokenWithPermissions(token);
+  }
+
   const server = new McpServer({
     name: "React Blog MCP",
     version: "2.0.0"
@@ -125,24 +132,36 @@ function createMcpServer(headers: Headers) {
 
   // Helper to ensure auth via Bearer Token，返回已认证用户信息（包含权限）
   const ensureAuth = async (): Promise<AuthUser> => {
+    if (user) return user;
     // 先使用增强的认证函数验证身份
-    const user = await authenticateMcpRequestEnhanced(headers);
-    // 然后获取包含权限的完整用户信息
-    const token = getTokenFromRequest(headers);
-    if (!token) {
+    const authedUser = await authenticateMcpRequestEnhanced(headers);
+    const authToken = getTokenFromRequest(headers);
+    if (!authToken) {
       throw new Error("Missing authentication credentials");
     }
-    const authUser = await validateTokenWithPermissions(token);
+    const authUser = await validateTokenWithPermissions(authToken);
     if (!authUser) {
       throw new Error("Failed to get user permissions");
     }
+    user = authUser;
     return authUser;
   };
 
   // ============================
-  // 从接口注册表自动注册 MCP 工具
+  // 从接口注册表自动注册 MCP 工具（按用户权限过滤）
   // ============================
-  const mcpEntries = getMcpEnabledEntries();
+  let allMcpEntries: Awaited<ReturnType<typeof getMcpEnabledEntries>>;
+  try {
+    allMcpEntries = await getMcpEnabledEntries();
+  } catch (err) {
+    console.error('[MCP] getMcpEnabledEntries failed:', err);
+    allMcpEntries = [];
+  }
+  const mcpEntries = user
+    ? allMcpEntries.filter(entry =>
+        !entry.permissionCode || user!.permissions.includes(entry.permissionCode)
+      )
+    : allMcpEntries;
 
   for (const entry of mcpEntries) {
     const inputSchema = entry.inputSchema ? jsonSchemaToZod(entry.inputSchema) : {};
@@ -155,14 +174,14 @@ function createMcpServer(headers: Headers) {
         inputSchema,
       },
       async (args) => {
-        const user = await ensureAuth();
+        const authedUser = await ensureAuth();
         // 权限检查（功能权限 + 数据权限）统一在 handleMcpToApi 中完成
-        return await handleMcpToApi(entry, args, user, headers);
+        return await handleMcpToApi(entry, args, authedUser, headers);
       }
     );
   }
 
-  console.log(`✅ [MCP] 从接口注册表自动注册了 ${mcpEntries.length} 个工具`);
+  console.log(`✅ [MCP] 为用户 ${user?.account || 'unknown'} 注册了 ${mcpEntries.length}/${allMcpEntries.length} 个工具`);
 
   // Register tags as a resource
   server.registerResource(
@@ -336,7 +355,7 @@ export async function POST(request: NextRequest) {
     const transport = new NextJsHttpTransport();
 
     // 传递 Headers 给 Server 工厂
-    const server = createMcpServer(request.headers);
+    const server = await createMcpServer(request.headers);
 
     await server.connect(transport);
 

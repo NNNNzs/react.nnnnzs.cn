@@ -24,6 +24,7 @@ import {
   MenuOutlined,
   SafetyOutlined,
   KeyOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
@@ -139,6 +140,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         icon: <SafetyOutlined />,
         label: "角色管理",
       });
+      items.push({
+        key: "/c/api-registry",
+        icon: <ApiOutlined />,
+        label: "接口管理",
+      });
     }
 
     if (hasPermission(USER_VIEW)) {
@@ -176,6 +182,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         '/c/config': CONFIG_VIEW,
         '/c/user': USER_VIEW,
         '/c/roles': USER_MANAGE,
+        '/c/api-registry': USER_MANAGE,
         '/c/permissions': USER_VIEW,
         '/c/queue': QUEUE_VIEW,
         '/c/vector-search': VECTOR_VIEW,
@@ -215,6 +222,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/user',
       '/c/user/info',
       '/c/roles',
+      '/c/api-registry',
       '/c/permissions',
       '/c/queue',
       '/c/vector-search',

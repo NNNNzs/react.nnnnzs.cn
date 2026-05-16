@@ -63,6 +63,26 @@ export const ALL_PERMISSION_CODES: string[] = [
   IMAGE_VIEW,
 ];
 
+// ============ 模块标签 ============
+
+export const MODULE_LABELS: Record<string, string> = {
+  post: "文章",
+  comment: "评论",
+  collection: "合集",
+  config: "配置",
+  user: "用户",
+  tool: "工具",
+};
+
+export const MODULE_COLORS: Record<string, string> = {
+  post: "blue",
+  comment: "green",
+  collection: "purple",
+  config: "orange",
+  user: "red",
+  tool: "cyan",
+};
+
 // ============ 模块分组 ============
 
 export const PERMISSION_MODULES: Record<string, string[]> = {

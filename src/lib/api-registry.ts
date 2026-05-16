@@ -310,9 +310,28 @@ export function matchApiRegistry(pathname: string, method: string): ApiRegistryE
   return null;
 }
 
-/** 获取所有启用了 MCP 的接口 */
-export function getMcpEnabledEntries(): ApiRegistryEntry[] {
-  return API_REGISTRY.filter(e => e.mcpEnabled);
+/** 获取所有启用了 MCP 的接口（从数据库读取） */
+export async function getMcpEnabledEntries(): Promise<ApiRegistryEntry[]> {
+  const { prisma } = await import('@/lib/prisma');
+  const dbEntries = await prisma.tbApiRegistry.findMany({
+    where: { mcp_enabled: 1, status: 1 },
+  });
+
+  return dbEntries
+    .map(db => {
+      const codeEntry = API_REGISTRY.find(e => e.code === db.code);
+      if (!codeEntry || !codeEntry.handler) {
+        return null;
+      }
+      return {
+        ...codeEntry,
+        mcpEnabled: true,
+        mcpToolName: db.mcp_tool_name || codeEntry.mcpToolName,
+        permissionCode: db.permission_code || codeEntry.permissionCode,
+        description: db.description || codeEntry.description,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
 }
 
 /** 根据 MCP 工具名查找接口配置 */
