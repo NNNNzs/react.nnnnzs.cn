@@ -7,7 +7,7 @@
 ### 前端核心
 - **框架**: Next.js 16 (App Router)
 - **UI 库**: Ant Design 6.1
-- **样式**: Tailwind CSS 4.1
+- **样式**: Tailwind CSS 4.2
 - **字体**: 系统字体（无需外部加载，中国大陆友好）
 - **状态管理**: React Context + Hooks
 - **Markdown 编辑器**: md-editor-rt
