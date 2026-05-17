@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     scopes_supported: ['read', 'write', 'admin'],
     response_types_supported: ['token', 'code'],  // ← 声明支持，但实际端点会拒绝
     grant_types_supported: ['client_credentials', 'authorization_code'],  // ← 声明支持
-    token_endpoint_auth_methods_supported: ['bearer', 'none'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none', 'bearer'],
     code_challenge_methods_supported: ['plain', 'S256'],  // ← PKCE 支持声明
     resource: 'React Blog MCP',
     service_documentation: 'https://github.com/NNNNzs/react.nnnnzs.cn',
