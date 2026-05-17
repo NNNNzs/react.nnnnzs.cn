@@ -33,12 +33,13 @@ jobs:
 
           # 获取 JWT Token（Registry API 认证）
           echo "🔑 获取 JWT Token..."
-          TOKEN=$(curl -s -u "${DOCKER_USER}:${DOCKER_PASS}" \
-            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${{ env.IMAGE_NAME }}:pull,push" \
-            | jq -r '.token')
+          TOKEN_RESPONSE=$(curl -s -u "${DOCKER_USER}:${DOCKER_PASS}" \
+            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${{ env.IMAGE_NAME }}:pull,push,delete")
+          TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token // empty')
 
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             echo "❌ 获取 JWT Token 失败"
+            echo "$TOKEN_RESPONSE" | jq -C '.'
             exit 1
           fi
           echo "✅ JWT Token 获取成功 (长度: ${#TOKEN})"
@@ -50,7 +51,12 @@ jobs:
             RESPONSE=$(curl -s -u "${DOCKER_USER}:${DOCKER_PASS}" \
               "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags?page_size=100&page=${PAGE}")
 
-            TAGS=$(echo "$RESPONSE" | jq -r '.results[].name' 2>/dev/null)
+            if ! TAGS=$(echo "$RESPONSE" | jq -r '.results[].name' 2>/dev/null); then
+              echo "❌ 获取 tags 失败，Docker Hub API 响应如下:"
+              echo "$RESPONSE" | jq -C '.' || echo "$RESPONSE"
+              exit 1
+            fi
+
             if [ -z "$TAGS" ]; then
               break
             fi
@@ -115,7 +121,7 @@ jobs:
           for tag in "${TO_DELETE[@]}"; do
             # 获取 tag 的 manifest digest
             DIGEST=$(curl -s -H "Authorization: Bearer ${TOKEN}" \
-              -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+              -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json" \
               -I "https://registry-1.docker.io/v2/${{ env.IMAGE_NAME }}/manifests/${tag}" \
               2>/dev/null | grep -i "docker-content-digest" | awk '{print $2}' | tr -d '\r')
 
@@ -136,9 +142,15 @@ jobs:
               DELETED=$((DELETED + 1))
             else
               echo "   ❌ 删除失败: ${tag} (HTTP ${HTTP_CODE})"
+              if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+                echo "      请确认 DOCKERHUB_TOKEN 是带 Delete 权限的 Docker Hub PAT，且账号对 ${{ env.IMAGE_NAME }} 有删除权限"
+              fi
               FAILED=$((FAILED + 1))
             fi
           done
 
           echo ""
           echo "📊 清理完成: 成功 ${DELETED} 个, 失败 ${FAILED} 个"
+          if [ "$FAILED" -gt 0 ]; then
+            exit 1
+          fi
