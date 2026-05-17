@@ -203,13 +203,13 @@ export async function GET(request: NextRequest) {
 | `src/lib/permission.ts` | 权限检查函数 |
 | `src/services/permission.ts` | 权限查询服务（数据库） |
 | `src/types/api-descriptor.ts` | API 接口自描述类型定义 |
-| `src/lib/api-registry.ts` | MCP handler 注册表 + 路由匹配索引（仅存放有 MCP handler 的接口） |
+| `src/lib/api-registry.ts` | MCP handler 注册表（从 route.ts descriptor 展开元数据，补充 MCP 专属字段） |
 | `src/lib/mcp-adapter.ts` | MCP 适配器（权限检查） |
-| `scripts/sync-api-registry.ts` | 接口扫描同步脚本 |
+| `scripts/sync-api-registry.ts` | 接口扫描同步脚本（从 route.ts descriptor 扫描元数据） |
 
 ### API 接口自描述
 
-每个 `route.ts` 文件应导出 `descriptor` 常量，定义接口元数据：
+每个 `route.ts` 文件应导出 `descriptor` 常量，定义接口元数据。**descriptor 是元数据的唯一 Source of Truth**，`api-registry.ts` 通过 import 展开使用，不再重复定义。
 
 ```typescript
 import type { ApiDescriptor } from '@/types/api-descriptor';

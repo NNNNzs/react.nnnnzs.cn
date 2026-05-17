@@ -135,6 +135,7 @@ function ApiRegistryPageContent() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingApi, setEditingApi] = useState<ApiRegistryItem | null>(null);
+  const [mcpDetailApi, setMcpDetailApi] = useState<ApiRegistryItem | null>(null);
   const [editForm] = Form.useForm();
   const [editLoading, setEditLoading] = useState(false);
 
@@ -332,9 +333,13 @@ function ApiRegistryPageContent() {
       width: 140,
       render: (name: string | null, record: ApiRegistryItem) =>
         name ? (
-          <Tooltip title={record.description} mouseEnterDelay={0.3}>
-            <Tag color="blue">{name}</Tag>
-          </Tooltip>
+          <Tag
+            color="blue"
+            className="cursor-pointer"
+            onClick={() => setMcpDetailApi(record)}
+          >
+            {name}
+          </Tag>
         ) : <span className="text-gray-300">-</span>,
     },
     {
@@ -390,7 +395,12 @@ function ApiRegistryPageContent() {
         <span className="font-mono text-xs">{record.api_path}</span>
       </div>
       {record.mcp_tool_name && (
-        <div className="text-blue-500 text-xs mb-2">MCP: {record.mcp_tool_name}</div>
+        <div
+          className="text-blue-500 text-xs mb-2 cursor-pointer hover:underline"
+          onClick={() => setMcpDetailApi(record)}
+        >
+          MCP: {record.mcp_tool_name}
+        </div>
       )}
       <div className="flex items-center justify-between">
         <Switch
@@ -486,6 +496,79 @@ function ApiRegistryPageContent() {
         />
       </div>
     </div>
+
+      {/* MCP 工具详情弹窗 */}
+      <Modal
+        title={`MCP 工具详情 - ${mcpDetailApi?.mcp_tool_name || ""}`}
+        open={!!mcpDetailApi}
+        onCancel={() => setMcpDetailApi(null)}
+        footer={null}
+        width={560}
+        destroyOnHidden
+      >
+        {mcpDetailApi && (() => {
+          let schema: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | null = null;
+          try {
+            schema = mcpDetailApi.input_schema ? JSON.parse(mcpDetailApi.input_schema) : null;
+          } catch { /* ignore */ }
+
+          return (
+            <div className="space-y-4">
+              <div>
+                <div className="text-gray-400 text-xs mb-1">工具名称</div>
+                <code className="text-blue-500 font-mono">{mcpDetailApi.mcp_tool_name}</code>
+              </div>
+              {mcpDetailApi.description && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">描述</div>
+                  <div className="text-sm">{mcpDetailApi.description}</div>
+                </div>
+              )}
+              <div>
+                <div className="text-gray-400 text-xs mb-1">接口信息</div>
+                <Space>
+                  <Tag color={METHOD_COLORS[mcpDetailApi.api_method] || "default"}>
+                    {mcpDetailApi.api_method}
+                  </Tag>
+                  <code className="text-xs text-gray-500 font-mono">{mcpDetailApi.api_path}</code>
+                  {mcpDetailApi.permission_code && (
+                    <Tag>{mcpDetailApi.permission_code}</Tag>
+                  )}
+                </Space>
+              </div>
+              {schema && schema.properties && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-2">输入参数</div>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    {Object.entries(schema.properties).map(([key, prop]) => (
+                      <div key={key} className="flex items-start gap-2 text-sm">
+                        <code className="font-mono text-blue-500 shrink-0">{key}</code>
+                        <Tag className="shrink-0 text-xs" color={prop.type === 'string' ? 'green' : prop.type === 'number' ? 'orange' : 'default'}>
+                          {prop.type || 'any'}
+                        </Tag>
+                        <span className="text-gray-600">{prop.description || ''}</span>
+                        {schema.required?.includes(key) && (
+                          <Tag color="red" className="shrink-0 text-xs">必填</Tag>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mcpDetailApi.cache_tags && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">缓存标签</div>
+                  <div className="flex flex-wrap gap-1">
+                    {mcpDetailApi.cache_tags.split(',').filter(Boolean).map(tag => (
+                      <Tag key={tag} className="font-mono text-xs">{tag}</Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* 编辑弹窗 */}
       <Modal

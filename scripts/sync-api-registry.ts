@@ -193,16 +193,16 @@ async function main() {
   console.log(`  Unchanged: ${unchanged}`);
   console.log(`  Disabled: ${disabled.count}`);
 
-  // 标记有 MCP handler 的接口（这些 code 在 api-registry.ts 的 API_REGISTRY 中有 handler）
-  // 新增 MCP handler 时需要同步更新此列表
-  const handlerCodes = [
-    'post_create', 'post_update', 'post_delete', 'post_get', 'post_list',
-  ];
+  // 从 API_REGISTRY 动态获取有 handler 的接口，不再写死
+  const { API_REGISTRY } = await import('../src/lib/api-registry');
+  const handlerCodes = API_REGISTRY
+    .filter(entry => !!entry.handler)
+    .map(entry => entry.code);
 
   console.log('🔧 Syncing MCP handler status...');
 
   // 有 handler 的启用 mcp_available，并恢复之前被禁用的 mcp_enabled
-  const r1 = await prisma.tbApiRegistry.updateMany({
+  await prisma.tbApiRegistry.updateMany({
     where: { code: { in: handlerCodes } },
     data: { mcp_available: 1, mcp_enabled: 1 },
   });
@@ -212,10 +212,7 @@ async function main() {
     where: { code: { notIn: handlerCodes } },
     data: { mcp_available: 0, mcp_enabled: 0 },
   });
-  console.log(`  [2/2] Done, affected: ${mcpUnavailable.count}`);
-  if (mcpUnavailable.count > 0) {
-    console.log(`  MCP Unavailable (no handler): ${mcpUnavailable.count}`);
-  }
+  console.log(`  Done, affected: ${mcpUnavailable.count}`);
 
   console.log('🔌 Disconnecting...');
   await prisma.$disconnect();

@@ -134,6 +134,7 @@ src/
 │   ├── entity-change-detector.ts # 变更检测服务
 │   ├── entity-change-log.ts      # 变更日志服务
 │   ├── face.ts                   # 腾讯云人脸识别（IAI）服务
+│   ├── image-gen.ts              # AI 图片生成 service（GPT Image 2）
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务
 │   └── post-version.ts           # 文章版本控制

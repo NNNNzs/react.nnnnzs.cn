@@ -51,6 +51,8 @@ export const updateDescriptor: ApiDescriptor = {
       description: { type: 'string', description: '简短描述' },
       cover: { type: 'string', description: '封面图URL' },
       hide: { type: 'string', description: '1隐藏 0显示' },
+      add_to_collections: { type: 'string', description: '添加到的合集ID或slug，逗号分隔' },
+      remove_from_collections: { type: 'string', description: '移除的合集ID或slug，逗号分隔' },
     },
     required: ['id'],
   },

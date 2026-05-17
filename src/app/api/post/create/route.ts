@@ -28,6 +28,7 @@ export const descriptor: ApiDescriptor = {
       content: { type: 'string', description: '文章内容（Markdown）' },
       category: { type: 'string', description: '分类' },
       tags: { type: 'string', description: '逗号分隔的标签' },
+      collections: { type: 'string', description: '逗号分隔的合集ID或slug' },
       description: { type: 'string', description: '简短描述' },
       cover: { type: 'string', description: '封面图URL' },
       hide: { type: 'string', description: '1隐藏 0显示' },

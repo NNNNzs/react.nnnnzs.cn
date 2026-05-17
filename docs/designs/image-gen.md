@@ -47,14 +47,26 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 ## 文件结构
 
 ```
+src/services/
+└── image-gen.ts                # 图片生成 service（核心逻辑）
 src/app/api/image-gen/
-└── route.ts                    # POST: 图片生成 API
+└── route.ts                    # POST: 图片生成 API（鉴权 + 调用 service）
+src/lib/
+└── api-registry.ts             # MCP 工具注册（handler 引用 service）
 src/app/c/image-gen/
 └── page.tsx                    # 图片生成页面
 src/components/ImageGen/
 ├── ImageGenPanel.tsx           # 参数配置面板
 └── ImageResultCard.tsx         # 结果展示组件
 ```
+
+## MCP 工具
+
+已注册为 MCP 工具 `generate_image`，支持 Claude 等 AI 客户端直接调用图片生成。
+
+- **工具名**: `generate_image`
+- **权限**: `image:view`
+- **输入参数**: mode、prompt、image、size、quality
 
 ## API 设计
 

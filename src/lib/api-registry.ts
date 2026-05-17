@@ -6,12 +6,22 @@
  * 2. MCP 工具自动注册
  * 3. 管理界面配置
  *
- * 这里是 Source of Truth（代码侧），数据库中的配置应与此保持同步。
- * 新增/修改接口时，先在这里声明，然后通过 seed 脚本同步到数据库。
+ * 元数据的 Source of Truth 是各 route.ts 导出的 descriptor。
+ * 本文件仅补充 MCP 专属字段（handler、mcpToolName、getOwnerId、apiPath）。
+ * 新增/修改接口时，先修改对应 route.ts 的 descriptor，再通过 seed 脚本同步到数据库。
  */
 
 import type { AuthUser } from '@/types/auth';
-import { POST_CREATE, POST_EDIT, POST_DELETE, POST_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE, CONFIG_EDIT } from '@/constants/permissions';
+import { POST_CREATE, POST_EDIT, POST_DELETE, POST_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE, CONFIG_EDIT, IMAGE_VIEW } from '@/constants/permissions';
+import type { ApiDescriptor } from '@/types/api-descriptor';
+
+// ---- 从 route.ts 导入 descriptor（元数据 Source of Truth）----
+import { descriptor as postCreateRoute } from '@/app/api/post/create/route';
+import { getDescriptor as postGetRoute, updateDescriptor as postUpdateRoute, deleteDescriptor as postDeleteRoute } from '@/app/api/post/[id]/route';
+import { descriptor as postListRoute } from '@/app/api/post/list/route';
+import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
+import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
+import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -50,69 +60,38 @@ export interface ApiRegistryEntry {
 }
 
 /**
+ * 将 ApiDescriptor 展开为 ApiRegistryEntry 基础字段
+ * 映射 descriptor.method → apiMethod
+ */
+function desc(d: ApiDescriptor): Omit<ApiRegistryEntry, 'apiPath' | 'mcpEnabled' | 'handler' | 'getOwnerId'> & { apiMethod: string } {
+  return {
+    ...d,
+    apiMethod: d.method,
+  };
+}
+
+/**
  * 接口注册表声明
  *
- * 这里是 Source of Truth（代码侧），数据库中的配置应与此保持同步。
- * 新增/修改接口时，先在这里声明，然后通过 seed 脚本同步到数据库。
+ * 元数据来自 route.ts descriptor，本文件仅补充 MCP 专属字段。
  */
 export const API_REGISTRY: ApiRegistryEntry[] = [
   // ---- 文章模块 ----
   {
-    code: 'post_create',
-    name: '创建文章',
-    description: '创建新博客文章，支持标签、合集、分类等。先读取 blog://tags 和 blog://collections 资源了解现有标签和合集。',
-    module: 'post',
+    ...desc(postCreateRoute),
     apiPath: '/api/post/create',
-    apiMethod: 'POST',
     mcpEnabled: true,
     mcpToolName: 'create_article',
-    permissionCode: POST_CREATE,
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: '文章标题' },
-        content: { type: 'string', description: '文章内容（Markdown）' },
-        category: { type: 'string', description: '分类' },
-        tags: { type: 'string', description: '逗号分隔的标签' },
-        collections: { type: 'string', description: '逗号分隔的合集ID或slug' },
-        description: { type: 'string', description: '简短描述' },
-        cover: { type: 'string', description: '封面图URL' },
-        hide: { type: 'string', description: '1隐藏 0显示' },
-      },
-      required: ['title', 'content'],
-    },
     handler: async (args, user) => {
       const { createPost } = await import('@/services/post');
       return createPost({ ...args, created_by: user.id });
     },
   },
   {
-    code: 'post_update',
-    name: '更新文章',
-    module: 'post',
+    ...desc(postUpdateRoute),
     apiPath: '/api/post/[id]',
-    apiMethod: 'PUT',
     mcpEnabled: true,
     mcpToolName: 'update_article',
-    permissionCode: POST_EDIT,
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-        title: { type: 'string', description: '文章标题' },
-        content: { type: 'string', description: '文章内容（Markdown）' },
-        category: { type: 'string', description: '分类' },
-        tags: { type: 'string', description: '逗号分隔的标签' },
-        description: { type: 'string', description: '简短描述' },
-        cover: { type: 'string', description: '封面图URL' },
-        hide: { type: 'string', description: '1隐藏 0显示' },
-        add_to_collections: { type: 'string', description: '添加到的合集ID或slug，逗号分隔' },
-        remove_from_collections: { type: 'string', description: '移除的合集ID或slug，逗号分隔' },
-      },
-      required: ['id'],
-    },
     handler: async (args) => {
       const { updatePost } = await import('@/services/post');
       return updatePost(args.id as number, args);
@@ -120,22 +99,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
   {
-    code: 'post_delete',
-    name: '删除文章',
-    module: 'post',
+    ...desc(postDeleteRoute),
     apiPath: '/api/post/[id]',
-    apiMethod: 'DELETE',
     mcpEnabled: true,
     mcpToolName: 'delete_article',
-    permissionCode: POST_DELETE,
-    cacheTags: ['post', 'home', 'post-list', 'tags', 'tag-list', 'archives'],
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-      },
-      required: ['id'],
-    },
     handler: async (args) => {
       const { getPostById, deletePost } = await import('@/services/post');
       const post = await getPostById(args.id as number);
@@ -145,21 +112,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     getOwnerId: (resource) => (resource as { post?: { created_by?: number } })?.post?.created_by,
   },
   {
-    code: 'post_get',
-    name: '获取文章',
-    module: 'post',
+    ...desc(postGetRoute),
     apiPath: '/api/post/[id]',
-    apiMethod: 'GET',
     mcpEnabled: true,
     mcpToolName: 'get_article',
-    permissionCode: POST_VIEW,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', description: '文章ID' },
-        title: { type: 'string', description: '文章标题（ID和标题二选一）' },
-      },
-    },
     handler: async (args) => {
       const { getPostById, getPostByTitle } = await import('@/services/post');
       if (args.id) return getPostById(args.id as number);
@@ -168,23 +124,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     },
   },
   {
-    code: 'post_list',
-    name: '文章列表',
-    module: 'post',
+    ...desc(postListRoute),
     apiPath: '/api/post/list',
-    apiMethod: 'GET',
     mcpEnabled: true,
     mcpToolName: 'list_articles',
-    permissionCode: POST_VIEW,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        pageNum: { type: 'number', description: '页码（默认1）' },
-        pageSize: { type: 'number', description: '每页数量（默认10）' },
-        keyword: { type: 'string', description: '搜索关键词' },
-        hide: { type: 'string', description: '可见性过滤' },
-      },
-    },
     handler: async (args) => {
       const { getPostList } = await import('@/services/post');
       return getPostList({
@@ -195,35 +138,40 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       });
     },
   },
+  // ---- 图片生成模块 ----
+  {
+    ...desc(imageGenRoute),
+    apiPath: '/api/image-gen',
+    mcpEnabled: true,
+    mcpToolName: 'generate_image',
+    handler: async (args) => {
+      const { generateImage } = await import('@/services/image-gen');
+      return generateImage({
+        mode: args.mode as 'generate' | 'edit',
+        prompt: args.prompt as string,
+        image: args.image as string | undefined,
+        size: args.size as string | undefined,
+        quality: args.quality as string | undefined,
+      });
+    },
+  },
   // ---- 合集模块（仅 API，不暴露 MCP）----
   {
-    code: 'collection_create',
-    name: '创建合集',
-    module: 'collection',
+    ...desc(collectionCreateRoute),
     apiPath: '/api/collection/create',
-    apiMethod: 'POST',
     mcpEnabled: false,
-    permissionCode: COLLECTION_CREATE,
   },
   {
-    code: 'collection_update',
-    name: '编辑合集',
-    module: 'collection',
+    ...desc(collectionUpdateRoute),
     apiPath: '/api/collection/[id]',
-    apiMethod: 'PUT',
     mcpEnabled: false,
-    permissionCode: COLLECTION_EDIT,
   },
   {
-    code: 'collection_delete',
-    name: '删除合集',
-    module: 'collection',
+    ...desc(collectionDeleteRoute),
     apiPath: '/api/collection/[id]',
-    apiMethod: 'DELETE',
     mcpEnabled: false,
-    permissionCode: COLLECTION_DELETE,
   },
-  // ---- 配置模块 ----
+  // ---- 配置模块（无 descriptor，保持内联）----
   {
     code: 'config_update',
     name: '修改配置',
