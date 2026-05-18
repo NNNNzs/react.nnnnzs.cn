@@ -92,9 +92,9 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/post/[id]',
     mcpEnabled: true,
     mcpToolName: 'update_article',
-    handler: async (args) => {
+    handler: async (args, user) => {
       const { updatePost } = await import('@/services/post');
-      return updatePost(args.id as number, args);
+      return updatePost(args.id as number, args, user.id);
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },

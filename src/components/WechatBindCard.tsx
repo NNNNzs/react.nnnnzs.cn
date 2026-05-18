@@ -31,11 +31,21 @@ interface WechatBindCardProps {
 export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCardProps) {
   const [bindModalVisible, setBindModalVisible] = useState(false);
   const [unbindLoading, setUnbindLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>();
 
   /**
    * 显示绑定弹窗
    */
-  const showBindModal = () => {
+  const showBindModal = async () => {
+    try {
+      // 获取当前用户信息
+      const response = await axios.get('/api/user/info');
+      if (response.data.status && response.data.data) {
+        setCurrentUserId(response.data.data.id);
+      }
+    } catch (error) {
+      console.error('获取用户信息失败:', error);
+    }
     setBindModalVisible(true);
   };
 
@@ -49,15 +59,21 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
   /**
    * 微信扫码成功回调
    */
-  const handleWechatScanSuccess = async (token: string) => {
+  const handleWechatScanSuccess = async (token: string, userInfo: Record<string, unknown>) => {
     try {
-      // 调用绑定接口
+      // 如果 userInfo 中已经有错误信息，直接显示
+      if (userInfo.status === false && userInfo.message) {
+        message.error(userInfo.message as string);
+        return;
+      }
+
+      // 调用绑定接口确认
       const response = await axios.post('/api/wechat/bind', { token });
-      
+
       if (response.data.status) {
         message.success('绑定成功！');
         closeBindModal();
-        
+
         // 通知父组件刷新数据
         if (onStatusChange) {
           onStatusChange();
@@ -73,6 +89,13 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
         message.error('绑定微信失败，请重试');
       }
     }
+  };
+
+  /**
+   * 微信扫码失败回调
+   */
+  const handleWechatScanError = (errorMessage: string) => {
+    message.error(errorMessage);
   };
 
   /**
@@ -189,9 +212,12 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
         width={500}
       >
         <div className="py-4">
-          <WechatQRLogin 
+          <WechatQRLogin
             onSuccess={handleWechatScanSuccess}
+            onError={handleWechatScanError}
             env="trial"
+            mode="bind"
+            userId={currentUserId}
           />
         </div>
       </Modal>

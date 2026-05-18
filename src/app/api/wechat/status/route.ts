@@ -64,10 +64,21 @@ export async function GET(request: NextRequest) {
         });
 
         if (existingUser && existingUser.id !== userId) {
-          return NextResponse.json(
-            errorResponse('该微信已被其他账号绑定'),
-            { status: 400 }
+          // 缓存错误结果，避免重复查询
+          const errorResult = {
+            status: false,
+            message: '该微信已被其他账号绑定',
+            scanStatus: 1,
+            action: 'bind',
+          };
+          await redisService.set(
+            `wechat_login_result_${token}`,
+            JSON.stringify(errorResult),
+            'EX',
+            3600
           );
+          // 返回 HTTP 200，但在响应体中标记失败
+          return NextResponse.json(successResponse(errorResult));
         }
 
         // 绑定微信到当前用户

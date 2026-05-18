@@ -11,12 +11,18 @@ import axios from 'axios';
 
 interface WechatQRLoginProps {
   /**
-   * 登录成功回调
-   * @param token 登录 token
+   * 登录/绑定成功回调
+   * @param token 登录 token 或绑定 token
    * @param userInfo 用户信息
    */
   onSuccess?: (token: string, userInfo: Record<string, unknown>) => void;
-  
+
+  /**
+   * 绑定失败回调
+   * @param errorMessage 错误信息
+   */
+  onError?: (errorMessage: string) => void;
+
   /**
    * 环境版本
    * release: 正式版
@@ -24,12 +30,24 @@ interface WechatQRLoginProps {
    * develop: 开发版
    */
   env?: 'release' | 'trial' | 'develop';
+
+  /**
+   * 模式
+   * login: 登录模式
+   * bind: 绑定模式
+   */
+  mode?: 'login' | 'bind';
+
+  /**
+   * 绑定模式下的用户ID
+   */
+  userId?: number;
 }
 
 /**
- * 微信小程序扫码登录组件
+ * 微信小程序扫码登录/绑定组件
  */
-export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLoginProps) {
+export default function WechatQRLogin({ onSuccess, onError, env = 'trial', mode = 'login', userId }: WechatQRLoginProps) {
   const [, setToken] = useState<string>('');
   const [imgSrc, setImgSrc] = useState<string>('');
   const [message_text, setMessageText] = useState<string>('请使用微信扫码登录');
@@ -45,7 +63,14 @@ export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLogi
    */
   const getToken = async (): Promise<string> => {
     try {
-      const response = await axios.get('/api/wechat/getToken');
+      const params = new URLSearchParams();
+      params.append('action', mode);
+
+      if (mode === 'bind' && userId) {
+        params.append('userId', userId.toString());
+      }
+
+      const response = await axios.get(`/api/wechat/getToken?${params.toString()}`);
       if (response.data.status && response.data.data) {
         return response.data.data.token;
       }
@@ -68,37 +93,84 @@ export default function WechatQRLogin({ onSuccess, env = 'trial' }: WechatQRLogi
 
     try {
       const response = await axios.get(`/api/wechat/status?token=${currentToken}`);
-      if (response.data.status) {
-        const data = response.data.data;
 
-        // 开放平台返回的数据结构
-        if (data.scanStatus === 0) {
-          setMessageText('扫码成功，请在手机上确认');
-        } else if (data.scanStatus === 1 || data.status === 1) {
-          setMessageText('确认成功，即将跳转登录');
-          // 停止轮询
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
+      // 处理 HTTP 错误状态
+      if (!response.data.status) {
+        // 停止轮询
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
 
-          // 如果返回了 loginToken，直接调用成功回调
-          if (isMountedRef.current && currentTokenRef.current === currentToken) {
-            if (data.loginToken) {
-              setUserInfo({
-                nickName: data.scanData?.nickName,
-                avatarUrl: data.scanData?.avatarUrl,
-              });
+        const errorMessage = response.data.message || '操作失败';
+        setMessageText(errorMessage);
 
-              if (onSuccess) {
-                onSuccess(data.loginToken, data);
-              }
+        // 调用错误回调
+        if (isMountedRef.current && currentTokenRef.current === currentToken && onError) {
+          onError(errorMessage);
+        }
+
+        return;
+      }
+
+      const data = response.data.data;
+
+      // 开放平台返回的数据结构
+      if (data.scanStatus === 0) {
+        setMessageText('扫码成功，请在手机上确认');
+      } else if (data.scanStatus === 1 || data.status === 1) {
+        setMessageText('确认成功，即将跳转登录');
+        // 停止轮询
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+
+        // 如果返回了 loginToken，直接调用成功回调（登录模式）
+        if (isMountedRef.current && currentTokenRef.current === currentToken) {
+          if (data.loginToken) {
+            setUserInfo({
+              nickName: data.scanData?.nickName,
+              avatarUrl: data.scanData?.avatarUrl,
+            });
+
+            if (onSuccess) {
+              onSuccess(data.loginToken, data);
+            }
+          } else if (mode === 'bind' && data.action === 'bind') {
+            // 绑定模式，直接返回 token
+            setUserInfo({
+              nickName: data.scanData?.nickName,
+              avatarUrl: data.scanData?.avatarUrl,
+            });
+
+            if (onSuccess) {
+              onSuccess(currentToken, data);
             }
           }
         }
       }
     } catch (error) {
       console.error('获取状态失败:', error);
+
+      // 处理 HTTP 错误响应
+      if (axios.isAxiosError(error) && error.response?.data) {
+        const errorData = error.response.data;
+
+        // 停止轮询
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+
+        const errorMessage = errorData.message || '操作失败';
+        setMessageText(errorMessage);
+
+        // 调用错误回调
+        if (isMountedRef.current && currentTokenRef.current === currentToken && onError) {
+          onError(errorMessage);
+        }
+      }
     }
   };
 

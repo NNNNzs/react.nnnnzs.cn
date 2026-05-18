@@ -13,7 +13,7 @@ import { hasDataPermission } from '@/lib/permission';
 import type { ApiRegistryEntry, McpHandler } from '@/lib/api-registry';
 import type { AuthUser } from '@/types/auth';
 import { revalidateTag, revalidatePath } from 'next/cache';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 /**
  * MCP 工具调用结果
@@ -155,7 +155,6 @@ function invalidateCacheTags(tags: string[] | undefined, resource: unknown) {
  * 仅支持本项目用到的 JSON Schema 子集
  */
 export function jsonSchemaToZod(schema: Record<string, unknown>): Record<string, z.ZodType> {
-  const { z } = require('zod') as { z: typeof import('zod').z };
   const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
   const required = new Set((schema.required || []) as string[]);
   const fields: Record<string, z.ZodType> = {};
