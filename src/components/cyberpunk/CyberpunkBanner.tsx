@@ -50,16 +50,20 @@ function isWebGLAvailable(): boolean {
 
 /** 检测是否为低端设备（移动端或低端 GPU） */
 function isLowEndDevice(): boolean {
-  if (typeof window === 'undefined') return false;
-  const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-  if (!gl) return true;
-  const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-  if (debugInfo) {
-    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-    // 常见低端 GPU 关键字
-    const lowEndKeywords = ['mali-4', 'adreno 3', 'adreno 4', 'powervr sgx', 'intel hd graphics'];
-    return lowEndKeywords.some(k => renderer.toLowerCase().includes(k));
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return true;
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      // 常见低端 GPU 关键字
+      const lowEndKeywords = ['mali-4', 'adreno 3', 'adreno 4', 'powervr sgx', 'intel hd graphics'];
+      return lowEndKeywords.some(k => renderer.toLowerCase().includes(k));
+    }
+  } catch {
+    // 无法检测时保守降级
   }
   // 无法检测时，移动端保守降级
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
