@@ -1,8 +1,6 @@
 /**
- * 赛博朋克灯光系统
- * - 主环境光（低亮度深蓝）
- * - 窗外冷色光（模拟城市霓虹穿透）
- * - 点光源：霓虹青、霓虹粉、霓虹绿
+ * 赛博朋克灯光系统 - 以窗外城市霓虹光为主要光源
+ * 所有参数从 Zustand store 读取
  */
 
 'use client';
@@ -10,77 +8,179 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
+
+const PD = PRODUCTION_DEFAULTS.lights;
+const isDev = process.env.NODE_ENV === 'development';
 
 export default function CyberpunkLights() {
-  const cyanLight = useRef<THREE.PointLight>(null);
-  const pinkLight = useRef<THREE.PointLight>(null);
-  const greenLight = useRef<THREE.PointLight>(null);
+  const windowLight = useRef<THREE.SpotLight>(null);
+  const monitorLight = useRef<THREE.PointLight>(null);
+  const serverLight = useRef<THREE.PointLight>(null);
+  const neonSignLight = useRef<THREE.PointLight>(null);
+  const ceilingCyanLight = useRef<THREE.PointLight>(null);
+  const ceilingPurpleLight = useRef<THREE.PointLight>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ambientLightRef = useRef<any>(null);
 
-  // 微弱的灯光呼吸效果
+  // Zustand selector 订阅（只在对应值变化时重渲染）
+  const ambientIntensity = useSceneStore(st => st.lights.ambientIntensity);
+  const ambientColor = useSceneStore(st => st.lights.ambientColor);
+  const windowIntensity = useSceneStore(st => st.lights.windowIntensity);
+  const windowColor = useSceneStore(st => st.lights.windowColor);
+  const windowAngle = useSceneStore(st => st.lights.windowAngle);
+  const windowPenumbra = useSceneStore(st => st.lights.windowPenumbra);
+  const windowDecay = useSceneStore(st => st.lights.windowDecay);
+  const monitorIntensity = useSceneStore(st => st.lights.monitorIntensity);
+  const monitorColor = useSceneStore(st => st.lights.monitorColor);
+  const monitorDistance = useSceneStore(st => st.lights.monitorDistance);
+  const monitorDecay = useSceneStore(st => st.lights.monitorDecay);
+  const serverIntensity = useSceneStore(st => st.lights.serverIntensity);
+  const serverColor = useSceneStore(st => st.lights.serverColor);
+  const serverDistance = useSceneStore(st => st.lights.serverDistance);
+  const serverDecay = useSceneStore(st => st.lights.serverDecay);
+  const neonSignIntensity = useSceneStore(st => st.lights.neonSignIntensity);
+  const neonSignColor = useSceneStore(st => st.lights.neonSignColor);
+  const neonSignDistance = useSceneStore(st => st.lights.neonSignDistance);
+  const neonSignDecay = useSceneStore(st => st.lights.neonSignDecay);
+  const ceilingCyanIntensity = useSceneStore(st => st.lights.ceilingCyanIntensity);
+  const ceilingCyanColor = useSceneStore(st => st.lights.ceilingCyanColor);
+  const ceilingCyanDistance = useSceneStore(st => st.lights.ceilingCyanDistance);
+  const ceilingCyanDecay = useSceneStore(st => st.lights.ceilingCyanDecay);
+  const ceilingPurpleIntensity = useSceneStore(st => st.lights.ceilingPurpleIntensity);
+  const ceilingPurpleColor = useSceneStore(st => st.lights.ceilingPurpleColor);
+  const ceilingPurpleDistance = useSceneStore(st => st.lights.ceilingPurpleDistance);
+  const ceilingPurpleDecay = useSceneStore(st => st.lights.ceilingPurpleDecay);
+
+  // 当前生效值：开发环境用 selector 值，生产环境用默认常量
+  const v = isDev
+    ? { ambientIntensity, ambientColor, windowIntensity, windowColor, windowAngle, windowPenumbra, windowDecay,
+        monitorIntensity, monitorColor, monitorDistance, monitorDecay,
+        serverIntensity, serverColor, serverDistance, serverDecay,
+        neonSignIntensity, neonSignColor, neonSignDistance, neonSignDecay,
+        ceilingCyanIntensity, ceilingCyanColor, ceilingCyanDistance, ceilingCyanDecay,
+        ceilingPurpleIntensity, ceilingPurpleColor, ceilingPurpleDistance, ceilingPurpleDecay }
+    : PD;
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
 
-    if (cyanLight.current) {
-      cyanLight.current.intensity = 3 + Math.sin(t * 1.5) * 0.3;
+    // 环境光
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = v.ambientIntensity;
+      ambientLightRef.current.color.set(v.ambientColor);
     }
-    if (pinkLight.current) {
-      pinkLight.current.intensity = 2 + Math.sin(t * 0.8 + 1) * 0.4;
+
+    // 窗外主光（带呼吸）
+    if (windowLight.current) {
+      windowLight.current.intensity = v.windowIntensity + Math.sin(t * 0.3) * 0.2 + Math.sin(t * 0.7) * 0.1;
+      windowLight.current.color.set(v.windowColor);
+      windowLight.current.angle = v.windowAngle;
+      windowLight.current.penumbra = v.windowPenumbra;
+      windowLight.current.decay = v.windowDecay;
     }
-    if (greenLight.current) {
-      greenLight.current.intensity = 1.5 + Math.sin(t * 2 + 2) * 0.2;
+
+    // 显示器光（带呼吸）
+    if (monitorLight.current) {
+      monitorLight.current.intensity = v.monitorIntensity + Math.sin(t * 1.5) * 0.2;
+      monitorLight.current.color.set(v.monitorColor);
+      monitorLight.current.distance = v.monitorDistance;
+      monitorLight.current.decay = v.monitorDecay;
+    }
+
+    // 服务器光（带呼吸）
+    if (serverLight.current) {
+      serverLight.current.intensity = v.serverIntensity + Math.sin(t * 2 + 1) * 0.15;
+      serverLight.current.color.set(v.serverColor);
+      serverLight.current.distance = v.serverDistance;
+      serverLight.current.decay = v.serverDecay;
+    }
+
+    // 霓虹招牌（带呼吸）
+    if (neonSignLight.current) {
+      neonSignLight.current.intensity = v.neonSignIntensity + Math.sin(t * 2 + 2) * 0.25;
+      neonSignLight.current.color.set(v.neonSignColor);
+      neonSignLight.current.distance = v.neonSignDistance;
+      neonSignLight.current.decay = v.neonSignDecay;
+    }
+
+    // 天花板灯带
+    if (ceilingCyanLight.current) {
+      ceilingCyanLight.current.intensity = v.ceilingCyanIntensity;
+      ceilingCyanLight.current.color.set(v.ceilingCyanColor);
+      ceilingCyanLight.current.distance = v.ceilingCyanDistance;
+      ceilingCyanLight.current.decay = v.ceilingCyanDecay;
+    }
+    if (ceilingPurpleLight.current) {
+      ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity;
+      ceilingPurpleLight.current.color.set(v.ceilingPurpleColor);
+      ceilingPurpleLight.current.distance = v.ceilingPurpleDistance;
+      ceilingPurpleLight.current.decay = v.ceilingPurpleDecay;
     }
   });
 
   return (
     <>
-      {/* 环境光 - 深蓝底色 */}
-      <ambientLight intensity={0.08} color="#1a1a3e" />
+      <ambientLight ref={ambientLightRef} intensity={v.ambientIntensity} color={v.ambientColor} />
 
-      {/* 窗外主光源 - 冷白偏蓝 */}
-      <directionalLight
-        position={[0, 3, -4]}
-        intensity={0.3}
-        color="#8899cc"
-        castShadow={false}
-      />
-
-      {/* 霓虹青光 - 桌面区域 */}
-      <pointLight
-        ref={cyanLight}
-        position={[1, 1.5, 0]}
-        intensity={3}
-        color="#00f0ff"
-        distance={6}
-        decay={2}
-      />
-
-      {/* 霓虹粉光 - 床/左侧 */}
-      <pointLight
-        ref={pinkLight}
-        position={[-3, 1.8, -1]}
-        intensity={2}
-        color="#ff0066"
-        distance={5}
-        decay={2}
-      />
-
-      {/* 霓虹绿光 - 服务器区/右下 */}
-      <pointLight
-        ref={greenLight}
-        position={[3, 0.5, -2]}
-        intensity={1.5}
-        color="#00ff88"
-        distance={4}
-        decay={2}
-      />
-
-      {/* 窗外城市反射光 */}
       <spotLight
-        position={[0, 3.5, -5]}
-        angle={0.6}
-        penumbra={0.8}
-        intensity={0.5}
-        color="#4466aa"
+        ref={windowLight}
+        position={[0, 3.0, -6]}
+        angle={v.windowAngle}
+        penumbra={v.windowPenumbra}
+        intensity={v.windowIntensity}
+        color={v.windowColor}
+        target-position={[0, 0, 2]}
+        decay={v.windowDecay}
+      />
+
+      {/* 固定补充光 */}
+      <pointLight position={[-1, 2.5, -5]} intensity={0.8} color="#334488" distance={10} decay={2} />
+      <pointLight position={[1.5, 2, -5]} intensity={0.4} color="#662244" distance={8} decay={2} />
+
+      <pointLight
+        ref={monitorLight}
+        position={[1.2, 1.2, -2]}
+        intensity={v.monitorIntensity}
+        color={v.monitorColor}
+        distance={v.monitorDistance}
+        decay={v.monitorDecay}
+      />
+
+      <pointLight
+        ref={serverLight}
+        position={[2.8, 1, -3]}
+        intensity={v.serverIntensity}
+        color={v.serverColor}
+        distance={v.serverDistance}
+        decay={v.serverDecay}
+      />
+
+      <pointLight
+        ref={neonSignLight}
+        position={[0, 3.3, -3.5]}
+        intensity={v.neonSignIntensity}
+        color={v.neonSignColor}
+        distance={v.neonSignDistance}
+        decay={v.neonSignDecay}
+      />
+      <pointLight position={[0, 3.3, -3.5]} intensity={0.8} color="#00aacc" distance={4} decay={2} />
+
+      <pointLight
+        ref={ceilingCyanLight}
+        position={[-1.2, 3.5, -2]}
+        intensity={v.ceilingCyanIntensity}
+        color={v.ceilingCyanColor}
+        distance={v.ceilingCyanDistance}
+        decay={v.ceilingCyanDecay}
+      />
+      <pointLight
+        ref={ceilingPurpleLight}
+        position={[1.5, 3.55, 0.5]}
+        intensity={v.ceilingPurpleIntensity}
+        color={v.ceilingPurpleColor}
+        distance={v.ceilingPurpleDistance}
+        decay={v.ceilingPurpleDecay}
       />
     </>
   );

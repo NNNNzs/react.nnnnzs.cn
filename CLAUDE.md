@@ -65,7 +65,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-暂无进行中的计划。
+- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（阶段一：3D Banner 房间场景）
 
 ### 已完成计划
 - **[LangChain/LangGraph 迁移](docs/plans/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph（已完成）

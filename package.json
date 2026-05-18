@@ -61,6 +61,7 @@
     "framer-motion": "^12.38.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.10.1",
+    "leva": "^0.10.1",
     "lodash-es": "^4.17.23",
     "md-editor-rt": "^6.4.1",
     "multer": "^2.1.1",
@@ -77,7 +78,8 @@
     "three": "^0.184.0",
     "undici": "^7.24.6",
     "uuid": "^13.0.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",

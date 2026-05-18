@@ -66,7 +66,7 @@ export default async function RootLayout({
                   },
                 }}
               >
-                <body className="antialiased">
+                <body className="antialiased" suppressHydrationWarning>
                   <Header />
                   {children}
                   <Script id="baidu-analytics" strategy="afterInteractive">

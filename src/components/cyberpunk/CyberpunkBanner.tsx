@@ -6,39 +6,29 @@
  * - 3D 房间场景（地板/墙/天花/窗户）
  * - Bloom 霓虹发光后处理
  * - 窗户雨滴效果
- * - 鼠标视差
+ * - 鼠标视差 / OrbitControls（开发模式）
  * - 滚动淡出过渡
  * - 低端设备降级（回退到静态背景）
  */
 
 'use client';
 
-import React, { Suspense, useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { DownOutlined } from '@ant-design/icons';
-import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { OrbitControls, Grid } from '@react-three/drei';
 import Room from './Room';
 import RainEffect from './RainEffect';
 import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
-
-// ========================
-// 类型定义
-// ========================
-
-interface CyberpunkBannerProps {
-  anchorRef?: React.RefObject<HTMLDivElement | null>;
-}
+import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
+import { renderDevControls } from './DevControls';
 
 // ========================
 // 常量
 // ========================
 
-/**
- * 检测 WebGL 支持（仅客户端调用）
- * 使用 eval 风格绕过 SSR 阶段的 TS 类型检查
- */
 const isWebGLAvailable = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
@@ -52,9 +42,6 @@ const isWebGLAvailable = (): boolean => {
   }
 };
 
-/**
- * 检测是否为低端设备（移动端或低端 GPU）
- */
 const isLowEndDevice = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
@@ -83,27 +70,49 @@ function ParallaxCamera() {
   const { camera } = useThree();
   const mouse = useRef({ x: 0, y: 0 });
   const target = useRef({ x: 0, y: 0 });
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // 开发模式订阅 store，生产模式不需要
+  const camX = useSceneStore(s => s.camera.positionX);
+  const camY = useSceneStore(s => s.camera.positionY);
+  const lookX = useSceneStore(s => s.camera.lookAtX);
+  const lookY = useSceneStore(s => s.camera.lookAtY);
+  const lookZ = useSceneStore(s => s.camera.lookAtZ);
+  const parallaxEnabled = useSceneStore(s => s.parallax.enabled);
+  const parallaxX = useSceneStore(s => s.parallax.intensityX);
+  const parallaxY = useSceneStore(s => s.parallax.intensityY);
+  const parallaxSmooth = useSceneStore(s => s.parallax.smoothness);
+
+  // 生产模式默认值
+  const d = PRODUCTION_DEFAULTS;
+  const pCamX = isDev ? camX : d.camera.positionX;
+  const pCamY = isDev ? camY : d.camera.positionY;
+  const pLookX = isDev ? lookX : d.camera.lookAtX;
+  const pLookY = isDev ? lookY : d.camera.lookAtY;
+  const pLookZ = isDev ? lookZ : d.camera.lookAtZ;
+  const pEnabled = isDev ? parallaxEnabled : d.parallax.enabled;
+  const pX = isDev ? parallaxX : d.parallax.intensityX;
+  const pY = isDev ? parallaxY : d.parallax.intensityY;
+  const pSmooth = isDev ? parallaxSmooth : d.parallax.smoothness;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // 归一化到 [-1, 1]
       mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
     };
-
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   useFrame(() => {
-    // 平滑插值
-    target.current.x += (mouse.current.x - target.current.x) * 0.05;
-    target.current.y += (mouse.current.y - target.current.y) * 0.05;
+    if (!pEnabled) return;
 
-    // 基础相机位置 + 视差偏移
-    camera.position.x = target.current.x * 0.3;
-    camera.position.y = 2.2 + target.current.y * 0.15;
-    camera.lookAt(0, 1.2, -1);
+    target.current.x += (mouse.current.x - target.current.x) * pSmooth;
+    target.current.y += (mouse.current.y - target.current.y) * pSmooth;
+
+    camera.position.x = pCamX + target.current.x * pX;
+    camera.position.y = pCamY + target.current.y * pY;
+    camera.lookAt(pLookX, pLookY, pLookZ);
   });
 
   return null;
@@ -114,15 +123,26 @@ function ParallaxCamera() {
 // ========================
 
 function PostProcessing() {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  const bloomThreshold = useSceneStore(s => s.postProcessing.bloomThreshold);
+  const bloomSmoothing = useSceneStore(s => s.postProcessing.bloomSmoothing);
+  const bloomIntensity = useSceneStore(s => s.postProcessing.bloomIntensity);
+  const vignetteDarkness = useSceneStore(s => s.postProcessing.vignetteDarkness);
+
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={0.2}
-        luminanceSmoothing={0.9}
-        intensity={1.5}
+        luminanceThreshold={isDev ? bloomThreshold : PRODUCTION_DEFAULTS.postProcessing.bloomThreshold}
+        luminanceSmoothing={isDev ? bloomSmoothing : PRODUCTION_DEFAULTS.postProcessing.bloomSmoothing}
+        intensity={isDev ? bloomIntensity : PRODUCTION_DEFAULTS.postProcessing.bloomIntensity}
         mipmapBlur
       />
-      <Vignette eskil={false} offset={0.1} darkness={0.8} />
+      <Vignette
+        eskil={false}
+        offset={0.1}
+        darkness={isDev ? vignetteDarkness : PRODUCTION_DEFAULTS.postProcessing.vignetteDarkness}
+      />
     </EffectComposer>
   );
 }
@@ -159,13 +179,55 @@ function ErrorFallback() {
 // ========================
 
 function Scene() {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // Zustand selector - 只有对应字段变化时才重渲染
+  const useOrbit = useSceneStore(s => s.controls.useOrbit);
+  const showRain = useSceneStore(s => s.elements.showRain);
+  const showFurniture = useSceneStore(s => s.elements.showFurniture);
+  const showRoom = useSceneStore(s => s.elements.showRoom);
+  const showGrid = useSceneStore(s => s.elements.showGrid);
+
+  const pUseOrbit = isDev ? useOrbit : false;
+  const pShowRain = isDev ? showRain : true;
+  const pShowFurniture = isDev ? showFurniture : true;
+  const pShowRoom = isDev ? showRoom : true;
+  const pShowGrid = isDev ? showGrid : false;
+
   return (
     <>
-      <ParallaxCamera />
+      {!pUseOrbit && <ParallaxCamera />}
+      {pUseOrbit && (
+        <OrbitControls
+          makeDefault
+          enableDamping
+          dampingFactor={0.05}
+          minDistance={2}
+          maxDistance={15}
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI / 2}
+          target={[0, 1.2, 0]}
+        />
+      )}
       <CyberpunkLights />
-      <Room />
-      <Furniture />
-      <RainEffect />
+      {pShowGrid && (
+        <Grid
+          args={[20, 20]}
+          cellSize={1}
+          cellThickness={0.5}
+          cellColor="#00f0ff"
+          sectionSize={5}
+          sectionThickness={1}
+          sectionColor="#ff0066"
+          fadeDistance={30}
+          fadeStrength={1}
+          followCamera={false}
+          infiniteGrid
+        />
+      )}
+      {pShowRoom && <Room />}
+      {pShowFurniture && <Furniture />}
+      {pShowRain && <RainEffect />}
       <PostProcessing />
     </>
   );
@@ -188,15 +250,24 @@ function ScrollFadeOverlay({ scrollProgress }: { scrollProgress: number }) {
 // 主组件
 // ========================
 
-export default function CyberpunkBanner({ anchorRef }: CyberpunkBannerProps) {
+export default function CyberpunkBanner() {
   const [webglOk, setWebglOk] = useState(true);
   const [lowEnd, setLowEnd] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const scrollRestoreRef = useRef(false);
+  const isDev = process.env.NODE_ENV === 'development';
 
-  // 检测环境
+  const camPosX = useSceneStore(s => s.camera.positionX);
+  const camPosY = useSceneStore(s => s.camera.positionY);
+  const camPosZ = useSceneStore(s => s.camera.positionZ);
+  const cameraFov = useSceneStore(s => s.camera.fov);
+
+  const cameraPos: [number, number, number] = isDev
+    ? [camPosX, camPosY, camPosZ]
+    : [PRODUCTION_DEFAULTS.camera.positionX, PRODUCTION_DEFAULTS.camera.positionY, PRODUCTION_DEFAULTS.camera.positionZ];
+  const fov = isDev ? cameraFov : PRODUCTION_DEFAULTS.camera.fov;
+
   useEffect(() => {
     if (!isWebGLAvailable()) {
       setWebglOk(false);
@@ -207,53 +278,32 @@ export default function CyberpunkBanner({ anchorRef }: CyberpunkBannerProps) {
     }
   }, []);
 
-  // 滚动监听
+  useEffect(() => {
+    if (isDev) {
+      renderDevControls();
+    }
+  }, [isDev]);
+
   useEffect(() => {
     const handleScroll = () => {
       const progress = Math.max(0, window.scrollY / window.innerHeight);
       setScrollProgress(progress);
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 自动滚到文章列表（和原 Banner 保持一致）
-  const scrollIntoPost = useCallback(() => {
-    if (anchorRef?.current) {
-      anchorRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [anchorRef]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (window.scrollY === 0) {
-        scrollIntoPost();
-      }
-    }, 2000); // 3D 场景需要多给点时间加载
-
-    return () => clearTimeout(timer);
-  }, [scrollIntoPost]);
-
-  // 场景加载完成
   const handleCreated = useCallback(() => {
     setSceneReady(true);
   }, []);
 
-  // 低端设备回退：静态深色背景
   if (!webglOk || lowEnd) {
     return (
       <div className="relative snap-start h-screen bg-[#0a0a1a]">
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[#00f0ff]/50 text-lg font-mono tracking-widest">
-            记录技术，分享生活
+          <p className="text-[#00f0ff]/30 text-lg font-mono tracking-widest">
+            3D 场景加载中...
           </p>
-        </div>
-        <div
-          onClick={scrollIntoPost}
-          className="absolute bottom-4 left-0 right-0 cursor-pointer text-center text-[#00f0ff]/50 animate-bounce z-10"
-        >
-          <DownOutlined className="text-4xl" />
         </div>
       </div>
     );
@@ -261,14 +311,13 @@ export default function CyberpunkBanner({ anchorRef }: CyberpunkBannerProps) {
 
   return (
     <div className="relative snap-start h-screen overflow-hidden bg-[#0a0a1a]">
-      {/* 3D Canvas */}
       <div className="absolute inset-0" style={{ opacity: sceneReady ? 1 : 0, transition: 'opacity 1s ease' }}>
         <Canvas
           camera={{
-            position: [0, 2.2, 6],
-            fov: 65,
+            position: cameraPos,
+            fov: fov,
             near: 0.1,
-            far: 100,
+            far: 200,
           }}
           gl={{
             antialias: true,
@@ -285,26 +334,12 @@ export default function CyberpunkBanner({ anchorRef }: CyberpunkBannerProps) {
         </Canvas>
       </div>
 
-      {/* 加载占位 */}
       {!sceneReady && !hasError && <LoadingFallback />}
       {hasError && <ErrorFallback />}
-
-      {/* 滚动淡出 */}
       <ScrollFadeOverlay scrollProgress={scrollProgress} />
 
-      {/* 底部标题 */}
-      <div className="absolute bottom-16 left-0 right-0 text-center z-10 pointer-events-none">
-        <p
-          className="text-white/80 text-xl font-mono tracking-wider"
-          style={{ textShadow: '0 0 20px rgba(0,240,255,0.5), 0 0 40px rgba(0,240,255,0.2)' }}
-        >
-          记录技术，分享生活
-        </p>
-      </div>
-
-      {/* 滚动提示 */}
       <div
-        onClick={scrollIntoPost}
+        onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
         className="absolute bottom-4 left-0 right-0 cursor-pointer text-center text-[#00f0ff]/60 animate-bounce z-10"
       >
         <DownOutlined className="text-4xl" />

@@ -23,7 +23,6 @@ export default function HomePageClient({
   hasMore,
   onLoadMore,
 }: HomePageClientProps) {
-  const anchorRef = useRef<HTMLDivElement>(null);
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
 
   /**
@@ -148,10 +147,7 @@ export default function HomePageClient({
   return (
     <div className="snap-y snap-mandatory">
       {/* 横幅 */}
-      <CyberpunkBanner anchorRef={anchorRef} />
-
-      {/* 锚点 */}
-      <div ref={anchorRef} />
+      <CyberpunkBanner />
 
       {/* 文章列表 */}
       <div className="snap-start">
