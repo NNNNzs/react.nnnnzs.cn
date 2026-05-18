@@ -66,11 +66,21 @@ export default function RainEffect() {
     return texture;
   }, []);
 
+  // Buffer attributes
+  const posAttribute = useMemo(() => new THREE.BufferAttribute(positions, 3), [positions]);
+  const sizeAttribute = useMemo(() => new THREE.BufferAttribute(sizes, 1), [sizes]);
+
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', posAttribute);
+    geo.setAttribute('size', sizeAttribute);
+    return geo;
+  }, [posAttribute, sizeAttribute]);
+
   useFrame(() => {
     if (!pointsRef.current) return;
 
-    const posAttr = pointsRef.current.geometry.attributes.position;
-    const posArray = posAttr.array as Float32Array;
+    const posArray = posAttribute.array as Float32Array;
 
     for (let i = 0; i < RAIN_COUNT; i++) {
       // 向下移动
@@ -87,25 +97,11 @@ export default function RainEffect() {
       }
     }
 
-    posAttr.needsUpdate = true;
+    posAttribute.needsUpdate = true;
   });
 
   return (
-    <points ref={pointsRef} position={WINDOW_POS}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={RAIN_COUNT}
-          array={positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-size"
-          count={RAIN_COUNT}
-          array={sizes}
-          itemSize={1}
-        />
-      </bufferGeometry>
+    <points ref={pointsRef} position={WINDOW_POS} geometry={geometry}>
       <pointsMaterial
         map={rainTexture}
         size={0.06}
