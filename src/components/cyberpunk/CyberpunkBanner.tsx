@@ -35,8 +35,9 @@ interface CyberpunkBannerProps {
 // 常量
 // ========================
 
-/** 检测 WebGL 支持 */
+/** 检测 WebGL 支持（仅客户端调用） */
 function isWebGLAvailable(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
     return !!(
