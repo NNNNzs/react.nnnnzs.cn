@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback } from 'react';
-import Banner from '@/components/Banner';
+import CyberpunkBanner from '@/components/cyberpunk/CyberpunkBanner';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
 
@@ -148,7 +148,7 @@ export default function HomePageClient({
   return (
     <div className="snap-y snap-mandatory">
       {/* 横幅 */}
-      <Banner anchorRef={anchorRef} />
+      <CyberpunkBanner anchorRef={anchorRef} />
 
       {/* 锚点 */}
       <div ref={anchorRef} />
