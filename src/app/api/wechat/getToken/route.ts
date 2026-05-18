@@ -1,64 +1,51 @@
 /**
  * API 路由: /api/wechat/getToken
- * 功能: 生成用于微信扫码登录的 token
+ * 功能: 调用开放平台创建扫码会话，支持登录和绑定两种场景
  */
 
-import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
-import redisService from '@/lib/redis';
+import { NextRequest, NextResponse } from 'next/server';
+import { callOpenPlatformAPI } from '@/lib/open-platform';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 
 /**
- * 生成短 token（32位，符合微信小程序场景值限制）
+ * GET /api/wechat/getToken?action=login&userId=123&redirectUrl=/c/dashboard
+ * 创建扫码会话
+ *
+ * 参数：
+ * - action: 场景类型，login（登录）或 bind（绑定）
+ * - userId: 绑定场景下的用户ID
+ * - redirectUrl: 登录成功后跳转地址
  */
-function createToken(): string {
-  let id =  uuidv4().replace(/-/g, '').toUpperCase();
-  // 把前几位换成 blog_
-  id = id.replace(/^[a-zA-Z0-9]{8}/, 'blog_');
-  return id;
-}
-
-/**
- * 创建基础信息
- */
-interface BaseInfo {
-  token: string;
-  status: number; // -1: 未扫码, 0: 已扫码未授权, 1: 已授权
-  appName: string;
-  createTime: string;
-}
-
-function createBaseInfo(token: string): BaseInfo {
-  return {
-    token,
-    status: -1,
-    appName: '博客登录',
-    createTime: new Date().toLocaleString('zh-CN'),
-  };
-}
-
-/**
- * GET /api/wechat/getToken
- * 获取用于扫码登录的 token
- */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const token = createToken();
-    const baseInfo = createBaseInfo(token);
+    const searchParams = request.nextUrl.searchParams;
+    const action = (searchParams.get('action') || 'login') as 'login' | 'bind';
+    const userId = searchParams.get('userId');
+    const redirectUrl = searchParams.get('redirectUrl');
 
-    // 存储到 Redis，设置 1 小时过期
-    await redisService.set(
-      `wechat_screen_key/${token}`,
-      JSON.stringify(baseInfo),
-      'EX',
-      3600
-    );
+    // 构建传递给开放平台的参数
+    const params: Record<string, any> = {
+      action,
+    };
 
-    return NextResponse.json(successResponse(token));
+    if (action === 'bind' && userId) {
+      params.userId = parseInt(userId, 10);
+    }
+
+    if (redirectUrl) {
+      params.redirectUrl = redirectUrl;
+    }
+
+    // 调用开放平台创建会话
+    const data = await callOpenPlatformAPI('/qr/getToken', 'POST', {
+      params,
+    });
+
+    return NextResponse.json(successResponse(data));
   } catch (error) {
-    console.error('生成 token 失败:', error);
+    console.error('获取 token 失败:', error);
     return NextResponse.json(
-      errorResponse('生成 token 失败'),
+      errorResponse(error instanceof Error ? error.message : '获取 token 失败'),
       { status: 500 }
     );
   }

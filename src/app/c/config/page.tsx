@@ -595,7 +595,7 @@ function ConfigPageContent() {
           >
             <Input
               placeholder="请输入Key"
-              maxLength={20}
+              maxLength={100}
               disabled={!!editingConfig}
             />
           </Form.Item>

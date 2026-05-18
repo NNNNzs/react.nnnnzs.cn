@@ -1,16 +1,23 @@
 /**
  * API 路由: /api/wechat/status
- * 功能: 获取或更新 token 的状态
+ * 功能: 查询扫码状态，如果扫码成功则执行登录/注册逻辑
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import redisService from '@/lib/redis';
+import { callOpenPlatformAPI } from '@/lib/open-platform';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import redisService from '@/lib/redis';
+import { getPrisma } from '@/lib/prisma';
+import { generateToken, storeToken } from '@/lib/auth';
 
 /**
  * GET /api/wechat/status?token=xxx
- * 获取扫码状态
- * 返回: -1 未扫码, 0 已扫码未授权, 1 已授权
+ * 查询扫码状态
+ *
+ * 1. 先检查本地 Redis 是否已有登录结果
+ * 2. 如果没有，调用开放平台 API 查询扫码状态
+ * 3. 如果扫码成功，在 React 后端执行登录/注册逻辑
+ * 4. 将结果缓存到 Redis，避免重复处理
  */
 export async function GET(request: NextRequest) {
   try {
@@ -24,76 +31,124 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const infoStr = await redisService.get(`wechat_screen_key/${token}`);
-
-    if (!infoStr) {
-      return NextResponse.json(
-        errorResponse('token 不存在或已过期'),
-        { status: 404 }
-      );
+    // 先检查本地 Redis 是否已有登录结果
+    const cachedResult = await redisService.get(`wechat_login_result_${token}`);
+    if (cachedResult) {
+      const result = JSON.parse(cachedResult);
+      console.log('[开放平台] 从本地缓存获取登录结果:', result);
+      return NextResponse.json(successResponse(result));
     }
 
-    const info = JSON.parse(infoStr);
+    // 调用开放平台 API 查询状态
+    const data = await callOpenPlatformAPI(`/qr/status?token=${token}`, 'GET');
+    console.log('[开放平台] 后端返回状态:', data);
 
-    return NextResponse.json(successResponse(info.status));
+    // 如果扫码成功，执行登录/注册逻辑
+    if (data.scanStatus === 1 || data.status === 1) {
+      const prisma = await getPrisma();
+      const { openId, scanData, params } = data;
+
+      if (params?.action === 'bind') {
+        // 绑定场景
+        const userId = params.userId;
+        if (!userId) {
+          return NextResponse.json(
+            errorResponse('绑定场景缺少 userId'),
+            { status: 400 }
+          );
+        }
+
+        // 检查该 openid 是否已被其他用户绑定
+        const existingUser = await prisma.tbUser.findFirst({
+          where: { wx_open_id: openId },
+        });
+
+        if (existingUser && existingUser.id !== userId) {
+          return NextResponse.json(
+            errorResponse('该微信已被其他账号绑定'),
+            { status: 400 }
+          );
+        }
+
+        // 绑定微信到当前用户
+        await prisma.tbUser.update({
+          where: { id: userId },
+          data: {
+            wx_open_id: openId,
+            avatar: scanData?.avatarUrl || existingUser?.avatar,
+          },
+        });
+
+        const result = {
+          ...data,
+          action: 'bind',
+          message: '绑定成功',
+        };
+
+        // 缓存结果
+        await redisService.set(
+          `wechat_login_result_${token}`,
+          JSON.stringify(result),
+          'EX',
+          3600
+        );
+
+        return NextResponse.json(successResponse(result));
+      } else {
+        // 登录场景
+        let user = await prisma.tbUser.findFirst({
+          where: { wx_open_id: openId },
+        });
+
+        // 如果没有找到用户，创建新用户（自动注册）
+        if (!user) {
+          const { v4: uuidv4 } = await import('uuid');
+          const account = `wx_${uuidv4().substring(0, 8)}`;
+
+          user = await prisma.tbUser.create({
+            data: {
+              account,
+              password: uuidv4(),
+              nickname: scanData?.nickName || '微信用户',
+              avatar: scanData?.avatarUrl || '',
+              wx_open_id: openId,
+              role: 'user',
+              status: 1,
+              registered_time: new Date(),
+            },
+          });
+        }
+
+        // 生成登录 token
+        const loginToken = generateToken();
+        await storeToken(loginToken, user);
+
+        const result = {
+          ...data,
+          action: 'login',
+          loginToken,
+          userId: user.id,
+          message: '登录成功',
+        };
+
+        // 缓存结果
+        await redisService.set(
+          `wechat_login_result_${token}`,
+          JSON.stringify(result),
+          'EX',
+          3600
+        );
+
+        return NextResponse.json(successResponse(result));
+      }
+    }
+
+    // 扫码未完成，返回原始状态
+    return NextResponse.json(successResponse(data));
   } catch (error) {
-    console.error('获取状态失败:', error);
+    console.error('查询状态失败:', error);
     return NextResponse.json(
-      errorResponse('获取状态失败'),
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * PUT /api/wechat/status?token=xxx
- * 更新扫码状态
- */
-export async function PUT(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const token = searchParams.get('token');
-    const body = await request.json();
-    const { status } = body;
-
-    if (!token) {
-      return NextResponse.json(
-        errorResponse('缺少 token 参数'),
-        { status: 400 }
-      );
-    }
-
-    if (status === undefined) {
-      return NextResponse.json(
-        errorResponse('缺少 status 参数'),
-        { status: 400 }
-      );
-    }
-
-    const infoStr = await redisService.get(`wechat_screen_key/${token}`);
-
-    if (!infoStr) {
-      return NextResponse.json(
-        errorResponse('token 不存在或已过期'),
-        { status: 404 }
-      );
-    }
-
-    const info = JSON.parse(infoStr);
-    info.status = status;
-
-    await redisService.set(
-      `wechat_screen_key/${token}`,
-      JSON.stringify(info),
-      'EX',
-      3600
-    );
-
-    return NextResponse.json(successResponse(null));
-  } catch (error) {
-    console.error('更新状态失败:', error);
-    return NextResponse.json(
-      errorResponse('更新状态失败'),
+      errorResponse(error instanceof Error ? error.message : '查询状态失败'),
       { status: 500 }
     );
   }
