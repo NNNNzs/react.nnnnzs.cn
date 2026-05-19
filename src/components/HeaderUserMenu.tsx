@@ -7,6 +7,7 @@ import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
 import { SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { USER_MANAGE } from "@/constants/permissions";
 
 /**
  * 头部导航中的用户信息和菜单区域
@@ -15,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function HeaderUserMenu() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
 
   // 构建当前完整 URL 用于登录后返回
   const currentUrl = useMemo(() => {
@@ -34,11 +35,15 @@ export default function HeaderUserMenu() {
       label: <Link href="/c/user/info">个人资料</Link>,
       icon: <UserOutlined />,
     },
-    {
-      key: "settings",
-      label: <Link href="/c/user">设置</Link>,
-      icon: <SettingOutlined />,
-    },
+    ...(hasPermission(USER_MANAGE)
+      ? [
+          {
+            key: "settings",
+            label: <Link href="/c/user">设置</Link>,
+            icon: <SettingOutlined />,
+          },
+        ]
+      : []),
     {
       type: "divider",
     },
