@@ -113,10 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await axios.post("/api/user/login", { account, password });
     if (response.data.status) {
       setUser(response.data.data.userInfo);
+      await refreshPermissions();
     } else {
       throw new Error(response.data.message);
     }
-  }, []);
+  }, [refreshPermissions]);
 
   /**
    * 退出登录
@@ -124,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await axios.post("/api/user/logout");
     setUser(null);
+    setPermissions([]);
+    setDataScopes({});
   }, []);
 
   /**
