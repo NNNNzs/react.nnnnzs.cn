@@ -12,7 +12,7 @@ import type { TableColumnsType } from 'antd';
 import { ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin } from '@/types/role';
+import { QUEUE_VIEW } from '@/constants/permissions';
 import { useRouter } from 'next/navigation';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
@@ -34,7 +34,7 @@ interface EmbedStatus {
 }
 
 export default function QueueMonitorPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
   const { isMobile } = useBreakpoint();
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export default function QueueMonitorPage() {
   const [error, setError] = useState<string | null>(null);
 
   // 权限检查
-  const hasAccess = user && isAdmin(user.role);
+  const hasAccess = user && hasPermission(QUEUE_VIEW);
 
   /**
    * 加载队列状态

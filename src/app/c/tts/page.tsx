@@ -29,7 +29,7 @@ import {
 } from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/types/role";
+import { TTS_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
 
 const { TextArea } = Input;
@@ -109,7 +109,7 @@ const PRESET_INSTRUCTIONS = [
 
 export default function TTSPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasPermission } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 表单状态
@@ -136,7 +136,7 @@ export default function TTSPage() {
 
   // 权限检查
   React.useEffect(() => {
-    if (!authLoading && user && !isAdmin(user.role)) {
+    if (!authLoading && user && !hasPermission(TTS_VIEW)) {
       message.warning("您没有权限访问此页面");
       router.push("/c/post");
     }

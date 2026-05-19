@@ -11,7 +11,7 @@ import { Card, Input, Button, List, Tag, Space, Typography, Alert, Divider, Row,
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin } from '@/types/role';
+import { VECTOR_VIEW } from '@/constants/permissions';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text, Paragraph } = Typography;
@@ -26,7 +26,7 @@ interface SearchResult {
 }
 
 export default function VectorSearchPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { isMobile } = useBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -34,7 +34,7 @@ export default function VectorSearchPage() {
   const [error, setError] = useState<string | null>(null);
 
   // 权限检查
-  if (!user || !isAdmin(user.role)) {
+  if (!user || !hasPermission(VECTOR_VIEW)) {
     return (
       <div className="flex h-screen items-center justify-center p-8">
         <Alert

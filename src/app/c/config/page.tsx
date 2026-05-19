@@ -34,11 +34,12 @@ import {
 import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
+import { CONFIG_VIEW, CONFIG_EDIT } from "@/constants/permissions";
+
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import type { QueryConfigCondition } from "@/dto/config.dto";
 import type { TbConfig } from "@/generated/prisma-client";
-import { isAdmin } from "@/types/role";
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -124,7 +125,7 @@ function useUpdateUrl() {
 }
 
 function ConfigPageContent() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
   const urlState = useUrlState();
   const updateUrl = useUpdateUrl();
@@ -144,7 +145,7 @@ function ConfigPageContent() {
    * 检查权限
    */
   useEffect(() => {
-    if (user && !isAdmin(user.role)) {
+    if (user && !hasPermission(CONFIG_VIEW)) {
       message.error("无权限访问配置管理");
       router.push("/c/post");
     }
@@ -312,7 +313,7 @@ function ConfigPageContent() {
    * 当 URL 状态变化时，重新加载数据
    */
   useEffect(() => {
-    if (user && isAdmin(user.role)) {
+    if (user && hasPermission(CONFIG_EDIT)) {
       loadConfigs(urlState.current, urlState.pageSize);
     }
   }, [

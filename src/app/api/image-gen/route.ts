@@ -6,8 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getTokenFromRequest, validateToken } from '@/lib/auth';
-import { isAdmin } from '@/types/role';
+import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { IMAGE_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
@@ -37,16 +36,10 @@ export const descriptor: ApiDescriptor = {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
-    }
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
+    // 权限检查
+    const check = await requirePermission(request, IMAGE_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
     const body: ImageGenOptions = await request.json();

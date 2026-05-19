@@ -20,8 +20,8 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
+import { COLLECTION_VIEW } from '@/constants/permissions';
 import type { SerializedCollection } from '@/dto/collection.dto';
-import { isAdmin } from '@/types/role';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
 import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';
@@ -93,7 +93,7 @@ function useUpdateUrl() {
 }
 
 function CollectionsManagePageContent() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
   const { isMobile } = useBreakpoint();
   const urlState = useUrlState();
@@ -123,7 +123,7 @@ function CollectionsManagePageContent() {
 
   // 权限检查
   useEffect(() => {
-    if (user && !isAdmin(user.role)) {
+    if (user && !hasPermission(COLLECTION_VIEW)) {
       message.error('无权限访问合集管理');
       router.push('/c/post');
     }

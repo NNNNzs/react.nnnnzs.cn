@@ -6,9 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { embedTexts } from '@/services/embedding';
 import { searchSimilarVectors } from '@/services/embedding/vector-store';
-import { getTokenFromRequest, validateToken } from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { VECTOR_VIEW } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { isAdmin } from '@/types/role';
 import { getPrisma } from '@/lib/prisma';
 
 /**
@@ -17,17 +17,10 @@ import { getPrisma } from '@/lib/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
-
-    if (!user) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
-    }
-
-    // 权限检查：仅管理员可使用
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('权限不足，仅管理员可使用'), { status: 403 });
+    // 权限检查
+    const check = await requirePermission(request, VECTOR_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
     const body = await request.json();

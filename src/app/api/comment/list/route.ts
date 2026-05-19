@@ -10,9 +10,9 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getCommentList } from '@/services/comment';
 import { getPrisma } from '@/lib/prisma';
-import { getUserFromToken } from '@/lib/auth';
+import { requirePermission } from '@/lib/permission';
+import { COMMENT_MANAGE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { isAdmin } from '@/types/role';
 
 /**
  * GET /api/comment/list
@@ -52,20 +52,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 后台模式：获取所有评论的分页列表（需要管理员权限）
-    const user = await getUserFromToken(request);
-
-    if (!user) {
+    // 后台模式：获取所有评论的分页列表（需要权限）
+    const check = await requirePermission(request, COMMENT_MANAGE);
+    if ('error' in check) {
       return NextResponse.json(
-        errorResponse('未登录或登录已过期'),
-        { status: 401 }
-      );
-    }
-
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(
-        errorResponse('无权限访问'),
-        { status: 403 }
+        errorResponse(check.error),
+        { status: check.status }
       );
     }
 

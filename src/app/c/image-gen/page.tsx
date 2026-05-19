@@ -10,7 +10,7 @@ import { Card, Row, Col, Tag, Spin, message } from "antd";
 import { PictureOutlined } from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAdmin } from "@/types/role";
+import { IMAGE_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
 import ImageGenPanel from "@/components/ImageGen/ImageGenPanel";
 import ImageResultCard from "@/components/ImageGen/ImageResultCard";
@@ -36,7 +36,7 @@ interface ResultMeta {
 
 export default function ImageGenPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasPermission } = useAuth();
 
   const [generating, setGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function ImageGenPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
-    if (!authLoading && user && !isAdmin(user.role)) {
+    if (!authLoading && user && !hasPermission(IMAGE_VIEW)) {
       message.warning("您没有权限访问此页面");
       router.push("/c/post");
     }

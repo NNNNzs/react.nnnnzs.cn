@@ -5,11 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import { deleteComment } from '@/services/comment';
 import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { isAdmin } from '@/types/role';
+import { hasPermissionCode } from '@/lib/permission';
+import { COMMENT_MANAGE } from '@/constants/permissions';
 
 interface RouteParams {
   params: Promise<{
@@ -30,7 +31,7 @@ export async function DELETE(
 ) {
   try {
     // 验证用户登录状态
-    const user = await getUserFromToken(request);
+    const user = await getAuthUserFromRequest(request.headers);
 
     if (!user) {
       return NextResponse.json(
@@ -49,8 +50,8 @@ export async function DELETE(
       );
     }
 
-    // 管理员可以直接删除，不需要验证所有权
-    if (isAdmin(user.role)) {
+    // 有权限的用户可以直接删除，不需要验证所有权
+    if (hasPermissionCode(user, COMMENT_MANAGE)) {
       const prisma = await getPrisma();
 
       // 检查评论是否存在

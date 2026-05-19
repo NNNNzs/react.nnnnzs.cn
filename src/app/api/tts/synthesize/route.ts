@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getTokenFromRequest, validateToken } from '@/lib/auth';
-import { isAdmin } from '@/types/role';
+import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getAIConfigValue } from '@/lib/ai-config';
 import { TTS_VIEW } from '@/constants/permissions';
@@ -54,17 +53,10 @@ const VOICE_MAP: Record<string, string[]> = {
 
 export async function POST(request: NextRequest) {
   try {
-    // 验证 Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
-    }
-    const user = await validateToken(token);
-    if (!user) {
-      return NextResponse.json(errorResponse('登录已过期'), { status: 401 });
-    }
-    if (!isAdmin(user.role)) {
-      return NextResponse.json(errorResponse('无权限访问'), { status: 403 });
+    // 权限检查
+    const check = await requirePermission(request, TTS_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
     // 解析请求体

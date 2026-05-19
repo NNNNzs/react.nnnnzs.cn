@@ -4,7 +4,17 @@
  */
 
 import { validateToken, getTokenFromRequest, getAuthUserFromRequest } from '@/lib/auth';
-import { isAdmin, hasPermission } from '@/types/role';
+import { hasPermission } from '@/types/role';
+import {
+  POST_VIEW,
+  POST_EDIT,
+  POST_DELETE,
+  POST_VIEW_DELETED,
+  COLLECTION_EDIT,
+  CONFIG_VIEW,
+  CONFIG_EDIT,
+  USER_MANAGE,
+} from '@/constants/permissions';
 import type { User } from '@/types';
 import type { AuthUser } from '@/types/auth';
 import type { RolePermissions } from '@/types/role';
@@ -34,17 +44,18 @@ export async function validateUserFromRequest(
 
 /**
  * 检查用户是否有管理员权限
+ * @deprecated 请使用 requirePermission(request, specificCode) 替代
  */
 export async function requireAdmin(
   headers: Headers
-): Promise<{ user: User | null; error: string | null }> {
-  const { user, error } = await validateUserFromRequest(headers);
+): Promise<{ user: AuthUser | null; error: string | null }> {
+  const user = await getAuthUserFromRequest(headers);
 
-  if (error) {
-    return { user: null, error };
+  if (!user) {
+    return { user: null, error: '未授权' };
   }
 
-  if (!user || !isAdmin(user.role)) {
+  if (!hasPermissionCode(user, CONFIG_VIEW)) {
     return { user: null, error: '无权限访问' };
   }
 
@@ -91,39 +102,42 @@ export function withAdmin() {
 
 // ============ 文章级别权限检查 ============
 
+/** 文章操作 → 权限码映射 */
+const POST_OPERATION_PERMISSIONS: Record<string, string> = {
+  read: POST_VIEW,
+  edit: POST_EDIT,
+  delete: POST_DELETE,
+};
+
 /**
  * 检查用户是否有权限操作指定文章
- * @param user 当前用户
+ * @param user 当前用户（AuthUser）
  * @param post 目标文章
  * @param operation 操作类型：'read' | 'edit' | 'delete'
  * @returns 是否有权限
  */
 export function canAccessPost(
-  user: User | null,
+  user: AuthUser | null,
   post: SerializedPost,
   operation: 'read' | 'edit' | 'delete'
 ): boolean {
-  // 管理员拥有所有权限
-  if (isAdmin(user?.role)) {
+  const permissionCode = POST_OPERATION_PERMISSIONS[operation];
+
+  // 拥有对应操作的全部数据权限（如管理员 scope=all）
+  if (user && hasDataPermission(user, permissionCode)) {
     return true;
   }
 
-  // 未登录用户无权限（编辑和删除）
+  // 未登录用户只能阅读公开文章
   if (!user) {
     return operation === 'read';
   }
 
-  // 普通用户只能操作自己创建的文章
-  if (post.created_by !== user.id) {
-    return false;
-  }
-
-  // 普通用户可以查看和编辑自己的文章
-  if (operation === 'read' || operation === 'edit') {
+  // 拥有对应操作的自有数据权限，且是文章作者
+  if (hasDataPermission(user, permissionCode, post.created_by)) {
     return true;
   }
 
-  // 普通用户不能删除文章（根据 RolePermissionsMap）
   return false;
 }
 
@@ -132,8 +146,8 @@ export function canAccessPost(
  * @param user 当前用户
  * @returns 是否有权限
  */
-export function canViewHiddenPosts(user: User | null): boolean {
-  return isAdmin(user?.role);
+export function canViewHiddenPosts(user: AuthUser | null): boolean {
+  return !!user && hasPermissionCode(user, POST_VIEW_DELETED);
 }
 
 /**
@@ -141,8 +155,8 @@ export function canViewHiddenPosts(user: User | null): boolean {
  * @param user 当前用户
  * @returns 是否有权限
  */
-export function canViewAllPosts(user: User | null): boolean {
-  return isAdmin(user?.role);
+export function canViewAllPosts(user: AuthUser | null): boolean {
+  return !!user && hasDataPermission(user, POST_VIEW);
 }
 
 // ============ 用户级别权限检查 ============
@@ -155,12 +169,12 @@ export function canViewAllPosts(user: User | null): boolean {
  * @returns 是否有权限
  */
 export function canAccessUser(
-  currentUser: User | null,
+  currentUser: AuthUser | null,
   targetUserId: number,
   operation: 'read' | 'edit' | 'delete'
 ): boolean {
-  // 管理员拥有所有权限
-  if (isAdmin(currentUser?.role)) {
+  // 拥有用户管理全部数据权限（管理员）
+  if (currentUser && hasDataPermission(currentUser, USER_MANAGE)) {
     return true;
   }
 
@@ -188,8 +202,8 @@ export function canAccessUser(
  * @param user 当前用户
  * @returns 是否有权限
  */
-export function canManageConfig(user: User | null): boolean {
-  return isAdmin(user?.role);
+export function canManageConfig(user: AuthUser | null): boolean {
+  return !!user && hasPermissionCode(user, CONFIG_EDIT);
 }
 
 /**
@@ -197,8 +211,8 @@ export function canManageConfig(user: User | null): boolean {
  * @param user 当前用户
  * @returns 是否有权限
  */
-export function canManageCollections(user: User | null): boolean {
-  return isAdmin(user?.role);
+export function canManageCollections(user: AuthUser | null): boolean {
+  return !!user && hasPermissionCode(user, COLLECTION_EDIT);
 }
 
 /**
@@ -206,8 +220,8 @@ export function canManageCollections(user: User | null): boolean {
  * @param user 当前用户
  * @returns 是否有权限
  */
-export function canManageUsers(user: User | null): boolean {
-  return isAdmin(user?.role);
+export function canManageUsers(user: AuthUser | null): boolean {
+  return !!user && hasPermissionCode(user, USER_MANAGE);
 }
 
 // ============ API 响应辅助函数 ============

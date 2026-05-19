@@ -38,8 +38,9 @@ import {
 import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
+import { USER_MANAGE } from "@/constants/permissions";
 import type { QueryUserCondition, UserInfo } from "@/dto/user.dto";
-import { UserRole, RoleDisplayNames, getRoleOptions, isAdmin } from "@/types/role";
+import { UserRole, RoleDisplayNames, getRoleOptions } from "@/types/role";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
@@ -128,7 +129,7 @@ function useUpdateUrl() {
 }
 
 function UserPageContent() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
   const urlState = useUrlState();
   const updateUrl = useUpdateUrl();
@@ -166,7 +167,7 @@ function UserPageContent() {
    * 检查权限
    */
   useEffect(() => {
-    if (user && !isAdmin(user.role)) {
+    if (user && !hasPermission(USER_MANAGE)) {
       message.error("无权限访问用户管理");
       router.push("/c/post");
     }
@@ -433,7 +434,7 @@ function UserPageContent() {
    * 当 URL 状态变化时，重新加载数据
    */
   useEffect(() => {
-    if (user && isAdmin(user.role)) {
+    if (user && hasPermission(USER_MANAGE)) {
       loadUsers(urlState.current, urlState.pageSize);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

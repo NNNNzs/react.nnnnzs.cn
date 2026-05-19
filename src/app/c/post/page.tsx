@@ -24,8 +24,8 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
+import { POST_VIEW_DELETED, POST_DELETE } from '@/constants/permissions';
 import type { Post } from '@/types';
-import { isAdmin } from '@/types/role';
 import { useCachedApi } from '@/hooks/useCachedApi';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
@@ -129,7 +129,7 @@ function useUpdateUrl() {
 
 function AdminPageContent() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const urlState = useUrlState();
   const updateUrl = useUpdateUrl();
   const { isMobile } = useBreakpoint();
@@ -211,14 +211,14 @@ function AdminPageContent() {
       }
 
       // 是否包含已删除文章（仅管理员可查看）
-      if (urlState.includeDeleted && isAdmin(user?.role)) {
+      if (urlState.includeDeleted && hasPermission(POST_VIEW_DELETED)) {
         params.is_delete = 1;
       }
 
       // 创建者筛选逻辑
       // 管理员：根据 owner 筛选参数决定（mine/all）
       // 普通用户：强制只能查看自己的文章
-      if (user && isAdmin(user.role)) {
+      if (user && hasPermission(POST_VIEW_DELETED)) {
         // 管理员可以选择查看全部或自己的文章
         if (urlState.ownerFilter === 'mine') {
           params.created_by = user.id;
@@ -705,7 +705,7 @@ function AdminPageContent() {
           />
           <div className={isMobile ? 'flex flex-wrap gap-2' : 'flex gap-4'}>
             {/* 创建者筛选 - 仅管理员可见 */}
-            {isAdmin(user?.role) && (
+            {hasPermission(POST_VIEW_DELETED) && (
               <Select
                 placeholder="创建者"
                 size={isMobile ? 'middle' : 'large'}
@@ -719,7 +719,7 @@ function AdminPageContent() {
               />
             )}
             {/* 是否包含已删除 - 仅管理员可见 */}
-            {isAdmin(user?.role) && (
+            {hasPermission(POST_VIEW_DELETED) && (
               <Select
                 placeholder="已删除"
                 size={isMobile ? 'middle' : 'large'}
@@ -740,7 +740,7 @@ function AdminPageContent() {
               value={hideFilter === 'all' ? undefined : hideFilter}
               onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}
               options={
-                isAdmin(user?.role)
+                hasPermission(POST_VIEW_DELETED)
                   ? [
                       { label: '全部', value: 'all' },
                       { label: '显示', value: '0' },
