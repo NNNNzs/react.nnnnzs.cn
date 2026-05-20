@@ -71,7 +71,7 @@ class NextJsHttpTransport implements Transport {
       
       const checkQueue = () => {
         // 检查是否超时（图片生成工具 120 秒，其他 15 秒）
-        const method = message.method;
+        const method = 'method' in message ? (message as any).method : null;
         const toolName = method === 'tools/call' && 'params' in message && message.params
           ? (message.params as any).name : null;
         const isSlowTool = toolName === 'image_create';
