@@ -70,8 +70,13 @@ class NextJsHttpTransport implements Transport {
       const startTime = Date.now();
       
       const checkQueue = () => {
-        // 检查是否超时（5秒）
-        if (Date.now() - startTime > 5000) {
+        // 检查是否超时（图片生成工具 120 秒，其他 15 秒）
+        const method = message.method;
+        const toolName = method === 'tools/call' && 'params' in message && message.params
+          ? (message.params as any).name : null;
+        const isSlowTool = toolName === 'image_create';
+        const timeoutMs = isSlowTool ? 120_000 : 15_000;
+        if (Date.now() - startTime > timeoutMs) {
           console.warn('⚠️ MCP request timeout:', requestId);
           if (this.messageQueue.length > 0) {
             resolve([...this.messageQueue]);
