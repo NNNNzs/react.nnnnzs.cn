@@ -3,6 +3,7 @@
  * POST /api/image-gen
  * 通过 /v1/chat/completions 调用 GPT Image 2
  * 支持文生图、图文编辑
+ * 自动转存到 CDN 并记录日志
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +11,7 @@ import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { IMAGE_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
-import { generateImage } from '@/services/image-gen';
+import { generateImageWithLog } from '@/services/image-gen';
 import type { ImageGenOptions } from '@/services/image-gen';
 
 /** 接口自描述信息 */
@@ -45,12 +46,14 @@ export async function POST(request: NextRequest) {
     const body: ImageGenOptions = await request.json();
     const startTime = Date.now();
 
-    const result = await generateImage(body);
+    // 使用完整流程：生成 + 转存 + 日志
+    const result = await generateImageWithLog(body, check.user.id, 'ADMIN');
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     return NextResponse.json(
       successResponse({
-        ...result,
+        imageUrl: result.imageUrl,
+        model: result.model,
         elapsed: `${elapsed}s`,
       })
     );

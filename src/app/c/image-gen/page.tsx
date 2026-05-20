@@ -1,30 +1,25 @@
 /**
  * AI 图片生成页面
  * 路由: /c/image-gen
+ * 左侧：生成面板 + 当前结果
+ * 右侧：持久化历史记录
  */
 
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import { Card, Row, Col, Tag, Spin, message } from "antd";
-import { PictureOutlined } from "@ant-design/icons";
+import { Card, Tag, Spin, message } from "antd";
+import {
+  PictureOutlined,
+  HistoryOutlined,
+} from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { IMAGE_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
 import ImageGenPanel from "@/components/ImageGen/ImageGenPanel";
 import ImageResultCard from "@/components/ImageGen/ImageResultCard";
-
-interface HistoryItem {
-  id: string;
-  imageUrl: string;
-  prompt: string;
-  mode: "generate" | "edit";
-  size?: string;
-  quality?: string;
-  elapsed?: string;
-  timestamp: number;
-}
+import ImageGenHistory from "@/components/ImageGen/ImageGenHistory";
 
 interface ResultMeta {
   elapsed?: string;
@@ -41,24 +36,14 @@ export default function ImageGenPage() {
   const [generating, setGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<ResultMeta | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!authLoading && user && !hasPermission(IMAGE_VIEW)) {
       message.warning("您没有权限访问此页面");
       router.push("/c/post");
     }
-  }, [user, authLoading, router]);
-
-  const addHistory = useCallback(
-    (item: Omit<HistoryItem, "id" | "timestamp">) => {
-      setHistory((prev) => [
-        ...prev,
-        { ...item, id: crypto.randomUUID(), timestamp: Date.now() },
-      ]);
-    },
-    []
-  );
+  }, [user, authLoading, router, hasPermission]);
 
   const handleGenerate = useCallback(
     async (params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams) => {
@@ -76,23 +61,16 @@ export default function ImageGenPage() {
         if (res.data?.status && res.data?.data?.imageUrl) {
           const { imageUrl: url } = res.data.data;
           setImageUrl(url);
-          const newMeta: ResultMeta = {
+          setMeta({
             elapsed: res.data.data.elapsed || `${elapsed}s`,
             model: res.data.data.model,
             prompt: params.prompt,
             size: params.size,
             quality: params.quality,
-          };
-          setMeta(newMeta);
-          addHistory({
-            imageUrl: url,
-            prompt: params.prompt,
-            mode: params.mode,
-            size: params.size,
-            quality: params.quality,
-            elapsed: newMeta.elapsed,
           });
           message.success("图片生成成功");
+          // 触发历史记录刷新
+          setRefreshTrigger((t) => t + 1);
         } else {
           message.error(res.data?.message || "图片生成失败");
         }
@@ -106,18 +84,16 @@ export default function ImageGenPage() {
         setGenerating(false);
       }
     },
-    [addHistory]
+    []
   );
 
-  const handleHistoryClick = useCallback((item: HistoryItem) => {
-    setImageUrl(item.imageUrl);
-    setMeta({
-      elapsed: item.elapsed,
-      prompt: item.prompt,
-      size: item.size,
-      quality: item.quality,
-    });
-  }, []);
+  const handleHistorySelect = useCallback(
+    (url: string, prompt: string) => {
+      setImageUrl(url);
+      setMeta({ prompt });
+    },
+    []
+  );
 
   if (authLoading) {
     return (
@@ -128,29 +104,47 @@ export default function ImageGenPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-2 mb-2">
-        <PictureOutlined className="text-2xl text-blue-500" />
-        <h1 className="text-2xl font-bold">AI 图片生成</h1>
-        <Tag color="blue">GPT Image 2</Tag>
-      </div>
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* 标题栏 */}
+        <div className="shrink-0 flex items-center gap-2 mb-4">
+          <PictureOutlined className="text-2xl text-blue-500" />
+          <h1 className="text-2xl font-bold">AI 图片生成</h1>
+          <Tag color="blue">GPT Image 2</Tag>
+        </div>
 
-      <Row gutter={[24, 16]}>
-        <Col xs={24} lg={14}>
-          <Card title="参数配置" size="small">
-            <ImageGenPanel loading={generating} onGenerate={handleGenerate} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <ImageResultCard
-            imageUrl={imageUrl}
-            loading={generating}
-            meta={meta}
-            history={history}
-            onHistoryClick={handleHistoryClick}
-          />
-        </Col>
-      </Row>
+        {/* 左右分栏 */}
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
+          {/* 左侧：生成面板 + 结果 */}
+          <div className="w-full lg:w-1/2 xl:w-[55%] shrink-0 flex flex-col gap-4 lg:overflow-y-auto">
+            <Card title="参数配置" size="small">
+              <ImageGenPanel loading={generating} onGenerate={handleGenerate} />
+            </Card>
+            <ImageResultCard
+              imageUrl={imageUrl}
+              loading={generating}
+              meta={meta}
+              history={[]}
+            />
+          </div>
+
+          {/* 右侧：历史记录 */}
+          <div className="w-full lg:w-1/2 xl:w-[45%] min-h-0">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 h-full">
+              <div className="flex items-center gap-2 mb-2">
+                <HistoryOutlined className="text-base text-gray-500" />
+                <span className="text-sm font-medium">生成历史</span>
+              </div>
+              <div className="h-[calc(100%-32px)]">
+                <ImageGenHistory
+                  onSelect={handleHistorySelect}
+                  refreshTrigger={refreshTrigger}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -35,6 +35,9 @@ function validateOptions(options: ImageGenOptions): void {
   }
 }
 
+/**
+ * 调用 AI 生成图片（核心逻辑，不含转存和日志）
+ */
 export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
   validateOptions(options);
 
@@ -104,4 +107,76 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   }
 
   return { imageUrl: imageUrlMatch[1], model };
+}
+
+/**
+ * 生成图片 + 转存到 CDN + 写日志（完整流程）
+ *
+ * @param options 生成参数
+ * @param userId 操作用户ID
+ * @param source 来源：ADMIN / MCP
+ * @returns 最终结果（CDN URL 或原始 URL）
+ */
+export async function generateImageWithLog(
+  options: ImageGenOptions,
+  userId: number,
+  source: 'ADMIN' | 'MCP' = 'ADMIN',
+): Promise<ImageGenResult & { cdnUrl?: string }> {
+  const startTime = Date.now();
+  const { createImageGenLog } = await import('./image-gen-log');
+
+  try {
+    // 1. 调用 AI 生成图片
+    const result = await generateImage(options);
+    const durationMs = Date.now() - startTime;
+
+    // 2. 转存到 CDN
+    let cdnUrl: string | undefined;
+    try {
+      const { proxyImageToCDN } = await import('./image-proxy');
+      cdnUrl = await proxyImageToCDN(result.imageUrl);
+    } catch (proxyError) {
+      console.error('图片转存失败，使用原始URL:', proxyError);
+      // 转存失败不影响主流程，使用原始 URL
+    }
+
+    // 3. 写日志（异步，不阻塞返回）
+    createImageGenLog({
+      userId,
+      source,
+      prompt: options.prompt,
+      editPrompt: options.mode === 'edit' ? options.prompt : undefined,
+      editImageUrl: options.mode === 'edit' ? options.image : undefined,
+      model: result.model,
+      originalUrl: result.imageUrl,
+      cdnUrl,
+      status: 'SUCCESS',
+      durationMs,
+    }).catch((err) => console.error('写入图片生成日志失败:', err));
+
+    return {
+      imageUrl: cdnUrl || result.imageUrl,
+      model: result.model,
+      cdnUrl,
+    };
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : '图片生成失败';
+
+    // 写失败日志
+    createImageGenLog({
+      userId,
+      source,
+      prompt: options.prompt,
+      editPrompt: options.mode === 'edit' ? options.prompt : undefined,
+      editImageUrl: options.mode === 'edit' ? options.image : undefined,
+      model: 'unknown',
+      originalUrl: '',
+      status: 'FAILED',
+      errorMessage,
+      durationMs,
+    }).catch((err) => console.error('写入图片生成日志失败:', err));
+
+    throw error;
+  }
 }

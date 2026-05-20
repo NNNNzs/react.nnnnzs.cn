@@ -324,3 +324,27 @@ model TbApiRegistry {
   @@index([mcp_enabled])
   @@map("tb_api_registry")
 }
+
+// 图片生成日志表
+// 记录用户通过后台页面和 MCP 生成的图片日志
+model TbImageGenLog {
+  id            Int       @id @default(autoincrement())
+  user_id       Int                                         // 操作用户ID
+  source        String    @db.VarChar(20)                   // 来源：ADMIN / MCP
+  prompt        String    @db.Text                          // 用户输入的提示词
+  edit_prompt   String?   @db.Text                          // 编辑模式下的编辑指令
+  edit_image_url String?  @db.Text                          // 编辑模式下的原始图片URL
+  model         String    @db.VarChar(100)                  // 使用的模型
+  original_url  String    @db.Text                          // 生成接口返回的原始图片URL
+  cdn_url       String?   @db.Text                          // 转存后的CDN地址
+  status        String    @default("SUCCESS") @db.VarChar(20) // SUCCESS / FAILED
+  error_message String?   @db.Text                          // 失败时的错误信息
+  duration_ms   Int                                         // 生成耗时（毫秒）
+  created_at    DateTime  @default(now())
+
+  @@index([user_id, created_at], name: "idx_user_time")
+  @@index([source], name: "idx_source")
+  @@index([status], name: "idx_status")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_image_gen_log")
+}

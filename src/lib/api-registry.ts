@@ -206,15 +206,15 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
-    handler: async (args) => {
-      const { generateImage } = await import('@/services/image-gen');
-      return generateImage({
+    handler: async (args, user) => {
+      const { generateImageWithLog } = await import('@/services/image-gen');
+      return generateImageWithLog({
         mode: args.mode as 'generate' | 'edit',
         prompt: args.prompt as string,
         image: args.image as string | undefined,
         size: args.size as string | undefined,
         quality: args.quality as string | undefined,
-      });
+      }, user.id, 'MCP');
     },
   },
   // ---- 合集模块（仅 API，不暴露 MCP）----
