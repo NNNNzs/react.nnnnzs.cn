@@ -280,8 +280,9 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
   const showFurniture = useSceneStore(s => s.elements.showFurniture);
   const showRoom = useSceneStore(s => s.elements.showRoom);
   const showGrid = useSceneStore(s => s.elements.showGrid);
+  const parallaxEnabled = useSceneStore(s => s.parallax.enabled);
 
-  const pUseOrbit = editable ? useOrbit : false;
+  const pUseOrbit = editable ? useOrbit : true;
   const pShowRain = variant === 'night' && (editable ? showRain : true);
   const pShowFurniture = editable ? showFurniture : true;
   const pShowRoom = editable ? showRoom : true;
@@ -289,7 +290,7 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
 
   return (
     <>
-      {!pUseOrbit && <ParallaxCamera editable={editable} variant={variant} />}
+      {!pUseOrbit && <ParallaxCamera editable={editable || parallaxEnabled} variant={variant} />}
       {pUseOrbit && (
         <OrbitControls
           makeDefault
