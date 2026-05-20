@@ -169,21 +169,21 @@ interface HomepageThemePreset {
 
 | 元素 | 文件 | 来源 | 体积 | 场景区位 |
 |------|------|------|------|----------|
-| 床 | `bed.glb` | Sketchfab (Neon Bedroom) | 6.3MB | 睡眠区 |
-| 桌子 | `desk.glb` | Sketchfab (Lumen hologram Table) | 1.7MB | 工作区 |
-| 双显示器 | `monitors.glb` | Sketchfab (Gaming Desk) | 0.2MB | 工作区桌上 |
-| 书架 | `bookshelf.glb` | Sketchfab (Wooden Bookcases) | 3.0MB | 存储/服务器区 |
-| 服务器机架 | `server-rack.glb` | Sketchfab (Server Racking) | 13MB | 存储/服务器区 |
-| 赛博朋克键盘 | `keyboard.glb` | Sketchfab (NZXT miniTKL) | 18MB | 工作区桌上 |
-| 霓虹灯牌 | `neon-sign.glb` | Sketchfab (Japanese LED Neon Sign) | 8.0MB | 墙面装饰 |
-| 电竞椅 | `chair.glb` | Sketchfab (Cyberpunk Gaming Chair) | 3.8MB | 工作区 |
-| 咖啡杯 | `coffee-mug.glb` | Sketchfab (Coffee Mug) | 8.6MB | 工作区桌上 |
-| 盆栽 | `plant.glb` | Sketchfab (Potted Plant) | 38MB⚠️ | 生活细节 |
-| 机器猫 | `robot-cat.glb` | Sketchfab (Sox Lightyear) | 16MB | 生活细节 |
-| 复古电脑 | `retro-computer.glb` | Sketchfab (Retro Computer) | 2.4MB | 工作区 |
-| 床头柜 | `nightstand.glb` | Sketchfab (Dormitory Assets) | 11MB | 睡眠区 |
-| 外套 | `jacket.glb` | Sketchfab (Clothes) | 18MB⚠️ | 椅背上 |
-| 城市天际线贴图 | `city-skyline.png` | GPT Image 2 生成 | 2.7MB | 落地窗背景 |
+| 床 | `cyberpunk/床.glb` | Sketchfab (Neon Bedroom) | 6.3MB | 睡眠区 |
+| 桌子 | `cyberpunk/桌子.glb` | Sketchfab (Lumen hologram Table) | 1.7MB | 工作区 |
+| 双显示器 | `cyberpunk/双显示器.glb` | Sketchfab (Gaming Desk) | 0.2MB | 工作区桌上 |
+| 书架 | `cyberpunk/书架.glb` | Sketchfab (Wooden Bookcases) | 3.0MB | 存储/服务器区 |
+| 服务器机架 | `cyberpunk/服务器机架.glb` | Sketchfab (Server Racking) | 13MB | 存储/服务器区 |
+| 赛博朋克键盘 | `cyberpunk/赛博朋克键盘.glb` | Sketchfab (NZXT miniTKL) | 18MB | 工作区桌上 |
+| 霓虹灯牌 | `cyberpunk/霓虹灯牌.glb` | Sketchfab (Japanese LED Neon Sign) | 8.0MB | 墙面装饰 |
+| 电竞椅 | `cyberpunk/电竞椅.glb` | Sketchfab (Cyberpunk Gaming Chair) | 3.8MB | 工作区 |
+| 咖啡杯 | `cyberpunk/咖啡杯.glb` | Sketchfab (Coffee Mug) | 8.6MB | 工作区桌上 |
+| 盆栽 | `cyberpunk/盆栽.glb` | Sketchfab (Potted Plant) | 38MB⚠️ | 生活细节 |
+| 机器猫 | `cyberpunk/机器猫.glb` | Sketchfab (Sox Lightyear) | 16MB | 生活细节 |
+| 复古电脑 | `cyberpunk/复古电脑.glb` | Sketchfab (Retro Computer) | 2.4MB | 工作区 |
+| 床头柜 | `cyberpunk/床头柜.glb` | Sketchfab (Dormitory Assets) | 11MB | 睡眠区 |
+| 外套 | `cyberpunk/外套.glb` | Sketchfab (Clothes) | 18MB⚠️ | 椅背上 |
+| 城市天际线贴图 | `cyberpunk/城市天际线.png` | GPT Image 2 生成 | 2.7MB | 落地窗背景 |
 
 ⚠️ **体积警告**：盆栽(38MB)和外套(18MB)体积过大，集成前建议 Draco 压缩或寻找更轻量替代品。
 

@@ -18,8 +18,9 @@
     "models": [
       {
         "id": "bed",
-        "file": "bed.glb",
-        "nameCN": "床",
+        "file": "床.glb",
+        "r2Key": "cyberpunk/床.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/床.glb",
         "nameEN": "Neon Bedroom",
         "source": "sketchfab",
         "sketchfabUid": "cece4d1882994721811afdd500d8bcf3",
@@ -30,12 +31,13 @@
         "priority": "P0",
         "zone": "睡眠区",
         "position": "左侧靠墙",
-        "notes": "完整卧室场景模型，包含床体，可能需要拆取床的部分"
+        "notes": "完整卧室场景模型，可能需要拆取床的部分"
       },
       {
         "id": "desk",
-        "file": "desk.glb",
-        "nameCN": "桌子",
+        "file": "桌子.glb",
+        "r2Key": "cyberpunk/桌子.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/桌子.glb",
         "nameEN": "Lumen hologram Table",
         "source": "sketchfab",
         "sketchfabUid": "da757533288a40a08e14e35339c581c7",
@@ -50,8 +52,9 @@
       },
       {
         "id": "monitors",
-        "file": "monitors.glb",
-        "nameCN": "双显示器",
+        "file": "双显示器.glb",
+        "r2Key": "cyberpunk/双显示器.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/双显示器.glb",
         "nameEN": "Gaming Desk",
         "source": "sketchfab",
         "sketchfabUid": "5dc1e67d9cd04526a6c9ba89000b1a96",
@@ -66,8 +69,9 @@
       },
       {
         "id": "bookshelf",
-        "file": "bookshelf.glb",
-        "nameCN": "书架",
+        "file": "书架.glb",
+        "r2Key": "cyberpunk/书架.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/书架.glb",
         "nameEN": "Wooden Bookcases",
         "source": "sketchfab",
         "sketchfabUid": "d0618ac16b2a4a87b9b6c7d5e6765626",
@@ -81,8 +85,9 @@
       },
       {
         "id": "server-rack",
-        "file": "server-rack.glb",
-        "nameCN": "服务器机架",
+        "file": "服务器机架.glb",
+        "r2Key": "cyberpunk/服务器机架.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/服务器机架.glb",
         "nameEN": "Server Racking",
         "source": "sketchfab",
         "sketchfabUid": "6fe2cacf836b4aed96c650b286db5486",
@@ -92,15 +97,17 @@
         "priority": "P0",
         "zone": "存储/服务器区",
         "position": "右侧角落",
-        "notes": "含LED指示灯效果，运维合集对应物件"
+        "notes": "含LED指示灯效果"
       },
       {
         "id": "keyboard",
-        "file": "keyboard.glb",
-        "nameCN": "赛博朋克键盘",
+        "file": "赛博朋克键盘.glb",
+        "r2Key": "cyberpunk/赛博朋克键盘.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/赛博朋克键盘.glb",
         "nameEN": "NZXT miniTKL Keyboard",
         "source": "sketchfab",
         "sketchfabUid": "bcc7172169ac49e7bb7921de405e7a4c",
+        "sketchfabUrl": "https://sketchfab.com/3d-models/nzxt-minitkl-keyboard-bcc7172169ac49e7bb7921de405e7a4c",
         "size": 18870840,
         "sizeHuman": "18MB",
         "format": "GLB",
@@ -111,8 +118,9 @@
       },
       {
         "id": "neon-sign",
-        "file": "neon-sign.glb",
-        "nameCN": "霓虹灯牌",
+        "file": "霓虹灯牌.glb",
+        "r2Key": "cyberpunk/霓虹灯牌.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/霓虹灯牌.glb",
         "nameEN": "Cyberpunk Animated Japanese LED Neon Sign",
         "source": "sketchfab",
         "sketchfabUid": "7eeac0582f7746ffafcdf1091f882a5d",
@@ -122,12 +130,13 @@
         "priority": "P1",
         "zone": "墙面装饰",
         "position": "床头上方或窗户上方",
-        "notes": "日式霓虹灯牌，含动画LED效果，可作为氛围点睛"
+        "notes": "日式霓虹灯牌，含动画LED效果"
       },
       {
         "id": "chair",
-        "file": "chair.glb",
-        "nameCN": "电竞椅",
+        "file": "电竞椅.glb",
+        "r2Key": "cyberpunk/电竞椅.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/电竞椅.glb",
         "nameEN": "Cyberpunk Gaming Chair",
         "source": "sketchfab",
         "sketchfabUid": "601afdea98f14c488ee0be0ffb4b92dd",
@@ -141,8 +150,9 @@
       },
       {
         "id": "coffee-mug",
-        "file": "coffee-mug.glb",
-        "nameCN": "咖啡杯",
+        "file": "咖啡杯.glb",
+        "r2Key": "cyberpunk/咖啡杯.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/咖啡杯.glb",
         "nameEN": "Coffee Mug",
         "source": "sketchfab",
         "sketchfabUid": "56acc4502eca436e89149d00cc8cc238",
@@ -156,8 +166,9 @@
       },
       {
         "id": "plant",
-        "file": "plant.glb",
-        "nameCN": "盆栽",
+        "file": "盆栽.glb",
+        "r2Key": "cyberpunk/盆栽.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/盆栽.glb",
         "nameEN": "Potted Plant",
         "source": "sketchfab",
         "sketchfabUid": "efe25daceaf940f5aa8519b9d77683d2",
@@ -167,12 +178,13 @@
         "priority": "P2",
         "zone": "生活细节",
         "position": "角落或桌面",
-        "notes": "体积过大(38MB)，建议Draco压缩或寻找更轻量替代品"
+        "notes": "⚠️ 体积过大(38MB)，建议Draco压缩或寻找更轻量替代品"
       },
       {
         "id": "robot-cat",
-        "file": "robot-cat.glb",
-        "nameCN": "机器猫",
+        "file": "机器猫.glb",
+        "r2Key": "cyberpunk/机器猫.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/机器猫.glb",
         "nameEN": "Sox Lightyear",
         "source": "sketchfab",
         "sketchfabUid": "a92a7aface5d4fe4b95c861c57d91531",
@@ -186,8 +198,9 @@
       },
       {
         "id": "retro-computer",
-        "file": "retro-computer.glb",
-        "nameCN": "复古电脑",
+        "file": "复古电脑.glb",
+        "r2Key": "cyberpunk/复古电脑.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/复古电脑.glb",
         "nameEN": "Retro Computer",
         "source": "sketchfab",
         "sketchfabUid": "82eaf2047e0447a1bfea22482f1d1404",
@@ -201,9 +214,10 @@
       },
       {
         "id": "nightstand",
-        "file": "nightstand.glb",
-        "nameCN": "床头柜",
-        "nameEN": "Dormitory - Assets",
+        "file": "床头柜.glb",
+        "r2Key": "cyberpunk/床头柜.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/床头柜.glb",
+        "nameEN": "Dormitory Assets",
         "source": "sketchfab",
         "sketchfabUid": "6f8d7eda19364c79aeeedbb65d6073d1",
         "size": 10529656,
@@ -216,8 +230,9 @@
       },
       {
         "id": "jacket",
-        "file": "jacket.glb",
-        "nameCN": "外套",
+        "file": "外套.glb",
+        "r2Key": "cyberpunk/外套.glb",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/外套.glb",
         "nameEN": "Clothes",
         "source": "sketchfab",
         "sketchfabUid": "54646263f96a47be9b3d2befe8d0555e",
@@ -227,24 +242,25 @@
         "priority": "P2",
         "zone": "生活细节",
         "position": "椅背上",
-        "notes": "衣服资产包，体积较大(18MB)，需提取外套部分"
+        "notes": "⚠️ 体积较大(18MB)，需提取外套部分"
       }
     ],
     "textures": [
       {
         "id": "city-skyline",
-        "file": "city-skyline.png",
-        "nameCN": "城市天际线",
+        "file": "城市天际线.png",
+        "r2Key": "cyberpunk/城市天际线.png",
+        "url": "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk/城市天际线.png",
+        "cdnUrl": "https://static.nnnnzs.cn/upload/img-mpe6mvb0-37d0be8db09a6fed.png",
         "source": "generated",
         "generator": "GPT Image 2",
-        "cdnUrl": "https://static.nnnnzs.cn/upload/img-mpe6mvb0-37d0be8db09a6fed.png",
         "size": 2749516,
         "sizeHuman": "2.7MB",
         "resolution": "1792x1024",
         "priority": "P0",
         "zone": "窗户区",
         "position": "落地窗外背景",
-        "notes": "赛博朋克城市天际线全景，霓虹灯光雨夜效果，通过博客MCP generate_image工具生成"
+        "notes": "赛博朋克城市天际线全景，霓虹灯光雨夜效果"
       }
     ]
   },
