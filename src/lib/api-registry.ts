@@ -158,8 +158,13 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'get_article',
     handler: async (args) => {
       const { getPostById, getPostByTitle } = await import('@/services/post');
-      if (args.id) return getPostById(args.id as number);
-      if (args.title) return getPostByTitle(args.title as string);
+      const { getCollectionsByPostId } = await import('@/services/collection');
+      let post = null;
+      if (args.id) post = await getPostById(args.id as number);
+      if (args.title) post = await getPostByTitle(args.title as string);
+      if (post) {
+        return { ...post, collections: await getCollectionsByPostId(post.id) };
+      }
       return null;
     },
   },
@@ -170,12 +175,29 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'list_articles',
     handler: async (args) => {
       const { getPostList } = await import('@/services/post');
-      return getPostList({
+      const { getCollectionsByPostId } = await import('@/services/collection');
+      const result = await getPostList({
         pageNum: (args.pageNum as number) ?? 1,
         pageSize: (args.pageSize as number) ?? 10,
         query: args.keyword as string | undefined,
         hide: args.hide as string | undefined,
       });
+      // 批量查询文章合集信息
+      const postIds = result.record.map(p => p.id);
+      const colMap: Record<number, unknown[]> = {};
+      if (postIds.length > 0) {
+        const colPromises = postIds.map(async (id) => {
+          colMap[id] = await getCollectionsByPostId(id);
+        });
+        await Promise.all(colPromises);
+      }
+      return {
+        ...result,
+        record: result.record.map(p => ({
+          ...p,
+          collections: colMap[p.id] || [],
+        })),
+      };
     },
   },
   // ---- 图片生成模块 ----
