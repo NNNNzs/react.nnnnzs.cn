@@ -23,6 +23,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import type { HomepageSceneVariant } from './theme';
 
 // ========================
 // 常量
@@ -39,11 +40,70 @@ const CEILING_COLOR = '#0a0a14';
 // 程序化城市天际线纹理（增强版）
 // ========================
 
-function createCityTexture(): THREE.CanvasTexture {
+function createCityTexture(variant: HomepageSceneVariant): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 2048;
   canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
+
+  if (variant === 'day') {
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 560);
+    skyGrad.addColorStop(0, '#c7e9ff');
+    skyGrad.addColorStop(0.45, '#e7f5ff');
+    skyGrad.addColorStop(1, '#fff7ed');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, 2048, 1024);
+
+    for (let i = 0; i < 18; i++) {
+      const cx = 120 + i * 110 + (i % 3) * 18;
+      const cy = 90 + (i % 4) * 24;
+      const cloud = ctx.createRadialGradient(cx, cy, 0, cx, cy, 90);
+      cloud.addColorStop(0, 'rgba(255, 255, 255, 0.72)');
+      cloud.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = cloud;
+      ctx.fillRect(cx - 120, cy - 70, 240, 140);
+    }
+
+    for (let i = 0; i < 54; i++) {
+      const x = i * 42 - 80;
+      const w = 20 + (i % 5) * 7;
+      const h = 110 + (i % 9) * 23;
+      const topY = 560 - h;
+      const grad = ctx.createLinearGradient(x, topY, x, 560);
+      grad.addColorStop(0, '#cbd5e1');
+      grad.addColorStop(1, '#94a3b8');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = 0.35 + (i % 4) * 0.06;
+      ctx.fillRect(x, topY, w, h);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+      for (let wy = topY + 10; wy < 548; wy += 18) {
+        for (let wx = x + 5; wx < x + w - 4; wx += 12) {
+          ctx.fillRect(wx, wy, 4, 6);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    const groundGrad = ctx.createLinearGradient(0, 560, 0, 1024);
+    groundGrad.addColorStop(0, '#dbeafe');
+    groundGrad.addColorStop(0.5, '#eff6ff');
+    groundGrad.addColorStop(1, '#f8fafc');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, 560, 2048, 464);
+
+    const sun = ctx.createRadialGradient(1720, 130, 0, 1720, 130, 420);
+    sun.addColorStop(0, 'rgba(255, 236, 179, 0.85)');
+    sun.addColorStop(0.42, 'rgba(255, 236, 179, 0.24)');
+    sun.addColorStop(1, 'rgba(255, 236, 179, 0)');
+    ctx.fillStyle = sun;
+    ctx.fillRect(1250, -260, 900, 800);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    return texture;
+  }
 
   // --- 天空 ---
   const skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
@@ -227,20 +287,20 @@ function createCityTexture(): THREE.CanvasTexture {
 // 程序化旧木地板纹理
 // ========================
 
-function createFloorTexture(): THREE.CanvasTexture {
+function createFloorTexture(variant: HomepageSceneVariant): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
 
-  // 基础深色木地板
-  ctx.fillStyle = '#0e0e16';
+  // 基础木地板
+  ctx.fillStyle = variant === 'day' ? '#7a5f3d' : '#0e0e16';
   ctx.fillRect(0, 0, 512, 512);
 
   // 木板纹理（横向条纹）
   for (let y = 0; y < 512; y += 64) {
     // 板间缝隙
-    ctx.strokeStyle = '#080810';
+    ctx.strokeStyle = variant === 'day' ? '#5e472d' : '#080810';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -250,7 +310,9 @@ function createFloorTexture(): THREE.CanvasTexture {
     // 木纹线条
     for (let i = 0; i < 8; i++) {
       const ly = y + 5 + Math.random() * 55;
-      ctx.strokeStyle = `rgba(20, 20, 35, ${0.3 + Math.random() * 0.4})`;
+      ctx.strokeStyle = variant === 'day'
+        ? `rgba(255, 231, 186, ${0.08 + Math.random() * 0.14})`
+        : `rgba(20, 20, 35, ${0.3 + Math.random() * 0.4})`;
       ctx.lineWidth = 0.5 + Math.random();
       ctx.beginPath();
       ctx.moveTo(0, ly);
@@ -261,7 +323,7 @@ function createFloorTexture(): THREE.CanvasTexture {
 
   // 纵向板缝
   for (let x = 0; x < 512; x += 128) {
-    ctx.strokeStyle = '#080810';
+    ctx.strokeStyle = variant === 'day' ? '#5e472d' : '#080810';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -305,20 +367,22 @@ function createFloorTexture(): THREE.CanvasTexture {
 // 程序化墙体纹理（老旧混凝土）
 // ========================
 
-function createWallTexture(): THREE.CanvasTexture {
+function createWallTexture(variant: HomepageSceneVariant): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = '#0d0d1a';
+  ctx.fillStyle = variant === 'day' ? '#dfe7ef' : '#0d0d1a';
   ctx.fillRect(0, 0, 256, 256);
 
   // 混凝土噪点
   for (let i = 0; i < 500; i++) {
     const x = Math.random() * 256;
     const y = Math.random() * 256;
-    ctx.fillStyle = `rgba(${15 + Math.random() * 15}, ${15 + Math.random() * 15}, ${25 + Math.random() * 15}, 0.3)`;
+    ctx.fillStyle = variant === 'day'
+      ? `rgba(${190 + Math.random() * 35}, ${202 + Math.random() * 35}, ${215 + Math.random() * 30}, 0.25)`
+      : `rgba(${15 + Math.random() * 15}, ${15 + Math.random() * 15}, ${25 + Math.random() * 15}, 0.3)`;
     ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
   }
 
@@ -345,17 +409,17 @@ function createWallTexture(): THREE.CanvasTexture {
 // 主组件
 // ========================
 
-export default function Room() {
-  const cityTexture = useMemo(() => createCityTexture(), []);
-  const floorTexture = useMemo(() => createFloorTexture(), []);
-  const wallTexture = useMemo(() => createWallTexture(), []);
+export default function Room({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
+  const cityTexture = useMemo(() => createCityTexture(variant), [variant]);
+  const floorTexture = useMemo(() => createFloorTexture(variant), [variant]);
+  const wallTexture = useMemo(() => createWallTexture(variant), [variant]);
   const windowMeshRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     if (windowMeshRef.current) {
       const t = clock.getElapsedTime();
       const mat = windowMeshRef.current.material as THREE.MeshStandardMaterial;
-      if (mat) mat.emissiveIntensity = 0.5 + Math.sin(t * 0.5) * 0.05;
+      if (mat) mat.emissiveIntensity = variant === 'day' ? 0.12 : 0.5 + Math.sin(t * 0.5) * 0.05;
     }
   });
 
@@ -373,34 +437,34 @@ export default function Room() {
         <planeGeometry args={[ROOM.width, ROOM.depth]} />
         <meshStandardMaterial
           map={floorTexture}
-          color={FLOOR_COLOR}
-          roughness={0.65}
-          metalness={0.35}
+          color={variant === 'day' ? '#a47c4f' : FLOOR_COLOR}
+          roughness={variant === 'day' ? 0.78 : 0.65}
+          metalness={variant === 'day' ? 0.08 : 0.35}
         />
       </mesh>
 
       {/* ========== 后墙（落地窗所在墙） ========== */}
       <mesh position={[0, hh / 2, -hd]}>
         <planeGeometry args={[ROOM.width, hh]} />
-        <meshStandardMaterial map={wallTexture} color={WALL_COLOR} roughness={0.92} />
+        <meshStandardMaterial map={wallTexture} color={variant === 'day' ? '#eef4f8' : WALL_COLOR} roughness={0.92} />
       </mesh>
 
       {/* ========== 左墙 ========== */}
       <mesh position={[-hw, hh / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[ROOM.depth, hh]} />
-        <meshStandardMaterial map={wallTexture} color={WALL_COLOR} roughness={0.92} />
+        <meshStandardMaterial map={wallTexture} color={variant === 'day' ? '#eef4f8' : WALL_COLOR} roughness={0.92} />
       </mesh>
 
       {/* ========== 右墙 ========== */}
       <mesh position={[hw, hh / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[ROOM.depth, hh]} />
-        <meshStandardMaterial map={wallTexture} color={WALL_COLOR} roughness={0.92} />
+        <meshStandardMaterial map={wallTexture} color={variant === 'day' ? '#eef4f8' : WALL_COLOR} roughness={0.92} />
       </mesh>
 
       {/* ========== 天花板（裸露工业风） ========== */}
       <mesh position={[0, hh, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[ROOM.width, ROOM.depth]} />
-        <meshStandardMaterial color={CEILING_COLOR} roughness={1} />
+        <meshStandardMaterial color={variant === 'day' ? '#e8eef5' : CEILING_COLOR} roughness={1} />
       </mesh>
 
       {/* ========== 天花板管道系统（工业结构） ========== */}
@@ -414,7 +478,7 @@ export default function Room() {
       ].map((pipe, i) => (
         <mesh key={`hpipe-${i}`} position={pipe.pos}>
           <cylinderGeometry args={[pipe.r, pipe.r, pipe.length, 8]} />
-          <meshStandardMaterial color="#1a1a2a" metalness={0.85} roughness={0.25} />
+          <meshStandardMaterial color={variant === 'day' ? '#8b97a6' : '#1a1a2a'} metalness={variant === 'day' ? 0.35 : 0.85} roughness={0.25} />
         </mesh>
       ))}
 
@@ -426,7 +490,7 @@ export default function Room() {
       ].map((pipe, i) => (
         <mesh key={`vpipe-${i}`} position={pipe.pos} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[pipe.r, pipe.r, pipe.length, 8]} />
-          <meshStandardMaterial color="#15152a" metalness={0.85} roughness={0.25} />
+          <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#15152a'} metalness={variant === 'day' ? 0.35 : 0.85} roughness={0.25} />
         </mesh>
       ))}
 
@@ -437,22 +501,22 @@ export default function Room() {
       ].map((tray, i) => (
         <mesh key={`tray-${i}`} position={tray.pos}>
           <boxGeometry args={[tray.length, 0.02, 0.15]} />
-          <meshStandardMaterial color="#1a1a2a" metalness={0.8} roughness={0.3} />
+          <meshStandardMaterial color={variant === 'day' ? '#9aa6b5' : '#1a1a2a'} metalness={variant === 'day' ? 0.35 : 0.8} roughness={0.3} />
         </mesh>
       ))}
 
       {/* 天花板嵌入式霓虹灯带（沿管道边缘） */}
       <mesh position={[-1.2, 3.6, -2]}>
         <boxGeometry args={[4, 0.015, 0.015]} />
-        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={1.5} toneMapped={false} />
+        <meshStandardMaterial color={variant === 'day' ? '#ffe8bf' : '#00f0ff'} emissive={variant === 'day' ? '#ffe8bf' : '#00f0ff'} emissiveIntensity={variant === 'day' ? 0.22 : 1.5} toneMapped={false} />
       </mesh>
       <mesh position={[1.5, 3.65, 0.5]}>
         <boxGeometry args={[5, 0.015, 0.015]} />
-        <meshStandardMaterial color="#8844ff" emissive="#8844ff" emissiveIntensity={1.0} toneMapped={false} />
+        <meshStandardMaterial color={variant === 'day' ? '#bae6fd' : '#8844ff'} emissive={variant === 'day' ? '#bae6fd' : '#8844ff'} emissiveIntensity={variant === 'day' ? 0.12 : 1.0} toneMapped={false} />
       </mesh>
       <mesh position={[0, 3.55, -3]}>
         <boxGeometry args={[6, 0.015, 0.015]} />
-        <meshStandardMaterial color="#ff0066" emissive="#ff0066" emissiveIntensity={0.8} toneMapped={false} />
+        <meshStandardMaterial color={variant === 'day' ? '#fde68a' : '#ff0066'} emissive={variant === 'day' ? '#fde68a' : '#ff0066'} emissiveIntensity={variant === 'day' ? 0.1 : 0.8} toneMapped={false} />
       </mesh>
 
       {/* ========== 大型落地窗（后墙，占 75% 宽度） ========== */}
@@ -464,8 +528,8 @@ export default function Room() {
         <meshStandardMaterial
           map={cityTexture}
           emissiveMap={cityTexture}
-          emissive="#445577"
-          emissiveIntensity={0.5}
+          emissive={variant === 'day' ? '#fff2d0' : '#445577'}
+          emissiveIntensity={variant === 'day' ? 0.12 : 0.5}
           toneMapped={false}
         />
       </mesh>
@@ -473,30 +537,30 @@ export default function Room() {
       {/* 窗框 - 外框 */}
       <mesh position={[0, windowCenterY, -hd + 0.03]}>
         <boxGeometry args={[WINDOW.width + 0.1, 0.08, 0.08]} />
-        <meshStandardMaterial color="#1a1a25" metalness={0.9} roughness={0.15} />
+        <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
       <mesh position={[0, windowCenterY, -hd + 0.03]}>
         <boxGeometry args={[0.08, WINDOW.height + 0.1, 0.08]} />
-        <meshStandardMaterial color="#1a1a25" metalness={0.9} roughness={0.15} />
+        <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
       {/* 窗框底边 */}
       <mesh position={[0, WINDOW.bottomY - 0.02, -hd + 0.03]}>
         <boxGeometry args={[WINDOW.width + 0.1, 0.08, 0.08]} />
-        <meshStandardMaterial color="#1a1a25" metalness={0.9} roughness={0.15} />
+        <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
 
       {/* 纵向分隔条（4 条） */}
       {[0, 1, 2, 3].map((i) => (
         <mesh key={`frame-${i}`} position={[-WINDOW.width / 2 + (WINDOW.width / 4) * (i + 1), windowCenterY, -hd + 0.03]}>
           <boxGeometry args={[0.04, WINDOW.height, 0.04]} />
-          <meshStandardMaterial color="#1a1a25" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
         </mesh>
       ))}
 
       {/* ========== 踢脚线 ========== */}
       <mesh position={[0, 0.03, -hd + 0.02]}>
         <boxGeometry args={[ROOM.width, 0.06, 0.02]} />
-        <meshStandardMaterial color="#0a0a15" emissive="#00f0ff" emissiveIntensity={0.05} />
+        <meshStandardMaterial color={variant === 'day' ? '#d7c4a5' : '#0a0a15'} emissive={variant === 'day' ? '#ffe8bf' : '#00f0ff'} emissiveIntensity={variant === 'day' ? 0.015 : 0.05} />
       </mesh>
     </group>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import CyberpunkBanner from '@/components/cyberpunk/CyberpunkBanner';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
@@ -24,6 +24,23 @@ export default function HomePageClient({
   onLoadMore,
 }: HomePageClientProps) {
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
+  const postsAnchorRef = useRef<HTMLDivElement>(null);
+  const [isDarkTheme, setIsDarkTheme] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      setIsDarkTheme(document.documentElement.classList.contains('dark'));
+    };
+
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * 保存滚动位置 - 实时监听
@@ -145,22 +162,23 @@ export default function HomePageClient({
   }, [restoreScroll]);
 
   return (
-    <div className="snap-y snap-mandatory bg-background-light dark:bg-[#050611]">
+    <div className="bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
-      <CyberpunkBanner />
+      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} />
 
       {/* 文章列表 */}
-      <section className="cyberpunk-log-section snap-start">
+      <div ref={postsAnchorRef} />
+      <section className="cyberpunk-log-section">
         <div className="mx-auto max-w-5xl px-4 pt-14 md:px-6 md:pt-20">
-          <div className="mb-8 flex flex-col gap-3 border-l border-sky-500/40 pl-5 dark:border-cyan-300/35 md:mb-12">
+          <div className="mb-8 flex flex-col gap-3 border-l border-border-light pl-5 dark:border-cyan-300/35 md:mb-12">
             <span className="text-[11px] uppercase tracking-[0.34em] text-sky-700/70 dark:text-cyan-100/55">
-              Archive Stream
+              Recent Posts
             </span>
             <h2 className="text-2xl font-semibold tracking-normal text-text-main-light dark:text-slate-100 md:text-4xl">
-              最近写入的记忆日志
+              最近文章
             </h2>
             <p className="max-w-2xl text-sm leading-7 text-text-muted-light dark:text-slate-400">
-              继续向下就是小破站真实内容区，保留博客阅读效率，同时让它接住首屏的赛博朋克空间感。
+              Neon Nomad Navigating Night Zones. 记录技术、工具、运维、AI 与生活里的长期思考。
             </p>
           </div>
         </div>
@@ -175,7 +193,7 @@ export default function HomePageClient({
         {hasMore && posts.length > 0 && (
           <div className="mb-10 flex justify-center pt-6">
             <button
-              className="cursor-pointer border border-sky-500/35 bg-white/70 px-8 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-800/75 shadow-sm transition-all hover:border-sky-500/70 hover:bg-sky-50 hover:text-sky-950 dark:border-cyan-300/35 dark:bg-cyan-300/[0.08] dark:text-cyan-100/75 dark:shadow-[0_0_28px_rgba(34,211,238,0.08)] dark:hover:border-cyan-200/70 dark:hover:bg-cyan-200/[0.12] dark:hover:text-cyan-50"
+              className="cursor-pointer rounded-full border border-border-light bg-card-light px-8 py-3 text-sm font-medium text-text-muted-light shadow-sm transition-all hover:border-primary hover:text-primary hover:shadow-md dark:rounded-none dark:border-cyan-300/35 dark:bg-cyan-300/[0.08] dark:text-xs dark:font-semibold dark:uppercase dark:tracking-[0.24em] dark:text-cyan-100/75 dark:shadow-[0_0_28px_rgba(34,211,238,0.08)] dark:hover:border-cyan-200/70 dark:hover:bg-cyan-200/[0.12] dark:hover:text-cyan-50"
               onClick={onLoadMore}
             >
               加载更多文章

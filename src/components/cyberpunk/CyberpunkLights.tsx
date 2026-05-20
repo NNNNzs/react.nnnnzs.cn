@@ -9,11 +9,12 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
+import type { HomepageSceneVariant } from './theme';
 
 const PD = PRODUCTION_DEFAULTS.lights;
 const isDev = process.env.NODE_ENV === 'development';
 
-export default function CyberpunkLights() {
+export default function CyberpunkLights({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const windowLight = useRef<THREE.SpotLight>(null);
   const monitorLight = useRef<THREE.PointLight>(null);
   const serverLight = useRef<THREE.PointLight>(null);
@@ -53,7 +54,7 @@ export default function CyberpunkLights() {
   const ceilingPurpleDecay = useSceneStore(st => st.lights.ceilingPurpleDecay);
 
   // 当前生效值：开发环境用 selector 值，生产环境用默认常量
-  const v = isDev
+  const nightValues = isDev
     ? { ambientIntensity, ambientColor, windowIntensity, windowColor, windowAngle, windowPenumbra, windowDecay,
         monitorIntensity, monitorColor, monitorDistance, monitorDecay,
         serverIntensity, serverColor, serverDistance, serverDecay,
@@ -61,6 +62,18 @@ export default function CyberpunkLights() {
         ceilingCyanIntensity, ceilingCyanColor, ceilingCyanDistance, ceilingCyanDecay,
         ceilingPurpleIntensity, ceilingPurpleColor, ceilingPurpleDistance, ceilingPurpleDecay }
     : PD;
+
+  const v = variant === 'day'
+    ? {
+        ambientIntensity: 0.72, ambientColor: '#fff3df',
+        windowIntensity: 4.2, windowColor: '#ffd7a1', windowAngle: 0.75, windowPenumbra: 0.8, windowDecay: 1.2,
+        monitorIntensity: 0.35, monitorColor: '#89d7ff', monitorDistance: 2.8, monitorDecay: 2,
+        serverIntensity: 0.18, serverColor: '#a7d8ff', serverDistance: 2.2, serverDecay: 2,
+        neonSignIntensity: 0.28, neonSignColor: '#38bdf8', neonSignDistance: 3, neonSignDecay: 2,
+        ceilingCyanIntensity: 0.08, ceilingCyanColor: '#bae6fd', ceilingCyanDistance: 4, ceilingCyanDecay: 2,
+        ceilingPurpleIntensity: 0.04, ceilingPurpleColor: '#fbcfe8', ceilingPurpleDistance: 3, ceilingPurpleDecay: 2,
+      }
+    : nightValues;
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
@@ -135,8 +148,8 @@ export default function CyberpunkLights() {
       />
 
       {/* 固定补充光 */}
-      <pointLight position={[-1, 2.5, -5]} intensity={0.8} color="#334488" distance={10} decay={2} />
-      <pointLight position={[1.5, 2, -5]} intensity={0.4} color="#662244" distance={8} decay={2} />
+      <pointLight position={[-1, 2.5, -5]} intensity={variant === 'day' ? 0.7 : 0.8} color={variant === 'day' ? '#fff0c4' : '#334488'} distance={10} decay={2} />
+      <pointLight position={[1.5, 2, -5]} intensity={variant === 'day' ? 0.22 : 0.4} color={variant === 'day' ? '#dbeafe' : '#662244'} distance={8} decay={2} />
 
       <pointLight
         ref={monitorLight}
@@ -164,7 +177,7 @@ export default function CyberpunkLights() {
         distance={v.neonSignDistance}
         decay={v.neonSignDecay}
       />
-      <pointLight position={[0, 3.3, -3.5]} intensity={0.8} color="#00aacc" distance={4} decay={2} />
+      <pointLight position={[0, 3.3, -3.5]} intensity={variant === 'day' ? 0.18 : 0.8} color={variant === 'day' ? '#38bdf8' : '#00aacc'} distance={4} decay={2} />
 
       <pointLight
         ref={ceilingCyanLight}

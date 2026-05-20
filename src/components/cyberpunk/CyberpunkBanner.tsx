@@ -24,6 +24,7 @@ import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import { renderDevControls } from './DevControls';
+import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
 
 // ========================
 // 常量
@@ -117,8 +118,9 @@ function ParallaxCamera() {
 // 后处理
 // ========================
 
-function PostProcessing() {
+function PostProcessing({ variant }: { variant: HomepageSceneVariant }) {
   const isDev = process.env.NODE_ENV === 'development';
+  const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const bloomThreshold = useSceneStore(s => s.postProcessing.bloomThreshold);
   const bloomSmoothing = useSceneStore(s => s.postProcessing.bloomSmoothing);
@@ -128,15 +130,15 @@ function PostProcessing() {
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={isDev ? bloomThreshold : PRODUCTION_DEFAULTS.postProcessing.bloomThreshold}
-        luminanceSmoothing={isDev ? bloomSmoothing : PRODUCTION_DEFAULTS.postProcessing.bloomSmoothing}
-        intensity={isDev ? bloomIntensity : PRODUCTION_DEFAULTS.postProcessing.bloomIntensity}
+        luminanceThreshold={isDev && variant === 'night' ? bloomThreshold : preset.postProcessing.bloomThreshold}
+        luminanceSmoothing={isDev && variant === 'night' ? bloomSmoothing : preset.postProcessing.bloomSmoothing}
+        intensity={isDev && variant === 'night' ? bloomIntensity : preset.postProcessing.bloomIntensity}
         mipmapBlur
       />
       <Vignette
         eskil={false}
         offset={0.1}
-        darkness={isDev ? vignetteDarkness : PRODUCTION_DEFAULTS.postProcessing.vignetteDarkness}
+        darkness={isDev && variant === 'night' ? vignetteDarkness : preset.postProcessing.vignetteDarkness}
       />
     </EffectComposer>
   );
@@ -146,12 +148,14 @@ function PostProcessing() {
 // 加载中占位
 // ========================
 
-function LoadingFallback() {
+function LoadingFallback({ variant }: { variant: HomepageSceneVariant }) {
+  const isDay = variant === 'day';
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a1a]">
+    <div className={`absolute inset-0 flex items-center justify-center ${isDay ? 'bg-[#f8fafc]' : 'bg-[#0a0a1a]'}`}>
       <div className="flex flex-col items-center gap-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00f0ff] border-t-transparent" />
-        <p className="text-[#00f0ff]/70 text-sm font-mono">INITIALIZING...</p>
+        <div className={`h-8 w-8 animate-spin rounded-full border-2 border-t-transparent ${isDay ? 'border-sky-500' : 'border-[#00f0ff]'}`} />
+        <p className={`text-sm font-mono ${isDay ? 'text-sky-700/70' : 'text-[#00f0ff]/70'}`}>INITIALIZING...</p>
       </div>
     </div>
   );
@@ -161,9 +165,9 @@ function LoadingFallback() {
 // 错误回退
 // ========================
 
-function ErrorFallback() {
+function ErrorFallback({ variant }: { variant: HomepageSceneVariant }) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a1a]">
+    <div className={`absolute inset-0 flex items-center justify-center ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#0a0a1a]'}`}>
       <p className="text-[#ff0066]/70 text-sm font-mono">RENDER ERROR</p>
     </div>
   );
@@ -173,11 +177,16 @@ function ErrorFallback() {
 // 首屏 HUD 覆盖层
 // ========================
 
-function HeroInterfaceOverlay({ sceneReady }: { sceneReady: boolean }) {
+function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; variant: HomepageSceneVariant }) {
+  const isDay = variant === 'day';
+  const statuses = isDay
+    ? ['DAY ROOM', 'CLEAR WINDOW', 'NOTES READY', 'LOW BLOOM']
+    : ['ROOM ONLINE', 'RAIN 73%', 'POST ARCHIVE LINKED', 'BLOOM ACTIVE'];
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       <div className="cyberpunk-hero-atmosphere" />
-      <div className="cyberpunk-scanline" />
+      {!isDay && <div className="cyberpunk-scanline" />}
 
       <div
         className={`absolute left-4 right-4 top-[14vh] max-w-5xl transition-all duration-700 md:left-10 lg:left-16 ${
@@ -185,21 +194,23 @@ function HeroInterfaceOverlay({ sceneReady }: { sceneReady: boolean }) {
         }`}
       >
         <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
-          <span className="cyberpunk-kicker">NNNNZS / HABITAT NODE</span>
+          <span className="cyberpunk-kicker">{isDay ? 'NEON NOMAD / DAYLIGHT NOTES' : 'NEON NOMAD / NIGHT ZONES'}</span>
           <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
-          <span>2147 RAIN SESSION</span>
+          <span>{isDay ? 'SUNLIT SESSION' : '2147 RAIN SESSION'}</span>
         </div>
 
         <h1 className="cyberpunk-hero-title">
-          小破站
+          NNNNzs
         </h1>
 
         <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
-          一间正在被博客内容慢慢点亮的私人数字公寓：代码、运维、AI、生活记录都收纳在这里，像深夜窗边一排还没有关掉的终端。
+          {isDay
+            ? 'Neon Nomad Navigating Night Zones. 白天的房间留给阅读、整理和创作，代码、运维、AI 与生活切片在阳光里排成索引。'
+            : 'Neon Nomad Navigating Night Zones. 代码、运维、AI、生活切片都收纳在这里，像深夜窗边一排还没有关掉的终端。'}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          {['ROOM ONLINE', 'RAIN 73%', 'POST ARCHIVE LINKED', 'BLOOM ACTIVE'].map((item) => (
+          {statuses.map((item) => (
             <span key={item} className="cyberpunk-status-chip">
               {item}
             </span>
@@ -208,7 +219,7 @@ function HeroInterfaceOverlay({ sceneReady }: { sceneReady: boolean }) {
       </div>
 
       <div
-        className={`absolute bottom-20 right-4 hidden w-72 transition-all duration-700 md:block lg:right-12 ${
+        className={`absolute bottom-20 right-4 hidden w-72 transition-all duration-700 lg:right-12 ${isDay ? 'md:hidden' : 'md:block'} ${
           sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
         }`}
       >
@@ -240,7 +251,7 @@ function HeroInterfaceOverlay({ sceneReady }: { sceneReady: boolean }) {
 // 3D 场景内容
 // ========================
 
-function Scene() {
+function Scene({ variant }: { variant: HomepageSceneVariant }) {
   const isDev = process.env.NODE_ENV === 'development';
 
   // Zustand selector - 只有对应字段变化时才重渲染
@@ -251,7 +262,7 @@ function Scene() {
   const showGrid = useSceneStore(s => s.elements.showGrid);
 
   const pUseOrbit = isDev ? useOrbit : false;
-  const pShowRain = isDev ? showRain : true;
+  const pShowRain = variant === 'night' && (isDev ? showRain : true);
   const pShowFurniture = isDev ? showFurniture : true;
   const pShowRoom = isDev ? showRoom : true;
   const pShowGrid = isDev ? showGrid : false;
@@ -271,7 +282,7 @@ function Scene() {
           target={[0, 1.2, 0]}
         />
       )}
-      <CyberpunkLights />
+      <CyberpunkLights variant={variant} />
       {pShowGrid && (
         <Grid
           args={[20, 20]}
@@ -287,10 +298,10 @@ function Scene() {
           infiniteGrid
         />
       )}
-      {pShowRoom && <Room />}
-      {pShowFurniture && <Furniture />}
+      {pShowRoom && <Room variant={variant} />}
+      {pShowFurniture && <Furniture variant={variant} />}
       {pShowRain && <RainEffect />}
-      <PostProcessing />
+      <PostProcessing variant={variant} />
     </>
   );
 }
@@ -299,10 +310,10 @@ function Scene() {
 // 滚动淡出遮罩
 // ========================
 
-function ScrollFadeOverlay({ scrollProgress }: { scrollProgress: number }) {
+function ScrollFadeOverlay({ scrollProgress, variant }: { scrollProgress: number; variant: HomepageSceneVariant }) {
   return (
     <div
-      className="absolute inset-0 pointer-events-none bg-[#0a0a1a] transition-opacity duration-100"
+      className={`absolute inset-0 pointer-events-none transition-opacity duration-100 ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#0a0a1a]'}`}
       style={{ opacity: Math.min(scrollProgress * 2, 1) }}
     />
   );
@@ -312,13 +323,14 @@ function ScrollFadeOverlay({ scrollProgress }: { scrollProgress: number }) {
 // 主组件
 // ========================
 
-export default function CyberpunkBanner() {
+export default function CyberpunkBanner({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const [webglOk, setWebglOk] = useState(true);
   const [lowEnd, setLowEnd] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const isDev = process.env.NODE_ENV === 'development';
+  const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const camPosX = useSceneStore(s => s.camera.positionX);
   const camPosY = useSceneStore(s => s.camera.positionY);
@@ -327,8 +339,8 @@ export default function CyberpunkBanner() {
 
   const cameraPos: [number, number, number] = isDev
     ? [camPosX, camPosY, camPosZ]
-    : [PRODUCTION_DEFAULTS.camera.positionX, PRODUCTION_DEFAULTS.camera.positionY, PRODUCTION_DEFAULTS.camera.positionZ];
-  const fov = isDev ? cameraFov : PRODUCTION_DEFAULTS.camera.fov;
+    : preset.camera.position;
+  const fov = isDev ? cameraFov : preset.camera.fov;
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -365,9 +377,9 @@ export default function CyberpunkBanner() {
 
   if (!webglOk || lowEnd) {
     return (
-      <div className="relative h-screen snap-start overflow-hidden bg-[#050611]">
+      <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
         <div className="cyberpunk-static-fallback" />
-        <HeroInterfaceOverlay sceneReady />
+        <HeroInterfaceOverlay sceneReady variant={variant} />
         <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
           Low power visual mode
         </div>
@@ -376,7 +388,7 @@ export default function CyberpunkBanner() {
   }
 
   return (
-    <div className="relative h-screen snap-start overflow-hidden bg-[#050611]">
+    <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
       <div className="absolute inset-0" style={{ opacity: sceneReady ? 1 : 0, transition: 'opacity 1s ease' }}>
         <Canvas
           camera={{
@@ -395,19 +407,21 @@ export default function CyberpunkBanner() {
           onError={() => setHasError(true)}
         >
           <Suspense fallback={null}>
-            <Scene />
+            <Scene variant={variant} />
           </Suspense>
         </Canvas>
       </div>
 
-      {!sceneReady && !hasError && <LoadingFallback />}
-      {hasError && <ErrorFallback />}
-      <HeroInterfaceOverlay sceneReady={sceneReady && !hasError} />
-      <ScrollFadeOverlay scrollProgress={scrollProgress} />
+      {!sceneReady && !hasError && <LoadingFallback variant={variant} />}
+      {hasError && <ErrorFallback variant={variant} />}
+      <HeroInterfaceOverlay sceneReady={sceneReady && !hasError} variant={variant} />
+      <ScrollFadeOverlay scrollProgress={scrollProgress} variant={variant} />
 
       <div
         onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-        className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 cursor-pointer flex-col items-center gap-2 text-center text-[#8df7ff]/70 transition-colors hover:text-[#8df7ff]"
+        className={`absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 cursor-pointer flex-col items-center gap-2 text-center transition-colors ${
+          variant === 'day' ? 'text-sky-900/60 hover:text-sky-950' : 'text-[#8df7ff]/70 hover:text-[#8df7ff]'
+        }`}
       >
         <span className="text-[10px] uppercase tracking-[0.36em]">logs</span>
         <DownOutlined className="animate-bounce text-3xl" />

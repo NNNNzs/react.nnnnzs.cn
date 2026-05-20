@@ -20,6 +20,7 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
+import type { HomepageSceneVariant } from './theme';
 
 // ========================
 // 共享材质
@@ -625,16 +626,16 @@ function GlowPlant() {
 }
 
 // ========================
-// 霓虹灯牌 "小破站"（落地窗上方悬挂）
+// 霓虹灯牌 "NNNNzs"（落地窗上方悬挂）
 // ========================
 
-function NeonSign() {
+function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const panelRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     if (panelRef.current) {
       const mat = panelRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.45 + Math.sin(clock.getElapsedTime() * 2) * 0.12;
+      mat.emissiveIntensity = variant === 'day' ? 0.08 : 0.45 + Math.sin(clock.getElapsedTime() * 2) * 0.12;
     }
   });
 
@@ -643,43 +644,48 @@ function NeonSign() {
       {/* 悬挂线 */}
       <mesh position={[-0.4, 0.15, 0]}>
         <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
-        <meshStandardMaterial color="#1a1a2a" />
+        <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#1a1a2a'} />
       </mesh>
       <mesh position={[0.4, 0.15, 0]}>
         <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
-        <meshStandardMaterial color="#1a1a2a" />
+        <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#1a1a2a'} />
       </mesh>
       {/* 背板 */}
       <mesh ref={panelRef}>
         <planeGeometry args={[1.4, 0.35]} />
         <meshStandardMaterial
-          color="#130817"
-          emissive="#ff0066"
-          emissiveIntensity={0.45}
+          color={variant === 'day' ? '#f8fafc' : '#130817'}
+          emissive={variant === 'day' ? '#38bdf8' : '#ff0066'}
+          emissiveIntensity={variant === 'day' ? 0.08 : 0.45}
           toneMapped={false}
           transparent
-          opacity={0.72}
+          opacity={variant === 'day' ? 0.86 : 0.72}
         />
       </mesh>
       <Text
         position={[0, -0.005, 0.018]}
-        fontSize={0.22}
+        fontSize={0.2}
         anchorX="center"
         anchorY="middle"
-        color="#ffd6f0"
-        outlineWidth={0.01}
-        outlineColor="#ff0066"
+        color={variant === 'day' ? '#0f172a' : '#ffd6f0'}
+        outlineWidth={variant === 'day' ? 0.003 : 0.01}
+        outlineColor={variant === 'day' ? '#bae6fd' : '#ff0066'}
       >
-        小破站
-        <meshStandardMaterial color="#ffd6f0" emissive="#ff0066" emissiveIntensity={2.6} toneMapped={false} />
+        NNNNzs
+        <meshStandardMaterial
+          color={variant === 'day' ? '#0f172a' : '#ffd6f0'}
+          emissive={variant === 'day' ? '#38bdf8' : '#ff0066'}
+          emissiveIntensity={variant === 'day' ? 0.12 : 2.6}
+          toneMapped={false}
+        />
       </Text>
       {/* 青蓝边框 */}
       <mesh position={[0, 0, 0.001]}>
         <planeGeometry args={[1.5, 0.45]} />
         <meshStandardMaterial
-          color="#00f0ff"
-          emissive="#00f0ff"
-          emissiveIntensity={0.5}
+          color={variant === 'day' ? '#38bdf8' : '#00f0ff'}
+          emissive={variant === 'day' ? '#38bdf8' : '#00f0ff'}
+          emissiveIntensity={variant === 'day' ? 0.08 : 0.5}
           toneMapped={false}
           transparent
           opacity={0.2}
@@ -689,9 +695,9 @@ function NeonSign() {
       <mesh>
         <planeGeometry args={[2.5, 1.0]} />
         <meshStandardMaterial
-          color="#ff0066"
-          emissive="#ff0066"
-          emissiveIntensity={0.15}
+          color={variant === 'day' ? '#bae6fd' : '#ff0066'}
+          emissive={variant === 'day' ? '#bae6fd' : '#ff0066'}
+          emissiveIntensity={variant === 'day' ? 0.04 : 0.15}
           transparent
           opacity={0.08}
           toneMapped={false}
@@ -705,7 +711,7 @@ function NeonSign() {
 // 悬浮内容终端（博客内容映射预告）
 // ========================
 
-function HologramPanels() {
+function HologramPanels({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const panelRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
@@ -717,19 +723,19 @@ function HologramPanels() {
   return (
     <group ref={panelRef} position={[-0.72, 1.55, -2.72]} rotation={[0, 0.12, 0]}>
       {[
-        { y: 0.24, w: 0.62, color: '#00f0ff' },
-        { y: 0, w: 0.84, color: '#ff0066' },
-        { y: -0.24, w: 0.5, color: '#00ff88' },
+        { y: 0.24, w: 0.62, color: variant === 'day' ? '#38bdf8' : '#00f0ff' },
+        { y: 0, w: 0.84, color: variant === 'day' ? '#f59e0b' : '#ff0066' },
+        { y: -0.24, w: 0.5, color: variant === 'day' ? '#22c55e' : '#00ff88' },
       ].map((item, index) => (
         <group key={item.color} position={[0, item.y, index * 0.01]}>
           <mesh>
             <planeGeometry args={[1.05, 0.14]} />
             <meshStandardMaterial
-              color="#06111d"
+              color={variant === 'day' ? '#eff6ff' : '#06111d'}
               emissive={item.color}
-              emissiveIntensity={0.18}
+              emissiveIntensity={variant === 'day' ? 0.04 : 0.18}
               transparent
-              opacity={0.34}
+              opacity={variant === 'day' ? 0.24 : 0.34}
               toneMapped={false}
             />
           </mesh>
@@ -738,22 +744,50 @@ function HologramPanels() {
             <meshStandardMaterial
               color={item.color}
               emissive={item.color}
-              emissiveIntensity={1.4}
+              emissiveIntensity={variant === 'day' ? 0.16 : 1.4}
               transparent
-              opacity={0.72}
+              opacity={variant === 'day' ? 0.42 : 0.72}
               toneMapped={false}
             />
           </mesh>
           <mesh position={[0.43, 0, 0.012]}>
             <boxGeometry args={[0.045, 0.045, 0.006]} />
-            <meshStandardMaterial color={item.color} emissive={item.color} emissiveIntensity={1.1} toneMapped={false} />
+            <meshStandardMaterial color={item.color} emissive={item.color} emissiveIntensity={variant === 'day' ? 0.16 : 1.1} toneMapped={false} />
           </mesh>
         </group>
       ))}
       <mesh position={[0, -0.45, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.28, 0.32, 32]} />
-        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.7} transparent opacity={0.38} toneMapped={false} />
+        <meshStandardMaterial color={variant === 'day' ? '#38bdf8' : '#00f0ff'} emissive={variant === 'day' ? '#38bdf8' : '#00f0ff'} emissiveIntensity={variant === 'day' ? 0.08 : 0.7} transparent opacity={variant === 'day' ? 0.16 : 0.38} toneMapped={false} />
       </mesh>
+    </group>
+  );
+}
+
+// ========================
+// 日间阳光斑
+// ========================
+
+function DaySunPatches() {
+  return (
+    <group>
+      {[
+        { position: [-1.35, 0.016, -0.55] as [number, number, number], scale: [1.45, 0.42, 1] as [number, number, number], rotation: 0.3 },
+        { position: [0.85, 0.017, -1.85] as [number, number, number], scale: [1.8, 0.35, 1] as [number, number, number], rotation: -0.22 },
+      ].map((item, index) => (
+        <mesh key={index} position={item.position} rotation={[-Math.PI / 2, 0, item.rotation]} scale={item.scale}>
+          <circleGeometry args={[0.56, 32]} />
+          <meshStandardMaterial
+            color="#ffd9a3"
+            emissive="#ffd9a3"
+            emissiveIntensity={0.1}
+            transparent
+            opacity={0.18}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -948,7 +982,7 @@ function LivingClutter() {
 // 主组件 - 组装所有家具
 // ========================
 
-export default function Furniture() {
+export default function Furniture({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   return (
     <group>
       {/* 工作区（落地窗正前方偏右） */}
@@ -981,11 +1015,11 @@ export default function Furniture() {
       <CoffeeMug />
       <GlowPlant />
       <RobotPet />
-      <HologramPanels />
-      <FloorReflections />
+      <HologramPanels variant={variant} />
+      {variant === 'day' ? <DaySunPatches /> : <FloorReflections />}
 
       {/* 标识 */}
-      <NeonSign />
+      <NeonSign variant={variant} />
     </group>
   );
 }

@@ -199,10 +199,7 @@ body {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, #f8fafc 0%, #eef6ff 42%, #f8fafc 100%),
-    radial-gradient(circle at 18% 20%, rgba(14, 165, 233, 0.08), transparent 28%),
-    radial-gradient(circle at 78% 34%, rgba(236, 72, 153, 0.05), transparent 32%);
+  background: var(--color-background-light);
 }
 
 .dark .cyberpunk-log-section {
@@ -217,26 +214,23 @@ body {
   inset: 0;
   pointer-events: none;
   content: "";
+  display: none;
+}
+
+.dark .cyberpunk-log-section::before {
+  display: block;
   background-image:
-    linear-gradient(rgba(14, 165, 233, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14, 165, 233, 0.055) 1px, transparent 1px);
+    linear-gradient(rgba(103, 232, 249, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: linear-gradient(180deg, transparent, black 12%, black 86%, transparent);
 }
 
-.dark .cyberpunk-log-section::before {
-  background-image:
-    linear-gradient(rgba(103, 232, 249, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px);
-}
-
 .cyberpunk-post-item {
-  border: 1px solid rgba(14, 165, 233, 0.16);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.98)),
-    linear-gradient(90deg, rgba(14, 165, 233, 0.07), transparent 35%, rgba(236, 72, 153, 0.04));
-  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-card-light);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   transform: translateY(0);
   transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
 }
@@ -250,8 +244,8 @@ body {
 }
 
 .cyberpunk-post-item:hover {
-  border-color: rgba(14, 165, 233, 0.36);
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.14), 0 0 36px rgba(14, 165, 233, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  border-color: var(--color-border-light);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
   transform: translateY(-4px);
 }
 
@@ -267,10 +261,11 @@ body {
   width: 78px;
   height: 1px;
   content: "";
-  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.5));
+  display: none;
 }
 
 .dark .cyberpunk-post-item::after {
+  display: block;
   background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.72));
 }
 

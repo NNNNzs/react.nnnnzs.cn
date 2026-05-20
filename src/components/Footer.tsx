@@ -44,7 +44,7 @@ export default function Footer() {
               关于博主
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              记录技术，分享生活。这里是一个全栈开发者的数字花园，涵盖前端架构、后端服务、人工智能等领域的实践与思考。
+              Neon Nomad Navigating Night Zones。这里记录前端架构、后端服务、人工智能等领域的实践与思考。
             </p>
           </div>
 

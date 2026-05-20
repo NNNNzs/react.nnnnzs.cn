@@ -17,7 +17,7 @@ import "@/lib/embedding-init";
 
 export const metadata: Metadata = {
   title: "NNNNzs",
-  description: "记录技术，分享生活",
+  description: "Neon Nomad Navigating Night Zones",
 };
 export const experimental = {
   scrollRestoration: true,

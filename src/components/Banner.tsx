@@ -134,7 +134,7 @@ export default function Banner({ cover, title, subtitle, anchorRef }: BannerProp
         {/* 如果没有 title，显示默认的一言 */}
         {!title && (
           <div className="mix-blend-difference p-8 text-2xl text-white antialiased transition-all duration-300 hover:backdrop-blur-[3px] relative z-10">
-            <p className="mb-20">记录技术，分享生活</p>
+            <p className="mb-20">Neon Nomad Navigating Night Zones</p>
           </div>
         )}
 

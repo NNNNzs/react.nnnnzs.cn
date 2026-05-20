@@ -30,7 +30,7 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
       }`}
       id={`post_${post.id}`}
     >
-      <div className="pointer-events-none absolute left-4 top-4 z-10 font-mono text-[11px] uppercase tracking-[0.22em] text-sky-900/45 dark:text-cyan-100/45 md:left-5 md:top-5">
+      <div className="pointer-events-none absolute left-4 top-4 z-10 hidden font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-100/45 dark:block md:left-5 md:top-5">
         LOG {String(index + 1).padStart(2, "0")}
       </div>
 
@@ -45,7 +45,7 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
                 unoptimized={true}
                 title={post.cover || ""}
                 fill
-                className="object-cover saturate-[0.85] transition-transform duration-700 group-hover:scale-105 group-hover:saturate-110"
+                className="object-cover transition-transform duration-700 group-hover:scale-105 dark:saturate-[0.85] dark:group-hover:saturate-110"
                 sizes="(max-width: 768px) 100vw, 40vw"
               />
             ) : (
@@ -55,15 +55,15 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
             )}
           </div>
         </Link>
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),transparent_38%,rgba(236,72,153,0.10))] dark:bg-[linear-gradient(135deg,rgba(0,240,255,0.18),transparent_38%,rgba(255,0,102,0.18))]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-black/10 md:bg-gradient-to-r dark:from-[#050611] dark:to-black/20" />
+        <div className="absolute inset-0 hidden bg-[linear-gradient(135deg,rgba(0,240,255,0.18),transparent_38%,rgba(255,0,102,0.18))] dark:block" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 md:hidden dark:from-[#050611] dark:via-transparent dark:to-black/20 dark:md:block dark:md:bg-gradient-to-r" />
       </div>
 
       {/* 文章信息 - 3/5 */}
       <div className="flex min-h-[320px] flex-col justify-between p-6 md:w-3/5 md:p-8">
         <div>
           {/* 时间 */}
-          <div className="mb-3 flex items-center gap-3 font-mono text-xs font-medium uppercase tracking-[0.18em] text-sky-800/55 dark:text-cyan-100/45">
+          <div className="mb-3 flex items-center gap-3 text-xs font-medium text-text-muted-light dark:font-mono dark:uppercase dark:tracking-[0.18em] dark:text-cyan-100/45">
             <time dateTime={post.date ?? undefined}>
               {dayjs(post.date).format("YYYY-MM-DD")}
             </time>
