@@ -161,6 +161,40 @@ interface HomepageThemePreset {
    - 地板、墙壁、桌子 → Three.js 基础几何体
    - 粒子系统 → 代码实现
 
+> **2026-05-20 更新**：素材已准备完成。14 个 GLB 模型 + 1 张 AI 生成城市天际线贴图，全部上传至 Cloudflare R2 `cyberpunk/` 目录。
+> 完整素材清单见 `docs/reference/3d-assets-manifest.json`，包含每个模型的 R2 下载地址、Sketchfab 来源、体积、场景位置等信息。
+> 本地备份位于 NAS `/root/home/3d-models/`。
+
+#### 已准备素材总览
+
+| 元素 | 文件 | 来源 | 体积 | 场景区位 |
+|------|------|------|------|----------|
+| 床 | `bed.glb` | Sketchfab (Neon Bedroom) | 6.3MB | 睡眠区 |
+| 桌子 | `desk.glb` | Sketchfab (Lumen hologram Table) | 1.7MB | 工作区 |
+| 双显示器 | `monitors.glb` | Sketchfab (Gaming Desk) | 0.2MB | 工作区桌上 |
+| 书架 | `bookshelf.glb` | Sketchfab (Wooden Bookcases) | 3.0MB | 存储/服务器区 |
+| 服务器机架 | `server-rack.glb` | Sketchfab (Server Racking) | 13MB | 存储/服务器区 |
+| 赛博朋克键盘 | `keyboard.glb` | Sketchfab (NZXT miniTKL) | 18MB | 工作区桌上 |
+| 霓虹灯牌 | `neon-sign.glb` | Sketchfab (Japanese LED Neon Sign) | 8.0MB | 墙面装饰 |
+| 电竞椅 | `chair.glb` | Sketchfab (Cyberpunk Gaming Chair) | 3.8MB | 工作区 |
+| 咖啡杯 | `coffee-mug.glb` | Sketchfab (Coffee Mug) | 8.6MB | 工作区桌上 |
+| 盆栽 | `plant.glb` | Sketchfab (Potted Plant) | 38MB⚠️ | 生活细节 |
+| 机器猫 | `robot-cat.glb` | Sketchfab (Sox Lightyear) | 16MB | 生活细节 |
+| 复古电脑 | `retro-computer.glb` | Sketchfab (Retro Computer) | 2.4MB | 工作区 |
+| 床头柜 | `nightstand.glb` | Sketchfab (Dormitory Assets) | 11MB | 睡眠区 |
+| 外套 | `jacket.glb` | Sketchfab (Clothes) | 18MB⚠️ | 椅背上 |
+| 城市天际线贴图 | `city-skyline.png` | GPT Image 2 生成 | 2.7MB | 落地窗背景 |
+
+⚠️ **体积警告**：盆栽(38MB)和外套(18MB)体积过大，集成前建议 Draco 压缩或寻找更轻量替代品。
+
+**代码生成物件**（不需要下载模型）：地板、墙壁、天花板、落地窗窗框、天花板管道、散落线缆、NNNNzs 标识牌、全息时钟。
+
+**存储信息**：
+- R2 目录：`threejs/cyberpunk/`（Worker: `r2-file-manager.nnnnzs.workers.dev`）
+- 下载地址：`/api/download/cyberpunk/{文件名}`
+- 本地备份：NAS `/root/home/3d-models/`
+- 管理脚本：`threejs-learn/scripts/batch-download-upload.py`
+
 ### 性能策略
 
 - 3D 场景仅占首屏，不阻塞文章列表加载
@@ -245,7 +279,7 @@ interface HomepageThemePreset {
 - [ ] 生成日间/夜间静态 fallback 海报，用于低端设备和 WebGL 不可用场景
 - [ ] 移动端适配截图检查（375px / 390px / 430px）
 - [ ] 性能验证：首屏帧率、bundle 体积、低端设备降级阈值
-- [ ] 加载 GLB 模型替换焦点物件（键盘、椅子、服务器或机器人宠物）
+- [ ] 加载 GLB 模型替换焦点物件（键盘、椅子、服务器或机器人宠物）— ✅ 素材已就绪，见 `docs/reference/3d-assets-manifest.json`
 
 ---
 
