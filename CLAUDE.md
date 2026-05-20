@@ -83,6 +83,13 @@
 - **[Prisma 版本说明](docs/reference/PRISMA_VERSION_NOTE.md)** - Prisma 相关技术说明
 - **[MCP 合集使用指南](docs/reference/mcp-collections-guide.md)** - MCP 合集功能使用指南
 
+## 🚀 部署
+
+- **CI/CD**: GitHub Actions (`Docker Release` workflow)，push 到 `main` 分支自动触发
+- **部署目标**: Docker 镜像构建后部署到 `www.nnnnzs.cn`（非 Vercel）
+- **构建命令**: `pnpm build`（含 `npx prisma generate && next build`）
+- **注意**: 不是 Vercel 部署，不要使用 `vercel` CLI
+
 ## 🚀 快速开始
 
 ### 首次使用
