@@ -4,9 +4,10 @@
  */
 "use client";
 
-import { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { MdPreview, MdPreviewProps, MdCatalog } from "md-editor-rt";
 import "md-editor-rt/lib/preview.css";
+import { useDarkMode } from "@/hooks/useDarkMode";
 
 interface MarkdownPreviewProps extends MdPreviewProps {
   /**
@@ -60,27 +61,7 @@ export default function MarkdownPreview({
   const editorId = useMemo(() => generateStableId(content), [content]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hasCatalog = showMdCatalog && hasHeadings(content);
-  const [isDark, setIsDark] = useState(false);
-
-  // 监听暗色模式变化 - 直接从 DOM 检测
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const dark = document.documentElement.classList.contains('dark');
-      setIsDark(dark);
-    };
-
-    // 初始检查
-    checkDarkMode();
-
-    // 监听 class 变化
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  const { isDark } = useDarkMode();
 
   return (
     <div ref={wrapperRef} className={`markdown-preview-wrapper relative ${isDark ? 'md-dark-preview' : ''}`}>

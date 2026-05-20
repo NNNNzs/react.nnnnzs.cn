@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
+import { useDarkMode } from '@/hooks/useDarkMode';
 
 interface HomePageClientProps {
   posts: Post[];
@@ -52,22 +53,7 @@ export default function HomePageClient({
 }: HomePageClientProps) {
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
   const postsAnchorRef = useRef<HTMLDivElement>(null);
-  const [isDarkTheme, setIsDarkTheme] = useState(false);
-
-  useEffect(() => {
-    const syncTheme = () => {
-      setIsDarkTheme(document.documentElement.classList.contains('dark'));
-    };
-
-    syncTheme();
-    const observer = new MutationObserver(syncTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  const { isDark: isDarkTheme } = useDarkMode();
 
   /**
    * 保存滚动位置 - 实时监听

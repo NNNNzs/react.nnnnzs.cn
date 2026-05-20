@@ -22,33 +22,19 @@ interface UseDarkModeResult {
 /**
  * 暗色模式管理 Hook
  *
+ * SSR/Client 初始值固定为 false，避免 hydration mismatch。
+ * 客户端 mount 后通过 useEffect 读取真实主题并应用。
+ * layout.tsx 中的内联阻塞脚本负责在渲染前设置 dark class，防止 FOUC。
+ *
  * @returns 返回当前是否暗色模式以及切换函数
  */
 export function useDarkMode(): UseDarkModeResult {
-  // 检测是否在服务端渲染环境
-  const isServer = typeof window === "undefined";
-
-  // 从 localStorage 读取初始主题（服务端和客户端保持一致）
-  const getInitialTheme = (): boolean => {
-    if (isServer) {
-      // SSR 时默认返回 false，避免 hydration mismatch
-      return false;
-    }
-    const theme = localStorage.getItem("theme");
-    if (theme) {
-      return theme === "dark";
-    }
-    // 检查系统偏好
-    if (typeof window !== "undefined" && window.matchMedia) {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return false;
-  };
-
-  const [isDark, setIsDark] = useState<boolean>(getInitialTheme);
+  // SSR/Client 初始值始终一致，避免 hydration mismatch
+  const [isDark, setIsDark] = useState<boolean>(false);
+  const [mounted, setMounted] = useState(false);
 
   const applyTheme = useCallback((dark: boolean) => {
-    if (typeof window === "undefined") return; // SSR 跳过 DOM 操作
+    if (typeof window === "undefined") return;
 
     if (dark) {
       document.documentElement.classList.add("dark");
@@ -68,22 +54,22 @@ export function useDarkMode(): UseDarkModeResult {
   }, [applyTheme]);
 
   useEffect(() => {
-    // 只在客户端初始化主题
-    if (isServer) return;
-
-    const initTheme = () => {
-      const theme = localStorage.getItem("theme");
-      const dark = theme === "dark";
-      setIsDark(dark);
-      applyTheme(dark);
-    };
-
-    // 使用 requestAnimationFrame 避免同步 setState
-    requestAnimationFrame(initTheme);
+    // 客户端 mount 后才读取真实主题
+    const theme = localStorage.getItem("theme");
+    let dark = false;
+    if (theme) {
+      dark = theme === "dark";
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      dark = true;
+    }
+    setIsDark(dark);
+    setMounted(true);
+    applyTheme(dark);
   }, [applyTheme]);
 
   return {
-    isDark,
+    // 未 mounted 前返回 false，与 SSR 保持一致
+    isDark: mounted ? isDark : false,
     toggleDark,
   };
 }
