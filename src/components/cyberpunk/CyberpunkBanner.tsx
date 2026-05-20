@@ -14,7 +14,7 @@
 'use client';
 
 import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { DownOutlined } from '@ant-design/icons';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, Grid } from '@react-three/drei';
@@ -32,11 +32,9 @@ import { renderDevControls } from './DevControls';
 const isWebGLAvailable = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const canvas = document.createElement('canvas') as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    return !!(window as any).WebGLRenderingContext && !!gl;
+    const canvas = document.createElement('canvas');
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    return 'WebGLRenderingContext' in window && !!gl;
   } catch {
     return false;
   }
@@ -45,10 +43,8 @@ const isWebGLAvailable = (): boolean => {
 const isLowEndDevice = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const canvas = document.createElement('canvas') as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    const canvas = document.createElement('canvas');
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
     if (!gl) return true;
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     if (debugInfo) {
@@ -67,7 +63,6 @@ const isLowEndDevice = (): boolean => {
 // ========================
 
 function ParallaxCamera() {
-  const { camera } = useThree();
   const mouse = useRef({ x: 0, y: 0 });
   const target = useRef({ x: 0, y: 0 });
   const isDev = process.env.NODE_ENV === 'development';
@@ -104,7 +99,7 @@ function ParallaxCamera() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  useFrame(() => {
+  useFrame(({ camera }) => {
     if (!pEnabled) return;
 
     target.current.x += (mouse.current.x - target.current.x) * pSmooth;
@@ -170,6 +165,73 @@ function ErrorFallback() {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a1a]">
       <p className="text-[#ff0066]/70 text-sm font-mono">RENDER ERROR</p>
+    </div>
+  );
+}
+
+// ========================
+// 首屏 HUD 覆盖层
+// ========================
+
+function HeroInterfaceOverlay({ sceneReady }: { sceneReady: boolean }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      <div className="cyberpunk-hero-atmosphere" />
+      <div className="cyberpunk-scanline" />
+
+      <div
+        className={`absolute left-4 right-4 top-[14vh] max-w-5xl transition-all duration-700 md:left-10 lg:left-16 ${
+          sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+        }`}
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
+          <span className="cyberpunk-kicker">NNNNZS / HABITAT NODE</span>
+          <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
+          <span>2147 RAIN SESSION</span>
+        </div>
+
+        <h1 className="cyberpunk-hero-title">
+          小破站
+        </h1>
+
+        <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
+          一间正在被博客内容慢慢点亮的私人数字公寓：代码、运维、AI、生活记录都收纳在这里，像深夜窗边一排还没有关掉的终端。
+        </p>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          {['ROOM ONLINE', 'RAIN 73%', 'POST ARCHIVE LINKED', 'BLOOM ACTIVE'].map((item) => (
+            <span key={item} className="cyberpunk-status-chip">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className={`absolute bottom-20 right-4 hidden w-72 transition-all duration-700 md:block lg:right-12 ${
+          sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+        }`}
+      >
+        <div className="cyberpunk-diagnostic-panel">
+          <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-sky-900/55 dark:text-cyan-100/55">
+            <span>Memory Shelf</span>
+            <span>09 collections</span>
+          </div>
+          <div className="space-y-2">
+            {[
+              ['Frontend Lab', '27'],
+              ['Ops Rack', '12'],
+              ['AI Terminal', '06'],
+            ].map(([label, count]) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="h-1.5 w-1.5 bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.45)] dark:bg-cyan-300 dark:shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+                <span className="flex-1 text-xs text-slate-700/75 dark:text-slate-200/75">{label}</span>
+                <span className="font-mono text-xs text-pink-700/75 dark:text-pink-200/80">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -269,13 +331,17 @@ export default function CyberpunkBanner() {
   const fov = isDev ? cameraFov : PRODUCTION_DEFAULTS.camera.fov;
 
   useEffect(() => {
-    if (!isWebGLAvailable()) {
-      setWebglOk(false);
-      return;
-    }
-    if (isLowEndDevice()) {
-      setLowEnd(true);
-    }
+    const frame = window.requestAnimationFrame(() => {
+      if (!isWebGLAvailable()) {
+        setWebglOk(false);
+        return;
+      }
+      if (isLowEndDevice()) {
+        setLowEnd(true);
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -299,18 +365,18 @@ export default function CyberpunkBanner() {
 
   if (!webglOk || lowEnd) {
     return (
-      <div className="relative snap-start h-screen bg-[#0a0a1a]">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[#00f0ff]/30 text-lg font-mono tracking-widest">
-            3D 场景加载中...
-          </p>
+      <div className="relative h-screen snap-start overflow-hidden bg-[#050611]">
+        <div className="cyberpunk-static-fallback" />
+        <HeroInterfaceOverlay sceneReady />
+        <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
+          Low power visual mode
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative snap-start h-screen overflow-hidden bg-[#0a0a1a]">
+    <div className="relative h-screen snap-start overflow-hidden bg-[#050611]">
       <div className="absolute inset-0" style={{ opacity: sceneReady ? 1 : 0, transition: 'opacity 1s ease' }}>
         <Canvas
           camera={{
@@ -336,13 +402,15 @@ export default function CyberpunkBanner() {
 
       {!sceneReady && !hasError && <LoadingFallback />}
       {hasError && <ErrorFallback />}
+      <HeroInterfaceOverlay sceneReady={sceneReady && !hasError} />
       <ScrollFadeOverlay scrollProgress={scrollProgress} />
 
       <div
         onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-        className="absolute bottom-4 left-0 right-0 cursor-pointer text-center text-[#00f0ff]/60 animate-bounce z-10"
+        className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 cursor-pointer flex-col items-center gap-2 text-center text-[#8df7ff]/70 transition-colors hover:text-[#8df7ff]"
       >
-        <DownOutlined className="text-4xl" />
+        <span className="text-[10px] uppercase tracking-[0.36em]">logs</span>
+        <DownOutlined className="animate-bounce text-3xl" />
       </div>
     </div>
   );

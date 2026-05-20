@@ -60,6 +60,230 @@ body {
   color: var(--foreground);
 }
 
+/* Cyberpunk homepage polish */
+.cyberpunk-hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(14, 165, 233, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 62%, rgba(236, 72, 153, 0.08), transparent 34%),
+    linear-gradient(90deg, rgba(248, 250, 252, 0.74) 0%, rgba(248, 250, 252, 0.18) 42%, rgba(248, 250, 252, 0.58) 100%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.08), rgba(248, 250, 252, 0.76));
+}
+
+.dark .cyberpunk-hero-atmosphere {
+  background:
+    radial-gradient(circle at 22% 28%, rgba(0, 240, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 82% 62%, rgba(255, 0, 102, 0.13), transparent 34%),
+    linear-gradient(90deg, rgba(5, 6, 17, 0.86) 0%, rgba(5, 6, 17, 0.34) 42%, rgba(5, 6, 17, 0.72) 100%),
+    linear-gradient(180deg, rgba(5, 6, 17, 0.2), rgba(5, 6, 17, 0.92));
+}
+
+.cyberpunk-scanline {
+  position: absolute;
+  inset: 0;
+  opacity: 0.26;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
+  background-size: 100% 4px, 72px 100%;
+  mix-blend-mode: screen;
+  animation: cyberpunk-scan 8s linear infinite;
+}
+
+.dark .cyberpunk-scanline {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.1) 1px, transparent 1px);
+}
+
+.cyberpunk-kicker {
+  position: relative;
+  padding-left: 14px;
+}
+
+.cyberpunk-kicker::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  content: "";
+  background: #0284c7;
+  box-shadow: 0 0 18px rgba(14, 165, 233, 0.45);
+  transform: translateY(-50%);
+}
+
+.dark .cyberpunk-kicker::before {
+  background: #67e8f9;
+  box-shadow: 0 0 18px rgba(103, 232, 249, 0.95);
+}
+
+.cyberpunk-hero-title {
+  max-width: 720px;
+  color: #0f172a;
+  font-size: clamp(4.5rem, 13vw, 10.5rem);
+  font-weight: 900;
+  line-height: 0.86;
+  letter-spacing: 0;
+  text-shadow:
+    0 0 18px rgba(14, 165, 233, 0.16),
+    0 0 44px rgba(236, 72, 153, 0.1),
+    0 18px 80px rgba(15, 23, 42, 0.16);
+}
+
+.dark .cyberpunk-hero-title {
+  color: #f8fbff;
+  text-shadow:
+    0 0 18px rgba(103, 232, 249, 0.4),
+    0 0 44px rgba(255, 0, 102, 0.34),
+    0 18px 80px rgba(0, 0, 0, 0.65);
+}
+
+.cyberpunk-status-chip {
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  background: rgba(255, 255, 255, 0.62);
+  padding: 8px 10px;
+  color: rgba(12, 74, 110, 0.78);
+  font-family: var(--font-mono, "SF Mono", Monaco, Consolas, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  box-shadow: inset 0 0 18px rgba(14, 165, 233, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.dark .cyberpunk-status-chip {
+  border-color: rgba(103, 232, 249, 0.28);
+  background: rgba(8, 14, 30, 0.62);
+  color: rgba(207, 250, 254, 0.74);
+  box-shadow: inset 0 0 18px rgba(34, 211, 238, 0.06);
+}
+
+.cyberpunk-diagnostic-panel {
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(240, 249, 255, 0.58)),
+    repeating-linear-gradient(0deg, rgba(14, 165, 233, 0.035) 0 1px, transparent 1px 7px);
+  padding: 16px;
+  box-shadow: 0 18px 70px rgba(15, 23, 42, 0.12), inset 0 0 30px rgba(14, 165, 233, 0.04);
+  backdrop-filter: blur(14px);
+}
+
+.dark .cyberpunk-diagnostic-panel {
+  border-color: rgba(103, 232, 249, 0.22);
+  background:
+    linear-gradient(135deg, rgba(8, 14, 30, 0.72), rgba(18, 8, 26, 0.54)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px);
+  box-shadow: 0 18px 80px rgba(0, 0, 0, 0.42), inset 0 0 30px rgba(34, 211, 238, 0.04);
+}
+
+.cyberpunk-static-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, rgba(0, 240, 255, 0.16), transparent 34%),
+    linear-gradient(245deg, rgba(255, 0, 102, 0.16), transparent 36%),
+    repeating-linear-gradient(90deg, rgba(103, 232, 249, 0.08) 0 1px, transparent 1px 90px),
+    linear-gradient(180deg, #f8fafc, #eef6ff 72%);
+}
+
+.dark .cyberpunk-static-fallback {
+  background:
+    linear-gradient(115deg, rgba(0, 240, 255, 0.16), transparent 34%),
+    linear-gradient(245deg, rgba(255, 0, 102, 0.16), transparent 36%),
+    repeating-linear-gradient(90deg, rgba(103, 232, 249, 0.08) 0 1px, transparent 1px 90px),
+    linear-gradient(180deg, #070817, #050611 72%);
+}
+
+.cyberpunk-log-section {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #eef6ff 42%, #f8fafc 100%),
+    radial-gradient(circle at 18% 20%, rgba(14, 165, 233, 0.08), transparent 28%),
+    radial-gradient(circle at 78% 34%, rgba(236, 72, 153, 0.05), transparent 32%);
+}
+
+.dark .cyberpunk-log-section {
+  background:
+    linear-gradient(180deg, #050611 0%, #080b17 42%, #050611 100%),
+    radial-gradient(circle at 18% 20%, rgba(0, 240, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 78% 34%, rgba(255, 0, 102, 0.07), transparent 32%);
+}
+
+.cyberpunk-log-section::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(180deg, transparent, black 12%, black 86%, transparent);
+}
+
+.dark .cyberpunk-log-section::before {
+  background-image:
+    linear-gradient(rgba(103, 232, 249, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px);
+}
+
+.cyberpunk-post-item {
+  border: 1px solid rgba(14, 165, 233, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.98)),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.07), transparent 35%, rgba(236, 72, 153, 0.04));
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  transform: translateY(0);
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.dark .cyberpunk-post-item {
+  border-color: rgba(103, 232, 249, 0.16);
+  background:
+    linear-gradient(135deg, rgba(10, 17, 34, 0.92), rgba(8, 10, 23, 0.98)),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.08), transparent 35%, rgba(255, 0, 102, 0.05));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.cyberpunk-post-item:hover {
+  border-color: rgba(14, 165, 233, 0.36);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.14), 0 0 36px rgba(14, 165, 233, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  transform: translateY(-4px);
+}
+
+.dark .cyberpunk-post-item:hover {
+  border-color: rgba(103, 232, 249, 0.42);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46), 0 0 42px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.cyberpunk-post-item::after {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: 78px;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.5));
+}
+
+.dark .cyberpunk-post-item::after {
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.72));
+}
+
+@keyframes cyberpunk-scan {
+  from {
+    background-position: 0 0, 0 0;
+  }
+
+  to {
+    background-position: 0 40px, 72px 0;
+  }
+}
+
 /* 加载动画点 */
 .loading-dots {
   animation: dots 1.5s infinite;

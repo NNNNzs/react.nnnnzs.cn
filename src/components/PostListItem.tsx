@@ -25,13 +25,17 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
 
   return (
     <li
-      className={`group relative m-auto my-8 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-card-light shadow-sm hover:shadow-xl dark:bg-card-dark md:h-auto md:flex-row border border-border-light dark:border-border-dark transition-all duration-300 transform hover:-translate-y-1 ${
+      className={`cyberpunk-post-item group relative m-auto my-8 flex w-full max-w-5xl flex-col overflow-hidden md:h-auto md:flex-row ${
         isEven ? "" : "md:flex-row-reverse"
       }`}
       id={`post_${post.id}`}
     >
+      <div className="pointer-events-none absolute left-4 top-4 z-10 font-mono text-[11px] uppercase tracking-[0.22em] text-sky-900/45 dark:text-cyan-100/45 md:left-5 md:top-5">
+        LOG {String(index + 1).padStart(2, "0")}
+      </div>
+
       {/* 封面图片 - 2/5 */}
-      <div className="md:w-2/5 h-64 md:h-auto overflow-hidden relative">
+      <div className="relative h-64 overflow-hidden md:h-auto md:w-2/5">
         <Link href={post.path || "#"} prefetch={false}>
           <div className="relative w-full h-full">
             {post.cover ? (
@@ -41,27 +45,25 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
                 unoptimized={true}
                 title={post.cover || ""}
                 fill
-                className={`object-cover transition-transform duration-700 group-hover:scale-105 ${
-                  isEven ? "md:rounded-l-2xl md:rounded-r-none" : "md:rounded-r-2xl md:rounded-l-none"
-                } rounded-t-2xl md:rounded-t-none`}
+                className="object-cover saturate-[0.85] transition-transform duration-700 group-hover:scale-105 group-hover:saturate-110"
                 sizes="(max-width: 768px) 100vw, 40vw"
               />
             ) : (
-              <div className="flex h-full items-center justify-center bg-slate-100 dark:bg-slate-900/50">
-                <span className="text-slate-400 dark:text-slate-600">暂无封面</span>
+              <div className="flex h-full items-center justify-center bg-slate-100 dark:bg-[#080b17]">
+                <span className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-600">暂无封面</span>
               </div>
             )}
           </div>
         </Link>
-        {/* 移动端渐变遮罩 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 md:hidden"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),transparent_38%,rgba(236,72,153,0.10))] dark:bg-[linear-gradient(135deg,rgba(0,240,255,0.18),transparent_38%,rgba(255,0,102,0.18))]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-black/10 md:bg-gradient-to-r dark:from-[#050611] dark:to-black/20" />
       </div>
 
       {/* 文章信息 - 3/5 */}
-      <div className="md:w-3/5 p-6 md:p-8 flex flex-col justify-between min-h-[320px]">
+      <div className="flex min-h-[320px] flex-col justify-between p-6 md:w-3/5 md:p-8">
         <div>
           {/* 时间 */}
-          <div className="flex items-center gap-3 text-xs font-medium text-text-muted-light dark:text-text-muted-dark mb-3">
+          <div className="mb-3 flex items-center gap-3 font-mono text-xs font-medium uppercase tracking-[0.18em] text-sky-800/55 dark:text-cyan-100/45">
             <time dateTime={post.date ?? undefined}>
               {dayjs(post.date).format("YYYY-MM-DD")}
             </time>
@@ -73,6 +75,7 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
               href={post.path || "#"}
               title={post.title || ""}
               prefetch={false}
+              className="text-text-main-light transition-colors group-hover:text-sky-700 dark:text-slate-100 dark:group-hover:text-cyan-100"
             >
               {post.title}
             </Link>
@@ -94,14 +97,14 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
 
           {/* 描述 */}
           {post.description && (
-            <p className="text-text-muted-light dark:text-text-muted-dark text-sm leading-relaxed line-clamp-3 mb-4">
+            <p className="mb-4 line-clamp-3 text-sm leading-7 text-text-muted-light dark:text-slate-400">
               {post.description}
             </p>
           )}
         </div>
 
         {/* 底部元信息 */}
-        <div className="flex items-center gap-4 text-xs text-text-muted-light dark:text-text-muted-dark border-t border-border-light dark:border-border-dark pt-4 mt-auto">
+        <div className="mt-auto flex items-center gap-4 border-t border-sky-500/12 pt-4 text-xs text-text-muted-light dark:border-cyan-300/12 dark:text-slate-500">
           <span className="flex items-center gap-1">
             <EyeOutlined className="text-sm" />
             {post.visitors || 0}

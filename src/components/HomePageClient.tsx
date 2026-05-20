@@ -145,13 +145,27 @@ export default function HomePageClient({
   }, [restoreScroll]);
 
   return (
-    <div className="snap-y snap-mandatory">
+    <div className="snap-y snap-mandatory bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
       <CyberpunkBanner />
 
       {/* 文章列表 */}
-      <div className="snap-start">
-        <ul>
+      <section className="cyberpunk-log-section snap-start">
+        <div className="mx-auto max-w-5xl px-4 pt-14 md:px-6 md:pt-20">
+          <div className="mb-8 flex flex-col gap-3 border-l border-sky-500/40 pl-5 dark:border-cyan-300/35 md:mb-12">
+            <span className="text-[11px] uppercase tracking-[0.34em] text-sky-700/70 dark:text-cyan-100/55">
+              Archive Stream
+            </span>
+            <h2 className="text-2xl font-semibold tracking-normal text-text-main-light dark:text-slate-100 md:text-4xl">
+              最近写入的记忆日志
+            </h2>
+            <p className="max-w-2xl text-sm leading-7 text-text-muted-light dark:text-slate-400">
+              继续向下就是小破站真实内容区，保留博客阅读效率，同时让它接住首屏的赛博朋克空间感。
+            </p>
+          </div>
+        </div>
+
+        <ul className="px-4 md:px-6">
           {posts.map((post, index) => (
             <PostListItem key={post.id} post={post} index={index} />
           ))}
@@ -159,9 +173,9 @@ export default function HomePageClient({
 
         {/* 加载更多 */}
         {hasMore && posts.length > 0 && (
-          <div className="flex justify-center pt-8 mb-8 ">
+          <div className="mb-10 flex justify-center pt-6">
             <button
-              className="cursor-pointer px-8 py-3 rounded-full border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark text-text-muted-light dark:text-text-muted-dark hover:text-primary hover:border-primary transition-all text-sm font-medium shadow-sm hover:shadow-md"
+              className="cursor-pointer border border-sky-500/35 bg-white/70 px-8 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-800/75 shadow-sm transition-all hover:border-sky-500/70 hover:bg-sky-50 hover:text-sky-950 dark:border-cyan-300/35 dark:bg-cyan-300/[0.08] dark:text-cyan-100/75 dark:shadow-[0_0_28px_rgba(34,211,238,0.08)] dark:hover:border-cyan-200/70 dark:hover:bg-cyan-200/[0.12] dark:hover:text-cyan-50"
               onClick={onLoadMore}
             >
               加载更多文章
@@ -171,11 +185,11 @@ export default function HomePageClient({
 
         {/* 已加载全部 */}
         {!hasMore && posts.length > 0 && (
-          <div className="py-8 text-center text-text-muted-light dark:text-text-muted-dark">
+          <div className="py-8 text-center text-xs uppercase tracking-[0.24em] text-text-muted-light dark:text-slate-500">
             已加载全部文章
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

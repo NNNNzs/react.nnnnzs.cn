@@ -18,6 +18,7 @@
 
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ========================
@@ -135,8 +136,9 @@ function createScreenTexture(variant: number): THREE.CanvasTexture {
 
 function BlinkingLED({ position, color }: { position: [number, number, number]; color: string }) {
   const ref = useRef<THREE.Mesh>(null);
-  const speed = useMemo(() => 0.5 + Math.random() * 3, []);
-  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+  const seed = Math.abs(position[0] * 17 + position[1] * 31 + position[2] * 43 + color.length);
+  const speed = 0.5 + (seed % 3);
+  const offset = (seed % 6.28);
 
   useFrame(({ clock }) => {
     if (ref.current) {
@@ -428,7 +430,7 @@ function Bookshelf() {
           <meshStandardMaterial
             color={item.color}
             emissive={item.color}
-            emissiveIntensity={0.4 + Math.random() * 0.4}
+            emissiveIntensity={0.45 + (i % 4) * 0.08}
             toneMapped={false}
           />
         </mesh>
@@ -627,12 +629,12 @@ function GlowPlant() {
 // ========================
 
 function NeonSign() {
-  const ref = useRef<THREE.Mesh>(null);
+  const panelRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
-    if (ref.current) {
-      const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 1.5 + Math.sin(clock.getElapsedTime() * 2) * 0.3;
+    if (panelRef.current) {
+      const mat = panelRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.45 + Math.sin(clock.getElapsedTime() * 2) * 0.12;
     }
   });
 
@@ -647,18 +649,30 @@ function NeonSign() {
         <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
         <meshStandardMaterial color="#1a1a2a" />
       </mesh>
-      {/* 霓虹文字占位（发光平面，后续替换 3D 文字） */}
-      <mesh ref={ref}>
+      {/* 背板 */}
+      <mesh ref={panelRef}>
         <planeGeometry args={[1.4, 0.35]} />
         <meshStandardMaterial
-          color="#ff0066"
+          color="#130817"
           emissive="#ff0066"
-          emissiveIntensity={1.5}
+          emissiveIntensity={0.45}
           toneMapped={false}
           transparent
-          opacity={0.9}
+          opacity={0.72}
         />
       </mesh>
+      <Text
+        position={[0, -0.005, 0.018]}
+        fontSize={0.22}
+        anchorX="center"
+        anchorY="middle"
+        color="#ffd6f0"
+        outlineWidth={0.01}
+        outlineColor="#ff0066"
+      >
+        小破站
+        <meshStandardMaterial color="#ffd6f0" emissive="#ff0066" emissiveIntensity={2.6} toneMapped={false} />
+      </Text>
       {/* 青蓝边框 */}
       <mesh position={[0, 0, 0.001]}>
         <planeGeometry args={[1.5, 0.45]} />
@@ -683,6 +697,92 @@ function NeonSign() {
           toneMapped={false}
         />
       </mesh>
+    </group>
+  );
+}
+
+// ========================
+// 悬浮内容终端（博客内容映射预告）
+// ========================
+
+function HologramPanels() {
+  const panelRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (panelRef.current) {
+      panelRef.current.position.y = 1.55 + Math.sin(clock.getElapsedTime() * 0.9) * 0.035;
+    }
+  });
+
+  return (
+    <group ref={panelRef} position={[-0.72, 1.55, -2.72]} rotation={[0, 0.12, 0]}>
+      {[
+        { y: 0.24, w: 0.62, color: '#00f0ff' },
+        { y: 0, w: 0.84, color: '#ff0066' },
+        { y: -0.24, w: 0.5, color: '#00ff88' },
+      ].map((item, index) => (
+        <group key={item.color} position={[0, item.y, index * 0.01]}>
+          <mesh>
+            <planeGeometry args={[1.05, 0.14]} />
+            <meshStandardMaterial
+              color="#06111d"
+              emissive={item.color}
+              emissiveIntensity={0.18}
+              transparent
+              opacity={0.34}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh position={[-0.18, 0, 0.01]}>
+            <planeGeometry args={[item.w, 0.018]} />
+            <meshStandardMaterial
+              color={item.color}
+              emissive={item.color}
+              emissiveIntensity={1.4}
+              transparent
+              opacity={0.72}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh position={[0.43, 0, 0.012]}>
+            <boxGeometry args={[0.045, 0.045, 0.006]} />
+            <meshStandardMaterial color={item.color} emissive={item.color} emissiveIntensity={1.1} toneMapped={false} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, -0.45, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.28, 0.32, 32]} />
+        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.7} transparent opacity={0.38} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// ========================
+// 湿润地面光斑
+// ========================
+
+function FloorReflections() {
+  return (
+    <group>
+      {[
+        { position: [0.2, 0.012, -0.2] as [number, number, number], scale: [1.8, 0.46, 1] as [number, number, number], color: '#00f0ff' },
+        { position: [1.62, 0.014, -2.35] as [number, number, number], scale: [1.1, 0.32, 1] as [number, number, number], color: '#ff0066' },
+        { position: [-2.05, 0.013, -1.9] as [number, number, number], scale: [1.0, 0.26, 1] as [number, number, number], color: '#8844ff' },
+      ].map((item, index) => (
+        <mesh key={index} position={item.position} rotation={[-Math.PI / 2, 0, index * 0.35]} scale={item.scale}>
+          <circleGeometry args={[0.55, 32]} />
+          <meshStandardMaterial
+            color={item.color}
+            emissive={item.color}
+            emissiveIntensity={0.24}
+            transparent
+            opacity={0.16}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -881,6 +981,8 @@ export default function Furniture() {
       <CoffeeMug />
       <GlowPlant />
       <RobotPet />
+      <HologramPanels />
+      <FloorReflections />
 
       {/* 标识 */}
       <NeonSign />
