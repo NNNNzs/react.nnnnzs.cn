@@ -23,7 +23,6 @@ import RainEffect from './RainEffect';
 import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
-import { renderDevControls } from './DevControls';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
 
 // ========================
@@ -63,14 +62,16 @@ const isLowEndDevice = (): boolean => {
 // 相机控制器（鼠标视差）
 // ========================
 
-function ParallaxCamera() {
+function ParallaxCamera({ editable, variant }: { editable: boolean; variant: HomepageSceneVariant }) {
   const mouse = useRef({ x: 0, y: 0 });
   const target = useRef({ x: 0, y: 0 });
-  const isDev = process.env.NODE_ENV === 'development';
+  const wheelZoom = useRef(0);
+  const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   // 开发模式订阅 store，生产模式不需要
   const camX = useSceneStore(s => s.camera.positionX);
   const camY = useSceneStore(s => s.camera.positionY);
+  const camZ = useSceneStore(s => s.camera.positionZ);
   const lookX = useSceneStore(s => s.camera.lookAtX);
   const lookY = useSceneStore(s => s.camera.lookAtY);
   const lookZ = useSceneStore(s => s.camera.lookAtZ);
@@ -81,15 +82,16 @@ function ParallaxCamera() {
 
   // 生产模式默认值
   const d = PRODUCTION_DEFAULTS;
-  const pCamX = isDev ? camX : d.camera.positionX;
-  const pCamY = isDev ? camY : d.camera.positionY;
-  const pLookX = isDev ? lookX : d.camera.lookAtX;
-  const pLookY = isDev ? lookY : d.camera.lookAtY;
-  const pLookZ = isDev ? lookZ : d.camera.lookAtZ;
-  const pEnabled = isDev ? parallaxEnabled : d.parallax.enabled;
-  const pX = isDev ? parallaxX : d.parallax.intensityX;
-  const pY = isDev ? parallaxY : d.parallax.intensityY;
-  const pSmooth = isDev ? parallaxSmooth : d.parallax.smoothness;
+  const pCamX = editable ? camX : preset.camera.position[0];
+  const pCamY = editable ? camY : preset.camera.position[1];
+  const pCamZ = editable ? camZ : preset.camera.position[2];
+  const pLookX = editable ? lookX : d.camera.lookAtX;
+  const pLookY = editable ? lookY : d.camera.lookAtY;
+  const pLookZ = editable ? lookZ : d.camera.lookAtZ;
+  const pEnabled = editable ? parallaxEnabled : true;
+  const pX = editable ? parallaxX : d.parallax.intensityX;
+  const pY = editable ? parallaxY : d.parallax.intensityY;
+  const pSmooth = editable ? parallaxSmooth : d.parallax.smoothness;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -100,6 +102,16 @@ function ParallaxCamera() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (window.scrollY >= window.innerHeight) return;
+      wheelZoom.current = Math.max(-2.2, Math.min(4, wheelZoom.current + e.deltaY * 0.003));
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
   useFrame(({ camera }) => {
     if (!pEnabled) return;
 
@@ -108,6 +120,7 @@ function ParallaxCamera() {
 
     camera.position.x = pCamX + target.current.x * pX;
     camera.position.y = pCamY + target.current.y * pY;
+    camera.position.z += (pCamZ + wheelZoom.current - camera.position.z) * 0.08;
     camera.lookAt(pLookX, pLookY, pLookZ);
   });
 
@@ -118,8 +131,7 @@ function ParallaxCamera() {
 // 后处理
 // ========================
 
-function PostProcessing({ variant }: { variant: HomepageSceneVariant }) {
-  const isDev = process.env.NODE_ENV === 'development';
+function PostProcessing({ editable, variant }: { editable: boolean; variant: HomepageSceneVariant }) {
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const bloomThreshold = useSceneStore(s => s.postProcessing.bloomThreshold);
@@ -130,15 +142,15 @@ function PostProcessing({ variant }: { variant: HomepageSceneVariant }) {
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={isDev && variant === 'night' ? bloomThreshold : preset.postProcessing.bloomThreshold}
-        luminanceSmoothing={isDev && variant === 'night' ? bloomSmoothing : preset.postProcessing.bloomSmoothing}
-        intensity={isDev && variant === 'night' ? bloomIntensity : preset.postProcessing.bloomIntensity}
+        luminanceThreshold={editable && variant === 'night' ? bloomThreshold : preset.postProcessing.bloomThreshold}
+        luminanceSmoothing={editable && variant === 'night' ? bloomSmoothing : preset.postProcessing.bloomSmoothing}
+        intensity={editable && variant === 'night' ? bloomIntensity : preset.postProcessing.bloomIntensity}
         mipmapBlur
       />
       <Vignette
         eskil={false}
         offset={0.1}
-        darkness={isDev && variant === 'night' ? vignetteDarkness : preset.postProcessing.vignetteDarkness}
+        darkness={editable && variant === 'night' ? vignetteDarkness : preset.postProcessing.vignetteDarkness}
       />
     </EffectComposer>
   );
@@ -251,8 +263,9 @@ function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; va
 // 3D 场景内容
 // ========================
 
-function Scene({ variant }: { variant: HomepageSceneVariant }) {
+function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; variant: HomepageSceneVariant }) {
   const isDev = process.env.NODE_ENV === 'development';
+  const editable = isDev || debugControlsOpen;
 
   // Zustand selector - 只有对应字段变化时才重渲染
   const useOrbit = useSceneStore(s => s.controls.useOrbit);
@@ -261,15 +274,15 @@ function Scene({ variant }: { variant: HomepageSceneVariant }) {
   const showRoom = useSceneStore(s => s.elements.showRoom);
   const showGrid = useSceneStore(s => s.elements.showGrid);
 
-  const pUseOrbit = isDev ? useOrbit : false;
-  const pShowRain = variant === 'night' && (isDev ? showRain : true);
-  const pShowFurniture = isDev ? showFurniture : true;
-  const pShowRoom = isDev ? showRoom : true;
-  const pShowGrid = isDev ? showGrid : false;
+  const pUseOrbit = editable ? useOrbit : false;
+  const pShowRain = variant === 'night' && (editable ? showRain : true);
+  const pShowFurniture = editable ? showFurniture : true;
+  const pShowRoom = editable ? showRoom : true;
+  const pShowGrid = editable ? showGrid : false;
 
   return (
     <>
-      {!pUseOrbit && <ParallaxCamera />}
+      {!pUseOrbit && <ParallaxCamera editable={editable} variant={variant} />}
       {pUseOrbit && (
         <OrbitControls
           makeDefault
@@ -301,7 +314,7 @@ function Scene({ variant }: { variant: HomepageSceneVariant }) {
       {pShowRoom && <Room variant={variant} />}
       {pShowFurniture && <Furniture variant={variant} />}
       {pShowRain && <RainEffect />}
-      <PostProcessing variant={variant} />
+      <PostProcessing editable={editable} variant={variant} />
     </>
   );
 }
@@ -329,6 +342,8 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   const [sceneReady, setSceneReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [debugControlsOpen, setDebugControlsOpen] = useState(false);
+  const devControlsModuleRef = useRef<Promise<typeof import('./DevControls')> | null>(null);
   const isDev = process.env.NODE_ENV === 'development';
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
@@ -337,10 +352,11 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   const camPosZ = useSceneStore(s => s.camera.positionZ);
   const cameraFov = useSceneStore(s => s.camera.fov);
 
-  const cameraPos: [number, number, number] = isDev
+  const cameraEditable = isDev || debugControlsOpen;
+  const cameraPos: [number, number, number] = cameraEditable
     ? [camPosX, camPosY, camPosZ]
     : preset.camera.position;
-  const fov = isDev ? cameraFov : preset.camera.fov;
+  const fov = cameraEditable ? cameraFov : preset.camera.fov;
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -357,10 +373,62 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   }, []);
 
   useEffect(() => {
-    if (isDev) {
-      renderDevControls();
-    }
-  }, [isDev]);
+    const storageKey = 'cyberpunk-debug-panel';
+    let debugPanelRequested = false;
+
+    const loadDevControls = () => {
+      devControlsModuleRef.current ??= import('./DevControls');
+      return devControlsModuleRef.current;
+    };
+
+    const shouldOpenDebugPanel = () => {
+      const params = new URLSearchParams(window.location.search);
+      return (
+        params.get('sceneDebug') === '1' ||
+        params.get('debug') === 'cyberpunk' ||
+        params.get('debug') === 'scene' ||
+        window.localStorage.getItem(storageKey) === '1'
+      );
+    };
+
+    const syncDebugPanel = () => {
+      if (shouldOpenDebugPanel()) {
+        debugPanelRequested = true;
+        setDebugControlsOpen(true);
+        void loadDevControls().then(({ destroyDevControls, renderDevControls }) => {
+          if (debugPanelRequested) {
+            renderDevControls();
+          } else {
+            destroyDevControls();
+          }
+        });
+      } else {
+        debugPanelRequested = false;
+        setDebugControlsOpen(false);
+        void devControlsModuleRef.current?.then(({ destroyDevControls }) => {
+          destroyDevControls();
+        });
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey && e.shiftKey && e.code === 'KeyD')) return;
+      const nextValue = window.localStorage.getItem(storageKey) === '1' ? '0' : '1';
+      window.localStorage.setItem(storageKey, nextValue);
+      syncDebugPanel();
+    };
+
+    syncDebugPanel();
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      debugPanelRequested = false;
+      window.removeEventListener('keydown', handleKeyDown);
+      void devControlsModuleRef.current?.then(({ destroyDevControls }) => {
+        destroyDevControls();
+      });
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -407,7 +475,7 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
           onError={() => setHasError(true)}
         >
           <Suspense fallback={null}>
-            <Scene variant={variant} />
+            <Scene debugControlsOpen={debugControlsOpen} variant={variant} />
           </Suspense>
         </Canvas>
       </div>

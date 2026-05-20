@@ -24,17 +24,33 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { HomepageSceneVariant } from './theme';
+import { ROOM_LAYOUT, ROOM_OBJECTS } from './sceneLayout';
 
 // ========================
 // 常量
 // ========================
 
-const ROOM = { width: 6, depth: 8, height: 3.8 };
-const WINDOW = { width: 4.5, height: 3.5, bottomY: 0.1 };
+const ROOM = ROOM_LAYOUT.size;
+const WINDOW = ROOM_LAYOUT.window;
 
 const WALL_COLOR = '#0d0d1a';
 const FLOOR_COLOR = '#121218';
 const CEILING_COLOR = '#0a0a14';
+
+const getCeilingLightColors = (style: string, variant: HomepageSceneVariant) => {
+  const nightColors: Record<string, { color: string; intensity: number }> = {
+    'warm-cyan': { color: '#00f0ff', intensity: 4.2 },
+    'cool-purple': { color: '#8844ff', intensity: 3.2 },
+    'alert-pink': { color: '#ff0066', intensity: 3.0 },
+  };
+  const dayColors: Record<string, { color: string; intensity: number }> = {
+    'warm-cyan': { color: '#ffe8bf', intensity: 0.22 },
+    'cool-purple': { color: '#bae6fd', intensity: 0.12 },
+    'alert-pink': { color: '#fde68a', intensity: 0.1 },
+  };
+
+  return (variant === 'day' ? dayColors : nightColors)[style] ?? nightColors['warm-cyan'];
+};
 
 // ========================
 // 程序化城市天际线纹理（增强版）
@@ -469,55 +485,45 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
 
       {/* ========== 天花板管道系统（工业结构） ========== */}
       {/* 横向大管道 */}
-      {[
-        { pos: [-1.2, 3.65, -2] as [number, number, number], length: 4, r: 0.06 },
-        { pos: [1.5, 3.7, 0.5] as [number, number, number], length: 5, r: 0.05 },
-        { pos: [0, 3.6, -3] as [number, number, number], length: 6, r: 0.07 },
-        { pos: [-0.5, 3.72, 1] as [number, number, number], length: 3.5, r: 0.04 },
-        { pos: [0.8, 3.68, -1] as [number, number, number], length: 4.5, r: 0.05 },
-      ].map((pipe, i) => (
-        <mesh key={`hpipe-${i}`} position={pipe.pos}>
-          <cylinderGeometry args={[pipe.r, pipe.r, pipe.length, 8]} />
+      {ROOM_OBJECTS.ceilingPipes.map((pipe, i) => (
+        <mesh key={`hpipe-${i}`} position={pipe.position} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[pipe.radius, pipe.radius, pipe.length, 8]} />
           <meshStandardMaterial color={variant === 'day' ? '#8b97a6' : '#1a1a2a'} metalness={variant === 'day' ? 0.35 : 0.85} roughness={0.25} />
         </mesh>
       ))}
 
       {/* 纵向管道 */}
-      {[
-        { pos: [-2, 3.65, -1.5] as [number, number, number], length: 3, r: 0.04 },
-        { pos: [2, 3.7, 0] as [number, number, number], length: 4, r: 0.05 },
-        { pos: [-1, 3.72, 1] as [number, number, number], length: 2.5, r: 0.035 },
-      ].map((pipe, i) => (
-        <mesh key={`vpipe-${i}`} position={pipe.pos} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[pipe.r, pipe.r, pipe.length, 8]} />
+      {ROOM_OBJECTS.depthPipes.map((pipe, i) => (
+        <mesh key={`vpipe-${i}`} position={pipe.position} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[pipe.radius, pipe.radius, pipe.length, 8]} />
           <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#15152a'} metalness={variant === 'day' ? 0.35 : 0.85} roughness={0.25} />
         </mesh>
       ))}
 
       {/* 电缆桥架 */}
-      {[
-        { pos: [-1.8, 3.73, -0.5] as [number, number, number], length: 5 },
-        { pos: [1.2, 3.74, -2.5] as [number, number, number], length: 4 },
-      ].map((tray, i) => (
-        <mesh key={`tray-${i}`} position={tray.pos}>
-          <boxGeometry args={[tray.length, 0.02, 0.15]} />
+      {ROOM_OBJECTS.cableTrays.map((tray, i) => (
+        <mesh key={`tray-${i}`} position={tray.position}>
+          <boxGeometry args={[tray.bounds.width, tray.bounds.height, tray.bounds.depth]} />
           <meshStandardMaterial color={variant === 'day' ? '#9aa6b5' : '#1a1a2a'} metalness={variant === 'day' ? 0.35 : 0.8} roughness={0.3} />
         </mesh>
       ))}
 
       {/* 天花板嵌入式霓虹灯带（沿管道边缘） */}
-      <mesh position={[-1.2, 3.6, -2]}>
-        <boxGeometry args={[4, 0.015, 0.015]} />
-        <meshStandardMaterial color={variant === 'day' ? '#ffe8bf' : '#00f0ff'} emissive={variant === 'day' ? '#ffe8bf' : '#00f0ff'} emissiveIntensity={variant === 'day' ? 0.22 : 1.5} toneMapped={false} />
-      </mesh>
-      <mesh position={[1.5, 3.65, 0.5]}>
-        <boxGeometry args={[5, 0.015, 0.015]} />
-        <meshStandardMaterial color={variant === 'day' ? '#bae6fd' : '#8844ff'} emissive={variant === 'day' ? '#bae6fd' : '#8844ff'} emissiveIntensity={variant === 'day' ? 0.12 : 1.0} toneMapped={false} />
-      </mesh>
-      <mesh position={[0, 3.55, -3]}>
-        <boxGeometry args={[6, 0.015, 0.015]} />
-        <meshStandardMaterial color={variant === 'day' ? '#fde68a' : '#ff0066'} emissive={variant === 'day' ? '#fde68a' : '#ff0066'} emissiveIntensity={variant === 'day' ? 0.1 : 0.8} toneMapped={false} />
-      </mesh>
+      {ROOM_OBJECTS.ceilingLightBars.map((bar, i) => {
+        const light = getCeilingLightColors(bar.style, variant);
+
+        return (
+          <mesh key={`ceiling-light-${i}`} position={bar.position}>
+            <boxGeometry args={[bar.bounds.width, bar.bounds.height, bar.bounds.depth]} />
+            <meshStandardMaterial
+              color={light.color}
+              emissive={light.color}
+              emissiveIntensity={light.intensity}
+              toneMapped={false}
+            />
+          </mesh>
+        );
+      })}
 
       {/* ========== 大型落地窗（后墙，占 75% 宽度） ========== */}
       <mesh

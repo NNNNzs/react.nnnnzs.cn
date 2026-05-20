@@ -5,17 +5,20 @@
 
 'use client';
 
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import type { HomepageSceneVariant } from './theme';
+import { FURNITURE_LAYOUT, ROOM_OBJECTS } from './sceneLayout';
 
 const PD = PRODUCTION_DEFAULTS.lights;
 const isDev = process.env.NODE_ENV === 'development';
 
 export default function CyberpunkLights({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const windowLight = useRef<THREE.SpotLight>(null);
+  const exteriorWindowLight = useRef<THREE.SpotLight>(null);
+  const exteriorWindowTarget = useMemo(() => new THREE.Object3D(), []);
   const monitorLight = useRef<THREE.PointLight>(null);
   const serverLight = useRef<THREE.PointLight>(null);
   const neonSignLight = useRef<THREE.PointLight>(null);
@@ -32,6 +35,10 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
   const windowAngle = useSceneStore(st => st.lights.windowAngle);
   const windowPenumbra = useSceneStore(st => st.lights.windowPenumbra);
   const windowDecay = useSceneStore(st => st.lights.windowDecay);
+  const exteriorWindowIntensity = useSceneStore(st => st.lights.exteriorWindowIntensity);
+  const exteriorWindowColor = useSceneStore(st => st.lights.exteriorWindowColor);
+  const exteriorWindowDistance = useSceneStore(st => st.lights.exteriorWindowDistance);
+  const exteriorWindowDecay = useSceneStore(st => st.lights.exteriorWindowDecay);
   const monitorIntensity = useSceneStore(st => st.lights.monitorIntensity);
   const monitorColor = useSceneStore(st => st.lights.monitorColor);
   const monitorDistance = useSceneStore(st => st.lights.monitorDistance);
@@ -59,6 +66,7 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
         monitorIntensity, monitorColor, monitorDistance, monitorDecay,
         serverIntensity, serverColor, serverDistance, serverDecay,
         neonSignIntensity, neonSignColor, neonSignDistance, neonSignDecay,
+        exteriorWindowIntensity, exteriorWindowColor, exteriorWindowDistance, exteriorWindowDecay,
         ceilingCyanIntensity, ceilingCyanColor, ceilingCyanDistance, ceilingCyanDecay,
         ceilingPurpleIntensity, ceilingPurpleColor, ceilingPurpleDistance, ceilingPurpleDecay }
     : PD;
@@ -67,6 +75,7 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
     ? {
         ambientIntensity: 0.72, ambientColor: '#fff3df',
         windowIntensity: 4.2, windowColor: '#ffd7a1', windowAngle: 0.75, windowPenumbra: 0.8, windowDecay: 1.2,
+        exteriorWindowIntensity: 0.35, exteriorWindowColor: '#fff0c4', exteriorWindowDistance: 7, exteriorWindowDecay: 1.4,
         monitorIntensity: 0.35, monitorColor: '#89d7ff', monitorDistance: 2.8, monitorDecay: 2,
         serverIntensity: 0.18, serverColor: '#a7d8ff', serverDistance: 2.2, serverDecay: 2,
         neonSignIntensity: 0.28, neonSignColor: '#38bdf8', neonSignDistance: 3, neonSignDecay: 2,
@@ -74,6 +83,7 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
         ceilingPurpleIntensity: 0.04, ceilingPurpleColor: '#fbcfe8', ceilingPurpleDistance: 3, ceilingPurpleDecay: 2,
       }
     : nightValues;
+  const nightBoost = variant === 'night' ? 1 : 0;
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
@@ -93,9 +103,18 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
       windowLight.current.decay = v.windowDecay;
     }
 
+    if (exteriorWindowLight.current) {
+      exteriorWindowLight.current.intensity = v.exteriorWindowIntensity + nightBoost * 1.1 + Math.sin(t * 0.45) * 0.12;
+      exteriorWindowLight.current.color.set(v.exteriorWindowColor);
+      exteriorWindowLight.current.distance = v.exteriorWindowDistance;
+      exteriorWindowLight.current.decay = v.exteriorWindowDecay;
+      exteriorWindowLight.current.angle = 0.52;
+      exteriorWindowLight.current.penumbra = 0.82;
+    }
+
     // 显示器光（带呼吸）
     if (monitorLight.current) {
-      monitorLight.current.intensity = v.monitorIntensity + Math.sin(t * 1.5) * 0.2;
+      monitorLight.current.intensity = v.monitorIntensity + nightBoost * 1.2 + Math.sin(t * 1.5) * 0.2;
       monitorLight.current.color.set(v.monitorColor);
       monitorLight.current.distance = v.monitorDistance;
       monitorLight.current.decay = v.monitorDecay;
@@ -103,7 +122,7 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
 
     // 服务器光（带呼吸）
     if (serverLight.current) {
-      serverLight.current.intensity = v.serverIntensity + Math.sin(t * 2 + 1) * 0.15;
+      serverLight.current.intensity = v.serverIntensity + nightBoost * 1.0 + Math.sin(t * 2 + 1) * 0.15;
       serverLight.current.color.set(v.serverColor);
       serverLight.current.distance = v.serverDistance;
       serverLight.current.decay = v.serverDecay;
@@ -111,7 +130,7 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
 
     // 霓虹招牌（带呼吸）
     if (neonSignLight.current) {
-      neonSignLight.current.intensity = v.neonSignIntensity + Math.sin(t * 2 + 2) * 0.25;
+      neonSignLight.current.intensity = v.neonSignIntensity + nightBoost * 1.8 + Math.sin(t * 2 + 2) * 0.25;
       neonSignLight.current.color.set(v.neonSignColor);
       neonSignLight.current.distance = v.neonSignDistance;
       neonSignLight.current.decay = v.neonSignDecay;
@@ -119,13 +138,13 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
 
     // 天花板灯带
     if (ceilingCyanLight.current) {
-      ceilingCyanLight.current.intensity = v.ceilingCyanIntensity;
+      ceilingCyanLight.current.intensity = v.ceilingCyanIntensity + nightBoost * 0.9;
       ceilingCyanLight.current.color.set(v.ceilingCyanColor);
       ceilingCyanLight.current.distance = v.ceilingCyanDistance;
       ceilingCyanLight.current.decay = v.ceilingCyanDecay;
     }
     if (ceilingPurpleLight.current) {
-      ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity;
+      ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity + nightBoost * 0.9;
       ceilingPurpleLight.current.color.set(v.ceilingPurpleColor);
       ceilingPurpleLight.current.distance = v.ceilingPurpleDistance;
       ceilingPurpleLight.current.decay = v.ceilingPurpleDecay;
@@ -147,37 +166,67 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
         decay={v.windowDecay}
       />
 
+      <primitive object={exteriorWindowTarget} position={[0.15, 1.1, -0.85]} />
+      <spotLight
+        ref={exteriorWindowLight}
+        position={[-0.6, 2.85, -5.4]}
+        target={exteriorWindowTarget}
+        angle={0.52}
+        penumbra={0.82}
+        intensity={v.exteriorWindowIntensity + nightBoost * 1.1}
+        color={v.exteriorWindowColor}
+        distance={v.exteriorWindowDistance}
+        decay={v.exteriorWindowDecay}
+      />
+
       {/* 固定补充光 */}
       <pointLight position={[-1, 2.5, -5]} intensity={variant === 'day' ? 0.7 : 0.8} color={variant === 'day' ? '#fff0c4' : '#334488'} distance={10} decay={2} />
       <pointLight position={[1.5, 2, -5]} intensity={variant === 'day' ? 0.22 : 0.4} color={variant === 'day' ? '#dbeafe' : '#662244'} distance={8} decay={2} />
 
       <pointLight
         ref={monitorLight}
-        position={[1.2, 1.2, -2]}
-        intensity={v.monitorIntensity}
+        position={[FURNITURE_LAYOUT.desk.position[0], 1.2, FURNITURE_LAYOUT.desk.position[2]]}
+        intensity={v.monitorIntensity + nightBoost * 1.2}
         color={v.monitorColor}
-        distance={v.monitorDistance}
+        distance={v.monitorDistance + nightBoost * 1.2}
         decay={v.monitorDecay}
       />
 
       <pointLight
         ref={serverLight}
-        position={[2.8, 1, -3]}
-        intensity={v.serverIntensity}
+        position={[FURNITURE_LAYOUT.serverRack.position[0], 1, FURNITURE_LAYOUT.serverRack.position[2]]}
+        intensity={v.serverIntensity + nightBoost * 1.0}
         color={v.serverColor}
-        distance={v.serverDistance}
+        distance={v.serverDistance + nightBoost * 1.2}
         decay={v.serverDecay}
       />
 
       <pointLight
         ref={neonSignLight}
-        position={[0, 3.3, -3.5]}
-        intensity={v.neonSignIntensity}
+        position={[FURNITURE_LAYOUT.neonSign.position[0], 3.3, FURNITURE_LAYOUT.neonSign.position[2] + 0.4]}
+        intensity={v.neonSignIntensity + nightBoost * 1.8}
         color={v.neonSignColor}
-        distance={v.neonSignDistance}
+        distance={v.neonSignDistance + nightBoost * 1.5}
         decay={v.neonSignDecay}
       />
-      <pointLight position={[0, 3.3, -3.5]} intensity={variant === 'day' ? 0.18 : 0.8} color={variant === 'day' ? '#38bdf8' : '#00aacc'} distance={4} decay={2} />
+      <pointLight position={[0, 3.3, -3.5]} intensity={variant === 'day' ? 0.18 : 2.2} color={variant === 'day' ? '#38bdf8' : '#00aacc'} distance={5.5} decay={2} />
+
+      {ROOM_OBJECTS.ceilingLightBars.map((bar) => (
+        <pointLight
+          key={`ceiling-light-${bar.style}`}
+          position={[bar.position[0], bar.position[1] - 0.12, bar.position[2]]}
+          intensity={variant === 'day' ? 0.08 : 1.6}
+          color={
+            bar.style === 'cool-purple'
+              ? (variant === 'day' ? '#bae6fd' : '#8844ff')
+              : bar.style === 'alert-pink'
+                ? (variant === 'day' ? '#fde68a' : '#ff0066')
+                : (variant === 'day' ? '#ffe8bf' : '#00f0ff')
+          }
+          distance={variant === 'day' ? 2.4 : 4.8}
+          decay={1.7}
+        />
+      ))}
 
       <pointLight
         ref={ceilingCyanLight}

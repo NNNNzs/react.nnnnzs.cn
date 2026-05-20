@@ -42,9 +42,9 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
     overlay: 'hud',
     weather: 'rain',
     postProcessing: {
-      bloomThreshold: 0.2,
-      bloomSmoothing: 0.9,
-      bloomIntensity: 1.5,
+      bloomThreshold: 0.06,
+      bloomSmoothing: 0.85,
+      bloomIntensity: 2.4,
       vignetteDarkness: 0.8,
     },
     camera: {

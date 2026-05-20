@@ -7,7 +7,7 @@
 
 'use client';
 
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import React, { useState } from 'react';
 import { useControls, button, folder } from 'leva';
 import { useSceneStore } from './useSceneStore';
@@ -27,6 +27,11 @@ function updateLight(field: string, value: number | string) {
   store.set({ lights: { ...store.lights, [field]: value } as any });
 }
 
+const LIGHT_OPTIONS_WITH_EXTERIOR = {
+  ...LIGHT_OPTIONS,
+  '窗外射入光': 'exteriorWindow',
+};
+
 // ========================
 // 光源选择器
 // ========================
@@ -35,7 +40,7 @@ function LightSelector({ onSelect }: { onSelect: (key: string) => void }) {
   useControls('💡 选择光源', {
     '光源': {
       value: 'window' as string,
-      options: LIGHT_OPTIONS,
+      options: LIGHT_OPTIONS_WITH_EXTERIOR,
       onChange: (v: string) => onSelect(v),
     },
   });
@@ -95,6 +100,7 @@ function LightEditor({ selected }: { selected: string }) {
   switch (selected) {
     case 'ambient': return <AmbientPanel />;
     case 'window': return <WindowPanel />;
+    case 'exteriorWindow': return <PointLightPanel name="窗外射入光" prefix="exteriorWindow" />;
     case 'monitor': return <PointLightPanel name="显示器" prefix="monitor" />;
     case 'server': return <PointLightPanel name="服务器" prefix="server" />;
     case 'neonSign': return <PointLightPanel name="霓虹招牌" prefix="neonSign" />;
@@ -248,9 +254,9 @@ function DevPanel() {
 // 渲染入口
 // ========================
 
-export function renderDevControls() {
-  if (process.env.NODE_ENV !== 'development') return null;
+let devControlsRoot: Root | null = null;
 
+export function renderDevControls() {
   const existingContainer = document.getElementById('dev-controls-root');
   if (existingContainer) return;
 
@@ -258,5 +264,15 @@ export function renderDevControls() {
   container.id = 'dev-controls-root';
   document.body.appendChild(container);
 
-  createRoot(container).render(<DevPanel />);
+  devControlsRoot = createRoot(container);
+  devControlsRoot.render(<DevPanel />);
+}
+
+export function destroyDevControls() {
+  const existingContainer = document.getElementById('dev-controls-root');
+  if (!existingContainer) return;
+
+  devControlsRoot?.unmount();
+  devControlsRoot = null;
+  existingContainer.remove();
 }

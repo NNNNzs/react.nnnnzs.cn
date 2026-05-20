@@ -21,6 +21,7 @@ import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { HomepageSceneVariant } from './theme';
+import { FURNITURE_LAYOUT } from './sceneLayout';
 
 // ========================
 // 共享材质
@@ -161,8 +162,10 @@ function BlinkingLED({ position, color }: { position: [number, number, number]; 
 // ========================
 
 function Desk() {
+  const layout = FURNITURE_LAYOUT.desk;
+
   return (
-    <group position={[1.2, 0, -2]}>
+    <group position={layout.position}>
       {/* 桌面 - 更宽更长 */}
       <mesh position={[0, 0.75, 0]} castShadow>
         <boxGeometry args={[2.2, 0.04, 0.85]} />
@@ -240,8 +243,10 @@ function Monitor({ position, variant = 0, rotY = 0 }: { position: [number, numbe
 // ========================
 
 function Keyboard() {
+  const layout = FURNITURE_LAYOUT.keyboard;
+
   return (
-    <group position={[1.2, 0.78, -1.7]} rotation={[-0.08, 0, 0]}>
+    <group position={layout.position} rotation={layout.rotation}>
       <mesh>
         <boxGeometry args={[0.55, 0.02, 0.2]} />
         <meshStandardMaterial {...darkPlastic} />
@@ -267,8 +272,10 @@ function Keyboard() {
 // ========================
 
 function Mouse() {
+  const layout = FURNITURE_LAYOUT.mouse;
+
   return (
-    <mesh position={[1.55, 0.78, -1.65]}>
+    <mesh position={layout.position}>
       <boxGeometry args={[0.06, 0.025, 0.1]} />
       <meshStandardMaterial {...darkPlastic} />
     </mesh>
@@ -280,8 +287,10 @@ function Mouse() {
 // ========================
 
 function Bed() {
+  const layout = FURNITURE_LAYOUT.bed;
+
   return (
-    <group position={[-2, 0, -1.5]}>
+    <group position={layout.position}>
       {/* 床架 - 低矮 */}
       <mesh position={[0, 0.15, 0]} castShadow>
         <boxGeometry args={[1.3, 0.1, 2]} />
@@ -326,6 +335,7 @@ function Bed() {
 
 function Nightstand() {
   const clockRef = useRef<THREE.Mesh>(null);
+  const layout = FURNITURE_LAYOUT.nightstand;
 
   useFrame(({ clock }) => {
     if (clockRef.current) {
@@ -335,7 +345,7 @@ function Nightstand() {
   });
 
   return (
-    <group position={[-1.1, 0, -2.3]}>
+    <group position={layout.position}>
       <mesh position={[0, 0.25, 0]}>
         <boxGeometry args={[0.35, 0.5, 0.3]} />
         <meshStandardMaterial {...darkMetal} />
@@ -355,6 +365,7 @@ function Nightstand() {
 
 function NeonPoster() {
   const ref = useRef<THREE.Mesh>(null);
+  const layout = FURNITURE_LAYOUT.neonPoster;
 
   useFrame(({ clock }) => {
     if (ref.current) {
@@ -364,7 +375,7 @@ function NeonPoster() {
   });
 
   return (
-    <group position={[-2.97, 1.8, -1.5]} rotation={[0, Math.PI / 2, 0]}>
+    <group position={layout.position} rotation={layout.rotation}>
       {/* 海报背景 */}
       <mesh ref={ref}>
         <planeGeometry args={[0.8, 0.5]} />
@@ -392,9 +403,10 @@ function NeonPoster() {
 
 function Bookshelf() {
   const shelfColor = '#15152a';
+  const layout = FURNITURE_LAYOUT.bookshelf;
 
   return (
-    <group position={[2.5, 0, -1.5]} rotation={[0, -Math.PI / 2, 0]}>
+    <group position={layout.position} rotation={layout.rotation}>
       {/* 侧板 - 接近天花板高度 */}
       <mesh position={[-0.4, 1.5, 0]}>
         <boxGeometry args={[0.04, 3.2, 0.35]} />
@@ -457,6 +469,7 @@ function Bookshelf() {
 // ========================
 
 function ServerRack() {
+  const layout = FURNITURE_LAYOUT.serverRack;
   const ledColors = [
     '#00f0ff', '#00f0ff', '#ff0066', '#00f0ff',
     '#8844ff', '#00f0ff', '#ff0066', '#00f0ff',
@@ -465,7 +478,7 @@ function ServerRack() {
   ];
 
   return (
-    <group position={[2.8, 0, -3]}>
+    <group position={layout.position}>
       {/* 机架外壳 - 1.8m 高 */}
       <mesh position={[0, 0.9, 0]}>
         <boxGeometry args={[0.5, 1.8, 0.4]} />
@@ -505,8 +518,10 @@ function ServerRack() {
 // ========================
 
 function Chair() {
+  const layout = FURNITURE_LAYOUT.chair;
+
   return (
-    <group position={[1.2, 0, -0.8]}>
+    <group position={layout.position}>
       {/* 座垫 */}
       <mesh position={[0, 0.45, 0]}>
         <boxGeometry args={[0.45, 0.06, 0.45]} />
@@ -558,8 +573,10 @@ function Chair() {
 // ========================
 
 function CoffeeMug() {
+  const layout = FURNITURE_LAYOUT.coffeeMug;
+
   return (
-    <group position={[2.0, 0.78, -1.85]}>
+    <group position={layout.position}>
       {/* 杯身 */}
       <mesh>
         <cylinderGeometry args={[0.035, 0.03, 0.08, 12]} />
@@ -580,6 +597,7 @@ function CoffeeMug() {
 
 function GlowPlant() {
   const ref = useRef<THREE.Mesh>(null);
+  const layout = FURNITURE_LAYOUT.glowPlant;
 
   useFrame(({ clock }) => {
     if (ref.current) {
@@ -589,7 +607,7 @@ function GlowPlant() {
   });
 
   return (
-    <group position={[-2.5, 0, -3.2]}>
+    <group position={layout.position}>
       {/* 花盆 */}
       <mesh position={[0, 0.1, 0]}>
         <cylinderGeometry args={[0.08, 0.06, 0.2, 8]} />
@@ -631,6 +649,7 @@ function GlowPlant() {
 
 function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const panelRef = useRef<THREE.Mesh>(null);
+  const layout = FURNITURE_LAYOUT.neonSign;
 
   useFrame(({ clock }) => {
     if (panelRef.current) {
@@ -640,7 +659,7 @@ function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   });
 
   return (
-    <group position={[0, 3.55, -3.95]}>
+    <group position={layout.position}>
       {/* 悬挂线 */}
       <mesh position={[-0.4, 0.15, 0]}>
         <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
@@ -713,15 +732,16 @@ function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
 
 function HologramPanels({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const panelRef = useRef<THREE.Group>(null);
+  const layout = FURNITURE_LAYOUT.hologramPanels;
 
   useFrame(({ clock }) => {
     if (panelRef.current) {
-      panelRef.current.position.y = 1.55 + Math.sin(clock.getElapsedTime() * 0.9) * 0.035;
+      panelRef.current.position.y = layout.position[1] + Math.sin(clock.getElapsedTime() * 0.9) * 0.035;
     }
   });
 
   return (
-    <group ref={panelRef} position={[-0.72, 1.55, -2.72]} rotation={[0, 0.12, 0]}>
+    <group ref={panelRef} position={layout.position} rotation={layout.rotation}>
       {[
         { y: 0.24, w: 0.62, color: variant === 'day' ? '#38bdf8' : '#00f0ff' },
         { y: 0, w: 0.84, color: variant === 'day' ? '#f59e0b' : '#ff0066' },
@@ -885,6 +905,7 @@ function Cables() {
 function RobotPet() {
   const bodyRef = useRef<THREE.Mesh>(null);
   const eyeRef = useRef<THREE.Mesh>(null);
+  const layout = FURNITURE_LAYOUT.robotPet;
 
   useFrame(({ clock }) => {
     if (eyeRef.current) {
@@ -894,7 +915,7 @@ function RobotPet() {
   });
 
   return (
-    <group position={[1.8, 0, -1.2]} rotation={[0, -0.5, 0]}>
+    <group position={layout.position} rotation={layout.rotation}>
       {/* 身体 */}
       <mesh ref={bodyRef} position={[0, 0.12, 0]}>
         <boxGeometry args={[0.15, 0.08, 0.25]} />
@@ -988,9 +1009,14 @@ export default function Furniture({ variant = 'night' }: { variant?: HomepageSce
       {/* 工作区（落地窗正前方偏右） */}
       <Desk />
       {/* 三显示器 - 弧形包围 */}
-      <Monitor position={[0.5, 0.78, -2.2]} variant={0} rotY={0.12} />
-      <Monitor position={[1.2, 0.78, -2.3]} variant={1} rotY={0} />
-      <Monitor position={[1.9, 0.78, -2.2]} variant={2} rotY={-0.12} />
+      {FURNITURE_LAYOUT.monitors.map((monitor) => (
+        <Monitor
+          key={`monitor-${monitor.variant}`}
+          position={monitor.position}
+          variant={monitor.variant}
+          rotY={monitor.rotation[1]}
+        />
+      ))}
       <Keyboard />
       <Mouse />
       <DeskClutter />

@@ -34,6 +34,11 @@ interface SceneConfig {
     windowAngle: number;
     windowPenumbra: number;
     windowDecay: number;
+    // 窗外夜间射入房间的独立光源
+    exteriorWindowIntensity: number;
+    exteriorWindowColor: string;
+    exteriorWindowDistance: number;
+    exteriorWindowDecay: number;
     // 显示器冷蓝光
     monitorIntensity: number;
     monitorColor: string;
@@ -86,6 +91,7 @@ const DEFAULT_CONFIG: SceneConfig = {
   lights: {
     ambientIntensity: 0.08, ambientColor: '#ffffff',
     windowIntensity: 3.5, windowColor: '#4466aa', windowAngle: 0.8, windowPenumbra: 0.6, windowDecay: 1.5,
+    exteriorWindowIntensity: 4.2, exteriorWindowColor: '#66ccff', exteriorWindowDistance: 9, exteriorWindowDecay: 1.4,
     monitorIntensity: 2.5, monitorColor: '#0088cc', monitorDistance: 4, monitorDecay: 2,
     serverIntensity: 1.5, serverColor: '#6644cc', serverDistance: 3, serverDecay: 2,
     neonSignIntensity: 2.0, neonSignColor: '#cc0055', neonSignDistance: 5, neonSignDecay: 2,
@@ -103,7 +109,7 @@ interface SceneStore extends SceneConfig {
   reset: () => void;
 }
 
-export const useSceneStore = create<SceneStore>((set, get) => ({
+export const useSceneStore = create<SceneStore>((set) => ({
   ...structuredClone(DEFAULT_CONFIG),
   set: (partial) => set(partial),
   reset: () => set(structuredClone(DEFAULT_CONFIG)),
