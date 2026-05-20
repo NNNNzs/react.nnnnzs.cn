@@ -94,7 +94,47 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'update_article',
     handler: async (args, user) => {
       const { updatePost } = await import('@/services/post');
-      return updatePost(args.id as number, args, user.id);
+      const { addPostsToCollection, removePostsFromCollection, getCollectionBySlug, getCollectionById } = await import('@/services/collection');
+      const postId = args.id as number;
+
+      // 提取合集操作参数，不传给 updatePost
+      const { add_to_collections, remove_from_collections, ...postArgs } = args;
+
+      // 解析合集标识（支持 slug 或 ID）为数字 ID
+      const resolveCollectionIds = async (raw: string | undefined): Promise<number[]> => {
+        if (!raw) return [];
+        const tokens = String(raw).split(',').map(s => s.trim()).filter(Boolean);
+        const ids: number[] = [];
+        for (const token of tokens) {
+          const num = Number(token);
+          if (!isNaN(num)) {
+            ids.push(num);
+          } else {
+            // 尝试按 slug 查找
+            const col = await getCollectionBySlug(token);
+            if (col) ids.push(col.id);
+          }
+        }
+        return ids;
+      };
+
+      // 处理添加到合集
+      if (add_to_collections) {
+        const colIds = await resolveCollectionIds(add_to_collections as string);
+        for (const colId of colIds) {
+          await addPostsToCollection(colId, [postId], undefined, user.id);
+        }
+      }
+
+      // 处理从合集移除
+      if (remove_from_collections) {
+        const colIds = await resolveCollectionIds(remove_from_collections as string);
+        for (const colId of colIds) {
+          await removePostsFromCollection(colId, [postId], user.id);
+        }
+      }
+
+      return updatePost(postId, postArgs, user.id);
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
