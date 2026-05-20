@@ -74,8 +74,8 @@ class NextJsHttpTransport implements Transport {
         const method = 'method' in message ? (message as any).method : null;
         const toolName = method === 'tools/call' && 'params' in message && message.params
           ? (message.params as any).name : null;
-        const isSlowTool = toolName === 'image_create';
-        const timeoutMs = isSlowTool ? 120_000 : 15_000;
+        const isSlowTool = toolName === 'image_create' || toolName === 'generate_image';
+        const timeoutMs = isSlowTool ? 300_000 : 15_000;
         if (Date.now() - startTime > timeoutMs) {
           console.warn('⚠️ MCP request timeout:', requestId);
           if (this.messageQueue.length > 0) {
