@@ -1,0 +1,12 @@
+{
+  "name": "glb-model-inspector-skill",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "analyze": "node scripts/analyze_glb.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0"
+  }
+}
