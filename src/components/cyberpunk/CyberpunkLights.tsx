@@ -85,8 +85,8 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
     : nightValues;
   const nightBoost = variant === 'night' ? 1 : 0;
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+  useFrame(() => {
+    const t = performance.now() * 0.001;
 
     // 环境光
     if (ambientLightRef.current) {

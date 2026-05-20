@@ -142,10 +142,10 @@ function BlinkingLED({ position, color }: { position: [number, number, number]; 
   const speed = 0.5 + (seed % 3);
   const offset = (seed % 6.28);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (ref.current) {
       const material = ref.current.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = Math.sin(clock.getElapsedTime() * speed + offset) > 0 ? 2 : 0.1;
+      material.emissiveIntensity = Math.sin(performance.now() * 0.001 * speed + offset) > 0 ? 2 : 0.1;
     }
   });
 
@@ -200,10 +200,10 @@ function Monitor({ position, variant = 0, rotY = 0 }: { position: [number, numbe
   const screenRef = useRef<THREE.Mesh>(null);
   const screenTexture = useMemo(() => createScreenTexture(variant), [variant]);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (screenRef.current) {
       const mat = screenRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 1.2 + Math.sin(clock.getElapsedTime() * 0.3 + variant) * 0.1;
+      mat.emissiveIntensity = 1.2 + Math.sin(performance.now() * 0.001 * 0.3 + variant) * 0.1;
     }
   });
 
@@ -337,10 +337,10 @@ function Nightstand() {
   const clockRef = useRef<THREE.Mesh>(null);
   const layout = FURNITURE_LAYOUT.nightstand;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (clockRef.current) {
       const mat = clockRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.8 + Math.sin(clock.getElapsedTime() * 1) * 0.15;
+      mat.emissiveIntensity = 0.8 + Math.sin(performance.now() * 0.001) * 0.15;
     }
   });
 
@@ -367,10 +367,10 @@ function NeonPoster() {
   const ref = useRef<THREE.Mesh>(null);
   const layout = FURNITURE_LAYOUT.neonPoster;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (ref.current) {
       const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.6 + Math.sin(clock.getElapsedTime() * 1.5) * 0.15;
+      mat.emissiveIntensity = 0.6 + Math.sin(performance.now() * 0.001 * 1.5) * 0.15;
     }
   });
 
@@ -599,10 +599,10 @@ function GlowPlant() {
   const ref = useRef<THREE.Mesh>(null);
   const layout = FURNITURE_LAYOUT.glowPlant;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (ref.current) {
       const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.8 + Math.sin(clock.getElapsedTime() * 1.2) * 0.2;
+      mat.emissiveIntensity = 0.8 + Math.sin(performance.now() * 0.001 * 1.2) * 0.2;
     }
   });
 
@@ -651,10 +651,10 @@ function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const panelRef = useRef<THREE.Mesh>(null);
   const layout = FURNITURE_LAYOUT.neonSign;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (panelRef.current) {
       const mat = panelRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = variant === 'day' ? 0.08 : 0.45 + Math.sin(clock.getElapsedTime() * 2) * 0.12;
+      mat.emissiveIntensity = variant === 'day' ? 0.08 : 0.45 + Math.sin(performance.now() * 0.001 * 2) * 0.12;
     }
   });
 
@@ -907,10 +907,10 @@ function RobotPet() {
   const eyeRef = useRef<THREE.Mesh>(null);
   const layout = FURNITURE_LAYOUT.robotPet;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (eyeRef.current) {
       const mat = eyeRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.5 + Math.sin(clock.getElapsedTime() * 0.5) * 0.3;
+      mat.emissiveIntensity = 0.5 + Math.sin(performance.now() * 0.001 * 0.5) * 0.3;
     }
   });
 

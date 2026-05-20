@@ -32,26 +32,36 @@ export function useScrollProgress(
   const [headerOpacity, setHeaderOpacity] = useState<number>(0);
 
   useEffect(() => {
+    let frame = 0;
+
     const handleScroll = () => {
-      const y = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
+      if (frame) return;
 
-      // 计算滚动进度
-      const percent = ((y > 0 ? y + windowHeight : 0) / documentHeight) * 100;
-      setScrollProgress(percent);
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
 
-      // 计算 header 透明度
-      const opacity = Math.min(y / windowHeight, 1);
-      setHeaderOpacity(opacity);
+        // 计算滚动进度
+        const percent = ((y > 0 ? y + windowHeight : 0) / documentHeight) * 100;
+        setScrollProgress(percent);
+
+        // 计算 header 透明度
+        const opacity = Math.min(y / windowHeight, 1);
+        setHeaderOpacity(opacity);
+      });
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     // 初始调用，确保路径变化后状态正确
     handleScroll();
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
     };
   }, [dependency]);
 
@@ -60,5 +70,4 @@ export function useScrollProgress(
     headerOpacity,
   };
 }
-
 
