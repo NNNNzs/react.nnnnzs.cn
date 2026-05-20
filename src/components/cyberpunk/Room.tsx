@@ -415,9 +415,9 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
   const wallTexture = useMemo(() => createWallTexture(variant), [variant]);
   const windowMeshRef = useRef<THREE.Mesh>(null);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (windowMeshRef.current) {
-      const t = clock.getElapsedTime();
+      const t = performance.now() * 0.001;
       const mat = windowMeshRef.current.material as THREE.MeshStandardMaterial;
       if (mat) mat.emissiveIntensity = variant === 'day' ? 0.12 : 0.5 + Math.sin(t * 0.5) * 0.05;
     }

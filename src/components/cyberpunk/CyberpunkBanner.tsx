@@ -44,13 +44,20 @@ const isWebGLAvailable = (): boolean => {
 const isLowEndDevice = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   try {
+    const nav = navigator as Navigator & {
+      deviceMemory?: number;
+      hardwareConcurrency?: number;
+    };
+    if (nav.deviceMemory && nav.deviceMemory <= 4) return true;
+    if (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) return true;
+
     const canvas = document.createElement('canvas');
     const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
     if (!gl) return true;
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     if (debugInfo) {
       const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-      const lowEndKeywords = ['mali-4', 'adreno 3', 'adreno 4', 'powervr sgx', 'intel hd graphics'];
+      const lowEndKeywords = ['mali-4', 'adreno 3', 'adreno 4', 'powervr sgx', 'intel hd graphics', 'intel uhd graphics'];
       return lowEndKeywords.some((k: string) => (renderer as string).toLowerCase().includes(k));
     }
   } catch {
@@ -324,8 +331,10 @@ function ScrollFadeOverlay({ scrollProgress, variant }: { scrollProgress: number
 // ========================
 
 export default function CyberpunkBanner({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
-  const [webglOk, setWebglOk] = useState(true);
+  const [capabilityChecked, setCapabilityChecked] = useState(false);
+  const [webglOk, setWebglOk] = useState(false);
   const [lowEnd, setLowEnd] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -346,14 +355,26 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
     const frame = window.requestAnimationFrame(() => {
       if (!isWebGLAvailable()) {
         setWebglOk(false);
+        setCapabilityChecked(true);
         return;
       }
+      setWebglOk(true);
       if (isLowEndDevice()) {
         setLowEnd(true);
       }
+      setCapabilityChecked(true);
     });
 
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    syncPreference();
+    mediaQuery.addEventListener('change', syncPreference);
+    return () => mediaQuery.removeEventListener('change', syncPreference);
   }, []);
 
   useEffect(() => {
@@ -363,25 +384,35 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   }, [isDev]);
 
   useEffect(() => {
+    let frame = 0;
     const handleScroll = () => {
-      const progress = Math.max(0, window.scrollY / window.innerHeight);
-      setScrollProgress(progress);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const progress = Math.max(0, window.scrollY / window.innerHeight);
+        setScrollProgress(progress);
+      });
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
   }, []);
 
   const handleCreated = useCallback(() => {
     setSceneReady(true);
   }, []);
 
-  if (!webglOk || lowEnd) {
+  if (!capabilityChecked || !webglOk || lowEnd || prefersReducedMotion || hasError) {
     return (
       <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
         <div className="cyberpunk-static-fallback" />
         <HeroInterfaceOverlay sceneReady variant={variant} />
         <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
-          Low power visual mode
+          {prefersReducedMotion ? 'Reduced motion visual mode' : 'Static visual mode'}
         </div>
       </div>
     );

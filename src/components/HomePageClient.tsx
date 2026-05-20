@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import CyberpunkBanner from '@/components/cyberpunk/CyberpunkBanner';
+import dynamic from 'next/dynamic';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
 
@@ -13,6 +13,33 @@ interface HomePageClientProps {
 
 // 滚动位置缓存键名
 const SCROLL_CACHE_KEY = 'home_scroll_position';
+
+function CyberpunkBannerFallback() {
+  return (
+    <div className="relative h-screen overflow-hidden bg-[#f8fafc] dark:bg-[#050611]">
+      <div className="cyberpunk-static-fallback" />
+      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+        <div className="cyberpunk-hero-atmosphere" />
+        <div className="absolute left-4 right-4 top-[14vh] max-w-5xl md:left-10 lg:left-16">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
+            <span className="cyberpunk-kicker">NEON NOMAD / LOADING</span>
+            <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
+            <span>VISUAL MODE</span>
+          </div>
+          <h1 className="cyberpunk-hero-title">NNNNzs</h1>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
+            Neon Nomad Navigating Night Zones. 记录技术、工具、运维、AI 与生活里的长期思考。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CyberpunkBanner = dynamic(() => import('@/components/cyberpunk/CyberpunkBanner'), {
+  ssr: false,
+  loading: () => <CyberpunkBannerFallback />,
+});
 
 /**
  * 首页客户端组件（受控组件）
@@ -98,14 +125,14 @@ export default function HomePageClient({
     const savedScroll = sessionStorage.getItem(SCROLL_CACHE_KEY);
     if (savedScroll) {
       const scrollY = parseInt(savedScroll, 10);
+      if (!Number.isFinite(scrollY)) {
+        scrollRestoreRef.current = true;
+        return;
+      }
 
-      // 使用 requestAnimationFrame 确保在浏览器绘制后执行
       requestAnimationFrame(() => {
-        // 额外延迟确保所有内容都已渲染
-        setTimeout(() => {
-          window.scrollTo(0, scrollY);
-          scrollRestoreRef.current = true;
-        }, 50);
+        window.scrollTo(0, scrollY);
+        scrollRestoreRef.current = true;
       });
     } else {
       scrollRestoreRef.current = true;
@@ -116,48 +143,10 @@ export default function HomePageClient({
     // 如果已经恢复过，不再执行
     if (scrollRestoreRef.current) return;
 
-    // 多种时机尝试恢复
-    // 1. 立即尝试（可能内容已准备好）
-    restoreScroll();
-
-    // 2. 延迟恢复（确保内容渲染完成）
-    const timer1 = setTimeout(restoreScroll, 100);
-
-    // 3. 图片加载完成后恢复
-    const handleLoad = () => {
-      setTimeout(restoreScroll, 50);
-    };
-    window.addEventListener('load', handleLoad);
-
-    // 4. 如果有图片，监听图片加载
-    const images = document.querySelectorAll('img');
-    let loadedCount = 0;
-    const totalImages = images.length;
-
-    if (totalImages > 0) {
-      images.forEach(img => {
-        if (img.complete) {
-          loadedCount++;
-        } else {
-          img.addEventListener('load', () => {
-            loadedCount++;
-            if (loadedCount === totalImages) {
-              setTimeout(restoreScroll, 50);
-            }
-          });
-          img.addEventListener('error', () => {
-            loadedCount++;
-            if (loadedCount === totalImages) {
-              setTimeout(restoreScroll, 50);
-            }
-          });
-        }
-      });
-    }
+    const frame = requestAnimationFrame(restoreScroll);
 
     return () => {
-      clearTimeout(timer1);
-      window.removeEventListener('load', handleLoad);
+      cancelAnimationFrame(frame);
     };
   }, [restoreScroll]);
 
