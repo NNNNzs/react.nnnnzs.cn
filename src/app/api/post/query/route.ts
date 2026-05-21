@@ -35,6 +35,21 @@ interface QueryParams {
   keyword?: string;
 }
 
+const SORT_BY_VALUES = new Set<QueryParams['sort_by']>(['date', 'updated', 'visitors', 'likes']);
+const SORT_ORDER_VALUES = new Set<QueryParams['sort_order']>(['asc', 'desc']);
+
+function parseSortBy(value: string | null): QueryParams['sort_by'] {
+  return SORT_BY_VALUES.has(value as QueryParams['sort_by'])
+    ? value as QueryParams['sort_by']
+    : 'date';
+}
+
+function parseSortOrder(value: string | null): QueryParams['sort_order'] {
+  return SORT_ORDER_VALUES.has(value as QueryParams['sort_order'])
+    ? value as QueryParams['sort_order']
+    : 'desc';
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -42,8 +57,8 @@ export async function GET(request: NextRequest) {
     const params: QueryParams = {
       limit: Number(searchParams.get('limit')) || 20,
       offset: Number(searchParams.get('offset')) || 0,
-      sort_by: (searchParams.get('sort_by') as any) || 'date',
-      sort_order: (searchParams.get('sort_order') as any) || 'desc',
+      sort_by: parseSortBy(searchParams.get('sort_by')),
+      sort_order: parseSortOrder(searchParams.get('sort_order')),
       tags: searchParams.get('tags') || '',
       category: searchParams.get('category') || '',
       date_from: searchParams.get('date_from') || '',

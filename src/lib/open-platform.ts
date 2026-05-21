@@ -15,6 +15,8 @@ interface OpenPlatformConfig {
   apiUrl: string;
 }
 
+type JsonLike = string | number | boolean | null | JsonLike[] | { [key: string]: JsonLike | undefined };
+
 /**
  * 生成请求签名
  * 签名字符串 = HTTP方法 + "\n" + 请求路径 + "\n" + 时间戳 + "\n" + 请求体JSON
@@ -24,7 +26,7 @@ export function generateSignature(
   method: string,
   path: string,
   timestamp: string,
-  body: any,
+  body: JsonLike | undefined,
   appSecret: string
 ): string {
   const bodyStr = body ? JSON.stringify(body) : '';
@@ -93,10 +95,10 @@ export async function getOpenPlatformConfig(): Promise<OpenPlatformConfig> {
 /**
  * 调用开放平台 API
  */
-export async function callOpenPlatformAPI<T = any>(
+export async function callOpenPlatformAPI<T = unknown>(
   path: string,
   method: string = 'POST',
-  body?: any
+  body?: JsonLike
 ): Promise<T> {
   const { appKey, appSecret, apiUrl } = await getOpenPlatformConfig();
 

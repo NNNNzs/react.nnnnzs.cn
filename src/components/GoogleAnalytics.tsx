@@ -7,6 +7,16 @@
 
 import Script from 'next/script';
 
+declare global {
+  interface Window {
+    gtag?: (
+      command: 'event' | 'config' | 'js',
+      target: string | Date,
+      params?: Record<string, unknown>
+    ) => void;
+  }
+}
+
 interface GoogleAnalyticsProps {
   measurementId: string;
 }
@@ -38,7 +48,7 @@ export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
  * @param params 事件参数
  */
 export function trackEvent(eventName: string, params: Record<string, unknown>): void {
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', eventName, params);
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', eventName, params);
   }
 }

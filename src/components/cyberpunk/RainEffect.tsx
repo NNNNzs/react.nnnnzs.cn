@@ -3,6 +3,8 @@
  * 大型落地窗 4.5x3.5，300 雨滴
  */
 
+/* eslint-disable react-hooks/immutability */
+
 'use client';
 
 import { useRef, useMemo } from 'react';
@@ -14,8 +16,14 @@ const WINDOW_WIDTH = 4.5;
 const WINDOW_HEIGHT = 3.5;
 const WINDOW_POS: [number, number, number] = [0, 1.85, -3.97];
 
+function randomUnit(seed: number) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 export default function RainEffect() {
   const pointsRef = useRef<THREE.Points>(null);
+  const resetNonceRef = useRef(0);
 
   const { positions, velocities, sizes, isStreak } = useMemo(() => {
     const positions = new Float32Array(RAIN_COUNT * 3);
@@ -24,18 +32,18 @@ export default function RainEffect() {
     const isStreak = new Uint8Array(RAIN_COUNT);
 
     for (let i = 0; i < RAIN_COUNT; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * WINDOW_WIDTH;
-      positions[i * 3 + 1] = Math.random() * WINDOW_HEIGHT;
+      positions[i * 3] = (randomUnit(i + 1) - 0.5) * WINDOW_WIDTH;
+      positions[i * 3 + 1] = randomUnit(i + 101) * WINDOW_HEIGHT;
       positions[i * 3 + 2] = 0;
 
-      velocities[i] = 0.015 + Math.random() * 0.035;
-      sizes[i] = 1 + Math.random() * 2;
+      velocities[i] = 0.015 + randomUnit(i + 201) * 0.035;
+      sizes[i] = 1 + randomUnit(i + 301) * 2;
 
       // 20% 的雨滴是流动雨痕
-      isStreak[i] = Math.random() > 0.8 ? 1 : 0;
+      isStreak[i] = randomUnit(i + 401) > 0.8 ? 1 : 0;
       if (isStreak[i]) {
         velocities[i] *= 1.5; // 雨痕下落更快
-        sizes[i] = 1.5 + Math.random() * 1.5;
+        sizes[i] = 1.5 + randomUnit(i + 501) * 1.5;
       }
     }
 
@@ -86,13 +94,14 @@ export default function RainEffect() {
     if (!pointsRef.current) return;
 
     const posArray = posAttribute.array as Float32Array;
+    resetNonceRef.current += 1;
 
     for (let i = 0; i < RAIN_COUNT; i++) {
       // 向下移动
       posArray[i * 3 + 1] -= velocities[i];
 
       // 轻微随机横向漂移
-      posArray[i * 3] += (Math.random() - 0.5) * 0.001;
+      posArray[i * 3] += (randomUnit(i + resetNonceRef.current) - 0.5) * 0.001;
 
       // 流动雨痕漂移更少（基本直线下落）
       if (isStreak[i]) {
@@ -101,10 +110,11 @@ export default function RainEffect() {
 
       // 到底部后重置
       if (posArray[i * 3 + 1] < -WINDOW_HEIGHT / 2) {
-        posArray[i * 3] = (Math.random() - 0.5) * WINDOW_WIDTH;
-        posArray[i * 3 + 1] = WINDOW_HEIGHT / 2 + Math.random() * 0.5;
-        velocities[i] = 0.015 + Math.random() * 0.035;
-        if (Math.random() > 0.8) {
+        const seed = i + resetNonceRef.current * 17;
+        posArray[i * 3] = (randomUnit(seed) - 0.5) * WINDOW_WIDTH;
+        posArray[i * 3 + 1] = WINDOW_HEIGHT / 2 + randomUnit(seed + 100) * 0.5;
+        velocities[i] = 0.015 + randomUnit(seed + 200) * 0.035;
+        if (randomUnit(seed + 300) > 0.8) {
           isStreak[i] = 1;
           velocities[i] *= 1.5;
         } else {

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import { authenticateMcpRequestEnhanced } from '@/services/mcpAuth';
 import { validateTokenWithPermissions } from '@/lib/auth';
 import { getTokenFromRequest } from '@/lib/auth';
@@ -12,6 +11,13 @@ import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
 import { getWritingStyleGuide, getReferenceDocs } from '@/lib/docs-resources';
 import type { AuthUser } from '@/types/auth';
+
+function isObjectWithName(value: unknown): value is { name: string } {
+  return typeof value === 'object'
+    && value !== null
+    && 'name' in value
+    && typeof value.name === 'string';
+}
 
 /**
  * 自定义 HTTP Transport
@@ -71,9 +77,11 @@ class NextJsHttpTransport implements Transport {
       
       const checkQueue = () => {
         // 检查是否超时（图片生成工具 120 秒，其他 15 秒）
-        const method = 'method' in message ? (message as any).method : null;
-        const toolName = method === 'tools/call' && 'params' in message && message.params
-          ? (message.params as any).name : null;
+        const method = 'method' in message ? message.method : null;
+        const params = 'params' in message ? message.params : null;
+        const toolName = method === 'tools/call' && isObjectWithName(params)
+          ? params.name
+          : null;
         const isSlowTool = toolName === 'image_create' || toolName === 'generate_image';
         const timeoutMs = isSlowTool ? 300_000 : 15_000;
         if (Date.now() - startTime > timeoutMs) {

@@ -6,8 +6,8 @@
 
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MdEditor, type EditorProps } from 'md-editor-rt';
+import React, { useCallback } from 'react';
+import { MdEditor } from 'md-editor-rt';
 import 'md-editor-rt/lib/style.css';
 import '@/style/markdownEditor.css';
 import axios from 'axios';
@@ -38,9 +38,6 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   // 获取暗色模式状态
   const { isDark } = useDarkMode();
-
-  // 编辑器 ref
-  const editorRef = useRef<any>(null);
 
   /**
    * 处理图片上传
@@ -101,7 +98,6 @@ export default function MarkdownEditor({
   return (
     <div className={`h-full custom-md-editor ${className}`}>
       <MdEditor
-        ref={editorRef}
         modelValue={value}
         onChange={handleChange}
         preview={preview ?? true}

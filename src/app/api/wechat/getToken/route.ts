@@ -24,7 +24,11 @@ export async function GET(request: NextRequest) {
     const redirectUrl = searchParams.get('redirectUrl');
 
     // 构建传递给开放平台的参数
-    const params: Record<string, any> = {
+    const params: {
+      action: 'login' | 'bind';
+      userId?: number;
+      redirectUrl?: string;
+    } = {
       action,
     };
 

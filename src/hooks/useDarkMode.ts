@@ -54,17 +54,21 @@ export function useDarkMode(): UseDarkModeResult {
   }, [applyTheme]);
 
   useEffect(() => {
-    // 客户端 mount 后才读取真实主题
-    const theme = localStorage.getItem("theme");
-    let dark = false;
-    if (theme) {
-      dark = theme === "dark";
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      dark = true;
-    }
-    setIsDark(dark);
-    setMounted(true);
-    applyTheme(dark);
+    const frame = window.requestAnimationFrame(() => {
+      // 客户端 mount 后才读取真实主题
+      const theme = localStorage.getItem("theme");
+      let dark = false;
+      if (theme) {
+        dark = theme === "dark";
+      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        dark = true;
+      }
+      setIsDark(dark);
+      setMounted(true);
+      applyTheme(dark);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [applyTheme]);
 
   return {
@@ -73,5 +77,4 @@ export function useDarkMode(): UseDarkModeResult {
     toggleDark,
   };
 }
-
 

@@ -6,6 +6,31 @@
 
 import type { Tool, ToolResult } from './index';
 
+interface PostMetaResult {
+  id: number;
+  title: string;
+  path: string | null;
+  description: string | null;
+  date: string | null;
+  updated: string | null;
+  tags: string[];
+  category: string | null;
+  visitors: number | null;
+  likes: number | null;
+  cover: string | null;
+}
+
+interface PostQueryResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    results: PostMetaResult[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
 /**
  * 文章元数据搜索工具
  */
@@ -88,14 +113,14 @@ export const searchPostsMetaTool: Tool = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch((): { message?: string } => ({}));
         return {
           success: false,
           error: errorData.message || `HTTP ${response.status}`,
         };
       }
 
-      const result = await response.json();
+      const result = await response.json() as PostQueryResponse;
 
       if (!result.success) {
         return {
@@ -105,9 +130,15 @@ export const searchPostsMetaTool: Tool = {
       }
 
       const data = result.data;
+      if (!data) {
+        return {
+          success: false,
+          error: '查询结果为空',
+        };
+      }
 
       // 格式化返回结果
-      const formattedResults = data.results.map((post: any) => ({
+      const formattedResults = data.results.map((post) => ({
         id: post.id,
         title: post.title,
         url: post.path,

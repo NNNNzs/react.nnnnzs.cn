@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { Button, message } from 'antd';
 import { HeartOutlined, HeartFilled } from '@ant-design/icons';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 interface CollectionLikeButtonProps {
   /**
@@ -52,7 +52,9 @@ export default function CollectionLikeButton({
       message.success('感谢点赞！');
     } catch (error) {
       console.error('点赞失败:', error);
-      const errorMsg = (error as any)?.response?.data?.message || '点赞失败';
+      const errorMsg = axios.isAxiosError(error)
+        ? getAxiosErrorMessage(error)
+        : '点赞失败';
       if (errorMsg.includes('已经点过赞')) {
         setLiked(true);
         message.warning('您已经点过赞了');
@@ -76,4 +78,12 @@ export default function CollectionLikeButton({
       {liked ? '已点赞' : '点赞'} ({likes})
     </Button>
   );
+}
+
+function getAxiosErrorMessage(error: AxiosError<unknown>): string {
+  const data = error.response?.data;
+  if (typeof data === 'object' && data !== null && 'message' in data && typeof data.message === 'string') {
+    return data.message;
+  }
+  return '点赞失败';
 }

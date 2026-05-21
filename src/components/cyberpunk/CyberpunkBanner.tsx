@@ -111,11 +111,13 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
+      if (!e.altKey) return;
       if (window.scrollY >= window.innerHeight) return;
+      e.preventDefault();
       wheelZoom.current = Math.max(-2.2, Math.min(4, wheelZoom.current + e.deltaY * 0.003));
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
@@ -273,6 +275,7 @@ function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; va
 function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; variant: HomepageSceneVariant }) {
   const isDev = process.env.NODE_ENV === 'development';
   const editable = isDev || debugControlsOpen;
+  const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
 
   // Zustand selector - 只有对应字段变化时才重渲染
   const useOrbit = useSceneStore(s => s.controls.useOrbit);
@@ -288,6 +291,26 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
   const pShowRoom = editable ? showRoom : true;
   const pShowGrid = editable ? showGrid : false;
 
+  useEffect(() => {
+    const syncWheelZoomEnabled = (event?: KeyboardEvent) => {
+      setWheelZoomEnabled(Boolean(event?.altKey));
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => syncWheelZoomEnabled(event);
+    const handleKeyUp = (event: KeyboardEvent) => syncWheelZoomEnabled(event);
+    const handleBlur = () => setWheelZoomEnabled(false);
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   return (
     <>
       {!pUseOrbit && <ParallaxCamera editable={editable || parallaxEnabled} variant={variant} />}
@@ -298,6 +321,9 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
           dampingFactor={0.05}
           minDistance={2}
           maxDistance={15}
+          enableZoom={wheelZoomEnabled}
+          enablePan={editable}
+          enableRotate={editable}
           minPolarAngle={0}
           maxPolarAngle={Math.PI / 2}
           target={[0, 1.2, 0]}

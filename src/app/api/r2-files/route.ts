@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const prefix = searchParams.get("prefix") || "cyberpunk";
 
   try {
-    let fetchOptions: RequestInit = {
+    const fetchOptions: RequestInit = {
       next: { revalidate: 60 },
       signal: AbortSignal.timeout(15000),
     };

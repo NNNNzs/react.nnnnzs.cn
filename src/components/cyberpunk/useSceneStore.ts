@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 
-interface SceneConfig {
+export interface SceneConfig {
   camera: {
     positionX: number;
     positionY: number;

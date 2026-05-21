@@ -10,7 +10,10 @@
 import { createRoot, type Root } from 'react-dom/client';
 import React, { useState } from 'react';
 import { useControls, button, folder } from 'leva';
-import { useSceneStore } from './useSceneStore';
+import { useSceneStore, type SceneConfig } from './useSceneStore';
+
+type LevaSchema = Parameters<typeof useControls>[1];
+type LightConfig = SceneConfig['lights'];
 
 const LIGHT_OPTIONS = {
   '环境光': 'ambient',
@@ -22,9 +25,9 @@ const LIGHT_OPTIONS = {
   '天花板紫光': 'ceilingPurple',
 };
 
-function updateLight(field: string, value: number | string) {
+function updateLight(field: keyof LightConfig, value: number | string) {
   const store = useSceneStore.getState();
-  store.set({ lights: { ...store.lights, [field]: value } as any });
+  store.set({ lights: { ...store.lights, [field]: value } });
 }
 
 const LIGHT_OPTIONS_WITH_EXTERIOR = {
@@ -80,9 +83,11 @@ function WindowPanel() {
 // 点光源通用面板
 // ========================
 
-function PointLightPanel({ name, prefix }: { name: string; prefix: string }) {
+type PointLightPrefix = 'exteriorWindow' | 'monitor' | 'server' | 'neonSign' | 'ceilingCyan' | 'ceilingPurple';
+
+function PointLightPanel({ name, prefix }: { name: string; prefix: PointLightPrefix }) {
   const store = useSceneStore.getState().lights;
-  const f = (field: string) => `${prefix}${field}` as keyof typeof store;
+  const f = (field: 'Intensity' | 'Color' | 'Distance' | 'Decay') => `${prefix}${field}` as keyof typeof store;
   useControls(`💡 ${name}参数`, {
     '强度': { value: store[f('Intensity')] as number, min: 0, max: 10, step: 0.1, onChange: (v) => updateLight(f('Intensity'), v) },
     '颜色': { value: store[f('Color')] as string, onChange: (v) => updateLight(f('Color'), v) },
@@ -158,7 +163,7 @@ function DevPanel() {
         parallax: { enabled: v, intensityX: 0.2, intensityY: 0.1, smoothness: 0.05 },
       }),
     },
-  }) as any);
+  }) as unknown as LevaSchema);
 
   useControls('📷 相机微调', folder({
     '位置 X': {
@@ -181,7 +186,7 @@ function DevPanel() {
       min: 30, max: 120, step: 1,
       onChange: (v) => useSceneStore.getState().set({ camera: { ...useSceneStore.getState().camera, fov: v } }),
     },
-  }) as any);
+  }) as unknown as LevaSchema);
 
   useControls('👁️ 视差强度', folder({
     'X 轴强度': {
@@ -194,7 +199,7 @@ function DevPanel() {
       min: 0, max: 1, step: 0.01,
       onChange: (v) => useSceneStore.getState().set({ parallax: { ...useSceneStore.getState().parallax, intensityY: v } }),
     },
-  }) as any);
+  }) as unknown as LevaSchema);
 
   useControls('✨ 后处理', folder({
     'Bloom 强度': {
@@ -212,7 +217,7 @@ function DevPanel() {
       min: 0, max: 2, step: 0.1,
       onChange: (v) => useSceneStore.getState().set({ postProcessing: { ...useSceneStore.getState().postProcessing, vignetteDarkness: v } }),
     },
-  }) as any);
+  }) as unknown as LevaSchema);
 
   useControls('🧩 场景元素', folder({
     '显示雨滴': {
@@ -231,7 +236,7 @@ function DevPanel() {
       value: useSceneStore.getState().elements.showGrid,
       onChange: (v) => useSceneStore.getState().set({ elements: { ...useSceneStore.getState().elements, showGrid: v } }),
     },
-  }) as any);
+  }) as unknown as LevaSchema);
 
   useControls('🔄 全局操作', folder({
     '_重置所有设置': button(() => { useSceneStore.getState().reset(); }),
@@ -239,7 +244,7 @@ function DevPanel() {
       console.log('=== 赛博朋克 3D 场景配置 ===');
       console.log(JSON.stringify(useSceneStore.getState(), null, 2));
     }),
-  }) as any);
+  }) as unknown as LevaSchema);
 
   return (
     <>
