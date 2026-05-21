@@ -6,17 +6,15 @@ import { Bounds, Center, OrbitControls } from "@react-three/drei";
 import { GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import styles from "./page.module.css";
-import manifest from "../../../docs/reference/3d-assets-manifest.json";
-type ModelAsset = {
-  id: string;
-  file: string;
-  // file: string;
-  source: string;
+
+type R2File = {
+  name: string;
+  key: string;
+  size: number;
   sizeHuman: string;
-  priority: string;
-  zone: string;
-  position: string;
-  notes: string;
+  ext: string;
+  downloadUrl: string;
+  lastModified: string;
 };
 
 type ModelStats = {
@@ -38,17 +36,8 @@ type LoadResult = {
   error: string | null;
 };
 
-const DOWNLOAD_BASE =
-  "https://r2-file-manager.nnnnzs.workers.dev/api/download/cyberpunk";
-
-const MODEL_ASSETS: ModelAsset[] =manifest.assets.models;
-
 const formatNumber = (value: number) =>
   new Intl.NumberFormat("zh-CN").format(value);
-
-function getModelUrl(file: string) {
-  return `${DOWNLOAD_BASE}/${file}`;
-}
 
 function disposeObject(object: THREE.Object3D) {
   object.traverse((child) => {
@@ -139,7 +128,10 @@ function StatTile({ label, value }: { label: string; value: string }) {
 }
 
 export default function GlbModelInspectorPage() {
-  const [selectedId, setSelectedId] = useState(MODEL_ASSETS[0].id);
+  const [files, setFiles] = useState<R2File[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string>("");
   const [customUrl, setCustomUrl] = useState("");
   const [customMode, setCustomMode] = useState(false);
   const requestIdRef = useRef(0);
@@ -151,21 +143,43 @@ export default function GlbModelInspectorPage() {
     error: null,
   });
 
-  const selectedModel = useMemo(
-    () =>
-      MODEL_ASSETS.find((item) => item.id === selectedId) ?? MODEL_ASSETS[0],
-    [selectedId]
+  // 只展示 GLB 模型文件
+  const glbFiles = useMemo(() => files.filter((f) => f.ext === "glb"), [files]);
+
+  const selectedFile = useMemo(
+    () => glbFiles.find((f) => f.name === selectedName) ?? null,
+    [glbFiles, selectedName]
   );
   const activeUrl =
     customMode && customUrl.trim()
       ? customUrl.trim()
-      : getModelUrl(selectedModel.file);
+      : selectedFile?.downloadUrl || "";
   const gltf = loadResult.url === activeUrl ? loadResult.gltf : null;
   const stats = loadResult.url === activeUrl ? loadResult.stats : null;
   const progress = loadResult.url === activeUrl ? loadResult.progress : 0;
   const error = loadResult.url === activeUrl ? loadResult.error : null;
 
+  // 从后端 API 获取 R2 文件列表
   useEffect(() => {
+    fetch("/api/r2-files?prefix=cyberpunk")
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setFiles(data.files || []);
+        if (data.files?.length > 0) {
+          const first = data.files.find((f: R2File) => f.ext === "glb");
+          if (first) setSelectedName(first.name);
+        }
+      })
+      .catch((err) => setFetchError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!activeUrl) return;
+
     let cancelled = false;
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -254,22 +268,30 @@ export default function GlbModelInspectorPage() {
             模型，快速查看体积、场景节点、几何面数、材质、贴图和动画信息。
           </p>
         </div>
-        <a
-          className={styles.openLink}
-          href={activeUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          打开当前 GLB
-        </a>
+        {selectedFile && (
+          <a
+            className={styles.openLink}
+            href={activeUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            打开当前 GLB
+          </a>
+        )}
       </section>
 
       <section className={styles.workspace}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
             <span>模型清单</span>
-            <strong>{MODEL_ASSETS.length}</strong>
+            <strong>{loading ? "..." : glbFiles.length}</strong>
           </div>
+
+          {fetchError && (
+            <div style={{ padding: 12, color: "#ff6b6b", fontSize: 13 }}>
+              加载失败: {fetchError}
+            </div>
+          )}
 
           <div className={styles.customPanel}>
             <label className={styles.switchRow}>
@@ -290,27 +312,24 @@ export default function GlbModelInspectorPage() {
           </div>
 
           <div className={styles.modelList}>
-            {MODEL_ASSETS.map((model) => (
+            {glbFiles.map((file) => (
               <button
                 className={`${styles.modelButton} ${
-                  model.id === selectedId && !customMode
+                  file.name === selectedName && !customMode
                     ? styles.activeModel
                     : ""
                 }`}
-                key={model.id}
+                key={file.key}
                 onClick={() => {
                   setCustomMode(false);
-                  setSelectedId(model.id);
+                  setSelectedName(file.name);
                 }}
                 type="button"
               >
                 <span>
-                  <strong>{model.file}</strong>
-                  <small>
-                    {model.zone} · {model.sizeHuman}
-                  </small>
+                  <strong>{file.name}</strong>
+                  <small>{file.sizeHuman}</small>
                 </span>
-                <em>{model.priority}</em>
               </button>
             ))}
           </div>
@@ -320,16 +339,16 @@ export default function GlbModelInspectorPage() {
           <div className={styles.viewerToolbar}>
             <div>
               <span className={styles.fileName}>
-                {customMode ? "custom.glb" : selectedModel.file}
+                {customMode ? "custom.glb" : selectedName || "选择模型"}
               </span>
-              <p>
-                {customMode
-                  ? activeUrl
-                  : `${selectedModel.source} · ${selectedModel.position}`}
-              </p>
+              {selectedFile && (
+                <p>
+                  R2://{selectedFile.key} · {selectedFile.sizeHuman}
+                </p>
+              )}
             </div>
             <span className={styles.progress}>
-              {gltf ? "READY" : error ? "ERROR" : `LOADING ${progress}%`}
+              {gltf ? "READY" : error ? "ERROR" : activeUrl ? `LOADING ${progress}%` : "—"}
             </span>
           </div>
 
@@ -367,13 +386,15 @@ export default function GlbModelInspectorPage() {
 
           <div className={styles.detailGrid}>
             <div className={styles.notePanel}>
-              <span>集成备注</span>
+              <span>文件信息</span>
               <p>
                 {customMode
                   ? "自定义模型地址只在当前检查页中使用，不会写入项目清单。"
-                  : selectedModel.notes}
+                  : selectedFile
+                    ? `R2://{selectedFile.key}（${selectedFile.sizeHuman}）`
+                    : "从左侧选择一个模型进行预览。"}
               </p>
-              <code>{activeUrl}</code>
+              {activeUrl && <code>{activeUrl}</code>}
             </div>
 
             <div className={styles.statsPanel}>
