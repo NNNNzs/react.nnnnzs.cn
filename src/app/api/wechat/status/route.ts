@@ -11,6 +11,23 @@ import { getPrisma } from '@/lib/prisma';
 import { generateToken, storeToken } from '@/lib/auth';
 
 /**
+ * 微信扫码状态响应数据
+ */
+interface WeChatStatusData {
+  scanStatus: number;
+  status?: number;
+  openId: string;
+  scanData?: {
+    avatarUrl?: string;
+    nickName?: string;
+  };
+  params?: {
+    action?: string;
+    userId?: number;
+  };
+}
+
+/**
  * GET /api/wechat/status?token=xxx
  * 查询扫码状态
  *
@@ -40,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 调用开放平台 API 查询状态
-    const data = await callOpenPlatformAPI(`/qr/status?token=${token}`, 'GET');
+    const data = await callOpenPlatformAPI<WeChatStatusData>(`/qr/status?token=${token}`, 'GET');
     console.log('[开放平台] 后端返回状态:', data);
 
     // 如果扫码成功，执行登录/注册逻辑
