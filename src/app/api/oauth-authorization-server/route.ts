@@ -1,8 +1,3 @@
-/**
- * OAuth 2.0 Authorization Server Metadata
- * 符合 RFC 8414 标准
- */
-
 import { NextRequest } from 'next/server';
 import { createAuthorizationServerMetadata, getPublicOrigin } from '@/lib/mcp-oauth-metadata';
 

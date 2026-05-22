@@ -1,8 +1,3 @@
-/**
- * OAuth 2.0 Protected Resource Metadata
- * 符合 RFC 8707 标准 - 提供完整的 OAuth 元数据
- */
-
 import { NextRequest } from 'next/server';
 import { createProtectedResourceMetadata, getPublicOrigin } from '@/lib/mcp-oauth-metadata';
 

@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createProtectedResourceMetadata, getPublicOrigin } from '@/lib/mcp-oauth-metadata';
 
 // 有效的 .well-known 端点列表
 const VALID_ENDPOINTS = [
@@ -21,22 +22,6 @@ const ERROR_PATTERNS = [
   /^\/\.well-known\/[^/]+\/api\//,
   /^\/\.well-known\/[^/]+\/[^/]+\//
 ];
-
-function protectedResourceMetadata(origin: string, resourcePath = '/api/mcp') {
-  return NextResponse.json({
-    resource: `${origin}${resourcePath}`,
-    authorization_servers: [origin],
-    scopes_supported: ['read', 'write', 'admin'],
-    service_documentation: 'https://github.com/NNNNzs/react.nnnnzs.cn',
-    api_version: '1.0.0'
-  }, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*'
-    }
-  });
-}
 
 /**
  * 检测是否为已知的错误路径模式
@@ -59,7 +44,7 @@ export async function GET(request: NextRequest) {
 
   if (pathname.startsWith('/.well-known/oauth-protected-resource/')) {
     const resourcePath = pathname.replace('/.well-known/oauth-protected-resource', '') || '/api/mcp';
-    return protectedResourceMetadata(url.origin, resourcePath);
+    return createProtectedResourceMetadata(getPublicOrigin(request.headers, request.url), resourcePath);
   }
   
   // 检测错误模式

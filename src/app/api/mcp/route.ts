@@ -9,10 +9,11 @@ import { handleMcpToApi, jsonSchemaToZod } from '@/lib/mcp-adapter';
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
 import { getWritingStyleGuide, getReferenceDocs } from '@/lib/docs-resources';
+import { getPublicOrigin } from '@/lib/mcp-oauth-metadata';
 import type { AuthUser } from '@/types/auth';
 
 function createMcpAuthErrorResponse(request: NextRequest, requestId: string | number | null) {
-  const resourceMetadataUrl = `${new URL(request.url).origin}/.well-known/oauth-protected-resource`;
+  const resourceMetadataUrl = `${getPublicOrigin(request.headers, request.url)}/.well-known/oauth-protected-resource`;
 
   return NextResponse.json({
     jsonrpc: "2.0",
