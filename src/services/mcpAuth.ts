@@ -154,6 +154,7 @@ export async function handleOAuthTokenRequest(request: NextRequest): Promise<Nex
       redirect_uri,
       code_verifier,
       refresh_token,
+      resource,
       scope
     } = body;
 
@@ -163,6 +164,7 @@ export async function handleOAuthTokenRequest(request: NextRequest): Promise<Nex
       has_code: !!code,
       has_redirect_uri: !!redirect_uri,
       has_code_verifier: !!code_verifier,
+      resource,
       scope
     });
 
@@ -174,7 +176,7 @@ export async function handleOAuthTokenRequest(request: NextRequest): Promise<Nex
 
       case 'authorization_code':
         console.log('🔑 [OAuth Token] 处理 authorization_code 授权');
-        return await handleAuthorizationCodeGrant(code, client_id, client_secret, redirect_uri, code_verifier);
+        return await handleAuthorizationCodeGrant(code, client_id, client_secret, redirect_uri, code_verifier, resource);
 
       case 'refresh_token':
         console.log('🔑 [OAuth Token] 处理 refresh_token 授权');
@@ -275,14 +277,16 @@ async function handleAuthorizationCodeGrant(
   client_id: string,
   client_secret: string | null | undefined,
   redirect_uri?: string,
-  code_verifier?: string
+  code_verifier?: string,
+  resource?: string
 ): Promise<NextResponse> {
   console.log('🔑 [OAuth] 处理授权码换取 token:', {
     code: code?.substring(0, 20) + '...',
     client_id,
     has_client_secret: !!client_secret,
     redirect_uri,
-    has_code_verifier: !!code_verifier
+    has_code_verifier: !!code_verifier,
+    resource
   });
 
   if (!code) {
@@ -326,6 +330,7 @@ async function handleAuthorizationCodeGrant(
       user_id: authCodeData.user_id,
       scope: authCodeData.scope,
       redirect_uri: authCodeData.redirect_uri,
+      resource: authCodeData.resource,
       has_code_challenge: !!authCodeData.code_challenge
     });
 
@@ -350,6 +355,17 @@ async function handleAuthorizationCodeGrant(
       return NextResponse.json({
         error: 'invalid_grant',
         error_description: 'Redirect URI mismatch'
+      }, { status: 400 });
+    }
+
+    if (authCodeData.resource && resource && authCodeData.resource !== resource) {
+      console.error('❌ [OAuth] resource 不匹配:', {
+        expected: authCodeData.resource,
+        received: resource
+      });
+      return NextResponse.json({
+        error: 'invalid_target',
+        error_description: 'Resource mismatch'
       }, { status: 400 });
     }
 
@@ -420,6 +436,7 @@ async function handleAuthorizationCodeGrant(
     const tokenData = {
       userId: authCodeData.user_id.toString(), // 转为字符串以保持一致性
       scope: authCodeData.scope,
+      resource: authCodeData.resource || resource || null,
       client_id: authCodeData.client_id,
       app_name: authCodeData.app_name || null, // 自定义应用名称
       created_at: Date.now(),

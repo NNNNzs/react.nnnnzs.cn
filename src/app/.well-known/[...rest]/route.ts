@@ -18,10 +18,25 @@ const VALID_ENDPOINTS = [
 
 // 常见的错误路径模式
 const ERROR_PATTERNS = [
-  /^\/\.well-known\/[^/]+\/api\/mcp$/,
   /^\/\.well-known\/[^/]+\/api\//,
   /^\/\.well-known\/[^/]+\/[^/]+\//
 ];
+
+function protectedResourceMetadata(origin: string, resourcePath = '/api/mcp') {
+  return NextResponse.json({
+    resource: `${origin}${resourcePath}`,
+    authorization_servers: [origin],
+    scopes_supported: ['read', 'write', 'admin'],
+    service_documentation: 'https://github.com/NNNNzs/react.nnnnzs.cn',
+    api_version: '1.0.0'
+  }, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
+}
 
 /**
  * 检测是否为已知的错误路径模式
@@ -41,6 +56,11 @@ function detectErrorPattern(pathname: string): string | null {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const pathname = url.pathname;
+
+  if (pathname.startsWith('/.well-known/oauth-protected-resource/')) {
+    const resourcePath = pathname.replace('/.well-known/oauth-protected-resource', '') || '/api/mcp';
+    return protectedResourceMetadata(url.origin, resourcePath);
+  }
   
   // 检测错误模式
   const errorType = detectErrorPattern(pathname);

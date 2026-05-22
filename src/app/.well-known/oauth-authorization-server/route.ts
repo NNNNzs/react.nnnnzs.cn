@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
     introspection_endpoint: `${url.origin}/introspect`,
     registration_endpoint: `${url.origin}/register`,
     scopes_supported: ['read', 'write', 'admin'],
-    response_types_supported: ['token', 'code'],  // ← 声明支持，但实际端点会拒绝
-    grant_types_supported: ['client_credentials', 'authorization_code'],  // ← 声明支持
-    token_endpoint_auth_methods_supported: ['client_secret_post', 'none', 'bearer'],
-    code_challenge_methods_supported: ['plain', 'S256'],  // ← PKCE 支持声明
+    response_types_supported: ['code'],
+    grant_types_supported: ['client_credentials', 'authorization_code'],
+    token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
+    code_challenge_methods_supported: ['plain', 'S256'],
     service_documentation: 'https://github.com/NNNNzs/react.nnnnzs.cn'
   }, {
     headers: {

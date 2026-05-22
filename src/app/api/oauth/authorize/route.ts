@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       code_challenge,
       code_challenge_method,
       scope = 'read',
+      resource,
       approved,
       duration = 7
     } = body;
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
       redirect_uri,
       user_id: authResult.user.id,
       scope,
+      resource,
       code_challenge,
       code_challenge_method,
       created_at: Date.now(),

@@ -34,6 +34,7 @@ function AuthorizePageContent() {
   const codeChallenge = searchParams.get('code_challenge');
   const codeChallengeMethod = searchParams.get('code_challenge_method');
   const scope = searchParams.get('scope') || 'read';
+  const resource = searchParams.get('resource');
 
   // 使用自定义名称或回退到 clientId
   const displayName = customAppName.trim() || clientId;
@@ -122,6 +123,7 @@ function AuthorizePageContent() {
         code_challenge: codeChallenge,
         code_challenge_method: codeChallengeMethod,
         scope: scope,
+        resource,
         approved: true,
         duration: duration,
         app_name: customAppName.trim() || null // 传递自定义应用名称
