@@ -84,7 +84,26 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'create_article',
     handler: async (args, user) => {
       const { createPost } = await import('@/services/post');
-      return createPost({ ...args, created_by: user.id });
+      const { addPostsToCollection, getCollectionBySlug } = await import('@/services/collection');
+      const { collections, ...postArgs } = args;
+
+      const post = await createPost({ ...postArgs, created_by: user.id });
+
+      if (collections) {
+        const tokens = String(collections).split(',').map(s => s.trim()).filter(Boolean);
+        for (const token of tokens) {
+          const num = Number(token);
+          const collectionId = !isNaN(num)
+            ? num
+            : (await getCollectionBySlug(token))?.id;
+
+          if (collectionId) {
+            await addPostsToCollection(collectionId, [post.id], undefined, user.id);
+          }
+        }
+      }
+
+      return post;
     },
   },
   {
@@ -94,7 +113,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'update_article',
     handler: async (args, user) => {
       const { updatePost } = await import('@/services/post');
-      const { addPostsToCollection, removePostsFromCollection, getCollectionBySlug, getCollectionById } = await import('@/services/collection');
+      const { addPostsToCollection, removePostsFromCollection, getCollectionBySlug } = await import('@/services/collection');
       const postId = args.id as number;
 
       // 提取合集操作参数，不传给 updatePost
