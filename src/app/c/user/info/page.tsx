@@ -20,6 +20,7 @@ import {
   Upload,
   Tag,
   Alert,
+  Modal,
 } from "antd";
 import type { UploadProps } from "antd";
 import {
@@ -27,6 +28,7 @@ import {
   SaveOutlined,
   ArrowLeftOutlined,
   EditOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +58,9 @@ export default function UserInfoPage() {
   const [uploading, setUploading] = useState(false);
   const [cropperVisible, setCropperVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordForm] = Form.useForm();
 
   /**
    * 加载用户信息
@@ -206,6 +211,39 @@ export default function UserInfoPage() {
     }
   };
 
+  /**
+   * 提交修改密码
+   */
+  const handlePasswordSubmit = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      if (values.newPassword !== values.confirmPassword) {
+        message.error("两次密码不一致");
+        return;
+      }
+      setPasswordLoading(true);
+      const response = await axios.put("/api/user/info", {
+        password: values.newPassword,
+      });
+      if (response.data.status) {
+        message.success("密码修改成功");
+        setPasswordModalOpen(false);
+        passwordForm.resetFields();
+      } else {
+        message.error(response.data.message || "修改失败");
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        message.error(error.response.data.message);
+      } else {
+        console.error("修改密码失败:", error);
+        message.error("修改密码失败");
+      }
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
       <div className="mb-6 flex items-center justify-between">
@@ -292,12 +330,12 @@ export default function UserInfoPage() {
           </div>
 
           {/* 用户信息表单 */}
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            className="w-full"
-          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              className="w-full"
+            >
             <Form.Item
               label="昵称"
               name="nickname"
@@ -306,7 +344,7 @@ export default function UserInfoPage() {
                 { max: 16, message: "昵称最多16个字符" },
               ]}
             >
-              <Input placeholder="请输入昵称" size="large" />
+              <Input placeholder="请输入昵称" size="large" autoComplete="nickname" />
             </Form.Item>
 
             <Form.Item
@@ -317,7 +355,7 @@ export default function UserInfoPage() {
                 { max: 30, message: "邮箱最多30个字符" },
               ]}
             >
-              <Input placeholder="请输入邮箱（可选）" size="large" />
+              <Input placeholder="请输入邮箱（可选）" size="large" type="email" autoComplete="email" />
             </Form.Item>
 
             <Form.Item
@@ -331,7 +369,7 @@ export default function UserInfoPage() {
                 { max: 11, message: "手机号最多11位" },
               ]}
             >
-              <Input placeholder="请输入手机号（可选）" size="large" />
+              <Input placeholder="请输入手机号（可选）" size="large" autoComplete="tel" />
             </Form.Item>
 
             <Form.Item
@@ -346,22 +384,6 @@ export default function UserInfoPage() {
               <MediaUpload
                 placeholder="请输入头像URL（可选）"
                 defaultAspectRatio={1}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="新密码"
-              name="password"
-              rules={[
-                { min: 6, message: "密码至少6个字符" },
-                { max: 20, message: "密码最多20个字符" },
-              ]}
-              help="留空则不修改密码"
-            >
-              <Input.Password
-                autoComplete="off"
-                placeholder="请输入新密码（留空则不修改）"
-                size="large"
               />
             </Form.Item>
 
@@ -382,6 +404,25 @@ export default function UserInfoPage() {
               </Space>
             </Form.Item>
           </Form>
+
+          {/* 修改密码 */}
+          <Divider />
+          <div className="flex items-center justify-between">
+            <div>
+              <Text strong>修改密码</Text>
+              <br />
+              <Text type="secondary" className="text-sm">定期修改密码以提高账户安全</Text>
+            </div>
+            <Button
+              icon={<LockOutlined />}
+              onClick={() => {
+                passwordForm.resetFields();
+                setPasswordModalOpen(true);
+              }}
+            >
+              修改密码
+            </Button>
+          </div>
         </Space>
       </Card>
 
@@ -418,6 +459,59 @@ export default function UserInfoPage() {
       <div className="mt-6">
         <OAuthTokenCard userId={userInfo?.id?.toString()} />
       </div>
+
+      {/* 修改密码弹窗 */}
+      <Modal
+        title="修改密码"
+        open={passwordModalOpen}
+        onOk={handlePasswordSubmit}
+        onCancel={() => {
+          setPasswordModalOpen(false);
+          passwordForm.resetFields();
+        }}
+        okText="确认修改"
+        cancelText="取消"
+        confirmLoading={passwordLoading}
+        destroyOnHidden
+      >
+        <Form form={passwordForm} layout="vertical" className="mt-4">
+          <Form.Item
+            label="新密码"
+            name="newPassword"
+            rules={[
+              { required: true, message: "请输入新密码" },
+              { min: 6, message: "密码至少6个字符" },
+              { max: 20, message: "密码最多20个字符" },
+            ]}
+          >
+            <Input.Password
+              placeholder="请输入新密码"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+          <Form.Item
+            label="确认密码"
+            name="confirmPassword"
+            dependencies={["newPassword"]}
+            rules={[
+              { required: true, message: "请确认密码" },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("newPassword") === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("两次密码不一致"));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              placeholder="请再次输入新密码"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* 头像裁剪弹窗 */}
       <ImageCropper

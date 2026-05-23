@@ -776,6 +776,7 @@ function UserPageContent() {
               placeholder="请输入账号"
               maxLength={16}
               disabled={!!editingUser}
+              autoComplete="username"
             />
           </Form.Item>
 
@@ -788,7 +789,7 @@ function UserPageContent() {
                 { min: 6, message: "密码至少6个字符" },
               ]}
             >
-              <Input.Password placeholder="请输入密码" maxLength={32} />
+              <Input.Password placeholder="请输入密码" maxLength={32} autoComplete="new-password" />
             </Form.Item>
           )}
 
@@ -797,7 +798,7 @@ function UserPageContent() {
             name="nickname"
             rules={[{ required: true, message: "请输入昵称" }]}
           >
-            <Input placeholder="请输入昵称" maxLength={16} />
+            <Input placeholder="请输入昵称" maxLength={16} autoComplete="nickname" />
           </Form.Item>
 
           <Form.Item
@@ -809,11 +810,11 @@ function UserPageContent() {
           </Form.Item>
 
           <Form.Item label="邮箱" name="mail">
-            <Input placeholder="请输入邮箱" maxLength={30} type="email" />
+            <Input placeholder="请输入邮箱" maxLength={30} type="email" autoComplete="email" />
           </Form.Item>
 
           <Form.Item label="手机" name="phone">
-            <Input placeholder="请输入手机号" maxLength={11} />
+            <Input placeholder="请输入手机号" maxLength={11} autoComplete="tel" />
           </Form.Item>
 
           <Form.Item

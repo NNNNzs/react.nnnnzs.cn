@@ -244,7 +244,6 @@ function LoginPage() {
           form={loginForm}
           name="login"
           onFinish={handleLogin}
-          autoComplete="off"
           size="large"
         >
           <Form.Item
@@ -254,6 +253,7 @@ function LoginPage() {
             <Input
               prefix={<UserOutlined />}
               placeholder="账号"
+              autoComplete="username"
             />
           </Form.Item>
 
@@ -264,6 +264,7 @@ function LoginPage() {
             <Input.Password
               prefix={<LockOutlined />}
               placeholder="密码"
+              autoComplete="current-password"
             />
           </Form.Item>
 
@@ -372,7 +373,6 @@ function LoginPage() {
                 form={registerForm}
                 name="register"
                 onFinish={handleRegister}
-                autoComplete="off"
                 size="large"
               >
                 <Form.Item
@@ -385,6 +385,7 @@ function LoginPage() {
                   <Input
                     prefix={<UserOutlined />}
                     placeholder="账号"
+                    autoComplete="username"
                   />
                 </Form.Item>
 
@@ -395,6 +396,7 @@ function LoginPage() {
                   <Input
                     prefix={<UserOutlined />}
                     placeholder="昵称"
+                    autoComplete="nickname"
                   />
                 </Form.Item>
 
@@ -408,6 +410,8 @@ function LoginPage() {
                   <Input
                     prefix={<MailOutlined />}
                     placeholder="邮箱"
+                    type="email"
+                    autoComplete="email"
                   />
                 </Form.Item>
 
@@ -446,6 +450,7 @@ function LoginPage() {
                   <Input.Password
                     prefix={<LockOutlined />}
                     placeholder="密码"
+                    autoComplete="new-password"
                   />
                 </Form.Item>
 
@@ -467,6 +472,7 @@ function LoginPage() {
                   <Input.Password
                     prefix={<LockOutlined />}
                     placeholder="确认密码"
+                    autoComplete="new-password"
                   />
                 </Form.Item>
 
