@@ -8,7 +8,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Form, Input, Button, Card, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
@@ -18,6 +18,9 @@ const FaceCamera = dynamic(() => import('@/components/FaceCamera'), { ssr: false
 
 /** Token Cookie 名称，与服务端保持一致 */
 const TOKEN_KEY = 'blog-token';
+
+/** 邮箱验证 API 基地址 */
+const EMAIL_API = process.env.NEXT_PUBLIC_API_URL || 'https://api.nnnnzs.cn';
 
 function LoginPage() {
   const router = useRouter();
@@ -31,6 +34,7 @@ function LoginPage() {
   const [activeTab, setActiveTab] = useState('login');
   const [faceLoading, setFaceLoading] = useState(false);
   const [faceCaptured, setFaceCaptured] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
 
   /**
    * 检查是否允许注册
@@ -79,18 +83,67 @@ function LoginPage() {
   };
 
   /**
+   * 发送邮箱验证码
+   */
+  const handleSendCode = async () => {
+    try {
+      const email = registerForm.getFieldValue('email');
+      if (!email) {
+        message.warning('请先输入邮箱地址');
+        return;
+      }
+
+      // 邮箱格式校验
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        message.warning('邮箱格式不正确');
+        return;
+      }
+
+      const response = await axios.post(`${EMAIL_API}/email/send-code`, {
+        email,
+        purpose: 'register',
+      });
+
+      if (response.data.status) {
+        message.success('验证码已发送，请查收邮箱');
+        // 开始 60 秒倒计时
+        setCountdown(60);
+        const timer = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        message.error(response.data.message || '发送失败');
+      }
+    } catch (error: unknown) {
+      const msg = axios.isAxiosError(error)
+        ? error.response?.data?.message || '发送失败'
+        : '发送失败';
+      message.error(msg);
+    }
+  };
+
+  /**
    * 注册表单提交
    */
   const handleRegister = async (values: {
     account: string;
     password: string;
     nickname: string;
+    email: string;
+    emailCode: string;
   }) => {
     try {
       setLoading(true);
-      await register(values.account, values.password, values.nickname);
+      await register(values.account, values.password, values.nickname, values.email, values.emailCode);
       message.success('注册成功！');
-      
+
       // 跳转到首页
       router.push('/');
     } catch (error: unknown) {
@@ -340,9 +393,47 @@ function LoginPage() {
                   rules={[{ required: true, message: '请输入昵称！' }]}
                 >
                   <Input
-                    prefix={<MailOutlined />}
+                    prefix={<UserOutlined />}
                     placeholder="昵称"
                   />
+                </Form.Item>
+
+                <Form.Item
+                  name="email"
+                  rules={[
+                    { required: true, message: '请输入邮箱！' },
+                    { type: 'email', message: '邮箱格式不正确！' },
+                  ]}
+                >
+                  <Input
+                    prefix={<MailOutlined />}
+                    placeholder="邮箱"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="emailCode"
+                  rules={[
+                    { required: true, message: '请输入验证码！' },
+                    { len: 6, message: '验证码为6位数字！' },
+                  ]}
+                >
+                  <div className="flex gap-2">
+                    <Input
+                      prefix={<SafetyOutlined />}
+                      placeholder="邮箱验证码"
+                      className="flex-1"
+                      maxLength={6}
+                    />
+                    <Button
+                      onClick={handleSendCode}
+                      disabled={countdown > 0}
+                      className="shrink-0"
+                      style={{ minWidth: 120 }}
+                    >
+                      {countdown > 0 ? `${countdown}s` : '发送验证码'}
+                    </Button>
+                  </div>
                 </Form.Item>
 
                 <Form.Item

@@ -13,6 +13,10 @@ import {
 } from '@/lib/auth';
 import { getConfigByKey } from '@/services/config';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+
+/** 邮箱验证 API 基地址 */
+const EMAIL_API = process.env.NEXT_PUBLIC_API_URL || 'https://api.nnnnzs.cn';
+
 export async function POST(request: NextRequest) {
   try {
     // 检查是否允许注册
@@ -29,12 +33,48 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { account, password, nickname, mail, phone } = body;
+    const { account, password, nickname, mail, phone, emailCode } = body;
 
     if (!account || !password || !nickname) {
       return NextResponse.json(errorResponse('账号、密码和昵称不能为空'), {
         status: 400,
       });
+    }
+
+    // 邮箱和验证码必须同时提供
+    if (mail && !emailCode) {
+      return NextResponse.json(errorResponse('请输入邮箱验证码'), {
+        status: 400,
+      });
+    }
+
+    if (!mail && emailCode) {
+      return NextResponse.json(errorResponse('请输入邮箱地址'), {
+        status: 400,
+      });
+    }
+
+    // 如果提供了邮箱，必须验证验证码
+    if (mail && emailCode) {
+      try {
+        const verifyRes = await fetch(`${EMAIL_API}/email/verify-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: mail, code: emailCode }),
+        });
+        const verifyData = await verifyRes.json();
+
+        if (!verifyData.status) {
+          return NextResponse.json(
+            errorResponse(verifyData.message || '邮箱验证码错误或已过期'),
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(errorResponse('邮箱验证服务暂不可用'), {
+          status: 500,
+        });
+      }
     }
 
     const prisma = await getPrisma();
