@@ -116,7 +116,7 @@ jobs:
 
       - name: 通知博客部署开始
         run: |
-          curl -k -fsS -X POST "https://react.nnnnzs.cn/api/deploy/webhook" \
+          curl -k -fsS -X POST "https://www.nnnnzs.cn/api/deploy/webhook" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.WEBHOOK_SECRET }}" \
             -d '{"status":"deploying","run_id":"${{ github.run_id }}","commit":"${{ steps.version.outputs.SHORT_SHA }}","version":"${{ steps.version.outputs.VERSION }}"}'
@@ -147,7 +147,7 @@ jobs:
             WEBHOOK_STATUS="failure"
           fi
 
-          curl -k -fsS -X POST "https://react.nnnnzs.cn/api/deploy/webhook" \
+          curl -k -fsS -X POST "https://www.nnnnzs.cn/api/deploy/webhook" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.WEBHOOK_SECRET }}" \
             -d "{\"status\":\"${WEBHOOK_STATUS}\",\"run_id\":\"${{ github.run_id }}\",\"commit\":\"${{ steps.version.outputs.SHORT_SHA }}\",\"version\":\"${{ steps.version.outputs.VERSION }}\"}"
