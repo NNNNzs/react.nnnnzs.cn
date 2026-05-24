@@ -10,10 +10,10 @@ Committed files:
 
 Ignored generated files:
 
-- `.agents/skills/claude-*/`: Codex skill copies generated from `.claude/skills/`.
-- `agents/claude-*.toml`: Codex custom agents generated from `.claude/agents/`.
-- `CLAUDE_BRIDGE.md`: generated sync index.
-- `claude-sync-manifest.json`: generated sync manifest used for pruning stale outputs.
+- `.agents/skills/`: Codex skill copies generated from `.claude/skills/`.
+- `.agents/CLAUDE_BRIDGE.md`: generated sync index.
+- `.agents/claude-sync-manifest.json`: generated sync manifest used for pruning stale outputs.
+- `agents/*.toml`: Codex custom agents generated from `.claude/agents/`.
 
 Run the bridge manually with:
 
@@ -21,4 +21,4 @@ Run the bridge manually with:
 pnpm codex:sync-claude
 ```
 
-The project hook is declared in `hooks.json`.
+The project hook is declared in `hooks.json` and runs on `SessionStart` and `UserPromptSubmit`.

@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/sync-claude-to-codex.mjs",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

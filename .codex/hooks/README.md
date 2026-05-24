@@ -9,6 +9,8 @@ This directory contains project-local Codex hook scripts.
 - `.claude/skills/*` -> `.agents/skills/*`
 - `.claude/agents/*.md` -> `.codex/agents/*.toml`
 
+Generated names match the Claude Code source names.
+
 The generated output is ignored by git. The hook script itself is committed so every developer gets the same local setup behavior.
 
 Recommended hook command:
@@ -17,4 +19,4 @@ Recommended hook command:
 node .codex/hooks/sync-claude-to-codex.mjs
 ```
 
-The committed project hook declaration is `.codex/hooks.json`.
+The committed project hook declaration is `.codex/hooks.json`. It runs on `SessionStart` and `UserPromptSubmit`.
