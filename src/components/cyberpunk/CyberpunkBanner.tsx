@@ -25,6 +25,7 @@ import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
+import { getBannerSubtitle } from '@/lib/content';
 import type { Post } from '@/types';
 
 // ========================
@@ -244,9 +245,7 @@ function HeroInterfaceOverlay({
         </h1>
 
         <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
-          {isDay
-            ? 'Neon Nomad Navigating Night Zones. 白天的房间留给阅读、整理和创作，代码、运维、AI 与生活切片在阳光里排成索引。'
-            : 'Neon Nomad Navigating Night Zones. 代码、运维、AI、生活切片都收纳在这里，像深夜窗边一排还没有关掉的终端。'}
+          {getBannerSubtitle(variant)}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
