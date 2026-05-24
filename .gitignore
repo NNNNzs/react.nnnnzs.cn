@@ -40,6 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local Codex bridge output
+/.agents/skills/claude-*/
+/.codex/agents/claude-*.toml
+/.codex/claude-sync-manifest.json
+/.codex/CLAUDE_BRIDGE.md
+
 # prisma generated client
 /src/generated/prisma-client
 

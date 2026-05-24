@@ -1,0 +1,16 @@
+{
+  "description": "Sync Claude Code project skills and agents into local Codex bridge output.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/sync-claude-to-codex.mjs",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

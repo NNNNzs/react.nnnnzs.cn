@@ -17,6 +17,7 @@
     "qdrant:init": "tsx scripts/init-qdrant.ts",
     "vectors:rebuild": "tsx scripts/rebuild-vectors.ts",
     "config:add-vector-db": "tsx scripts/add-vector-db-config.ts",
+    "codex:sync-claude": "node .codex/hooks/sync-claude-to-codex.mjs",
     "build:docker": "./scripts/build-docker.sh",
     "start:docker": "docker-compose -f docker-compose.local.yml up -d ",
     "local:image:push": "./scripts/push-docker.sh",
