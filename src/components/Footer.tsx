@@ -79,19 +79,18 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link
+                <a
                   href="https://github.com/NNNNzs/react.nnnnzs.cn/actions/workflows/docker-release.yml"
-                  className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mt-2"
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="mt-2 inline-block"
                 >
-                  <span className="bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                    Docker Release
-                  </span>
-                  <span className="bg-[#4ade80] text-black text-[10px] px-1.5 py-0.5 rounded font-mono -ml-2">
-                    passing
-                  </span>
-                </Link>
+                  <img
+                    src="https://img.shields.io/github/actions/workflow/status/NNNNzs/react.nnnnzs.cn/docker-release.yml?branch=main&style=flat-square&label=Docker+Release"
+                    alt="Docker Release"
+                    className="h-5"
+                  />
+                </a>
               </li>
             </ul>
           </div>
