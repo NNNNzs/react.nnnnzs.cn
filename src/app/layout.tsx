@@ -12,6 +12,7 @@ import { getAnalyticsConfig } from "@/lib/analytics-config";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
+import DeployStatusIndicator from "@/components/DeployStatusIndicator";
 // 初始化向量化队列
 import "@/lib/embedding-init";
 
@@ -74,6 +75,7 @@ export default async function RootLayout({
                 <body className="antialiased" suppressHydrationWarning>
                   <Header />
                   {children}
+                  <DeployStatusIndicator />
                   <Script id="baidu-analytics" strategy="afterInteractive">
                     {`
                   var _hmt = _hmt || [];
