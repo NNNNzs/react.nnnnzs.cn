@@ -1,63 +1,47 @@
 ---
 name: project-prisma-client
-description: "Use this skill whenever the user asks to query, inspect, count, update, insert, delete, or otherwise operate on this project's database through Prisma. It is specifically for this Node.js repo's generated Prisma Client at src/generated/prisma-client and the bundled .claude/skills/project-prisma-client/scripts/prisma-query.mjs helper. Trigger for requests mentioning Prisma, database rows, MySQL data, articles/users/config records, admin data checks, or DB mutations. Read operations may run through the helper directly; write/delete/migration operations require showing the planned operation and getting explicit user confirmation first."
+description: "Use this skill whenever the user needs to query, inspect, count, or safely mutate this repository's database through Prisma. It should trigger for requests about Prisma data in this repo — articles, users, configs, collections, comments, RBAC, API registry, image logs, row counts, filters, or read-only SQL — especially when the user wants results from the generated Prisma Client in src/generated/prisma-client. Read queries run through the bundled Node.js helper; any create, update, delete, raw mutation, or migration must be proposed first and executed only after explicit confirmation."
 ---
 
-You help operate this project's database through a reusable Node.js helper that loads the generated Prisma Client.
+Use this skill to work with this project's database through the generated Prisma Client.
 
-## Project context
+## Use the bundled helper
 
-- Repository: `D:/project/react.nnnnzs.cn`
-- Prisma schema: `prisma/schema.prisma`
-- Generated client output: `src/generated/prisma-client`
-- Query helper: `.claude/skills/project-prisma-client/scripts/prisma-query.mjs`
-- Runtime: Node.js ESM
-- Package manager: `pnpm`
-- Database provider: MySQL via `DATABASE_URL`
-
-## Default workflow
-
-For read-only database queries, use the bundled Node.js helper instead of creating temporary scripts:
+For read-only queries, use the Node.js helper instead of writing temporary scripts:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbPost.findMany({ where: { is_delete: 0, hide: '0' }, select: { id: true, title: true, path: true, updated: true }, orderBy: { updated: 'desc' }, take: 5 })"
+node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbUser.count()"
 ```
 
 For read-only SQL that Prisma Client cannot express cleanly:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs --raw "SELECT COUNT(*) AS count FROM tb_post"
+node .claude/skills/project-prisma-client/scripts/prisma-query.mjs --raw "SELECT COUNT(*) AS count FROM tb_user"
 ```
 
 The helper accepts a JavaScript expression with `prisma` in scope, prints sanitized JSON, and disconnects automatically.
 
-## Safety model
+## Safety rules
 
-Read-only operations can run after briefly stating what will be queried.
+- Read-only queries can run after a brief说明 of what will be queried.
+- Write/delete/migration requests require a clear plan in Chinese and explicit confirmation before execution.
+- Treat these as write operations: `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, `$executeRawUnsafe`, `pnpm prisma:migrate`, `pnpm prisma:push`.
+- Do not print `DATABASE_URL`, passwords, tokens, or other secrets.
 
-Before any write operation, deletion, raw SQL mutation, schema push, or migration:
+## Output style
 
-1. Show the exact intended operation in Chinese.
-2. Explain affected model/table, filter conditions, and fields to change.
-3. Ask for explicit confirmation.
-4. Do not execute until the user confirms.
+- Reply in Chinese.
+- Give a short summary first.
+- Use a table for small result sets.
+- Use JSON only when the user wants raw data or nested data is clearer as JSON.
+- Mention row counts and filters when relevant.
 
-Treat these as write operations: `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, `$executeRawUnsafe`, `pnpm prisma:migrate`, `pnpm prisma:push`, and manual SQL that changes data or schema.
+## Good defaults
 
-The helper blocks common Prisma write methods, but do not rely on that as the only safeguard. If the user asks for mutation, stop and confirm first.
-
-Avoid exposing secrets. Do not print `DATABASE_URL`, passwords, tokens, GitHub access tokens, long-term tokens, or full sensitive values. Mask sensitive fields if they appear in results.
-
-## Result format
-
-Reply in Chinese and include:
-
-1. A concise summary of what was queried or changed.
-2. A markdown table for small tabular results.
-3. JSON only when the user asks for raw data or when nested data is easier to understand as JSON.
-4. A note about row counts and any filters used.
-
-For large result sets, limit output and mention the limit. Default to `take: 20` for list queries unless the user specifies otherwise.
+- Filter soft-deleted rows with `is_delete: 0` when that field exists.
+- Filter visible posts with `hide: '0'` when the user asks for public content.
+- Select only needed fields.
+- Use `count()` for totals.
 
 ## Common examples
 
@@ -67,41 +51,17 @@ Recent visible posts:
 node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbPost.findMany({ where: { is_delete: 0, hide: '0' }, select: { id: true, title: true, path: true, updated: true }, orderBy: { updated: 'desc' }, take: 5 })"
 ```
 
-Count core models:
+Core counts:
 
 ```bash
 node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "Promise.all([prisma.tbPost.count(), prisma.tbUser.count(), prisma.tbCollection.count()]).then(([posts, users, collections]) => ({ posts, users, collections }))"
 ```
 
-Find config keys without exposing values:
+## Model names
 
-```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbConfig.findMany({ select: { id: true, title: true, key: true, status: true, updated_at: true }, orderBy: { id: 'asc' }, take: 50 })"
-```
-
-## Common model names
-
-Use `prisma/schema.prisma` as authority, but these models commonly exist:
-
-- `tbPost` / table `tb_post`: articles/posts.
-- `tbUser` / table `tb_user`: users.
-- `tbConfig` / table `tb_config`: site configuration.
-- `tbCollection` / table `tb_collection`: article collections.
-- `tbComment` / table `tb_comment`: comments.
-- `tbRole`, `tbPermission`, `tbUserRole`, `tbRolePermission`: RBAC.
-- `tbApiRegistry`: API registry.
-- `tbImageGenLog`: image generation logs.
-
-## Good defaults
-
-- Filter soft-deleted content with `is_delete: 0` when the model has that field.
-- Filter visible posts with `hide: '0'` when the user asks for public/visible content.
-- Select only needed fields; avoid selecting password/token fields.
-- For counts, use `count()` or `groupBy()` instead of fetching all rows.
-- For raw SQL, prefer Prisma query methods first. Use `--raw` only for read-only SQL.
+Common models in this repo include `tbPost`, `tbUser`, `tbConfig`, `tbCollection`, `tbComment`, `tbRole`, `tbPermission`, `tbUserRole`, `tbRolePermission`, `tbApiRegistry`, and `tbImageGenLog`.
 
 ## When blocked
 
 If the generated client is missing or stale, run `pnpm prisma:generate` before querying.
-If environment variables are missing, tell the user which variable is required without printing secret values.
-If a query fails because the model/field name changed, re-read `prisma/schema.prisma` and adjust.
+If a query fails because the model or field name changed, re-read `prisma/schema.prisma` and adjust.
