@@ -32,8 +32,8 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
       vignetteDarkness: 0.18,
     },
     camera: {
-      position: [0, 2.35, 6.4],
-      fov: 72,
+      position: [-2.85, 2.2, 2.9],
+      fov: 68,
     },
   },
   night: {
@@ -48,8 +48,8 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
       vignetteDarkness: 0.8,
     },
     camera: {
-      position: [0, 2.5, 6.5],
-      fov: 75,
+      position: [-2.85, 2.2, 2.9],
+      fov: 68,
     },
   },
 };

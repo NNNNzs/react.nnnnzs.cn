@@ -81,8 +81,8 @@ export interface SceneConfig {
 
 const DEFAULT_CONFIG: SceneConfig = {
   camera: {
-    positionX: 0, positionY: 2.5, positionZ: 6.5,
-    lookAtX: 0, lookAtY: 1.0, lookAtZ: -2, fov: 75,
+    positionX: -2.85, positionY: 2.2, positionZ: 2.9,
+    lookAtX: 0.25, lookAtY: 1.02, lookAtZ: -1.35, fov: 68,
   },
   controls: { useOrbit: true },
   parallax: {

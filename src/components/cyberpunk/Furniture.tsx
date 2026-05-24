@@ -1,1050 +1,672 @@
 /**
- * 家具组件 - 赛博朋克单人公寓完整家具布局
+ * 家具组件 - 参考图赛博 Loft primitive 第一版
  *
- * 布局（俯视图，从入口 Z+ 看向 Z-）：
- *   左墙(-3)          后墙(落地窗 Z-4)        右墙(+3)
- *   ┌──────────┬────────────────────┬──────────┐
- *   │          │                    │          │
- *   │  床(-2)  │   ████████████     │ 书架(+2.5)│
- *   │  生活区   │   █  城市夜景  █    │ 服务器(+2.8)│
- *   │  Z=-1   │   桌子(+1.2,Z-2)  │  Z=-2.5  │
- *   │  海报    │   三显示器          │          │
- *   │          │   椅子(+1.2,Z-0.8) │          │
- *   │ 植物     │                    │          │
- *   └──────────┴────────────────────┴──────────┘
+ * 当前阶段只使用 Three.js 基础几何体搭出空间、构图和家具布局。
+ * 后续再按区域逐步替换为 GLB 或自建模型。
  */
 
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { HomepageSceneVariant } from './theme';
 import { FURNITURE_LAYOUT } from './sceneLayout';
 
-// ========================
-// 共享材质
-// ========================
-
-const darkMetal = {
-  color: '#1a1a2a',
-  metalness: 0.8,
-  roughness: 0.3,
+const metalDark = {
+  color: '#101018',
+  metalness: 0.78,
+  roughness: 0.34,
 };
 
-const darkPlastic = {
-  color: '#15152a',
-  metalness: 0.3,
-  roughness: 0.7,
+const clothDark = {
+  color: '#161625',
+  metalness: 0.04,
+  roughness: 0.92,
 };
-
-// ========================
-// 程序化显示器 HUD 纹理
-// ========================
 
 function createScreenTexture(variant: number): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 320;
+  canvas.width = 640;
+  canvas.height = 360;
   const ctx = canvas.getContext('2d')!;
 
-  // 深色背景
-  ctx.fillStyle = '#050510';
-  ctx.fillRect(0, 0, 512, 320);
+  ctx.fillStyle = '#050712';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (variant === 0) {
-    // 代码界面
-    ctx.fillStyle = '#0a1520';
-    ctx.fillRect(10, 10, 492, 300);
-    // 侧边栏
-    ctx.fillStyle = '#0a0a18';
-    ctx.fillRect(10, 10, 80, 300);
-    // 代码行
-    const codeColors = ['#00f0ff', '#ff0066', '#00ff88', '#ffaa00', '#8844ff', '#ffffff'];
-    for (let y = 20; y < 300; y += 8) {
-      for (let x = 100; x < 490; x += 3 + Math.random() * 5) {
-        ctx.fillStyle = codeColors[Math.floor(Math.random() * codeColors.length)];
-        ctx.globalAlpha = 0.3 + Math.random() * 0.5;
-        ctx.fillRect(x, y, 2 + Math.random() * 3, 4);
+    ctx.fillStyle = '#07121f';
+    ctx.fillRect(18, 16, 604, 328);
+    ctx.fillStyle = '#0b0b18';
+    ctx.fillRect(18, 16, 110, 328);
+
+    const colors = ['#00f0ff', '#ff2a9a', '#6dffb4', '#ffd166', '#7b61ff'];
+    for (let y = 36; y < 328; y += 12) {
+      ctx.fillStyle = '#28445d';
+      ctx.globalAlpha = 0.42;
+      ctx.fillRect(38, y, 42, 5);
+      for (let x = 150; x < 585; x += 16 + Math.random() * 26) {
+        ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+        ctx.globalAlpha = 0.35 + Math.random() * 0.45;
+        ctx.fillRect(x, y, 10 + Math.random() * 38, 4);
       }
     }
-    // 行号
-    for (let y = 20; y < 300; y += 12) {
-      ctx.fillStyle = '#334455';
-      ctx.globalAlpha = 0.5;
-      ctx.fillRect(18, y, 20, 5);
-    }
   } else if (variant === 1) {
-    // 地图/监控界面
-    ctx.fillStyle = '#0a0818';
-    ctx.fillRect(10, 10, 492, 300);
-    // 网格线
-    ctx.strokeStyle = '#1a2040';
-    ctx.lineWidth = 0.5;
-    for (let x = 10; x < 500; x += 30) {
-      ctx.beginPath(); ctx.moveTo(x, 10); ctx.lineTo(x, 310); ctx.stroke();
-    }
-    for (let y = 10; y < 310; y += 30) {
-      ctx.beginPath(); ctx.moveTo(10, y); ctx.lineTo(500, y); ctx.stroke();
-    }
-    // 地图标记点
-    const mapColors = ['#00f0ff', '#ff0066', '#00ff88'];
-    for (let i = 0; i < 15; i++) {
-      const mx = 30 + Math.random() * 450;
-      const my = 30 + Math.random() * 260;
-      const mc = mapColors[Math.floor(Math.random() * 3)];
-      ctx.fillStyle = mc;
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.arc(mx, my, 2 + Math.random() * 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // HUD 框
-    ctx.strokeStyle = '#00f0ff';
-    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#12314b';
     ctx.lineWidth = 1;
-    ctx.strokeRect(20, 20, 470, 280);
-  } else {
-    // 系统状态面板
-    ctx.fillStyle = '#080815';
-    ctx.fillRect(10, 10, 492, 300);
-    // 面板块
-    const panelColors = ['#0a1525', '#150a20', '#0a180a'];
-    for (let i = 0; i < 6; i++) {
-      ctx.fillStyle = panelColors[i % 3];
-      ctx.globalAlpha = 0.8;
-      const px = 15 + (i % 3) * 160;
-      const py = 15 + Math.floor(i / 3) * 150;
-      ctx.fillRect(px, py, 150, 140);
-      // 进度条/数据
-      const barColor = ['#00f0ff', '#ff0066', '#00ff88'][i % 3];
-      ctx.fillStyle = barColor;
-      ctx.globalAlpha = 0.4;
-      ctx.fillRect(px + 10, py + 30, 80 + Math.random() * 50, 8);
-      ctx.fillRect(px + 10, py + 50, 60 + Math.random() * 70, 8);
-      ctx.fillRect(px + 10, py + 70, 90 + Math.random() * 40, 8);
+    for (let x = 28; x < 620; x += 34) {
+      ctx.beginPath();
+      ctx.moveTo(x, 22);
+      ctx.lineTo(x, 338);
+      ctx.stroke();
     }
+    for (let y = 22; y < 338; y += 34) {
+      ctx.beginPath();
+      ctx.moveTo(28, y);
+      ctx.lineTo(612, y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#00f0ff';
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(320, 180, 92, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(320, 180, 42, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ['#00f0ff', '#ff2a9a', '#6dffb4'].forEach((color, index) => {
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.45;
+      ctx.fillRect(52, 58 + index * 56, 170 + index * 40, 10);
+      ctx.fillRect(416, 70 + index * 48, 92 + index * 28, 8);
+    });
+  } else {
+    const blocks = [
+      ['#00f0ff', 34, 34, 250, 112],
+      ['#ff2a9a', 354, 34, 246, 112],
+      ['#7b61ff', 34, 196, 250, 112],
+      ['#6dffb4', 354, 196, 246, 112],
+    ] as const;
+
+    blocks.forEach(([color, x, y, w, h]) => {
+      ctx.fillStyle = '#08101c';
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.55;
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.42;
+      ctx.fillRect(x + 18, y + 28, w * 0.55, 8);
+      ctx.fillRect(x + 18, y + 52, w * 0.34, 8);
+      ctx.fillRect(x + 18, y + 76, w * 0.72, 8);
+    });
   }
 
   ctx.globalAlpha = 1;
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
-// ========================
-// 闪烁 LED 效果
-// ========================
+function NeonStrip({
+  position,
+  scale,
+  color,
+  rotation = [0, 0, 0],
+  intensity = 1.4,
+}: {
+  position: [number, number, number];
+  scale: [number, number, number];
+  color: string;
+  rotation?: [number, number, number];
+  intensity?: number;
+}) {
+  return (
+    <mesh position={position} rotation={rotation}>
+      <boxGeometry args={scale} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={intensity} toneMapped={false} />
+    </mesh>
+  );
+}
+
+function Cable({
+  points,
+  radius = 0.01,
+  color = '#05050a',
+}: {
+  points: [number, number, number][];
+  radius?: number;
+  color?: string;
+}) {
+  const geometry = useMemo(() => {
+    const curve = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point)));
+    return new THREE.TubeGeometry(curve, 16, radius, 6, false);
+  }, [points, radius]);
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color={color} roughness={0.9} />
+    </mesh>
+  );
+}
 
 function BlinkingLED({ position, color }: { position: [number, number, number]; color: string }) {
   const ref = useRef<THREE.Mesh>(null);
-  const seed = Math.abs(position[0] * 17 + position[1] * 31 + position[2] * 43 + color.length);
-  const speed = 0.5 + (seed % 3);
-  const offset = (seed % 6.28);
+  const seed = Math.abs(position[0] * 31 + position[1] * 17 + position[2] * 47 + color.length);
 
-  useFrame(() => {
-    if (ref.current) {
-      const material = ref.current.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = Math.sin(performance.now() * 0.001 * speed + offset) > 0 ? 2 : 0.1;
-    }
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const material = ref.current.material as THREE.MeshStandardMaterial;
+    material.emissiveIntensity = Math.sin(clock.getElapsedTime() * (1.2 + seed % 2) + seed) > -0.15 ? 1.7 : 0.18;
   });
 
   return (
     <mesh ref={ref} position={position}>
-      <sphereGeometry args={[0.02, 8, 8]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} toneMapped={false} />
+      <sphereGeometry args={[0.025, 10, 10]} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} toneMapped={false} />
     </mesh>
   );
 }
 
-// ========================
-// 桌子（工业风，深色旧木板桌面）
-// ========================
-
-function Desk() {
-  const layout = FURNITURE_LAYOUT.desk;
-
-  return (
-    <group position={layout.position}>
-      {/* 桌面 - 更宽更长 */}
-      <mesh position={[0, 0.75, 0]} castShadow>
-        <boxGeometry args={[2.2, 0.04, 0.85]} />
-        <meshStandardMaterial color="#1a1510" metalness={0.2} roughness={0.85} />
-      </mesh>
-      {/* 金属支架桌腿 */}
-      {[
-        [-1.0, 0, -0.37] as [number, number, number],
-        [1.0, 0, -0.37] as [number, number, number],
-        [-1.0, 0, 0.37] as [number, number, number],
-        [1.0, 0, 0.37] as [number, number, number],
-      ].map((pos, i) => (
-        <mesh key={i} position={[pos[0], 0.375, pos[2]]} castShadow>
-          <boxGeometry args={[0.04, 0.75, 0.04]} />
-          <meshStandardMaterial {...darkMetal} />
-        </mesh>
-      ))}
-      {/* 桌下横撑 */}
-      <mesh position={[0, 0.15, 0]}>
-        <boxGeometry args={[2.0, 0.03, 0.03]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 显示器（带 HUD 纹理）
-// ========================
-
-function Monitor({ position, variant = 0, rotY = 0 }: { position: [number, number, number]; variant?: number; rotY?: number }) {
-  const screenRef = useRef<THREE.Mesh>(null);
-  const screenTexture = useMemo(() => createScreenTexture(variant), [variant]);
-
-  useFrame(() => {
-    if (screenRef.current) {
-      const mat = screenRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 1.2 + Math.sin(performance.now() * 0.001 * 0.3 + variant) * 0.1;
-    }
-  });
-
-  return (
-    <group position={position} rotation={[0, rotY, 0]}>
-      {/* 支架 */}
-      <mesh>
-        <boxGeometry args={[0.04, 0.18, 0.04]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      <mesh position={[0, -0.12, 0]}>
-        <boxGeometry args={[0.18, 0.02, 0.12]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      {/* 屏幕框 - 窄边框 */}
-      <mesh position={[0, 0.17, 0]}>
-        <boxGeometry args={[0.62, 0.4, 0.02]} />
-        <meshStandardMaterial color="#0a0a15" metalness={0.8} roughness={0.2} />
-      </mesh>
-      {/* 屏幕发光面 */}
-      <mesh ref={screenRef} position={[0, 0.17, 0.011]}>
-        <planeGeometry args={[0.57, 0.35]} />
-        <meshStandardMaterial
-          map={screenTexture}
-          emissiveMap={screenTexture}
-          emissive="#003344"
-          emissiveIntensity={1.2}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// RGB 机械键盘
-// ========================
-
-function Keyboard() {
-  const layout = FURNITURE_LAYOUT.keyboard;
-
-  return (
-    <group position={layout.position} rotation={layout.rotation}>
-      <mesh>
-        <boxGeometry args={[0.55, 0.02, 0.2]} />
-        <meshStandardMaterial {...darkPlastic} />
-      </mesh>
-      {/* RGB 按键发光面 */}
-      <mesh position={[0, 0.012, 0]}>
-        <planeGeometry args={[0.53, 0.18]} />
-        <meshStandardMaterial
-          color="#0a0a15"
-          emissive="#00f0ff"
-          emissiveIntensity={0.2}
-          transparent
-          opacity={0.8}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 鼠标
-// ========================
-
-function Mouse() {
-  const layout = FURNITURE_LAYOUT.mouse;
-
-  return (
-    <mesh position={layout.position}>
-      <boxGeometry args={[0.06, 0.025, 0.1]} />
-      <meshStandardMaterial {...darkPlastic} />
-    </mesh>
-  );
-}
-
-// ========================
-// 床（凌乱单人床）
-// ========================
-
-function Bed() {
-  const layout = FURNITURE_LAYOUT.bed;
-
-  return (
-    <group position={layout.position}>
-      {/* 床架 - 低矮 */}
-      <mesh position={[0, 0.15, 0]} castShadow>
-        <boxGeometry args={[1.3, 0.1, 2]} />
-        <meshStandardMaterial color="#15152a" metalness={0.3} roughness={0.8} />
-      </mesh>
-      {/* 床垫 */}
-      <mesh position={[0, 0.25, 0]} castShadow>
-        <boxGeometry args={[1.2, 0.14, 1.9]} />
-        <meshStandardMaterial color="#1a1a30" roughness={0.95} />
-      </mesh>
-      {/* 凌乱被褥（用几个倾斜的盒子模拟） */}
-      <mesh position={[0.1, 0.38, 0.2]} rotation={[0.05, 0.15, 0.03]}>
-        <boxGeometry args={[1.1, 0.15, 1.3]} />
-        <meshStandardMaterial color="#16162e" roughness={1} />
-      </mesh>
-      {/* 被角堆起 */}
-      <mesh position={[-0.3, 0.4, 0.6]} rotation={[0.1, -0.2, 0.08]}>
-        <boxGeometry args={[0.5, 0.2, 0.4]} />
-        <meshStandardMaterial color="#181832" roughness={1} />
-      </mesh>
-      {/* 床头板 */}
-      <mesh position={[0, 0.4, -1]}>
-        <boxGeometry args={[1.3, 0.5, 0.06]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      {/* 枕头（略微偏移表示用过） */}
-      <mesh position={[-0.25, 0.38, -0.7]} rotation={[0, 0, 0.08]}>
-        <boxGeometry args={[0.35, 0.1, 0.25]} />
-        <meshStandardMaterial color="#1e1e38" roughness={1} />
-      </mesh>
-      <mesh position={[0.2, 0.37, -0.65]} rotation={[0, 0, -0.05]}>
-        <boxGeometry args={[0.3, 0.08, 0.22]} />
-        <meshStandardMaterial color="#1c1c36" roughness={1} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 床头柜 + 全息时钟
-// ========================
-
-function Nightstand() {
-  const clockRef = useRef<THREE.Mesh>(null);
-  const layout = FURNITURE_LAYOUT.nightstand;
-
-  useFrame(() => {
-    if (clockRef.current) {
-      const mat = clockRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.8 + Math.sin(performance.now() * 0.001) * 0.15;
-    }
-  });
-
-  return (
-    <group position={layout.position}>
-      <mesh position={[0, 0.25, 0]}>
-        <boxGeometry args={[0.35, 0.5, 0.3]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      {/* 全息数字时钟 */}
-      <mesh ref={clockRef} position={[0, 0.55, 0]}>
-        <boxGeometry args={[0.2, 0.06, 0.02]} />
-        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.8} toneMapped={false} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 墙面霓虹海报/装饰画
-// ========================
-
-function NeonPoster() {
+function Monitor({
+  position,
+  rotation,
+  variant,
+}: {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  variant: number;
+}) {
+  const texture = useMemo(() => createScreenTexture(variant), [variant]);
   const ref = useRef<THREE.Mesh>(null);
-  const layout = FURNITURE_LAYOUT.neonPoster;
 
-  useFrame(() => {
-    if (ref.current) {
-      const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.6 + Math.sin(performance.now() * 0.001 * 1.5) * 0.15;
-    }
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const material = ref.current.material as THREE.MeshStandardMaterial;
+    material.emissiveIntensity = 1.1 + Math.sin(clock.getElapsedTime() * 0.6 + variant) * 0.12;
   });
 
   return (
-    <group position={layout.position} rotation={layout.rotation}>
-      {/* 海报背景 */}
-      <mesh ref={ref}>
-        <planeGeometry args={[0.8, 0.5]} />
-        <meshStandardMaterial
-          color="#ff0066"
-          emissive="#ff0066"
-          emissiveIntensity={0.6}
-          toneMapped={false}
-          transparent
-          opacity={0.85}
-        />
+    <group position={position} rotation={rotation}>
+      <mesh position={[0, -0.18, -0.03]}>
+        <boxGeometry args={[0.05, 0.28, 0.05]} />
+        <meshStandardMaterial {...metalDark} />
       </mesh>
-      {/* 装饰框 */}
-      <mesh position={[0, 0, -0.01]}>
-        <planeGeometry args={[0.85, 0.55]} />
-        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.3} toneMapped={false} transparent opacity={0.3} />
+      <mesh position={[0, -0.34, 0.02]}>
+        <boxGeometry args={[0.28, 0.03, 0.18]} />
+        <meshStandardMaterial {...metalDark} />
+      </mesh>
+      <mesh>
+        <boxGeometry args={[0.8, 0.46, 0.045]} />
+        <meshStandardMaterial color="#05050d" metalness={0.75} roughness={0.2} />
+      </mesh>
+      <mesh ref={ref} position={[0, 0, 0.026]}>
+        <planeGeometry args={[0.74, 0.4]} />
+        <meshStandardMaterial
+          map={texture}
+          emissiveMap={texture}
+          emissive="#00c8ff"
+          emissiveIntensity={1.1}
+          toneMapped={false}
+        />
       </mesh>
     </group>
   );
 }
 
-// ========================
-// 书架（整面高书架，工业金属架）
-// ========================
+function WorkstationZone() {
+  const desk = FURNITURE_LAYOUT.desk;
+
+  return (
+    <group>
+      <group position={desk.position}>
+        <mesh position={[0, 0.78, 0]} castShadow>
+          <boxGeometry args={[desk.bounds.width, 0.08, desk.bounds.depth]} />
+          <meshStandardMaterial color="#181018" metalness={0.28} roughness={0.72} />
+        </mesh>
+        <NeonStrip position={[0, 0.74, desk.bounds.depth / 2 + 0.02]} scale={[desk.bounds.width, 0.018, 0.018]} color="#00d8ff" intensity={1.1} />
+        {[
+          [-1.15, 0.38, -0.34],
+          [1.15, 0.38, -0.34],
+          [-1.15, 0.38, 0.34],
+          [1.15, 0.38, 0.34],
+        ].map((pos, index) => (
+          <mesh key={index} position={pos as [number, number, number]}>
+            <boxGeometry args={[0.06, 0.76, 0.06]} />
+            <meshStandardMaterial {...metalDark} />
+          </mesh>
+        ))}
+        <mesh position={[-0.94, 0.34, 0.26]}>
+          <boxGeometry args={[0.62, 0.56, 0.38]} />
+          <meshStandardMaterial color="#090914" metalness={0.72} roughness={0.26} />
+        </mesh>
+        {['#00f0ff', '#ff2a9a', '#6dffb4'].map((color, index) => (
+          <BlinkingLED key={color} position={[-1.08 + index * 0.13, 0.48, 0.45]} color={color} />
+        ))}
+      </group>
+
+      {FURNITURE_LAYOUT.monitors.map((monitor) => (
+        <Monitor
+          key={monitor.variant}
+          position={monitor.position}
+          rotation={monitor.rotation}
+          variant={monitor.variant}
+        />
+      ))}
+
+      <mesh position={FURNITURE_LAYOUT.keyboard.position} rotation={FURNITURE_LAYOUT.keyboard.rotation}>
+        <boxGeometry args={[0.78, 0.035, 0.24]} />
+        <meshStandardMaterial color="#070711" metalness={0.4} roughness={0.58} />
+      </mesh>
+      <NeonStrip position={[-2.18, 0.865, -1.68]} scale={[0.68, 0.008, 0.03]} color="#ff2a9a" intensity={0.8} />
+      <mesh position={FURNITURE_LAYOUT.mouse.position}>
+        <boxGeometry args={[0.08, 0.035, 0.13]} />
+        <meshStandardMaterial color="#080812" emissive="#00f0ff" emissiveIntensity={0.14} />
+      </mesh>
+      <mesh position={FURNITURE_LAYOUT.coffeeMug.position}>
+        <cylinderGeometry args={[0.045, 0.04, 0.1, 14]} />
+        <meshStandardMaterial color="#202033" roughness={0.72} />
+      </mesh>
+
+      <group position={FURNITURE_LAYOUT.chair.position} rotation={FURNITURE_LAYOUT.chair.rotation}>
+        <mesh position={[0, 0.48, 0]}>
+          <boxGeometry args={[0.58, 0.1, 0.55]} />
+          <meshStandardMaterial {...clothDark} />
+        </mesh>
+        <mesh position={[0, 0.92, -0.2]} rotation={[-0.18, 0, 0]}>
+          <boxGeometry args={[0.58, 0.82, 0.09]} />
+          <meshStandardMaterial color="#111122" roughness={0.86} />
+        </mesh>
+        <NeonStrip position={[0.31, 0.92, -0.145]} scale={[0.025, 0.68, 0.02]} color="#ff2a9a" intensity={0.9} />
+        <NeonStrip position={[-0.31, 0.92, -0.145]} scale={[0.025, 0.68, 0.02]} color="#00d8ff" intensity={0.75} />
+        <mesh position={[0, 0.24, 0]}>
+          <cylinderGeometry args={[0.035, 0.035, 0.36, 10]} />
+          <meshStandardMaterial {...metalDark} />
+        </mesh>
+        <mesh position={[0, 0.04, 0]}>
+          <cylinderGeometry args={[0.26, 0.29, 0.04, 18]} />
+          <meshStandardMaterial {...metalDark} />
+        </mesh>
+      </group>
+
+      <group position={FURNITURE_LAYOUT.glowPlant.position}>
+        <mesh position={[0, 0.16, 0]}>
+          <cylinderGeometry args={[0.12, 0.1, 0.28, 12]} />
+          <meshStandardMaterial color="#151521" roughness={0.8} />
+        </mesh>
+        {[0, 1, 2, 3, 4].map((index) => (
+          <mesh
+            key={index}
+            position={[
+              Math.cos(index * 1.26) * 0.13,
+              0.45 + Math.sin(index) * 0.08,
+              Math.sin(index * 1.26) * 0.13,
+            ]}
+          >
+            <sphereGeometry args={[0.07, 10, 10]} />
+            <meshStandardMaterial color="#37ff9a" emissive="#37ff9a" emissiveIntensity={0.5} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
 
 function Bookshelf() {
-  const shelfColor = '#15152a';
   const layout = FURNITURE_LAYOUT.bookshelf;
 
   return (
     <group position={layout.position} rotation={layout.rotation}>
-      {/* 侧板 - 接近天花板高度 */}
-      <mesh position={[-0.4, 1.5, 0]}>
-        <boxGeometry args={[0.04, 3.2, 0.35]} />
-        <meshStandardMaterial color={shelfColor} metalness={0.5} />
+      <mesh position={[0, 1.35, 0]}>
+        <boxGeometry args={[layout.bounds.width, layout.bounds.height, 0.08]} />
+        <meshStandardMaterial color="#0c0c15" metalness={0.5} roughness={0.44} />
       </mesh>
-      <mesh position={[0.4, 1.5, 0]}>
-        <boxGeometry args={[0.04, 3.2, 0.35]} />
-        <meshStandardMaterial color={shelfColor} metalness={0.5} />
-      </mesh>
-      {/* 层板（6 层） */}
-      {[0, 0.64, 1.28, 1.92, 2.56, 3.2].map((y, i) => (
-        <mesh key={i} position={[0, y, 0]}>
-          <boxGeometry args={[0.84, 0.03, 0.35]} />
-          <meshStandardMaterial color={shelfColor} metalness={0.5} />
+      {[-0.62, 0, 0.62].map((x) => (
+        <mesh key={x} position={[x, 1.35, 0.23]}>
+          <boxGeometry args={[0.04, layout.bounds.height, 0.38]} />
+          <meshStandardMaterial {...metalDark} />
         </mesh>
       ))}
-
-      {/* 发光数据核心（各层随机） */}
-      {[
-        { pos: [-0.2, 0.35, 0] as [number, number, number], color: '#00f0ff' },
-        { pos: [0.15, 0.35, 0] as [number, number, number], color: '#ff0066' },
-        { pos: [0, 0.9, 0] as [number, number, number], color: '#00f0ff' },
-        { pos: [-0.15, 1.0, 0] as [number, number, number], color: '#8844ff' },
-        { pos: [0.2, 1.0, 0] as [number, number, number], color: '#00ff88' },
-        { pos: [-0.1, 1.55, 0] as [number, number, number], color: '#00f0ff' },
-        { pos: [0.2, 1.55, 0] as [number, number, number], color: '#ff0066' },
-        { pos: [0, 2.2, 0] as [number, number, number], color: '#8844ff' },
-        { pos: [-0.2, 2.2, 0] as [number, number, number], color: '#00f0ff' },
-        { pos: [0.15, 2.85, 0] as [number, number, number], color: '#00ff88' },
-        { pos: [-0.1, 2.85, 0] as [number, number, number], color: '#ff0066' },
-      ].map((item, i) => (
-        <mesh key={`core-${i}`} position={item.pos}>
-          <boxGeometry args={[0.08, 0.2, 0.2]} />
-          <meshStandardMaterial
-            color={item.color}
-            emissive={item.color}
-            emissiveIntensity={0.45 + (i % 4) * 0.08}
-            toneMapped={false}
-          />
+      {[0.35, 0.82, 1.29, 1.76, 2.23, 2.7].map((y) => (
+        <mesh key={y} position={[0, y, 0.24]}>
+          <boxGeometry args={[layout.bounds.width, 0.04, 0.42]} />
+          <meshStandardMaterial {...metalDark} />
         </mesh>
       ))}
+      {Array.from({ length: 34 }).map((_, index) => {
+        const col = index % 11;
+        const row = Math.floor(index / 11);
+        const x = -0.54 + col * 0.11;
+        const y = 0.48 + row * 0.47;
+        const h = 0.2 + ((index * 7) % 8) * 0.018;
+        const color = ['#202038', '#29223d', '#1d2840', '#24322c'][index % 4];
 
-      {/* 盒式存储模块 */}
-      {[
-        { pos: [-0.25, 0.55, 0] as [number, number, number] },
-        { pos: [0.1, 0.55, 0] as [number, number, number] },
-        { pos: [0.25, 1.2, 0] as [number, number, number] },
-      ].map((item, i) => (
-        <mesh key={`module-${i}`} position={item.pos}>
-          <boxGeometry args={[0.06, 0.15, 0.18]} />
-          <meshStandardMaterial color="#1a1a30" metalness={0.6} roughness={0.4} />
+        return (
+          <mesh key={index} position={[x, y + h / 2, 0.48]}>
+            <boxGeometry args={[0.065, h, 0.16]} />
+            <meshStandardMaterial color={color} roughness={0.85} />
+          </mesh>
+        );
+      })}
+      {['#00f0ff', '#ff2a9a', '#7b61ff', '#6dffb4'].map((color, index) => (
+        <mesh key={color} position={[-0.42 + index * 0.28, 2.38, 0.5]}>
+          <boxGeometry args={[0.08, 0.28, 0.16]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.46} toneMapped={false} />
         </mesh>
       ))}
     </group>
   );
 }
-
-// ========================
-// 服务器机柜（大型，1.8m 高）
-// ========================
 
 function ServerRack() {
   const layout = FURNITURE_LAYOUT.serverRack;
-  const ledColors = [
-    '#00f0ff', '#00f0ff', '#ff0066', '#00f0ff',
-    '#8844ff', '#00f0ff', '#ff0066', '#00f0ff',
-    '#00f0ff', '#8844ff', '#ff0066', '#00f0ff',
-    '#ff0066', '#00f0ff', '#8844ff', '#00f0ff',
-  ];
-
-  return (
-    <group position={layout.position}>
-      {/* 机架外壳 - 1.8m 高 */}
-      <mesh position={[0, 0.9, 0]}>
-        <boxGeometry args={[0.5, 1.8, 0.4]} />
-        <meshStandardMaterial color="#0d0d1a" metalness={0.9} roughness={0.2} />
-      </mesh>
-      {/* 前面板（半透明） */}
-      <mesh position={[0, 0.9, 0.205]}>
-        <boxGeometry args={[0.45, 1.7, 0.01]} />
-        <meshStandardMaterial color="#111122" transparent opacity={0.4} metalness={0.5} />
-      </mesh>
-      {/* 设备层分隔条 */}
-      {[0, 0.45, 0.9, 1.35, 1.8].map((y, i) => (
-        <mesh key={`shelf-${i}`} position={[0, y, 0.21]}>
-          <boxGeometry args={[0.44, 0.02, 0.02]} />
-          <meshStandardMaterial color="#1a1a2a" metalness={0.8} />
-        </mesh>
-      ))}
-      {/* LED 指示灯（16 个，4x4 网格） */}
-      {ledColors.map((color, i) => (
-        <BlinkingLED
-          key={`led-${i}`}
-          position={[-0.15 + (i % 4) * 0.1, 1.65 - Math.floor(i / 4) * 0.4, 0.215]}
-          color={color}
-        />
-      ))}
-      {/* 散热孔视觉暗示 */}
-      <mesh position={[0, 0.9, 0.22]}>
-        <planeGeometry args={[0.3, 1.5]} />
-        <meshStandardMaterial color="#0a0a15" transparent opacity={0.2} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 普通办公椅 + 椅背外套
-// ========================
-
-function Chair() {
-  const layout = FURNITURE_LAYOUT.chair;
-
-  return (
-    <group position={layout.position}>
-      {/* 座垫 */}
-      <mesh position={[0, 0.45, 0]}>
-        <boxGeometry args={[0.45, 0.06, 0.45]} />
-        <meshStandardMaterial color="#1a1a28" roughness={0.9} />
-      </mesh>
-      {/* 靠背 */}
-      <mesh position={[0, 0.78, -0.2]}>
-        <boxGeometry args={[0.45, 0.6, 0.05]} />
-        <meshStandardMaterial color="#1a1a28" roughness={0.9} />
-      </mesh>
-      {/* 椅背外套 */}
-      <mesh position={[0.02, 0.85, -0.23]} rotation={[0.1, 0.05, 0.08]}>
-        <boxGeometry args={[0.35, 0.5, 0.04]} />
-        <meshStandardMaterial color="#15152a" roughness={1} />
-      </mesh>
-      {/* 外套袖子部分 */}
-      <mesh position={[0.1, 0.65, -0.22]} rotation={[0.3, 0, 0.15]}>
-        <boxGeometry args={[0.15, 0.3, 0.03]} />
-        <meshStandardMaterial color="#15152a" roughness={1} />
-      </mesh>
-      {/* 中心柱 */}
-      <mesh position={[0, 0.2, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, 0.35, 8]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      {/* 底座 */}
-      <mesh position={[0, 0.03, 0]}>
-        <cylinderGeometry args={[0.2, 0.22, 0.02, 16]} />
-        <meshStandardMaterial {...darkMetal} />
-      </mesh>
-      {/* 轮子 */}
-      {[
-        [0.15, 0.02, 0.15] as [number, number, number],
-        [-0.15, 0.02, 0.15] as [number, number, number],
-        [0.15, 0.02, -0.15] as [number, number, number],
-        [-0.15, 0.02, -0.15] as [number, number, number],
-      ].map((pos, i) => (
-        <mesh key={i} position={pos}>
-          <sphereGeometry args={[0.02, 8, 8]} />
-          <meshStandardMaterial color="#0a0a15" roughness={0.6} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// ========================
-// 咖啡杯
-// ========================
-
-function CoffeeMug() {
-  const layout = FURNITURE_LAYOUT.coffeeMug;
-
-  return (
-    <group position={layout.position}>
-      {/* 杯身 */}
-      <mesh>
-        <cylinderGeometry args={[0.035, 0.03, 0.08, 12]} />
-        <meshStandardMaterial color="#2a2a3a" roughness={0.8} />
-      </mesh>
-      {/* 杯把手 */}
-      <mesh position={[0.04, 0, 0]}>
-        <torusGeometry args={[0.02, 0.005, 8, 12, Math.PI]} />
-        <meshStandardMaterial color="#2a2a3a" roughness={0.8} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 生物发光植物（窗边角落）
-// ========================
-
-function GlowPlant() {
-  const ref = useRef<THREE.Mesh>(null);
-  const layout = FURNITURE_LAYOUT.glowPlant;
-
-  useFrame(() => {
-    if (ref.current) {
-      const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.8 + Math.sin(performance.now() * 0.001 * 1.2) * 0.2;
-    }
-  });
-
-  return (
-    <group position={layout.position}>
-      {/* 花盆 */}
-      <mesh position={[0, 0.1, 0]}>
-        <cylinderGeometry args={[0.08, 0.06, 0.2, 8]} />
-        <meshStandardMaterial color="#1a1a2a" roughness={0.8} />
-      </mesh>
-      {/* 发光植物主体 */}
-      <mesh ref={ref} position={[0, 0.3, 0]}>
-        <dodecahedronGeometry args={[0.1, 1]} />
-        <meshStandardMaterial
-          color="#00ff88"
-          emissive="#00ff88"
-          emissiveIntensity={0.8}
-          toneMapped={false}
-        />
-      </mesh>
-      {/* 叶片边缘发光 */}
-      {[0, 1, 2, 3].map((i) => (
-        <mesh key={i} position={[
-          Math.cos(i * Math.PI / 2) * 0.12,
-          0.25 + Math.sin(i * 1.5) * 0.05,
-          Math.sin(i * Math.PI / 2) * 0.12,
-        ]}>
-          <sphereGeometry args={[0.03, 8, 8]} />
-          <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={0.5} toneMapped={false} />
-        </mesh>
-      ))}
-      {/* 光晕 */}
-      <mesh position={[0, 0.3, 0]}>
-        <sphereGeometry args={[0.2, 12, 12]} />
-        <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={0.15} transparent opacity={0.1} toneMapped={false} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 霓虹灯牌 "NNNNzs"（落地窗上方悬挂）
-// ========================
-
-function NeonSign({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
-  const panelRef = useRef<THREE.Mesh>(null);
-  const layout = FURNITURE_LAYOUT.neonSign;
-
-  useFrame(() => {
-    if (panelRef.current) {
-      const mat = panelRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = variant === 'day' ? 0.08 : 0.45 + Math.sin(performance.now() * 0.001 * 2) * 0.12;
-    }
-  });
-
-  return (
-    <group position={layout.position}>
-      {/* 悬挂线 */}
-      <mesh position={[-0.4, 0.15, 0]}>
-        <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
-        <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#1a1a2a'} />
-      </mesh>
-      <mesh position={[0.4, 0.15, 0]}>
-        <cylinderGeometry args={[0.005, 0.005, 0.3, 4]} />
-        <meshStandardMaterial color={variant === 'day' ? '#94a3b8' : '#1a1a2a'} />
-      </mesh>
-      {/* 背板 */}
-      <mesh ref={panelRef}>
-        <planeGeometry args={[1.4, 0.35]} />
-        <meshStandardMaterial
-          color={variant === 'day' ? '#f8fafc' : '#130817'}
-          emissive={variant === 'day' ? '#38bdf8' : '#ff0066'}
-          emissiveIntensity={variant === 'day' ? 0.08 : 0.45}
-          toneMapped={false}
-          transparent
-          opacity={variant === 'day' ? 0.86 : 0.72}
-        />
-      </mesh>
-      <Text
-        position={[0, -0.005, 0.018]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-        color={variant === 'day' ? '#0f172a' : '#ffd6f0'}
-        outlineWidth={variant === 'day' ? 0.003 : 0.01}
-        outlineColor={variant === 'day' ? '#bae6fd' : '#ff0066'}
-      >
-        NNNNzs
-        <meshStandardMaterial
-          color={variant === 'day' ? '#0f172a' : '#ffd6f0'}
-          emissive={variant === 'day' ? '#38bdf8' : '#ff0066'}
-          emissiveIntensity={variant === 'day' ? 0.12 : 2.6}
-          toneMapped={false}
-        />
-      </Text>
-      {/* 青蓝边框 */}
-      <mesh position={[0, 0, 0.001]}>
-        <planeGeometry args={[1.5, 0.45]} />
-        <meshStandardMaterial
-          color={variant === 'day' ? '#38bdf8' : '#00f0ff'}
-          emissive={variant === 'day' ? '#38bdf8' : '#00f0ff'}
-          emissiveIntensity={variant === 'day' ? 0.08 : 0.5}
-          toneMapped={false}
-          transparent
-          opacity={0.2}
-        />
-      </mesh>
-      {/* 大光晕（投射到周围墙面） */}
-      <mesh>
-        <planeGeometry args={[2.5, 1.0]} />
-        <meshStandardMaterial
-          color={variant === 'day' ? '#bae6fd' : '#ff0066'}
-          emissive={variant === 'day' ? '#bae6fd' : '#ff0066'}
-          emissiveIntensity={variant === 'day' ? 0.04 : 0.15}
-          transparent
-          opacity={0.08}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 悬浮内容终端（博客内容映射预告）
-// ========================
-
-function HologramPanels({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
-  const panelRef = useRef<THREE.Group>(null);
-  const layout = FURNITURE_LAYOUT.hologramPanels;
-
-  useFrame(({ clock }) => {
-    if (panelRef.current) {
-      panelRef.current.position.y = layout.position[1] + Math.sin(clock.getElapsedTime() * 0.9) * 0.035;
-    }
-  });
-
-  return (
-    <group ref={panelRef} position={layout.position} rotation={layout.rotation}>
-      {[
-        { y: 0.24, w: 0.62, color: variant === 'day' ? '#38bdf8' : '#00f0ff' },
-        { y: 0, w: 0.84, color: variant === 'day' ? '#f59e0b' : '#ff0066' },
-        { y: -0.24, w: 0.5, color: variant === 'day' ? '#22c55e' : '#00ff88' },
-      ].map((item, index) => (
-        <group key={item.color} position={[0, item.y, index * 0.01]}>
-          <mesh>
-            <planeGeometry args={[1.05, 0.14]} />
-            <meshStandardMaterial
-              color={variant === 'day' ? '#eff6ff' : '#06111d'}
-              emissive={item.color}
-              emissiveIntensity={variant === 'day' ? 0.04 : 0.18}
-              transparent
-              opacity={variant === 'day' ? 0.24 : 0.34}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh position={[-0.18, 0, 0.01]}>
-            <planeGeometry args={[item.w, 0.018]} />
-            <meshStandardMaterial
-              color={item.color}
-              emissive={item.color}
-              emissiveIntensity={variant === 'day' ? 0.16 : 1.4}
-              transparent
-              opacity={variant === 'day' ? 0.42 : 0.72}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh position={[0.43, 0, 0.012]}>
-            <boxGeometry args={[0.045, 0.045, 0.006]} />
-            <meshStandardMaterial color={item.color} emissive={item.color} emissiveIntensity={variant === 'day' ? 0.16 : 1.1} toneMapped={false} />
-          </mesh>
-        </group>
-      ))}
-      <mesh position={[0, -0.45, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.28, 0.32, 32]} />
-        <meshStandardMaterial color={variant === 'day' ? '#38bdf8' : '#00f0ff'} emissive={variant === 'day' ? '#38bdf8' : '#00f0ff'} emissiveIntensity={variant === 'day' ? 0.08 : 0.7} transparent opacity={variant === 'day' ? 0.16 : 0.38} toneMapped={false} />
-      </mesh>
-    </group>
-  );
-}
-
-// ========================
-// 日间阳光斑
-// ========================
-
-function DaySunPatches() {
-  return (
-    <group>
-      {[
-        { position: [-1.35, 0.016, -0.55] as [number, number, number], scale: [1.45, 0.42, 1] as [number, number, number], rotation: 0.3 },
-        { position: [0.85, 0.017, -1.85] as [number, number, number], scale: [1.8, 0.35, 1] as [number, number, number], rotation: -0.22 },
-      ].map((item, index) => (
-        <mesh key={index} position={item.position} rotation={[-Math.PI / 2, 0, item.rotation]} scale={item.scale}>
-          <circleGeometry args={[0.56, 32]} />
-          <meshStandardMaterial
-            color="#ffd9a3"
-            emissive="#ffd9a3"
-            emissiveIntensity={0.1}
-            transparent
-            opacity={0.18}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// ========================
-// 湿润地面光斑
-// ========================
-
-function FloorReflections() {
-  return (
-    <group>
-      {[
-        { position: [0.2, 0.012, -0.2] as [number, number, number], scale: [1.8, 0.46, 1] as [number, number, number], color: '#00f0ff' },
-        { position: [1.62, 0.014, -2.35] as [number, number, number], scale: [1.1, 0.32, 1] as [number, number, number], color: '#ff0066' },
-        { position: [-2.05, 0.013, -1.9] as [number, number, number], scale: [1.0, 0.26, 1] as [number, number, number], color: '#8844ff' },
-      ].map((item, index) => (
-        <mesh key={index} position={item.position} rotation={[-Math.PI / 2, 0, index * 0.35]} scale={item.scale}>
-          <circleGeometry args={[0.55, 32]} />
-          <meshStandardMaterial
-            color={item.color}
-            emissive={item.color}
-            emissiveIntensity={0.24}
-            transparent
-            opacity={0.16}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// ========================
-// 散落线缆（地面和工作区）
-// ========================
-
-function Cables() {
-  return (
-    <group>
-      {/* 工作区桌下线缆 */}
-      {[0, 1, 2, 3].map((i) => {
-        const points = [
-          new THREE.Vector3(0.5 + i * 0.2, 0.02, -1.8 + i * 0.1),
-          new THREE.Vector3(0.3 + i * 0.1, 0.01, -1.5 + i * 0.15),
-          new THREE.Vector3(0.0 + i * 0.05, 0.015, -1.2 + i * 0.1),
-        ];
-        const curve = new THREE.CatmullRomCurve3(points);
-        const tubeGeometry = new THREE.TubeGeometry(curve, 12, 0.008, 6, false);
-        return (
-          <mesh key={`desk-cable-${i}`} geometry={tubeGeometry}>
-            <meshStandardMaterial color="#0a0a15" roughness={0.9} />
-          </mesh>
-        );
-      })}
-      {/* 服务器区线缆 */}
-      {[0, 1].map((i) => {
-        const points = [
-          new THREE.Vector3(2.5, 0.02, -2.8 + i * 0.3),
-          new THREE.Vector3(2.3, 0.01, -2.5 + i * 0.2),
-          new THREE.Vector3(2.1, 0.015, -2.2 + i * 0.15),
-        ];
-        const curve = new THREE.CatmullRomCurve3(points);
-        const tubeGeometry = new THREE.TubeGeometry(curve, 10, 0.006, 6, false);
-        return (
-          <mesh key={`server-cable-${i}`} geometry={tubeGeometry}>
-            <meshStandardMaterial color="#0a0a15" roughness={0.9} />
-          </mesh>
-        );
-      })}
-      {/* 地面跨区域长线缆 */}
-      {(() => {
-        const points = [
-          new THREE.Vector3(1.5, 0.01, -1.5),
-          new THREE.Vector3(0.5, 0.02, 0),
-          new THREE.Vector3(-0.5, 0.01, 1),
-          new THREE.Vector3(-1, 0.015, 2),
-        ];
-        const curve = new THREE.CatmullRomCurve3(points);
-        const tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.007, 6, false);
-        return (
-          <mesh geometry={tubeGeometry}>
-            <meshStandardMaterial color="#080812" roughness={0.95} />
-          </mesh>
-        );
-      })()}
-    </group>
-  );
-}
-
-// ========================
-// 机器人宠物（机械狗，桌面附近地面）
-// ========================
-
-function RobotPet() {
-  const bodyRef = useRef<THREE.Mesh>(null);
-  const eyeRef = useRef<THREE.Mesh>(null);
-  const layout = FURNITURE_LAYOUT.robotPet;
-
-  useFrame(() => {
-    if (eyeRef.current) {
-      const mat = eyeRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.5 + Math.sin(performance.now() * 0.001 * 0.5) * 0.3;
-    }
-  });
+  const colors = ['#00f0ff', '#6dffb4', '#ff2a9a', '#7b61ff'];
 
   return (
     <group position={layout.position} rotation={layout.rotation}>
-      {/* 身体 */}
-      <mesh ref={bodyRef} position={[0, 0.12, 0]}>
-        <boxGeometry args={[0.15, 0.08, 0.25]} />
-        <meshStandardMaterial color="#1a1a2a" metalness={0.7} roughness={0.3} />
+      <mesh position={[0, 0.98, 0]}>
+        <boxGeometry args={[layout.bounds.width, layout.bounds.height, layout.bounds.depth]} />
+        <meshStandardMaterial color="#080812" metalness={0.86} roughness={0.24} />
       </mesh>
-      {/* 头部 */}
-      <mesh position={[0, 0.2, 0.12]}>
-        <boxGeometry args={[0.1, 0.08, 0.1]} />
-        <meshStandardMaterial color="#15152a" metalness={0.7} roughness={0.3} />
+      {[0.28, 0.58, 0.88, 1.18, 1.48, 1.78].map((y, row) => (
+        <group key={y} position={[0, y, 0.255]}>
+          <mesh>
+            <boxGeometry args={[0.52, 0.08, 0.03]} />
+            <meshStandardMaterial color="#151525" metalness={0.7} roughness={0.3} />
+          </mesh>
+          {[0, 1, 2, 3].map((col) => (
+            <BlinkingLED key={col} position={[-0.2 + col * 0.12, 0, 0.03]} color={colors[(row + col) % colors.length]} />
+          ))}
+        </group>
+      ))}
+      <NeonStrip position={[0.35, 1.0, 0.03]} scale={[0.022, 1.75, 0.025]} color="#00d8ff" intensity={1.2} />
+    </group>
+  );
+}
+
+function StorageWallZone() {
+  return (
+    <group>
+      <Bookshelf />
+      <ServerRack />
+
+      <group position={[3.56, 1.58, -3.03]} rotation={[0, -Math.PI / 2, 0]}>
+        <mesh>
+          <planeGeometry args={[0.72, 1.0]} />
+          <meshStandardMaterial color="#0b0714" emissive="#7b61ff" emissiveIntensity={0.28} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.01]}>
+          <ringGeometry args={[0.22, 0.28, 32]} />
+          <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={1.2} toneMapped={false} transparent opacity={0.8} />
+        </mesh>
+        <Text position={[0, -0.42, 0.02]} fontSize={0.08} anchorX="center" anchorY="middle" color="#ffb9ea">
+          DATA GHOST
+        </Text>
+      </group>
+
+      <group position={[3.55, 1.38, -0.48]} rotation={[0, -Math.PI / 2, 0]}>
+        <mesh>
+          <planeGeometry args={[1.15, 0.72]} />
+          <meshStandardMaterial color="#050712" emissive="#ff2a9a" emissiveIntensity={0.14} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.02]}>
+          <ringGeometry args={[0.16, 0.19, 36]} />
+          <meshStandardMaterial color="#ff2a9a" emissive="#ff2a9a" emissiveIntensity={1.4} toneMapped={false} />
+        </mesh>
+        <Text position={[0, -0.25, 0.025]} fontSize={0.075} anchorX="center" anchorY="middle" color="#7ee7ff">
+          KIROSHI INDEX
+        </Text>
+      </group>
+    </group>
+  );
+}
+
+function HologramCore({ variant }: { variant: HomepageSceneVariant }) {
+  const ref = useRef<THREE.Group>(null);
+  const color = variant === 'day' ? '#0ea5e9' : '#ff2a9a';
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    ref.current.position.y = 0.9 + Math.sin(clock.getElapsedTime() * 1.1) * 0.045;
+    ref.current.rotation.y = Math.sin(clock.getElapsedTime() * 0.3) * 0.08;
+  });
+
+  return (
+    <group ref={ref} position={[0, 0.9, 0]}>
+      <mesh>
+        <boxGeometry args={[0.52, 0.58, 0.035]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} transparent opacity={0.34} toneMapped={false} />
       </mesh>
-      {/* 眼睛（LED） */}
-      <mesh ref={eyeRef} position={[0.02, 0.22, 0.175]}>
-        <boxGeometry args={[0.04, 0.02, 0.01]} />
-        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.5} toneMapped={false} />
+      <mesh position={[0, -0.34, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.34, 0.39, 36]} />
+        <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.75} transparent opacity={0.45} toneMapped={false} />
       </mesh>
-      {/* 四条腿 */}
-      {[
-        [0.05, 0, 0.08] as [number, number, number],
-        [-0.05, 0, 0.08] as [number, number, number],
-        [0.05, 0, -0.08] as [number, number, number],
-        [-0.05, 0, -0.08] as [number, number, number],
-      ].map((pos, i) => (
-        <mesh key={`leg-${i}`} position={[pos[0], 0.05, pos[2]]}>
-          <boxGeometry args={[0.025, 0.1, 0.025]} />
-          <meshStandardMaterial color="#1a1a2a" metalness={0.7} roughness={0.3} />
+      <Text position={[0, 0, 0.03]} fontSize={0.08} anchorX="center" anchorY="middle" color="#ffffff">
+        POSTS
+      </Text>
+    </group>
+  );
+}
+
+function LivingCoreZone({ variant }: { variant: HomepageSceneVariant }) {
+  const table = FURNITURE_LAYOUT.coffeeTable;
+  const sofa = FURNITURE_LAYOUT.sofa;
+
+  return (
+    <group>
+      <mesh position={[-0.08, 0.012, 0.72]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.6, 1.55]} />
+        <meshStandardMaterial color="#111122" roughness={0.86} metalness={0.12} />
+      </mesh>
+      <NeonStrip position={[-0.08, 0.03, -0.03]} scale={[2.6, 0.018, 0.018]} color="#00d8ff" intensity={0.42} />
+      <NeonStrip position={[-0.08, 0.03, 1.47]} scale={[2.6, 0.018, 0.018]} color="#ff2a9a" intensity={0.42} />
+
+      <group position={table.position}>
+        <mesh position={[0, 0.38, 0]}>
+          <boxGeometry args={[table.bounds.width, 0.08, table.bounds.depth]} />
+          <meshStandardMaterial color="#101018" metalness={0.5} roughness={0.28} transparent opacity={0.78} />
+        </mesh>
+        {[
+          [-0.75, 0.18, -0.32],
+          [0.75, 0.18, -0.32],
+          [-0.75, 0.18, 0.32],
+          [0.75, 0.18, 0.32],
+        ].map((pos, index) => (
+          <mesh key={index} position={pos as [number, number, number]}>
+            <boxGeometry args={[0.05, 0.36, 0.05]} />
+            <meshStandardMaterial {...metalDark} />
+          </mesh>
+        ))}
+        <HologramCore variant={variant} />
+        <mesh position={[-0.55, 0.45, 0.2]}>
+          <cylinderGeometry args={[0.04, 0.035, 0.16, 14]} />
+          <meshStandardMaterial color="#181827" roughness={0.7} />
+        </mesh>
+        <mesh position={[0.6, 0.48, -0.12]}>
+          <cylinderGeometry args={[0.035, 0.032, 0.22, 12]} />
+          <meshStandardMaterial color="#231026" emissive="#ff2a9a" emissiveIntensity={0.08} />
+        </mesh>
+      </group>
+
+      <group position={sofa.position} rotation={sofa.rotation}>
+        <mesh position={[0, 0.38, 0]}>
+          <boxGeometry args={[sofa.bounds.width, 0.46, sofa.bounds.depth]} />
+          <meshStandardMaterial color="#11111b" roughness={0.92} />
+        </mesh>
+        <mesh position={[0, 0.78, -0.28]}>
+          <boxGeometry args={[sofa.bounds.width, 0.7, 0.18]} />
+          <meshStandardMaterial color="#0d0d16" roughness={0.9} />
+        </mesh>
+        {[-0.68, 0, 0.68].map((x) => (
+          <mesh key={x} position={[x, 0.65, 0.02]} rotation={[0.05, 0, 0]}>
+            <boxGeometry args={[0.55, 0.16, 0.45]} />
+            <meshStandardMaterial color="#151521" roughness={0.96} />
+          </mesh>
+        ))}
+        <NeonStrip position={[0, 0.16, 0.37]} scale={[2.18, 0.035, 0.03]} color="#ff2a9a" intensity={1.2} />
+      </group>
+    </group>
+  );
+}
+
+function SleepZone() {
+  const bed = FURNITURE_LAYOUT.bed;
+
+  return (
+    <group>
+      <group position={bed.position}>
+        <mesh position={[0, 0.22, 0]}>
+          <boxGeometry args={[bed.bounds.width, 0.22, bed.bounds.depth]} />
+          <meshStandardMaterial color="#0c0c14" metalness={0.22} roughness={0.74} />
+        </mesh>
+        <mesh position={[0, 0.39, 0]}>
+          <boxGeometry args={[2.0, 0.2, 1.18]} />
+          <meshStandardMaterial color="#171725" roughness={0.96} />
+        </mesh>
+        <mesh position={[0.05, 0.55, 0.12]} rotation={[0.02, -0.06, 0.02]}>
+          <boxGeometry args={[1.8, 0.18, 0.82]} />
+          <meshStandardMaterial color="#11111f" roughness={0.98} />
+        </mesh>
+        <mesh position={[-0.58, 0.62, -0.42]}>
+          <boxGeometry args={[0.5, 0.13, 0.28]} />
+          <meshStandardMaterial color="#202033" roughness={0.96} />
+        </mesh>
+        <mesh position={[0.12, 0.61, -0.45]}>
+          <boxGeometry args={[0.48, 0.12, 0.28]} />
+          <meshStandardMaterial color="#1b1b2d" roughness={0.96} />
+        </mesh>
+        <NeonStrip position={[0, 0.16, 0.72]} scale={[2.02, 0.035, 0.035]} color="#ff2a9a" intensity={1.35} />
+      </group>
+
+      <group position={FURNITURE_LAYOUT.nightstand.position}>
+        <mesh position={[0, 0.28, 0]}>
+          <boxGeometry args={[0.48, 0.55, 0.4]} />
+          <meshStandardMaterial {...metalDark} />
+        </mesh>
+        <BlinkingLED position={[0.16, 0.48, 0.22]} color="#00f0ff" />
+      </group>
+
+      <group position={FURNITURE_LAYOUT.neonPoster.position} rotation={FURNITURE_LAYOUT.neonPoster.rotation}>
+        <mesh>
+          <planeGeometry args={[0.78, 0.78]} />
+          <meshStandardMaterial color="#050712" emissive="#00f0ff" emissiveIntensity={0.16} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.015]}>
+          <ringGeometry args={[0.24, 0.3, 40]} />
+          <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={1.2} toneMapped={false} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function WardrobeZone() {
+  const layout = FURNITURE_LAYOUT.wardrobe;
+
+  return (
+    <group position={layout.position} rotation={layout.rotation}>
+      <mesh position={[0, 1.15, -0.22]}>
+        <boxGeometry args={[layout.bounds.width, layout.bounds.height, 0.08]} />
+        <meshStandardMaterial color="#0b0b14" metalness={0.48} roughness={0.44} />
+      </mesh>
+      <mesh position={[0, 2.15, 0]}>
+        <boxGeometry args={[1.08, 0.04, 0.42]} />
+        <meshStandardMaterial {...metalDark} />
+      </mesh>
+      <mesh position={[0, 1.72, 0.15]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.025, 0.025, 1.04, 10]} />
+        <meshStandardMaterial {...metalDark} />
+      </mesh>
+      {[-0.36, -0.12, 0.14, 0.38].map((x, index) => (
+        <mesh key={x} position={[x, 1.28, 0.12]} rotation={[0, 0, (index % 2 ? -0.03 : 0.03)]}>
+          <boxGeometry args={[0.18, 0.82, 0.08]} />
+          <meshStandardMaterial color={index % 2 ? '#171725' : '#26112c'} roughness={0.94} />
         </mesh>
       ))}
-      {/* 尾巴天线 */}
-      <mesh position={[0, 0.24, -0.1]} rotation={[0.3, 0, 0]}>
-        <cylinderGeometry args={[0.005, 0.005, 0.06, 4]} />
-        <meshStandardMaterial color="#1a1a2a" metalness={0.7} />
-      </mesh>
+      <NeonStrip position={[0, 0.72, 0.27]} scale={[1.06, 0.035, 0.03]} color="#ff2a9a" intensity={1.1} />
+      <NeonStrip position={[0.62, 1.45, 0.03]} scale={[0.025, 1.35, 0.025]} color="#7b61ff" intensity={1.0} />
     </group>
   );
 }
 
-// ========================
-// 电子零件/杂物
-// ========================
-
-function DeskClutter() {
+function CeilingAndFloorDetails({ variant }: { variant: HomepageSceneVariant }) {
   return (
     <group>
-      {/* 数据模块 */}
-      <mesh position={[0.5, 0.78, -2.2]}>
-        <boxGeometry args={[0.06, 0.02, 0.06]} />
-        <meshStandardMaterial color="#1a1a30" metalness={0.5} roughness={0.5} />
-      </mesh>
-      {/* 小电路板 */}
-      <mesh position={[0.7, 0.77, -2.25]} rotation={[0, 0.3, 0]}>
-        <boxGeometry args={[0.05, 0.01, 0.08]} />
-        <meshStandardMaterial color="#0a2a1a" metalness={0.3} roughness={0.7} />
-      </mesh>
-      {/* 工具 */}
-      <mesh position={[1.8, 0.78, -2.1]} rotation={[0, 0.8, 0]}>
-        <cylinderGeometry args={[0.008, 0.008, 0.12, 6]} />
-        <meshStandardMaterial color="#2a2a3a" metalness={0.6} roughness={0.4} />
-      </mesh>
+      {[
+        { position: [-1.85, 0.014, 0.02] as [number, number, number], scale: [1.18, 0.4, 1] as [number, number, number], color: '#00f0ff' },
+        { position: [1.05, 0.015, 0.9] as [number, number, number], scale: [1.05, 0.32, 1] as [number, number, number], color: '#ff2a9a' },
+        { position: [2.25, 0.016, 0.18] as [number, number, number], scale: [0.92, 0.24, 1] as [number, number, number], color: '#7b61ff' },
+      ].map((item, index) => (
+        <mesh key={index} position={item.position} rotation={[-Math.PI / 2, 0, index * 0.32]} scale={item.scale}>
+          <circleGeometry args={[0.56, 32]} />
+          <meshStandardMaterial
+            color={item.color}
+            emissive={item.color}
+            emissiveIntensity={variant === 'day' ? 0.08 : 0.22}
+            transparent
+            opacity={variant === 'day' ? 0.08 : 0.16}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+
+      <Cable points={[[-2.75, 0.03, -1.68], [-2.05, 0.02, -0.82], [-0.95, 0.025, 0.08], [0.05, 0.02, 0.52]]} />
+      <Cable points={[[1.25, 0.03, -2.55], [2.0, 0.02, -2.08], [3.05, 0.025, -1.42]]} radius={0.008} />
+      <Cable points={[[-0.55, 0.025, 2.18], [-1.3, 0.02, 2.6], [-2.28, 0.03, 2.62]]} radius={0.009} />
+
+      <group position={FURNITURE_LAYOUT.robotPet.position} rotation={FURNITURE_LAYOUT.robotPet.rotation}>
+        <mesh position={[0, 0.08, 0]}>
+          <cylinderGeometry args={[0.18, 0.2, 0.12, 24]} />
+          <meshStandardMaterial color="#0d0d15" metalness={0.7} roughness={0.28} />
+        </mesh>
+        <BlinkingLED position={[0, 0.16, 0.15]} color="#00f0ff" />
+      </group>
     </group>
   );
 }
 
-// ========================
-// 衣物/杂物（床附近，生活痕迹）
-// ========================
+function NeonSign({ variant }: { variant: HomepageSceneVariant }) {
+  const layout = FURNITURE_LAYOUT.neonSign;
+  const isDay = variant === 'day';
 
-function LivingClutter() {
   return (
-    <group>
-      {/* 地上杂志 */}
-      <mesh position={[-1.5, 0.01, 0.5]} rotation={[-Math.PI / 2, 0.3, 0]}>
-        <boxGeometry args={[0.2, 0.005, 0.28]} />
-        <meshStandardMaterial color="#1a1520" roughness={0.95} />
+    <group position={layout.position} rotation={layout.rotation}>
+      <mesh>
+        <planeGeometry args={[1.4, 0.55]} />
+        <meshStandardMaterial
+          color={isDay ? '#f8fafc' : '#160617'}
+          emissive={isDay ? '#38bdf8' : '#ff2a9a'}
+          emissiveIntensity={isDay ? 0.08 : 0.58}
+          transparent
+          opacity={0.82}
+          toneMapped={false}
+        />
       </mesh>
-      {/* 小设备（床边） */}
-      <mesh position={[-2.6, 0.02, -0.5]}>
-        <boxGeometry args={[0.08, 0.03, 0.12]} />
-        <meshStandardMaterial color="#15152a" metalness={0.5} roughness={0.6} />
-      </mesh>
+      <Text position={[0, 0.03, 0.02]} fontSize={0.18} anchorX="center" anchorY="middle" color={isDay ? '#0f172a' : '#ffd8f2'}>
+        NO
+      </Text>
+      <Text position={[0, -0.18, 0.02]} fontSize={0.12} anchorX="center" anchorY="middle" color={isDay ? '#0f172a' : '#ffd8f2'}>
+        FUTURE
+      </Text>
     </group>
   );
 }
-
-// ========================
-// 主组件 - 组装所有家具
-// ========================
 
 export default function Furniture({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   return (
     <group>
-      {/* 工作区（落地窗正前方偏右） */}
-      <Desk />
-      {/* 三显示器 - 弧形包围 */}
-      {FURNITURE_LAYOUT.monitors.map((monitor) => (
-        <Monitor
-          key={`monitor-${monitor.variant}`}
-          position={monitor.position}
-          variant={monitor.variant}
-          rotY={monitor.rotation[1]}
-        />
-      ))}
-      <Keyboard />
-      <Mouse />
-      <DeskClutter />
-
-      {/* 椅子 */}
-      <Chair />
-
-      {/* 睡眠区（左侧） */}
-      <Bed />
-      <Nightstand />
-      <NeonPoster />
-      <LivingClutter />
-
-      {/* 存储/服务器区（右侧） */}
-      <Bookshelf />
-      <ServerRack />
-
-      {/* 线缆 */}
-      <Cables />
-
-      {/* 小物件 */}
-      <CoffeeMug />
-      <GlowPlant />
-      <RobotPet />
-      <HologramPanels variant={variant} />
-      {variant === 'day' ? <DaySunPatches /> : <FloorReflections />}
-
-      {/* 标识 */}
+      <WorkstationZone />
+      <StorageWallZone />
+      <LivingCoreZone variant={variant} />
+      <SleepZone />
+      <WardrobeZone />
+      <CeilingAndFloorDetails variant={variant} />
       <NeonSign variant={variant} />
     </group>
   );

@@ -18,7 +18,8 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import Link from 'next/link';
 import { CloseOutlined, CompassOutlined, DownOutlined } from '@ant-design/icons';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { OrbitControls, Grid } from '@react-three/drei';
+import { OrbitControls, Grid, Html } from '@react-three/drei';
+import * as THREE from 'three';
 import Room from './Room';
 import RainEffect from './RainEffect';
 import Furniture from './Furniture';
@@ -31,6 +32,97 @@ import type { Post } from '@/types';
 // ========================
 // 常量
 // ========================
+
+type CameraFocusKey = 'default' | 'desk' | 'living' | 'bookshelf' | 'server' | 'sleep';
+
+interface CameraFocusPreset {
+  key: CameraFocusKey;
+  label: string;
+  position: [number, number, number];
+  target: [number, number, number];
+  marker: [number, number, number];
+  fov: number;
+}
+
+const DEFAULT_CAMERA_TARGET: [number, number, number] = [0.25, 1.02, -1.35];
+
+const CAMERA_FOCUS_PRESETS: Record<CameraFocusKey, CameraFocusPreset> = {
+  default: {
+    key: 'default',
+    label: '默认',
+    position: [-2.85, 2.2, 2.9],
+    target: DEFAULT_CAMERA_TARGET,
+    marker: [0, 1.45, 2.2],
+    fov: 68,
+  },
+  desk: {
+    key: 'desk',
+    label: '工作区',
+    position: [-0.65, 1.8, 1.15],
+    target: [-2.18, 1.05, -2.18],
+    marker: [-1.85, 1.4, -1.9],
+    fov: 46,
+  },
+  living: {
+    key: 'living',
+    label: '全息桌',
+    position: [2.0, 2.0, 2.45],
+    target: [-0.08, 0.86, 0.72],
+    marker: [-0.08, 1.4, 0.72],
+    fov: 42,
+  },
+  bookshelf: {
+    key: 'bookshelf',
+    label: '书架',
+    position: [0.95, 1.9, -0.7],
+    target: [3.3, 1.35, -2.58],
+    marker: [3.15, 2.22, -2.58],
+    fov: 42,
+  },
+  server: {
+    key: 'server',
+    label: '服务器',
+    position: [0.95, 1.8, 0.42],
+    target: [3.3, 1.02, -1.42],
+    marker: [3.15, 1.68, -1.42],
+    fov: 40,
+  },
+  sleep: {
+    key: 'sleep',
+    label: '睡眠区',
+    position: [-0.75, 1.75, 2.5],
+    target: [2.35, 0.72, 0.22],
+    marker: [2.35, 1.05, 0.22],
+    fov: 44,
+  },
+};
+
+const getCameraFocusPreset = (
+  key: CameraFocusKey,
+  variant: HomepageSceneVariant,
+  editable: boolean,
+  editablePosition: [number, number, number],
+  editableFov: number,
+): CameraFocusPreset => {
+  if (editable) {
+    return {
+      ...CAMERA_FOCUS_PRESETS.default,
+      position: editablePosition,
+      fov: editableFov,
+    };
+  }
+
+  if (key === 'default') {
+    const preset = HOMEPAGE_THEME_PRESETS[variant];
+    return {
+      ...CAMERA_FOCUS_PRESETS.default,
+      position: preset.camera.position,
+      fov: preset.camera.fov,
+    };
+  }
+
+  return CAMERA_FOCUS_PRESETS[key];
+};
 
 const isWebGLAvailable = (): boolean => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
@@ -139,6 +231,109 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
   return null;
 }
 
+function CameraFocusController({
+  focus,
+  flightId,
+  controlsRef,
+  instant = false,
+}: {
+  focus: CameraFocusPreset;
+  flightId: number;
+  controlsRef?: React.RefObject<React.ElementRef<typeof OrbitControls> | null>;
+  instant?: boolean;
+}) {
+  const currentTarget = useRef(new THREE.Vector3(...focus.target));
+  const desiredPosition = useRef(new THREE.Vector3(...focus.position));
+  const desiredTarget = useRef(new THREE.Vector3(...focus.target));
+  const needsInstantSync = useRef(instant);
+  const flightActive = useRef(true);
+
+  useEffect(() => {
+    desiredPosition.current.set(...focus.position);
+    desiredTarget.current.set(...focus.target);
+    needsInstantSync.current = instant;
+    flightActive.current = true;
+  }, [flightId, focus, instant]);
+
+  useFrame(({ camera }) => {
+    if (!flightActive.current) return;
+
+    const factor = needsInstantSync.current ? 1 : 0.08;
+    camera.position.lerp(desiredPosition.current, factor);
+    currentTarget.current.lerp(desiredTarget.current, factor);
+
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov += (focus.fov - camera.fov) * factor;
+      camera.updateProjectionMatrix();
+    }
+
+    if (controlsRef?.current) {
+      controlsRef.current.target.copy(currentTarget.current);
+      controlsRef.current.update();
+    }
+
+    if (!controlsRef?.current) {
+      camera.lookAt(currentTarget.current);
+    }
+
+    const positionSettled = camera.position.distanceTo(desiredPosition.current) < 0.02;
+    const targetSettled = currentTarget.current.distanceTo(desiredTarget.current) < 0.02;
+    const fovSettled = !(camera instanceof THREE.PerspectiveCamera) || Math.abs(camera.fov - focus.fov) < 0.05;
+
+    needsInstantSync.current = false;
+    if (positionSettled && targetSettled && fovSettled) {
+      flightActive.current = false;
+    }
+  });
+
+  return null;
+}
+
+function SceneHotspots({
+  activeFocusKey,
+  onFocusChange,
+}: {
+  activeFocusKey: CameraFocusKey;
+  onFocusChange: (key: CameraFocusKey) => void;
+}) {
+  return (
+    <>
+      {(['desk', 'living', 'bookshelf', 'server', 'sleep'] as CameraFocusKey[]).map((key) => {
+        const focus = CAMERA_FOCUS_PRESETS[key];
+        const active = activeFocusKey === key;
+
+        return (
+          <Html
+            key={key}
+            position={focus.marker}
+            center
+            distanceFactor={7}
+            zIndexRange={[30, 10]}
+            occlude={false}
+          >
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onFocusChange(key);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+              className={`group flex cursor-pointer items-center gap-2 whitespace-nowrap border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur transition ${
+                active
+                  ? 'border-cyan-200 bg-cyan-200/22 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,0.45)]'
+                  : 'border-cyan-200/55 bg-[#050611]/70 text-cyan-50/86 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:border-cyan-100 hover:bg-cyan-200/16 hover:text-white'
+              }`}
+            >
+              <span className="relative h-2.5 w-2.5 rounded-full bg-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.95)] before:absolute before:-inset-1 before:rounded-full before:border before:border-cyan-200/55 before:content-['']" />
+              {focus.label}
+            </button>
+          </Html>
+        );
+      })}
+    </>
+  );
+}
+
 // ========================
 // 后处理
 // ========================
@@ -206,17 +401,21 @@ function HeroInterfaceOverlay({
   variant,
   posts = [],
   interactiveMode,
+  activeFocusKey,
   canExplore = true,
   onExplore,
   onExitExplore,
+  onFocusChange,
 }: {
   sceneReady: boolean;
   variant: HomepageSceneVariant;
   posts?: Post[];
   interactiveMode: boolean;
+  activeFocusKey: CameraFocusKey;
   canExplore?: boolean;
   onExplore: () => void;
   onExitExplore: () => void;
+  onFocusChange: (key: CameraFocusKey) => void;
 }) {
   const isDay = variant === 'day';
   const statuses = isDay
@@ -260,12 +459,16 @@ function HeroInterfaceOverlay({
           <div className="mt-7 flex flex-wrap gap-3">
             <button
               type="button"
+              onDoubleClick={(event) => event.stopPropagation()}
               onClick={interactiveMode ? onExitExplore : onExplore}
               className="pointer-events-auto inline-flex cursor-pointer items-center gap-2 border border-pink-500/25 bg-white/52 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-pink-900/70 backdrop-blur transition hover:border-pink-600/45 hover:text-pink-950 dark:border-pink-300/30 dark:bg-pink-300/[0.08] dark:text-pink-100/76 dark:hover:border-pink-200/70 dark:hover:text-pink-50"
             >
               {interactiveMode ? <CloseOutlined /> : <CompassOutlined />}
               {interactiveMode ? '退出探索' : '探索场景'}
             </button>
+            <span className="pointer-events-none inline-flex items-center border border-cyan-300/20 bg-white/36 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-slate-700/60 backdrop-blur dark:bg-cyan-300/[0.06] dark:text-cyan-100/62">
+              双击场景进入/退出
+            </span>
           </div>
         )}
       </div>
@@ -301,7 +504,43 @@ function HeroInterfaceOverlay({
 
       {interactiveMode && (
         <div className="absolute bottom-24 left-4 right-4 z-20 mx-auto max-w-sm border border-cyan-300/35 bg-[#050611]/76 px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-cyan-100/78 shadow-[0_0_34px_rgba(34,211,238,0.16)] backdrop-blur md:bottom-8">
-          拖动旋转场景，双指缩放。退出探索后恢复页面滚动。
+          拖动旋转场景，双指缩放。右键或再次双击退出。
+        </div>
+      )}
+
+      {canExplore && (
+        <div
+          className={`absolute bottom-24 right-4 z-20 w-40 transition-all duration-700 md:bottom-auto md:right-8 md:top-1/2 md:-translate-y-1/2 ${
+            sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+          }`}
+        >
+          <div className="mb-2 border border-cyan-300/25 bg-white/42 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-950/62 backdrop-blur dark:bg-[#050611]/72 dark:text-cyan-100/72">
+            热点区
+          </div>
+          <div className="flex flex-col gap-2">
+            {(Object.values(CAMERA_FOCUS_PRESETS) as CameraFocusPreset[]).map((focus) => {
+              const active = focus.key === activeFocusKey;
+              const buttonTone = isDay
+                ? active
+                  ? 'border-sky-500/70 bg-sky-100/82 text-sky-950 shadow-[0_0_24px_rgba(14,165,233,0.18)]'
+                  : 'border-sky-500/24 bg-white/72 text-sky-950/72 hover:border-sky-500/55 hover:bg-sky-50/86 hover:text-sky-950'
+                : active
+                  ? 'border-cyan-300/80 bg-cyan-200/20 text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.24)]'
+                  : 'border-white/18 bg-[#050611]/50 text-slate-100/76 hover:border-cyan-300/55 hover:text-cyan-50';
+              return (
+                <button
+                  key={focus.key}
+                  type="button"
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onClick={() => onFocusChange(focus.key)}
+                  className={`pointer-events-auto flex cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur transition ${buttonTone}`}
+                >
+                  <span>{focus.label}</span>
+                  <span className={`h-1.5 w-1.5 rounded-full ${active ? (isDay ? 'bg-sky-600' : 'bg-cyan-200') : (isDay ? 'bg-sky-400/45' : 'bg-white/45')}`} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -316,13 +555,22 @@ function Scene({
   debugControlsOpen,
   interactiveMode,
   variant,
+  focus,
+  focusFlightId,
+  activeFocusKey,
+  onFocusChange,
 }: {
   debugControlsOpen: boolean;
   interactiveMode: boolean;
   variant: HomepageSceneVariant;
+  focus: CameraFocusPreset;
+  focusFlightId: number;
+  activeFocusKey: CameraFocusKey;
+  onFocusChange: (key: CameraFocusKey) => void;
 }) {
   const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
+  const controlsRef = useRef<React.ElementRef<typeof OrbitControls> | null>(null);
 
   // Zustand selector - 只有对应字段变化时才重渲染
   const useOrbit = useSceneStore(s => s.controls.useOrbit);
@@ -333,10 +581,12 @@ function Scene({
   const parallaxEnabled = useSceneStore(s => s.parallax.enabled);
 
   const pUseOrbit = editable ? useOrbit : interactiveMode;
+  const shouldUseParallax = !pUseOrbit && focus.key === 'default';
   const pShowRain = variant === 'night' && (editable ? showRain : true);
   const pShowFurniture = editable ? showFurniture : true;
   const pShowRoom = editable ? showRoom : true;
   const pShowGrid = editable ? showGrid : false;
+  const fogColor = variant === 'day' ? '#f8fafc' : '#050611';
 
   useEffect(() => {
     const syncWheelZoomEnabled = (event?: KeyboardEvent) => {
@@ -360,9 +610,19 @@ function Scene({
 
   return (
     <>
-      {!pUseOrbit && <ParallaxCamera editable={editable || parallaxEnabled} variant={variant} />}
+      <fog attach="fog" args={[fogColor, variant === 'day' ? 11 : 8, variant === 'day' ? 23 : 19]} />
+      {shouldUseParallax && <ParallaxCamera editable={editable || parallaxEnabled} variant={variant} />}
+      {!shouldUseParallax && (
+        <CameraFocusController
+          focus={focus}
+          flightId={focusFlightId}
+          controlsRef={pUseOrbit ? controlsRef : undefined}
+          instant={editable}
+        />
+      )}
       {pUseOrbit && (
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enabled={interactiveMode || editable}
           enableDamping
@@ -374,7 +634,7 @@ function Scene({
           enableRotate={interactiveMode || editable}
           minPolarAngle={0}
           maxPolarAngle={Math.PI / 2}
-          target={[0, 1.2, 0]}
+          target={focus.target}
         />
       )}
       <CyberpunkLights variant={variant} />
@@ -395,6 +655,12 @@ function Scene({
       )}
       {pShowRoom && <Room variant={variant} />}
       {pShowFurniture && <Furniture variant={variant} />}
+      {pShowFurniture && (
+        <SceneHotspots
+          activeFocusKey={activeFocusKey}
+          onFocusChange={onFocusChange}
+        />
+      )}
       {pShowRain && <RainEffect />}
       <PostProcessing editable={editable} variant={variant} />
     </>
@@ -434,6 +700,8 @@ export default function CyberpunkBanner({
   const [scrollProgress, setScrollProgress] = useState(0);
   const [debugControlsOpen, setDebugControlsOpen] = useState(false);
   const [interactiveMode, setInteractiveMode] = useState(false);
+  const [activeFocusKey, setActiveFocusKey] = useState<CameraFocusKey>('default');
+  const [focusFlightId, setFocusFlightId] = useState(0);
   const devControlsModuleRef = useRef<Promise<typeof import('./DevControls')> | null>(null);
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
@@ -447,6 +715,7 @@ export default function CyberpunkBanner({
     ? [camPosX, camPosY, camPosZ]
     : preset.camera.position;
   const fov = cameraEditable ? cameraFov : preset.camera.fov;
+  const activeFocus = getCameraFocusPreset(activeFocusKey, variant, cameraEditable, cameraPos, fov);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -557,6 +826,60 @@ export default function CyberpunkBanner({
     setSceneReady(true);
   }, []);
 
+  const setCameraFocus = useCallback((key: CameraFocusKey) => {
+    setActiveFocusKey(key);
+    setFocusFlightId((value) => value + 1);
+  }, []);
+
+  const enterExploreMode = useCallback(() => {
+    setCameraFocus('default');
+    setInteractiveMode(true);
+  }, [setCameraFocus]);
+
+  const exitExploreMode = useCallback(() => {
+    setInteractiveMode(false);
+    setCameraFocus('default');
+  }, [setCameraFocus]);
+
+  const handleSceneDoubleClick = useCallback(() => {
+    if (interactiveMode) {
+      exitExploreMode();
+      return;
+    }
+
+    enterExploreMode();
+  }, [enterExploreMode, exitExploreMode, interactiveMode]);
+
+  const handleSceneContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!interactiveMode) return;
+    event.preventDefault();
+    exitExploreMode();
+  }, [exitExploreMode, interactiveMode]);
+
+  useEffect(() => {
+    const handleWindowDoubleClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+      handleSceneDoubleClick();
+    };
+
+    window.addEventListener('dblclick', handleWindowDoubleClick);
+    return () => window.removeEventListener('dblclick', handleWindowDoubleClick);
+  }, [handleSceneDoubleClick]);
+
+  useEffect(() => {
+    if (!interactiveMode) return;
+
+    const handleWindowContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      exitExploreMode();
+    };
+
+    window.addEventListener('contextmenu', handleWindowContextMenu);
+    return () => window.removeEventListener('contextmenu', handleWindowContextMenu);
+  }, [exitExploreMode, interactiveMode]);
+
   if (!capabilityChecked || !webglOk || lowEnd || prefersReducedMotion || hasError) {
     return (
       <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
@@ -566,9 +889,11 @@ export default function CyberpunkBanner({
           variant={variant}
           posts={posts}
           interactiveMode={false}
+          activeFocusKey="default"
           canExplore={false}
           onExplore={() => undefined}
           onExitExplore={() => undefined}
+          onFocusChange={() => undefined}
         />
         <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
           {prefersReducedMotion ? 'Reduced motion visual mode' : 'Static visual mode'}
@@ -580,7 +905,8 @@ export default function CyberpunkBanner({
   return (
     <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
       <div
-        className={`absolute inset-0 ${interactiveMode ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        onContextMenu={handleSceneContextMenu}
+        className="absolute inset-0 cursor-crosshair"
         style={{
           opacity: sceneReady ? 1 : 0,
           transition: 'opacity 1s ease',
@@ -608,6 +934,10 @@ export default function CyberpunkBanner({
               debugControlsOpen={debugControlsOpen}
               interactiveMode={interactiveMode}
               variant={variant}
+              focus={activeFocus}
+              focusFlightId={focusFlightId}
+              activeFocusKey={activeFocusKey}
+              onFocusChange={setCameraFocus}
             />
           </Suspense>
         </Canvas>
@@ -620,8 +950,10 @@ export default function CyberpunkBanner({
         variant={variant}
         posts={posts}
         interactiveMode={interactiveMode}
-        onExplore={() => setInteractiveMode(true)}
-        onExitExplore={() => setInteractiveMode(false)}
+        activeFocusKey={activeFocusKey}
+        onExplore={enterExploreMode}
+        onExitExplore={exitExploreMode}
+        onFocusChange={setCameraFocus}
       />
       <ScrollFadeOverlay scrollProgress={scrollProgress} variant={variant} />
 

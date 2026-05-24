@@ -120,14 +120,14 @@ function LightEditor({ selected }: { selected: string }) {
 
 function CameraPresets() {
   const presets = {
-    '默认入口视角': { x: 0, y: 2.5, z: 6.5 },
-    '正面广角': { x: 0, y: 2, z: 10 },
-    '左侧视角': { x: -4, y: 2.5, z: 3 },
-    '右侧视角': { x: 4, y: 2.5, z: 3 },
-    '俯视视角': { x: 0, y: 6, z: 2 },
-    '鸟瞰视角': { x: 0, y: 8, z: 0.1 },
-    '窗户特写': { x: 0, y: 1.5, z: 0 },
-    '工作区特写': { x: 1.2, y: 1.3, z: -0.5 },
+    '参考图默认视角': { x: -2.85, y: 2.2, z: 2.9 },
+    '正面广角': { x: -0.2, y: 2.05, z: 3.95 },
+    '左窗工作区': { x: -0.65, y: 1.8, z: 1.15 },
+    '中央客厅': { x: 2.0, y: 2.0, z: 2.45 },
+    '东墙设备区': { x: 0.95, y: 1.8, z: 0.42 },
+    '右侧睡眠区': { x: -0.75, y: 1.75, z: 2.5 },
+    '俯视视角': { x: 0, y: 6.2, z: 2.0 },
+    '鸟瞰视角': { x: 0, y: 7.2, z: 0.1 },
   };
 
   useControls('🎯 预设视角（仅视差模式）', {
@@ -167,17 +167,17 @@ function DevPanel() {
   useControls('📷 相机微调', {
     '位置 X': {
       value: useSceneStore.getState().camera.positionX,
-      min: -5, max: 5, step: 0.1,
+      min: -6, max: 6, step: 0.1,
       onChange: (v) => useSceneStore.getState().set({ camera: { ...useSceneStore.getState().camera, positionX: v } }),
     },
     '位置 Y': {
       value: useSceneStore.getState().camera.positionY,
-      min: 0, max: 8, step: 0.1,
+      min: 0, max: 7, step: 0.1,
       onChange: (v) => useSceneStore.getState().set({ camera: { ...useSceneStore.getState().camera, positionY: v } }),
     },
     '位置 Z': {
       value: useSceneStore.getState().camera.positionZ,
-      min: 2, max: 15, step: 0.1,
+      min: -5, max: 9, step: 0.1,
       onChange: (v) => useSceneStore.getState().set({ camera: { ...useSceneStore.getState().camera, positionZ: v } }),
     },
     '视野 FOV': {

@@ -1,9 +1,8 @@
 /**
  * 赛博朋克房间几何体 - 狭长型 Loft 单人公寓
  *
- * 房间尺寸：宽 6 x 深 8 x 高 3.8（狭长矩形，层高略高）
- * 相机位置：(0, 2.5, 6.5) 朝向 (0, 1.0, -2)
- * 后墙大型落地窗：宽 4.5 x 高 3.5
+ * 房间坐标：Z- 为北侧窗墙，X+ 为东墙，默认视角从西南看向东北。
+ * 天花只保留高处灯带/管线，不渲染整块屋顶面，避免高位视角被压低。
  *
  * 布局（俯视图，从入口看进去）：
  *   左墙              后墙(大落地窗)              右墙
@@ -35,7 +34,6 @@ const WINDOW = ROOM_LAYOUT.window;
 
 const WALL_COLOR = '#0d0d1a';
 const FLOOR_COLOR = '#121218';
-const CEILING_COLOR = '#0a0a14';
 
 const getCeilingLightColors = (style: string, variant: HomepageSceneVariant) => {
   const nightColors: Record<string, { color: string; intensity: number }> = {
@@ -375,7 +373,7 @@ function createFloorTexture(variant: HomepageSceneVariant): THREE.CanvasTexture 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 3);
+  texture.repeat.set(3, 4);
   return texture;
 }
 
@@ -442,15 +440,19 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
   const hw = ROOM.width / 2;
   const hh = ROOM.height;
   const hd = ROOM.depth / 2;
+  const floorWidth = ROOM.width + 1.0;
+  const floorDepth = ROOM.depth + 3.0;
+  const floorCenterZ = 1.15;
 
-  // 窗户中心 Y 位置
+  // 窗户中心位置。参考图里大窗偏左，右侧留给设备墙和睡眠区。
+  const windowCenterX = WINDOW.centerX ?? 0;
   const windowCenterY = WINDOW.bottomY + WINDOW.height / 2;
 
   return (
     <group>
       {/* ========== 地板（旧木地板） ========== */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[ROOM.width, ROOM.depth]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, floorCenterZ]} receiveShadow>
+        <planeGeometry args={[floorWidth, floorDepth]} />
         <meshStandardMaterial
           map={floorTexture}
           color={variant === 'day' ? '#a47c4f' : FLOOR_COLOR}
@@ -475,12 +477,6 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
       <mesh position={[hw, hh / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[ROOM.depth, hh]} />
         <meshStandardMaterial map={wallTexture} color={variant === 'day' ? '#eef4f8' : WALL_COLOR} roughness={0.92} />
-      </mesh>
-
-      {/* ========== 天花板（裸露工业风） ========== */}
-      <mesh position={[0, hh, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[ROOM.width, ROOM.depth]} />
-        <meshStandardMaterial color={variant === 'day' ? '#e8eef5' : CEILING_COLOR} roughness={1} />
       </mesh>
 
       {/* ========== 天花板管道系统（工业结构） ========== */}
@@ -527,7 +523,7 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
 
       {/* ========== 大型落地窗（后墙，占 75% 宽度） ========== */}
       <mesh
-        position={[0, windowCenterY, -hd + 0.02]}
+        position={[windowCenterX, windowCenterY, -hd + 0.02]}
         ref={windowMeshRef}
       >
         <planeGeometry args={[WINDOW.width, WINDOW.height]} />
@@ -541,23 +537,27 @@ export default function Room({ variant = 'night' }: { variant?: HomepageSceneVar
       </mesh>
 
       {/* 窗框 - 外框 */}
-      <mesh position={[0, windowCenterY, -hd + 0.03]}>
+      <mesh position={[windowCenterX, windowCenterY + WINDOW.height / 2, -hd + 0.03]}>
         <boxGeometry args={[WINDOW.width + 0.1, 0.08, 0.08]} />
         <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
-      <mesh position={[0, windowCenterY, -hd + 0.03]}>
+      <mesh position={[windowCenterX - WINDOW.width / 2, windowCenterY, -hd + 0.03]}>
+        <boxGeometry args={[0.08, WINDOW.height + 0.1, 0.08]} />
+        <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
+      </mesh>
+      <mesh position={[windowCenterX + WINDOW.width / 2, windowCenterY, -hd + 0.03]}>
         <boxGeometry args={[0.08, WINDOW.height + 0.1, 0.08]} />
         <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
       {/* 窗框底边 */}
-      <mesh position={[0, WINDOW.bottomY - 0.02, -hd + 0.03]}>
+      <mesh position={[windowCenterX, WINDOW.bottomY - 0.02, -hd + 0.03]}>
         <boxGeometry args={[WINDOW.width + 0.1, 0.08, 0.08]} />
         <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
       </mesh>
 
-      {/* 纵向分隔条（4 条） */}
-      {[0, 1, 2, 3].map((i) => (
-        <mesh key={`frame-${i}`} position={[-WINDOW.width / 2 + (WINDOW.width / 4) * (i + 1), windowCenterY, -hd + 0.03]}>
+      {/* 三块玻璃只需要两根中间分隔条。 */}
+      {[1, 2].map((i) => (
+        <mesh key={`frame-${i}`} position={[windowCenterX - WINDOW.width / 2 + (WINDOW.width / 3) * i, windowCenterY, -hd + 0.03]}>
           <boxGeometry args={[0.04, WINDOW.height, 0.04]} />
           <meshStandardMaterial color={variant === 'day' ? '#d1d5db' : '#1a1a25'} metalness={variant === 'day' ? 0.35 : 0.9} roughness={0.15} />
         </mesh>
