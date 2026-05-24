@@ -32,8 +32,8 @@ jobs:
           echo "更改的文件:"
           echo "$CHANGED_FILES"
 
-          # 检查是否仅更改了 docs 目录、.md 文件或 CI 配置
-          NON_DOCS_COUNT=$(echo "$CHANGED_FILES" | grep -vE '^docs/' | grep -vE '\.md$' | grep -vE '^\.github/' | wc -l)
+          # 检查是否仅更改了 docs 目录、.md 文件或非 workflow 的 CI 配置
+          NON_DOCS_COUNT=$(echo "$CHANGED_FILES" | grep -vE '^docs/' | grep -vE '\.md$' | grep -vE '^\.github/(?!workflows)' | wc -l)
 
           # 跳过 docs: 和 chore: 开头的提交
           if echo "$COMMIT_MSG" | grep -qE '^(docs|chore)(\(.+\))?:'; then
