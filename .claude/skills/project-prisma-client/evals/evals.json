@@ -1,0 +1,31 @@
+{
+  "skill_name": "project-prisma-client",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我用项目里的 Prisma Client 查询最近 5 篇未删除、可见的文章，只要 id、title、path、updated，结果用中文摘要和表格展示。不要修改数据库。",
+      "expected_output": "使用 src/generated/prisma-client 的 PrismaClient，构造只读查询脚本，过滤 is_delete=0 和 hide='0'，限制 5 条，输出中文摘要和 markdown 表格。",
+      "files": [],
+      "assertions": [
+        "使用项目生成的 Prisma Client 路径 src/generated/prisma-client，而不是 @prisma/client",
+        "查询为只读操作，不包含 create/update/delete/upsert/executeRaw/migrate/push",
+        "过滤未删除和可见文章：is_delete=0 且 hide='0'",
+        "限制结果数量为 5 条，并只选择 id、title、path、updated",
+        "最终输出包含中文摘要和 markdown 表格"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我想知道数据库里文章、用户、合集各有多少条，用当前项目生成的 Prisma 客户端统计一下，中文说明结果。只做查询。",
+      "expected_output": "使用项目生成的 Prisma Client 分别 count TbPost/TbUser/TbCollection，中文摘要并展示计数表，不泄露敏感信息。",
+      "files": [],
+      "assertions": [
+        "使用项目生成的 Prisma Client 路径 src/generated/prisma-client，而不是 @prisma/client",
+        "使用 count 或等价聚合统计 TbPost、TbUser、TbCollection",
+        "查询为只读操作，不包含 create/update/delete/upsert/executeRaw/migrate/push",
+        "最终输出用中文说明，并包含文章、用户、合集三个计数",
+        "不输出密码、token、DATABASE_URL 等敏感信息"
+      ]
+    }
+  ]
+}

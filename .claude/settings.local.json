@@ -58,7 +58,8 @@
       "Bash(test:*)",
       "Bash(for file:*)",
       "Bash(do sed:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Skill(project-prisma-client)"
     ],
     "deny": [],
     "ask": []
