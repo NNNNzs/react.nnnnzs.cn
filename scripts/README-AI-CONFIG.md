@@ -33,6 +33,12 @@
 - `embedding.base_url` - API 基础 URL
 - `embedding.dimensions` - 向量维度（可选，默认 1024）
 
+### 5. 图片生成
+- `image_gen.api_key` - API 密钥
+- `image_gen.model` - 模型名称（如：gpt-image-2）
+- `image_gen.base_url` - API 基础 URL
+- `image_gen.api_mode` - 图片生成接口模式，可选 `chat_completions` 或 `images_generations`（可选，默认 `chat_completions`）
+
 ## 批量添加配置
 
 ### 方法 1：使用浏览器脚本（推荐）

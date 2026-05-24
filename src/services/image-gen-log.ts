@@ -79,3 +79,58 @@ export async function getImageGenLogs(query: ImageGenLogQuery) {
     record: records,
   };
 }
+
+/**
+ * 根据 ID 获取图片生成日志
+ */
+export async function getImageGenLogById(id: number) {
+  return prisma.tbImageGenLog.findUnique({
+    where: { id },
+  });
+}
+
+/**
+ * 删除图片生成日志，可选择同时删除 COS 文件
+ */
+export async function deleteImageGenLog(
+  id: number,
+  options: { deleteCos?: boolean } = {},
+) {
+  const log = await getImageGenLogById(id);
+  if (!log) {
+    throw new Error('图片生成记录不存在');
+  }
+
+  const deletedCosUrls: string[] = [];
+  const failedCosUrls: Array<{ url: string; error: string }> = [];
+
+  if (options.deleteCos) {
+    const { deleteCdnImage } = await import('./image-proxy');
+    const urls = [log.cdn_url, log.original_url]
+      .filter((url): url is string => Boolean(url && url.startsWith('http')));
+
+    for (const url of Array.from(new Set(urls))) {
+      try {
+        const deleted = await deleteCdnImage(url);
+        if (deleted) {
+          deletedCosUrls.push(url);
+        }
+      } catch (error) {
+        failedCosUrls.push({
+          url,
+          error: error instanceof Error ? error.message : '删除 COS 文件失败',
+        });
+      }
+    }
+  }
+
+  await prisma.tbImageGenLog.delete({
+    where: { id },
+  });
+
+  return {
+    log,
+    deletedCosUrls,
+    failedCosUrls,
+  };
+}

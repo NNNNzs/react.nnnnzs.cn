@@ -6,7 +6,7 @@
 
 ## API 信息
 
-- **上游端点:** `https://www.micuapi.ai/v1/chat/completions`
+- **上游端点:** 支持 `https://www.micuapi.ai/v1/chat/completions` 和 OpenAI 兼容的 `/v1/images/generations`
 - **模型:** `gpt-image-2`
 - **认证方式:** `Authorization: Bearer $API_KEY`
 - **返回格式:** 图片 URL（OSS 托管，非 base64）
@@ -36,6 +36,24 @@
 
 content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploads/xxx.png)`，通过正则提取。
 
+### Images Generations 模式
+
+当后台配置 `image_gen.api_mode=images_generations` 时，请求使用 OpenAI 图片生成接口格式：
+
+```json
+{
+  "model": "gpt-image-2",
+  "prompt": "描述文字",
+  "n": 1,
+  "size": "1024x1024",
+  "quality": "high"
+}
+```
+
+响应支持 `data[0].url` 和 `data[0].b64_json` 两种格式。`b64_json` 会先转存到 CDN，再返回 CDN URL。
+
+> 注意：`images_generations` 仅支持文生图；图文编辑继续使用 `chat_completions` 模式。
+
 ## 系统配置
 
 | 配置 Key | 说明 | 示例值 |
@@ -43,6 +61,7 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 | `image_gen.api_key` | API 密钥 | `sk-xxx` |
 | `image_gen.base_url` | 基础地址 | `https://www.micuapi.ai` |
 | `image_gen.model` | 模型名 | `gpt-image-2` |
+| `image_gen.api_mode` | 接口模式：`chat_completions` 或 `images_generations` | `chat_completions` |
 
 ## 文件结构
 

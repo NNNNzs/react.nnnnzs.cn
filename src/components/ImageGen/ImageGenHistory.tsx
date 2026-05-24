@@ -16,16 +16,20 @@ import {
   Button,
   Select,
   Space,
+  Modal,
+  Checkbox,
 } from "antd";
 import {
   CopyOutlined,
-  CheckCircleOutlined,
   CloseCircleOutlined,
   RobotOutlined,
   DesktopOutlined,
   ClockCircleOutlined,
   EyeOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
+import { useAuth } from "@/contexts/AuthContext";
+import { USER_MANAGE } from "@/constants/permissions";
 
 interface LogRecord {
   id: number;
@@ -80,6 +84,7 @@ export default function ImageGenHistory({
   onSelect,
   refreshTrigger,
 }: ImageGenHistoryProps) {
+  const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState<LogRecord[]>([]);
   const [total, setTotal] = useState(0);
@@ -87,6 +92,7 @@ export default function ImageGenHistory({
   const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
 
   const pageSize = 20;
+  const canDelete = hasPermission(USER_MANAGE);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -134,6 +140,49 @@ export default function ImageGenHistory({
         () => message.success("已复制提示词"),
         () => message.error("复制失败")
       );
+    },
+    []
+  );
+
+  const handleDelete = useCallback(
+    (e: React.MouseEvent, record: LogRecord) => {
+      e.stopPropagation();
+      let deleteCos = false;
+
+      Modal.confirm({
+        title: "删除生成记录",
+        content: (
+          <div className="space-y-3">
+            <p>确定删除这条图片生成记录吗？</p>
+            <Checkbox onChange={(event) => {
+              deleteCos = event.target.checked;
+            }}>
+              同时删除 COS 中的图片文件
+            </Checkbox>
+          </div>
+        ),
+        okText: "删除",
+        okType: "danger",
+        cancelText: "取消",
+        async onOk() {
+          const res = await fetch(`/api/image-gen/logs/${record.id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deleteCos }),
+          });
+          const json = await res.json();
+          if (!json?.status) {
+            throw new Error(json?.message || "删除失败");
+          }
+          setRecords((items) => items.filter((item) => item.id !== record.id));
+          setTotal((count) => Math.max(0, count - 1));
+          if (deleteCos && json?.data?.failedCosUrls?.length > 0) {
+            message.warning("记录已删除，部分 COS 文件删除失败，请查看服务端日志");
+          } else {
+            message.success("删除成功");
+          }
+        },
+      });
     },
     []
   );
@@ -257,6 +306,18 @@ export default function ImageGenHistory({
                             }
                           />
                         </Tooltip>
+                        {canDelete && (
+                          <Tooltip title="删除记录">
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              className="text-xs"
+                              onClick={(e) => handleDelete(e, record)}
+                            />
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                     <p className="text-[10px] text-gray-300 mt-0.5">

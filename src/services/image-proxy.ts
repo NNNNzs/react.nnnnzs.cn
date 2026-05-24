@@ -91,6 +91,18 @@ async function uploadBufferToCOS(buffer: Buffer, ext: string): Promise<string> {
   }
 }
 
+function getCosBucketConfig() {
+  const Bucket = process.env.Bucket || process.env.COS_BUCKET;
+  const Region = process.env.Region || process.env.COS_REGION;
+  const CDN_URL = process.env.CDN_URL || process.env.COS_CDN_URL;
+
+  if (!Bucket || !Region || !CDN_URL) {
+    throw new Error('COS 配置缺失：Bucket、Region 或 CDN_URL');
+  }
+
+  return { Bucket, Region, CDN_URL };
+}
+
 /**
  * 转存远程图片到 CDN
  * @param imageUrl 远程图片 URL
@@ -100,4 +112,48 @@ export async function proxyImageToCDN(imageUrl: string): Promise<string> {
   const { buffer, ext } = await downloadImage(imageUrl);
   const cdnUrl = await uploadBufferToCOS(buffer, ext);
   return cdnUrl;
+}
+
+/**
+ * 转存 base64 图片到 CDN
+ * @param base64Image 不带 data URL 前缀的 base64 图片数据
+ * @param ext 图片扩展名，默认 .png
+ * @returns CDN URL
+ */
+export async function proxyBase64ImageToCDN(base64Image: string, ext = '.png'): Promise<string> {
+  const buffer = Buffer.from(base64Image, 'base64');
+  return uploadBufferToCOS(buffer, ext);
+}
+
+/**
+ * 删除 CDN URL 对应的 COS 对象
+ * 仅删除当前 COS_CDN_URL 域名下的文件，避免误删第三方 URL。
+ */
+export async function deleteCdnImage(url: string): Promise<boolean> {
+  const { Bucket, Region, CDN_URL } = getCosBucketConfig();
+  const normalizedCdnUrl = CDN_URL.replace(/\/+$/, '');
+
+  if (!url.startsWith(normalizedCdnUrl)) {
+    return false;
+  }
+
+  const parsedUrl = new URL(url);
+  const cdnPath = new URL(normalizedCdnUrl).pathname.replace(/\/+$/, '');
+  const keyPath = parsedUrl.pathname.startsWith(cdnPath)
+    ? parsedUrl.pathname.slice(cdnPath.length)
+    : parsedUrl.pathname;
+  const Key = keyPath.startsWith('/') ? keyPath : `/${keyPath}`;
+
+  if (!Key || Key === '/') {
+    return false;
+  }
+
+  const cos = getCosClient();
+  const result = await cos.deleteObject({
+    Bucket,
+    Region,
+    Key,
+  });
+
+  return result.statusCode === 204 || result.statusCode === 200;
 }

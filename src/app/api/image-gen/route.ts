@@ -1,7 +1,7 @@
 /**
  * AI 图片生成 API
  * POST /api/image-gen
- * 通过 /v1/chat/completions 调用 GPT Image 2
+ * 根据 image_gen.api_mode 配置调用 /v1/chat/completions 或 /v1/images/generations
  * 支持文生图、图文编辑
  * 自动转存到 CDN 并记录日志
  */
@@ -14,11 +14,13 @@ import type { ApiDescriptor } from '@/types/api-descriptor';
 import { generateImageWithLog } from '@/services/image-gen';
 import type { ImageGenOptions } from '@/services/image-gen';
 
+export const maxDuration = 300;
+
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
   code: 'image_gen',
   name: 'AI图片生成',
-  description: '使用 AI 生成图片，支持文生图和图文编辑模式',
+  description: '使用 AI 生成图片，支持 chat_completions 和 images_generations 两种接口模式',
   module: 'image',
   method: 'POST',
   permissionCode: IMAGE_VIEW,
