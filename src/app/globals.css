@@ -60,6 +60,37 @@ body {
   color: var(--foreground);
 }
 
+@keyframes deployPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(217, 70, 239, 0.3), inset 0 0 16px rgba(34, 211, 238, 0.05);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(217, 70, 239, 0.62), inset 0 0 24px rgba(34, 211, 238, 0.12);
+  }
+}
+
+@keyframes deploySweep {
+  0% {
+    transform: translateX(-140%);
+  }
+
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+@keyframes deployScan {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(1rem);
+  }
+}
+
 /* Cyberpunk homepage polish */
 .cyberpunk-hero-atmosphere {
   position: absolute;
