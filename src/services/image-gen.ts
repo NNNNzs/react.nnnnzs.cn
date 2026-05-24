@@ -2,7 +2,10 @@ import { getAIConfigValues } from '@/lib/ai-config';
 
 const VALID_MODES = ['generate', 'edit'] as const;
 const VALID_QUALITIES = ['high', 'medium'] as const;
+const VALID_API_MODES = ['chat_completions', 'images_generations'] as const;
 const IMAGE_URL_REGEX = /!\[image\]\((https?:\/\/[^\s)]+)\)/;
+
+type ImageGenApiMode = typeof VALID_API_MODES[number];
 
 export interface ImageGenOptions {
   mode: 'generate' | 'edit';
@@ -15,6 +18,7 @@ export interface ImageGenOptions {
 export interface ImageGenResult {
   imageUrl: string;
   model: string;
+  b64Json?: string;
 }
 
 function validateOptions(options: ImageGenOptions): void {
@@ -35,27 +39,29 @@ function validateOptions(options: ImageGenOptions): void {
   }
 }
 
-/**
- * 调用 AI 生成图片（核心逻辑，不含转存和日志）
- */
-export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
-  validateOptions(options);
+function resolveApiMode(value: string | null): ImageGenApiMode {
+  const apiMode = value || 'chat_completions';
+  if (!VALID_API_MODES.includes(apiMode as ImageGenApiMode)) {
+    throw new Error(`不支持的图片生成接口模式: ${apiMode}，可选: ${VALID_API_MODES.join(', ')}`);
+  }
+  return apiMode as ImageGenApiMode;
+}
 
+function createHeaders(apiKey: string): HeadersInit {
+  return {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function requestChatCompletions(params: {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  options: ImageGenOptions;
+}): Promise<ImageGenResult> {
+  const { apiKey, baseUrl, model, options } = params;
   const { mode, prompt, image, size, quality } = options;
-
-  const configs = await getAIConfigValues([
-    'image_gen.api_key',
-    'image_gen.base_url',
-    'image_gen.model',
-  ]);
-
-  const apiKey = configs['image_gen.api_key'];
-  const baseUrl = configs['image_gen.base_url'];
-  const model = configs['image_gen.model'] || 'gpt-image-2';
-
-  if (!apiKey) throw new Error('图片生成 API 密钥未配置，请在配置管理中设置 image_gen.api_key');
-  if (!baseUrl) throw new Error('图片生成 API 地址未配置，请在配置管理中设置 image_gen.base_url');
-
   const messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }> = [];
 
   if (mode === 'edit') {
@@ -86,15 +92,21 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: createHeaders(apiKey),
     body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('图片生成 chat_completions 调用失败:', {
+      endpoint,
+      status: response.status,
+      model,
+      mode,
+      size,
+      quality,
+      response: errorText.slice(0, 1000),
+    });
     throw new Error(`API 调用失败 (${response.status}): ${errorText.slice(0, 500)}`);
   }
 
@@ -103,10 +115,116 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
 
   const imageUrlMatch = content.match(IMAGE_URL_REGEX);
   if (!imageUrlMatch) {
+    console.error('图片生成 chat_completions 返回格式异常:', {
+      endpoint,
+      model,
+      mode,
+      size,
+      quality,
+      content: String(content).slice(0, 1000),
+    });
     throw new Error('API 返回数据异常，未包含图片');
   }
 
   return { imageUrl: imageUrlMatch[1], model };
+}
+
+async function requestImagesGenerations(params: {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  options: ImageGenOptions;
+}): Promise<ImageGenResult> {
+  const { apiKey, baseUrl, model, options } = params;
+  const { mode, prompt, size, quality } = options;
+
+  if (mode === 'edit') {
+    throw new Error('images_generations 接口模式仅支持文生图；图文编辑请使用 chat_completions 模式');
+  }
+
+  const requestBody: Record<string, unknown> = {
+    model,
+    prompt: prompt.trim(),
+    n: 1,
+  };
+
+  if (size) requestBody.size = size;
+  if (quality) requestBody.quality = quality;
+
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/generations`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: createHeaders(apiKey),
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('图片生成 images_generations 调用失败:', {
+      endpoint,
+      status: response.status,
+      model,
+      size,
+      quality,
+      response: errorText.slice(0, 1000),
+    });
+    throw new Error(`API 调用失败 (${response.status}): ${errorText.slice(0, 500)}`);
+  }
+
+  const result = await response.json();
+  const imageData = result?.data?.[0];
+  const imageUrl = typeof imageData?.url === 'string' ? imageData.url : undefined;
+  const b64Json = typeof imageData?.b64_json === 'string' ? imageData.b64_json : undefined;
+
+  if (imageUrl) {
+    return { imageUrl, model };
+  }
+
+  if (b64Json) {
+    return {
+      imageUrl: `data:image/png;base64,${b64Json}`,
+      model,
+      b64Json,
+    };
+  }
+
+  console.error('图片生成 images_generations 返回格式异常:', {
+    endpoint,
+    model,
+    size,
+    quality,
+    responseKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+    firstDataKeys: imageData && typeof imageData === 'object' ? Object.keys(imageData) : [],
+  });
+  throw new Error('API 返回数据异常，未包含图片 URL 或 base64 数据');
+}
+
+/**
+ * 调用 AI 生成图片（核心逻辑，不含转存和日志）
+ */
+export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
+  validateOptions(options);
+
+  const configs = await getAIConfigValues([
+    'image_gen.api_key',
+    'image_gen.base_url',
+    'image_gen.model',
+    'image_gen.api_mode',
+  ]);
+
+  const apiKey = configs['image_gen.api_key'];
+  const baseUrl = configs['image_gen.base_url'];
+  const model = configs['image_gen.model'] || 'gpt-image-2';
+  const apiMode = resolveApiMode(configs['image_gen.api_mode']);
+
+  if (!apiKey) throw new Error('图片生成 API 密钥未配置，请在配置管理中设置 image_gen.api_key');
+  if (!baseUrl) throw new Error('图片生成 API 地址未配置，请在配置管理中设置 image_gen.base_url');
+
+  if (apiMode === 'images_generations') {
+    return requestImagesGenerations({ apiKey, baseUrl, model, options });
+  }
+
+  return requestChatCompletions({ apiKey, baseUrl, model, options });
 }
 
 /**
@@ -133,8 +251,10 @@ export async function generateImageWithLog(
     // 2. 转存到 CDN
     let cdnUrl: string | undefined;
     try {
-      const { proxyImageToCDN } = await import('./image-proxy');
-      cdnUrl = await proxyImageToCDN(result.imageUrl);
+      const { proxyBase64ImageToCDN, proxyImageToCDN } = await import('./image-proxy');
+      cdnUrl = result.b64Json
+        ? await proxyBase64ImageToCDN(result.b64Json)
+        : await proxyImageToCDN(result.imageUrl);
     } catch (proxyError) {
       console.error('图片转存失败，使用原始URL:', proxyError);
       // 转存失败不影响主流程，使用原始 URL
@@ -148,7 +268,7 @@ export async function generateImageWithLog(
       editPrompt: options.mode === 'edit' ? options.prompt : undefined,
       editImageUrl: options.mode === 'edit' ? options.image : undefined,
       model: result.model,
-      originalUrl: result.imageUrl,
+      originalUrl: result.b64Json ? 'b64_json' : result.imageUrl,
       cdnUrl,
       status: 'SUCCESS',
       durationMs,
@@ -163,19 +283,17 @@ export async function generateImageWithLog(
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : '图片生成失败';
 
-    // 写失败日志
-    createImageGenLog({
+    console.error('图片生成失败:', {
       userId,
       source,
-      prompt: options.prompt,
-      editPrompt: options.mode === 'edit' ? options.prompt : undefined,
-      editImageUrl: options.mode === 'edit' ? options.image : undefined,
-      model: 'unknown',
-      originalUrl: '',
-      status: 'FAILED',
+      mode: options.mode,
+      promptLength: options.prompt?.length ?? 0,
+      hasImage: Boolean(options.image),
+      size: options.size,
+      quality: options.quality,
       errorMessage,
       durationMs,
-    }).catch((err) => console.error('写入图片生成日志失败:', err));
+    });
 
     throw error;
   }

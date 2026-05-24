@@ -216,6 +216,7 @@ src/app/
 - `image_gen.api_key` - API 密钥
 - `image_gen.base_url` - 中转站地址
 - `image_gen.model` - 模型名称（默认 gpt-image-2）
+- `image_gen.api_mode` - 图片生成接口模式：`chat_completions`（默认）或 `images_generations`
 
 ## 📝 路径生成规则
 
@@ -411,4 +412,3 @@ if (!post) {
 - 文章列表项：`src/components/PostListItem.tsx`
 - 管理后台：`src/app/c/page.tsx`
 - 编辑页面：`src/app/c/edit/[id]/page.tsx`
-
