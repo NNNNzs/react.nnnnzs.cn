@@ -6,7 +6,7 @@ import { createPostVersion } from '@/services/post-version';
 import { queueEmbedPost } from '@/services/embedding';
 import { revalidatePath } from "next/cache";
 import { detectChanges } from '@/services/entity-change-detector';
-import { createChangeLogsAsync } from '@/services/entity-change-log';
+import { createChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
 
 /**
@@ -352,6 +352,20 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
     },
   });
 
+  const changes = detectChanges(EntityType.POST, {}, result as unknown as Record<string, unknown>);
+  if (changes.length > 0) {
+    await createChangeLogs({
+      entityId: result.id,
+      entityType: EntityType.POST,
+      changes,
+      userId: data.created_by ?? undefined,
+    });
+  }
+
+  if (result.content) {
+    await createPostVersion(result.id, result.content, data.created_by ?? undefined);
+  }
+
   // 异步添加到向量化队列（不阻塞响应）
   if (result.content) {
     (async () => {
@@ -485,7 +499,7 @@ export async function updatePost(
 
   revalidatePath(updatedPost.path!);
 
-  // 检测字段变更并记录日志（异步执行，不阻塞响应）
+  // 检测字段变更并记录日志，确保 MCP/HTTP 请求返回前日志已落库
   const changes = detectChanges(
     EntityType.POST,
     existingPost,
@@ -505,7 +519,7 @@ export async function updatePost(
   });
 
   if (changes.length > 0) {
-    createChangeLogsAsync({
+    await createChangeLogs({
       entityId: id,
       entityType: EntityType.POST,
       changes,
@@ -513,14 +527,13 @@ export async function updatePost(
     });
   }
 
-  // 如果内容有更新，创建版本记录并添加到向量化队列（异步执行，不阻塞响应）
+  // 如果内容有更新，先确保版本记录落库，再异步添加到向量化队列
   if (hasContentUpdate && updatedPost.content) {
+    await createPostVersion(id, updatedPost.content, createdBy);
+
     // 异步执行，不阻塞响应
     (async () => {
       try {
-        // 先创建版本记录
-        await createPostVersion(id, updatedPost.content!, createdBy);
-
         // 添加到向量化队列（使用新的简化向量化服务）
         await queueEmbedPost({
           postId: id,
@@ -531,7 +544,7 @@ export async function updatePost(
         });
 
       } catch (error) {
-        console.error(`❌ 文章 ${id} 版本记录或向量化失败:`, error);
+        console.error(`❌ 文章 ${id} 添加到向量化队列失败:`, error);
         // 失败不影响文章更新
       }
     })();
