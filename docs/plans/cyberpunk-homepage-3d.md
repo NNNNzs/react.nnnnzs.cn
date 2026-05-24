@@ -46,6 +46,7 @@ NNNNzs = Neon Nomad Navigating Night Zones
 - 2026-05-20 新增首屏 HUD、诊断面板、暗色日志流文章区、湿润地面反光、悬浮内容终端和 `NNNNzs` 霓虹标识。
 - 2026-05-20 方向调整：不再让日间模式使用赛博朋克视觉，后续应改成同一 3D 房间的日间温暖文艺主题。
 - 2026-05-20 已开始昼夜双主题实现：新增 `HomepageSceneVariant` 与 theme preset，首页日间/夜间都走同一个 3D Banner，日间关闭雨滴并降低 Bloom。
+- 2026-05-24 新增活动数据家具原型方向：保留服务器机柜部署状态灯、三联显示器活动纹理、书架数据核心三个概念，用于把 Git commit、GitHub Actions 部署记录和文章发表历史接入同一 3D 房间。
 
 ### 当前主要问题
 
@@ -62,6 +63,7 @@ NNNNzs = Neon Nomad Navigating Night Zones
 3. **夜间主题保留**：保留霓虹、雨夜、Bloom、终端、HUD，但控制性能和滚动体验。
 4. **阶段一点五**：让书架的数据核心映射真实合集，至少展示合集名称、文章数和点击跳转。
 5. **阶段二**：把最近文章映射到悬浮内容终端，形成“3D 场景入口 + HTML 列表”的双通道浏览。
+6. **活动数据家具化**：优先接入服务器机柜部署灯、三联显示器 commit/post 活动纹理、书架发表历史光点，不新增脱离房间的大型 dashboard。
 
 ---
 
@@ -292,6 +294,49 @@ interface HomepageThemePreset {
 - hover 显示合集名称 + 文章数。
 - 点击跳转到合集页。
 - 移动端不做精细 hover，改为点击后显示轻量浮层或直接跳转。
+
+### 🟢 阶段二点一：活动数据家具化（新增原型方向）
+
+**目标**：把 Git commit、GitHub Actions 部署记录、文章发表历史变成房间中已有家具的状态，而不是在首屏叠加大型 dashboard。3D 负责氛围和入口，HTML 区域继续负责可读性、SEO 和完整列表。
+
+#### 原型图记录
+
+| 原型 | 用途 | 本地图片地址 |
+|------|------|--------------|
+| 服务器机柜部署状态灯 | 映射 GitHub Actions 部署记录，成功/失败/运行中使用不同 LED 状态。 | `docs/plans/images/cyberpunk-homepage-activity/server-rack-deploy-status.png` |
+| 三联显示器活动纹理 | 映射 Git commit、部署状态、最近文章发表，作为工作区屏幕纹理。 | `docs/plans/images/cyberpunk-homepage-activity/triple-monitor-activity-texture.png` |
+| Activity Console 参考图 | 仅作为右侧 HUD/Recent Logs 的参考，不作为当前核心家具方向。 | `docs/plans/images/cyberpunk-homepage-activity/activity-console-reference.png` |
+| 书架数据核心 | 映射合集、文章数和发表历史光点，一天多次发表聚合为同层多个亮点。 | `docs/plans/images/cyberpunk-homepage-activity/bookshelf-data-cores.png` |
+
+![服务器机柜部署状态灯](images/cyberpunk-homepage-activity/server-rack-deploy-status.png)
+
+![三联显示器活动纹理](images/cyberpunk-homepage-activity/triple-monitor-activity-texture.png)
+
+![书架数据核心](images/cyberpunk-homepage-activity/bookshelf-data-cores.png)
+
+#### 设计原则
+
+- **不新增主视觉大屏**：所有活动数据优先附着在已有家具上，保持“私人数字房间”的叙事。
+- **昼夜同构**：白天表现为创作记录、设备状态、书架整理；夜晚表现为霓虹日志、部署脉冲、数据核心。
+- **短期只展示近期状态**：首屏只承担 3-7 天或最近 N 条活动提示，完整历史放到下方 HTML 区域或独立归档页。
+- **移动端降级**：移动端不做复杂 hover，保留简化光点、状态数字和点击跳转。
+
+#### 家具映射
+
+| 数据来源 | 3D 家具 | 夜间表现 | 日间表现 | 交互 |
+|---------|---------|----------|----------|------|
+| GitHub Actions 部署记录 | 服务器机柜 | 青绿成功灯、粉红失败灯、琥珀运行中呼吸灯。 | 整洁设备柜状态灯、轻量状态牌。 | 点击/hover 显示最近部署、分支、状态、时间。 |
+| Git commit 记录 | 三联显示器左/中屏 | 代码流、commit hash、diff 脉冲节点。 | IDE 最近修改、代码笔记、低亮度屏幕。 | 点击跳转到代码活动详情或 GitHub commit。 |
+| 文章发表历史 | 三联显示器右屏 + 书架数据核心 | 广播卡片、发表节点、同日多次亮点聚合。 | 书脊/便签/归档盒上的轻量标记。 | 点击跳转文章或按日期展开。 |
+| 合集与长期文章积累 | 书架 | 每个合集一层数据核心，文章越多越亮。 | 书、归档盒、纸质标签和少量柔光数据块。 | hover 显示合集名和文章数，点击进合集页。 |
+
+#### 实施切片
+
+1. **服务器机柜部署灯**：先用静态/mock 数据驱动 LED 数组，验证视觉和性能，再接 GitHub Actions 数据。
+2. **三联显示器纹理升级**：扩展当前 `createScreenTexture`，按数据类型生成 commit/deploy/post 三类屏幕纹理。
+3. **书架数据核心数据化**：把现有固定发光方块改为合集数组渲染，支持合集名、文章数、slug。
+4. **数据获取边界**：Git commit 可从本地构建脚本或 GitHub API 同步，GitHub Actions 从 workflow run 记录同步，文章发表历史复用现有 `posts` 数据。
+5. **完整历史入口**：首屏只做状态摘要；如果后续需要全年热力图，放到文章列表后方或独立 timeline/archives 页面。
 
 ### 🟦 阶段一点五：最近文章内容终端（阶段一和阶段二之间）
 
