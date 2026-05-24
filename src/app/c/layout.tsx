@@ -25,6 +25,7 @@ import {
   SafetyOutlined,
   KeyOutlined,
   ApiOutlined,
+  DeploymentUnitOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
@@ -136,6 +137,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
 
     if (hasPermission(USER_MANAGE)) {
       items.push({
+        key: "/c/glb-model-inspector",
+        icon: <DeploymentUnitOutlined />,
+        label: "模型检查台",
+      });
+      items.push({
         key: "/c/roles",
         icon: <SafetyOutlined />,
         label: "角色管理",
@@ -181,6 +187,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         '/c/collections': COLLECTION_VIEW,
         '/c/config': CONFIG_VIEW,
         '/c/user': USER_VIEW,
+        '/c/glb-model-inspector': USER_MANAGE,
         '/c/roles': USER_MANAGE,
         '/c/api-registry': USER_MANAGE,
         '/c/permissions': USER_VIEW,
@@ -221,6 +228,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/config',
       '/c/user',
       '/c/user/info',
+      '/c/glb-model-inspector',
       '/c/roles',
       '/c/api-registry',
       '/c/permissions',

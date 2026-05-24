@@ -15,7 +15,8 @@
 
 import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { DownOutlined } from '@ant-design/icons';
+import Link from 'next/link';
+import { CloseOutlined, CompassOutlined, DownOutlined } from '@ant-design/icons';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, Grid } from '@react-three/drei';
 import Room from './Room';
@@ -24,6 +25,7 @@ import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
+import type { Post } from '@/types';
 
 // ========================
 // 常量
@@ -62,7 +64,7 @@ const isLowEndDevice = (): boolean => {
   } catch {
     // 无法检测时保守降级
   }
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return false;
 };
 
 // ========================
@@ -198,11 +200,28 @@ function ErrorFallback({ variant }: { variant: HomepageSceneVariant }) {
 // 首屏 HUD 覆盖层
 // ========================
 
-function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; variant: HomepageSceneVariant }) {
+function HeroInterfaceOverlay({
+  sceneReady,
+  variant,
+  posts = [],
+  interactiveMode,
+  canExplore = true,
+  onExplore,
+  onExitExplore,
+}: {
+  sceneReady: boolean;
+  variant: HomepageSceneVariant;
+  posts?: Post[];
+  interactiveMode: boolean;
+  canExplore?: boolean;
+  onExplore: () => void;
+  onExitExplore: () => void;
+}) {
   const isDay = variant === 'day';
   const statuses = isDay
     ? ['DAY ROOM', 'CLEAR WINDOW', 'NOTES READY', 'LOW BLOOM']
     : ['ROOM ONLINE', 'RAIN 73%', 'POST ARCHIVE LINKED', 'BLOOM ACTIVE'];
+  const recentPosts = posts.slice(0, 3);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
@@ -237,6 +256,19 @@ function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; va
             </span>
           ))}
         </div>
+
+        {canExplore && (
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={interactiveMode ? onExitExplore : onExplore}
+              className="pointer-events-auto inline-flex cursor-pointer items-center gap-2 border border-pink-500/25 bg-white/52 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-pink-900/70 backdrop-blur transition hover:border-pink-600/45 hover:text-pink-950 dark:border-pink-300/30 dark:bg-pink-300/[0.08] dark:text-pink-100/76 dark:hover:border-pink-200/70 dark:hover:text-pink-50"
+            >
+              {interactiveMode ? <CloseOutlined /> : <CompassOutlined />}
+              {interactiveMode ? '退出探索' : '探索场景'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div
@@ -246,24 +278,33 @@ function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; va
       >
         <div className="cyberpunk-diagnostic-panel">
           <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-sky-900/55 dark:text-cyan-100/55">
-            <span>Memory Shelf</span>
-            <span>09 collections</span>
+            <span>Recent Logs</span>
+            <span>{String(recentPosts.length).padStart(2, '0')} linked</span>
           </div>
           <div className="space-y-2">
-            {[
-              ['Frontend Lab', '27'],
-              ['Ops Rack', '12'],
-              ['AI Terminal', '06'],
-            ].map(([label, count]) => (
-              <div key={label} className="flex items-center gap-3">
+            {recentPosts.map((post, index) => (
+              <Link
+                key={post.id}
+                href={post.path || '#'}
+                prefetch={false}
+                className="pointer-events-auto flex items-center gap-3 text-slate-700/75 transition hover:text-sky-800 dark:text-slate-200/75 dark:hover:text-cyan-100"
+              >
                 <span className="h-1.5 w-1.5 bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.45)] dark:bg-cyan-300 dark:shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-                <span className="flex-1 text-xs text-slate-700/75 dark:text-slate-200/75">{label}</span>
-                <span className="font-mono text-xs text-pink-700/75 dark:text-pink-200/80">{count}</span>
-              </div>
+                <span className="min-w-0 flex-1 truncate text-xs">{post.title}</span>
+                <span className="font-mono text-xs text-pink-700/75 dark:text-pink-200/80">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </Link>
             ))}
           </div>
         </div>
       </div>
+
+      {interactiveMode && (
+        <div className="absolute bottom-24 left-4 right-4 z-20 mx-auto max-w-sm border border-cyan-300/35 bg-[#050611]/76 px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-cyan-100/78 shadow-[0_0_34px_rgba(34,211,238,0.16)] backdrop-blur md:bottom-8">
+          拖动旋转场景，双指缩放。退出探索后恢复页面滚动。
+        </div>
+      )}
     </div>
   );
 }
@@ -272,9 +313,16 @@ function HeroInterfaceOverlay({ sceneReady, variant }: { sceneReady: boolean; va
 // 3D 场景内容
 // ========================
 
-function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; variant: HomepageSceneVariant }) {
-  const isDev = process.env.NODE_ENV === 'development';
-  const editable = isDev || debugControlsOpen;
+function Scene({
+  debugControlsOpen,
+  interactiveMode,
+  variant,
+}: {
+  debugControlsOpen: boolean;
+  interactiveMode: boolean;
+  variant: HomepageSceneVariant;
+}) {
+  const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
 
   // Zustand selector - 只有对应字段变化时才重渲染
@@ -285,7 +333,7 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
   const showGrid = useSceneStore(s => s.elements.showGrid);
   const parallaxEnabled = useSceneStore(s => s.parallax.enabled);
 
-  const pUseOrbit = editable ? useOrbit : true;
+  const pUseOrbit = editable ? useOrbit : interactiveMode;
   const pShowRain = variant === 'night' && (editable ? showRain : true);
   const pShowFurniture = editable ? showFurniture : true;
   const pShowRoom = editable ? showRoom : true;
@@ -317,13 +365,14 @@ function Scene({ debugControlsOpen, variant }: { debugControlsOpen: boolean; var
       {pUseOrbit && (
         <OrbitControls
           makeDefault
+          enabled={interactiveMode || editable}
           enableDamping
           dampingFactor={0.05}
           minDistance={2}
           maxDistance={15}
-          enableZoom={wheelZoomEnabled}
+          enableZoom={interactiveMode || wheelZoomEnabled}
           enablePan={editable}
-          enableRotate={editable}
+          enableRotate={interactiveMode || editable}
           minPolarAngle={0}
           maxPolarAngle={Math.PI / 2}
           target={[0, 1.2, 0]}
@@ -370,7 +419,13 @@ function ScrollFadeOverlay({ scrollProgress, variant }: { scrollProgress: number
 // 主组件
 // ========================
 
-export default function CyberpunkBanner({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
+export default function CyberpunkBanner({
+  variant = 'night',
+  posts = [],
+}: {
+  variant?: HomepageSceneVariant;
+  posts?: Post[];
+}) {
   const [capabilityChecked, setCapabilityChecked] = useState(false);
   const [webglOk, setWebglOk] = useState(false);
   const [lowEnd, setLowEnd] = useState(false);
@@ -379,8 +434,8 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   const [hasError, setHasError] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [debugControlsOpen, setDebugControlsOpen] = useState(false);
+  const [interactiveMode, setInteractiveMode] = useState(false);
   const devControlsModuleRef = useRef<Promise<typeof import('./DevControls')> | null>(null);
-  const isDev = process.env.NODE_ENV === 'development';
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const camPosX = useSceneStore(s => s.camera.positionX);
@@ -388,7 +443,7 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
   const camPosZ = useSceneStore(s => s.camera.positionZ);
   const cameraFov = useSceneStore(s => s.camera.fov);
 
-  const cameraEditable = isDev || debugControlsOpen;
+  const cameraEditable = debugControlsOpen;
   const cameraPos: [number, number, number] = cameraEditable
     ? [camPosX, camPosY, camPosZ]
     : preset.camera.position;
@@ -435,7 +490,7 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
         params.get('sceneDebug') === '1' ||
         params.get('debug') === 'cyberpunk' ||
         params.get('debug') === 'scene' ||
-        window.localStorage.getItem(storageKey) === '1'
+        window.sessionStorage.getItem(storageKey) === '1'
       );
     };
 
@@ -460,12 +515,14 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey && e.shiftKey && e.code === 'KeyD')) return;
-      const nextValue = window.localStorage.getItem(storageKey) === '1' ? '0' : '1';
-      window.localStorage.setItem(storageKey, nextValue);
+      if (!(e.altKey && e.shiftKey && e.code === 'KeyS')) return;
+      e.preventDefault();
+      const nextValue = window.sessionStorage.getItem(storageKey) === '1' ? '0' : '1';
+      window.sessionStorage.setItem(storageKey, nextValue);
       syncDebugPanel();
     };
 
+    window.localStorage.removeItem(storageKey);
     syncDebugPanel();
     window.addEventListener('keydown', handleKeyDown);
 
@@ -505,7 +562,15 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
     return (
       <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
         <div className="cyberpunk-static-fallback" />
-        <HeroInterfaceOverlay sceneReady variant={variant} />
+        <HeroInterfaceOverlay
+          sceneReady
+          variant={variant}
+          posts={posts}
+          interactiveMode={false}
+          canExplore={false}
+          onExplore={() => undefined}
+          onExitExplore={() => undefined}
+        />
         <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
           {prefersReducedMotion ? 'Reduced motion visual mode' : 'Static visual mode'}
         </div>
@@ -515,7 +580,14 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
 
   return (
     <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
-      <div className="absolute inset-0" style={{ opacity: sceneReady ? 1 : 0, transition: 'opacity 1s ease' }}>
+      <div
+        className={`absolute inset-0 ${interactiveMode ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        style={{
+          opacity: sceneReady ? 1 : 0,
+          transition: 'opacity 1s ease',
+          touchAction: interactiveMode ? 'none' : 'pan-y',
+        }}
+      >
         <Canvas
           camera={{
             position: cameraPos,
@@ -533,14 +605,25 @@ export default function CyberpunkBanner({ variant = 'night' }: { variant?: Homep
           onError={() => setHasError(true)}
         >
           <Suspense fallback={null}>
-            <Scene debugControlsOpen={debugControlsOpen} variant={variant} />
+            <Scene
+              debugControlsOpen={debugControlsOpen}
+              interactiveMode={interactiveMode}
+              variant={variant}
+            />
           </Suspense>
         </Canvas>
       </div>
 
       {!sceneReady && !hasError && <LoadingFallback variant={variant} />}
       {hasError && <ErrorFallback variant={variant} />}
-      <HeroInterfaceOverlay sceneReady={sceneReady && !hasError} variant={variant} />
+      <HeroInterfaceOverlay
+        sceneReady={sceneReady && !hasError}
+        variant={variant}
+        posts={posts}
+        interactiveMode={interactiveMode}
+        onExplore={() => setInteractiveMode(true)}
+        onExitExplore={() => setInteractiveMode(false)}
+      />
       <ScrollFadeOverlay scrollProgress={scrollProgress} variant={variant} />
 
       <div

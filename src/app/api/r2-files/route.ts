@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { USER_MANAGE } from "@/constants/permissions";
+import { requirePermission } from "@/lib/permission";
 
 const R2_WORKER_URL =
   process.env.R2_WORKER_URL || "https://r2-file-manager.nnnnzs.workers.dev";
@@ -9,7 +12,12 @@ const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
  * 代理 R2 文件列表，避免前端跨域问题
  * 通过 NAS 代理（ZeroTier）访问 Cloudflare Workers
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const check = await requirePermission(request, USER_MANAGE);
+  if ("error" in check) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
+  }
+
   const { searchParams } = new URL(request.url);
   const prefix = searchParams.get("prefix") || "cyberpunk";
 

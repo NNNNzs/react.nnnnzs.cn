@@ -9,10 +9,9 @@
 
 import { createRoot, type Root } from 'react-dom/client';
 import React, { useState } from 'react';
-import { useControls, button, folder } from 'leva';
+import { useControls, button } from 'leva';
 import { useSceneStore, type SceneConfig } from './useSceneStore';
 
-type LevaSchema = Parameters<typeof useControls>[1];
 type LightConfig = SceneConfig['lights'];
 
 const LIGHT_OPTIONS = {
@@ -155,7 +154,7 @@ function CameraPresets() {
 function DevPanel() {
   const [selectedLight, setSelectedLight] = useState('window');
 
-  useControls('🎮 控制模式', folder({
+  useControls('🎮 控制模式', {
     'Parallax 视差模式': {
       value: !useSceneStore.getState().controls.useOrbit,
       onChange: (v) => useSceneStore.getState().set({
@@ -163,9 +162,9 @@ function DevPanel() {
         parallax: { enabled: v, intensityX: 0.2, intensityY: 0.1, smoothness: 0.05 },
       }),
     },
-  }) as unknown as LevaSchema);
+  });
 
-  useControls('📷 相机微调', folder({
+  useControls('📷 相机微调', {
     '位置 X': {
       value: useSceneStore.getState().camera.positionX,
       min: -5, max: 5, step: 0.1,
@@ -186,9 +185,9 @@ function DevPanel() {
       min: 30, max: 120, step: 1,
       onChange: (v) => useSceneStore.getState().set({ camera: { ...useSceneStore.getState().camera, fov: v } }),
     },
-  }) as unknown as LevaSchema);
+  });
 
-  useControls('👁️ 视差强度', folder({
+  useControls('👁️ 视差强度', {
     'X 轴强度': {
       value: useSceneStore.getState().parallax.intensityX,
       min: 0, max: 1, step: 0.01,
@@ -199,9 +198,9 @@ function DevPanel() {
       min: 0, max: 1, step: 0.01,
       onChange: (v) => useSceneStore.getState().set({ parallax: { ...useSceneStore.getState().parallax, intensityY: v } }),
     },
-  }) as unknown as LevaSchema);
+  });
 
-  useControls('✨ 后处理', folder({
+  useControls('✨ 后处理', {
     'Bloom 强度': {
       value: useSceneStore.getState().postProcessing.bloomIntensity,
       min: 0, max: 5, step: 0.1,
@@ -217,9 +216,9 @@ function DevPanel() {
       min: 0, max: 2, step: 0.1,
       onChange: (v) => useSceneStore.getState().set({ postProcessing: { ...useSceneStore.getState().postProcessing, vignetteDarkness: v } }),
     },
-  }) as unknown as LevaSchema);
+  });
 
-  useControls('🧩 场景元素', folder({
+  useControls('🧩 场景元素', {
     '显示雨滴': {
       value: useSceneStore.getState().elements.showRain,
       onChange: (v) => useSceneStore.getState().set({ elements: { ...useSceneStore.getState().elements, showRain: v } }),
@@ -236,15 +235,15 @@ function DevPanel() {
       value: useSceneStore.getState().elements.showGrid,
       onChange: (v) => useSceneStore.getState().set({ elements: { ...useSceneStore.getState().elements, showGrid: v } }),
     },
-  }) as unknown as LevaSchema);
+  });
 
-  useControls('🔄 全局操作', folder({
+  useControls('🔄 全局操作', {
     '_重置所有设置': button(() => { useSceneStore.getState().reset(); }),
     '_导出配置到控制台': button(() => {
       console.log('=== 赛博朋克 3D 场景配置 ===');
       console.log(JSON.stringify(useSceneStore.getState(), null, 2));
     }),
-  }) as unknown as LevaSchema);
+  });
 
   return (
     <>

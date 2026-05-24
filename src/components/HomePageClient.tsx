@@ -139,7 +139,7 @@ export default function HomePageClient({
   return (
     <div className="bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
-      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} />
+      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} />
 
       {/* 文章列表 */}
       <div ref={postsAnchorRef} />
