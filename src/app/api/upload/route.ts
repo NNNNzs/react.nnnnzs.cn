@@ -16,8 +16,8 @@ import type { ApiDescriptor } from '@/types/api-descriptor';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
-  code: 'upload_file',
-  name: '上传文件',
+  code: 'upload_local_image',
+  name: '上传本地图片',
   module: 'upload',
   method: 'POST',
   inputSchema: {
@@ -89,4 +89,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(errorResponse('上传文件失败'), { status: 500 });
   }
 }
-

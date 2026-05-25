@@ -22,7 +22,7 @@ import { descriptor as postListRoute } from '@/app/api/post/list/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
 import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
-import { descriptor as uploadRoute } from '@/app/api/upload/route';
+import { descriptor as uploadRoute } from '@/app/api/fs/upload/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -240,16 +240,33 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   // ---- 图片上传模块（MCP 可用）----
   {
     ...desc(uploadRoute),
-    apiPath: '/api/upload',
+    apiPath: '/api/fs/upload',
     mcpEnabled: true,
     mcpToolName: 'upload_file',
     permissionCode: FILE_UPLOAD,
     handler: async (args) => {
-      const { proxyBase64ImageToCDN } = await import('@/services/image-proxy');
-      const url = await proxyBase64ImageToCDN(
-        args.base64 as string,
-        (args.ext as string) || '.png'
-      );
+      const { base64ToBuffer, downloadFileFromUrl, uploadFileToCOS } = await import('@/services/file-upload');
+      const filename = (args.filename as string | undefined) || 'attachment.bin';
+
+      if (args.url) {
+        const downloadedFile = await downloadFileFromUrl(args.url as string, args.filename as string | undefined);
+        const url = await uploadFileToCOS({
+          ...downloadedFile,
+          ext: args.ext as string | undefined,
+        });
+        return { url };
+      }
+
+      if (!args.base64) {
+        throw new Error('缺少文件内容：请传 base64 或 url');
+      }
+
+      const url = await uploadFileToCOS({
+        buffer: base64ToBuffer(args.base64 as string),
+        filename,
+        mimetype: args.mimeType as string | undefined,
+        ext: args.ext as string | undefined,
+      });
       return { url };
     },
   },

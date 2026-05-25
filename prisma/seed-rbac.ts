@@ -52,6 +52,7 @@ const seedPermissions: PermissionSeed[] = [
   { code: 'vector:view', name: '向量检索', module: 'tool', type: 'menu', sort_order: 2 },
   { code: 'tts:view', name: '语音合成', module: 'tool', type: 'menu', sort_order: 3 },
   { code: 'image:view', name: 'AI 图片生成', module: 'tool', type: 'menu', sort_order: 4 },
+  { code: 'file:upload', name: '上传附件', module: 'tool', type: 'button', sort_order: 5 },
 ];
 
 // ============ 角色定义 ============
@@ -211,6 +212,28 @@ const seedApiRegistry: ApiRegistrySeed[] = [
         pageSize: { type: 'number', description: '每页数量（默认10）' },
         keyword: { type: 'string', description: '搜索关键词' },
         hide: { type: 'string', description: '可见性过滤' },
+      },
+    },
+  },
+  // ---- 上传模块 ----
+  {
+    code: 'upload_file',
+    name: '上传附件',
+    description: '上传附件到腾讯云 COS，MCP 调用时传入 base64 文件内容、文件名和 MIME 类型，返回 CDN URL。',
+    module: 'upload',
+    api_path: '/api/fs/upload',
+    api_method: 'POST',
+    mcp_enabled: true,
+    mcp_tool_name: 'upload_file',
+    permission_code: 'file:upload',
+    input_schema: {
+      type: 'object',
+      properties: {
+        base64: { type: 'string', description: 'base64 编码的文件内容，支持带 data URL 前缀' },
+        url: { type: 'string', description: '公网可访问的文件 URL；传 url 时服务端会下载并转存到 COS' },
+        filename: { type: 'string', description: '文件名，例如 image.png、report.pdf' },
+        mimeType: { type: 'string', description: '文件 MIME 类型，例如 image/png、application/pdf' },
+        ext: { type: 'string', description: '可选文件扩展名，例如 png、pdf；未传时从 filename 推断' },
       },
     },
   },
