@@ -15,8 +15,7 @@
 
 import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import Link from 'next/link';
-import { CloseOutlined, CompassOutlined, DownOutlined } from '@ant-design/icons';
+import { DownOutlined } from '@ant-design/icons';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, Grid, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -317,10 +316,10 @@ function CameraFocusController({
 
 function SceneHotspots({
   activeFocusKey,
-  onFocusChange,
+  onHotspotActivate,
 }: {
   activeFocusKey: CameraFocusKey;
-  onFocusChange: (key: CameraFocusKey) => void;
+  onHotspotActivate: (key: CameraFocusKey) => void;
 }) {
   return (
     <>
@@ -341,7 +340,7 @@ function SceneHotspots({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                onFocusChange(key);
+                onHotspotActivate(key);
               }}
               onDoubleClick={(event) => event.stopPropagation()}
               className={`group flex cursor-pointer items-center gap-2 whitespace-nowrap border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur transition ${
@@ -425,127 +424,78 @@ function ErrorFallback({ variant }: { variant: HomepageSceneVariant }) {
 function HeroInterfaceOverlay({
   sceneReady,
   variant,
-  posts = [],
   interactiveMode,
   activeFocusKey,
-  canExplore = true,
-  onExplore,
-  onExitExplore,
-  onFocusChange,
+  isDefaultMode,
+  onHotspotActivate,
+  onFreeExplore,
 }: {
   sceneReady: boolean;
   variant: HomepageSceneVariant;
-  posts?: Post[];
   interactiveMode: boolean;
   activeFocusKey: CameraFocusKey;
-  canExplore?: boolean;
-  onExplore: () => void;
-  onExitExplore: () => void;
-  onFocusChange: (key: CameraFocusKey) => void;
+  isDefaultMode: boolean;
+  onHotspotActivate: (key: CameraFocusKey) => void;
+  onFreeExplore: () => void;
 }) {
   const isDay = variant === 'day';
   const statuses = isDay
     ? ['DAY ROOM', 'CLEAR WINDOW', 'NOTES READY', 'LOW BLOOM']
     : ['ROOM ONLINE', 'RAIN 73%', 'POST ARCHIVE LINKED', 'BLOOM ACTIVE'];
-  const recentPosts = posts.slice(0, 3);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-      <div className="cyberpunk-hero-atmosphere" />
-      {!isDay && <div className="cyberpunk-scanline" />}
-
+      {/* 左滑蒙版层 */}
       <div
-        className={`absolute left-4 right-4 top-[14vh] max-w-5xl transition-all duration-700 md:left-10 lg:left-16 ${
-          sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-        }`}
+        className="absolute inset-0 transition-transform duration-700 ease-in-out"
+        style={{ transform: isDefaultMode ? 'none' : 'translateX(-100%)' }}
       >
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
-          <span className="cyberpunk-kicker">{isDay ? 'NEON NOMAD / DAYLIGHT NOTES' : 'NEON NOMAD / NIGHT ZONES'}</span>
-          <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
-          <span>{isDay ? 'SUNLIT SESSION' : '2147 RAIN SESSION'}</span>
-        </div>
+        <div className="cyberpunk-hero-atmosphere" />
+        {!isDay && <div className="cyberpunk-scanline" />}
 
-        <h1 className="cyberpunk-hero-title">
-          NNNNzs
-        </h1>
-
-        <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
-          {getBannerSubtitle(variant)}
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          {statuses.map((item) => (
-            <span key={item} className="cyberpunk-status-chip">
-              {item}
-            </span>
-          ))}
-        </div>
-
-        {canExplore && (
-          <div className="mt-7 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onDoubleClick={(event) => event.stopPropagation()}
-              onClick={interactiveMode ? onExitExplore : onExplore}
-              className="pointer-events-auto inline-flex cursor-pointer items-center gap-2 border border-pink-500/25 bg-white/52 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-pink-900/70 backdrop-blur transition hover:border-pink-600/45 hover:text-pink-950 dark:border-pink-300/30 dark:bg-pink-300/[0.08] dark:text-pink-100/76 dark:hover:border-pink-200/70 dark:hover:text-pink-50"
-            >
-              {interactiveMode ? <CloseOutlined /> : <CompassOutlined />}
-              {interactiveMode ? '退出探索' : '探索场景'}
-            </button>
-            <span className="pointer-events-none inline-flex items-center border border-cyan-300/20 bg-white/36 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-slate-700/60 backdrop-blur dark:bg-cyan-300/[0.06] dark:text-cyan-100/62">
-              双击场景进入/退出
-            </span>
+        <div
+          className={`absolute left-4 right-4 top-[14vh] max-w-5xl transition-all duration-700 md:left-10 lg:left-16 ${
+            sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+          }`}
+        >
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
+            <span className="cyberpunk-kicker">{isDay ? 'NEON NOMAD / DAYLIGHT NOTES' : 'NEON NOMAD / NIGHT ZONES'}</span>
+            <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
+            <span>{isDay ? 'SUNLIT SESSION' : '2147 RAIN SESSION'}</span>
           </div>
-        )}
-      </div>
 
-      <div
-        className={`absolute bottom-20 right-4 hidden w-72 transition-all duration-700 lg:right-12 ${isDay ? 'md:hidden' : 'md:block'} ${
-          sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-        }`}
-      >
-        <div className="cyberpunk-diagnostic-panel">
-          <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-sky-900/55 dark:text-cyan-100/55">
-            <span>Recent Logs</span>
-            <span>{String(recentPosts.length).padStart(2, '0')} linked</span>
-          </div>
-          <div className="space-y-2">
-            {recentPosts.map((post, index) => (
-              <Link
-                key={post.id}
-                href={post.path || '#'}
-                prefetch={false}
-                className="pointer-events-auto flex items-center gap-3 text-slate-700/75 transition hover:text-sky-800 dark:text-slate-200/75 dark:hover:text-cyan-100"
-              >
-                <span className="h-1.5 w-1.5 bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.45)] dark:bg-cyan-300 dark:shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-                <span className="min-w-0 flex-1 truncate text-xs">{post.title}</span>
-                <span className="font-mono text-xs text-pink-700/75 dark:text-pink-200/80">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-              </Link>
+          <h1 className="cyberpunk-hero-title">
+            NNNNzs
+          </h1>
+
+          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
+            {getBannerSubtitle(variant)}
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            {statuses.map((item) => (
+              <span key={item} className="cyberpunk-status-chip">
+                {item}
+              </span>
             ))}
           </div>
         </div>
       </div>
 
-      {interactiveMode && (
-        <div className="absolute bottom-24 left-4 right-4 z-20 mx-auto max-w-sm border border-cyan-300/35 bg-[#050611]/76 px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-cyan-100/78 shadow-[0_0_34px_rgba(34,211,238,0.16)] backdrop-blur md:bottom-8">
-          拖动旋转场景，双指缩放。右键或再次双击退出。
-        </div>
-      )}
-
-      {canExplore && (
+      {/* 右侧热点列表（仅非 default 模式显示） */}
+      {!isDefaultMode && (
         <div
-          className={`absolute bottom-24 right-4 z-20 w-40 transition-all duration-700 md:bottom-auto md:right-8 md:top-1/2 md:-translate-y-1/2 ${
-            sceneReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+          className={`absolute bottom-24 right-4 z-20 w-40 transition-all duration-500 md:bottom-auto md:right-8 md:top-1/2 md:-translate-y-1/2 ${
+            sceneReady ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
           }`}
         >
           <div className="mb-2 border border-cyan-300/25 bg-white/42 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-950/62 backdrop-blur dark:bg-[#050611]/72 dark:text-cyan-100/72">
             热点区
           </div>
           <div className="flex flex-col gap-2">
-            {(Object.values(CAMERA_FOCUS_PRESETS) as CameraFocusPreset[]).map((focus) => {
-              const active = focus.key === activeFocusKey;
+            {(['desk', 'living', 'bookshelf', 'server', 'sleep'] as CameraFocusKey[]).map((key) => {
+              const focus = CAMERA_FOCUS_PRESETS[key];
+              const active = !interactiveMode && activeFocusKey === key;
               const buttonTone = isDay
                 ? active
                   ? 'border-sky-500/70 bg-sky-100/82 text-sky-950 shadow-[0_0_24px_rgba(14,165,233,0.18)]'
@@ -555,10 +505,10 @@ function HeroInterfaceOverlay({
                   : 'border-white/18 bg-[#050611]/50 text-slate-100/76 hover:border-cyan-300/55 hover:text-cyan-50';
               return (
                 <button
-                  key={focus.key}
+                  key={key}
                   type="button"
                   onDoubleClick={(event) => event.stopPropagation()}
-                  onClick={() => onFocusChange(focus.key)}
+                  onClick={() => onHotspotActivate(key)}
                   className={`pointer-events-auto flex cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur transition ${buttonTone}`}
                 >
                   <span>{focus.label}</span>
@@ -566,7 +516,32 @@ function HeroInterfaceOverlay({
                 </button>
               );
             })}
+            {/* 自由探索选项 */}
+            <button
+              type="button"
+              onDoubleClick={(event) => event.stopPropagation()}
+              onClick={onFreeExplore}
+              className={`pointer-events-auto flex cursor-pointer items-center justify-between gap-2 border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur transition ${
+                interactiveMode
+                  ? isDay
+                    ? 'border-sky-500/70 bg-sky-100/82 text-sky-950 shadow-[0_0_24px_rgba(14,165,233,0.18)]'
+                    : 'border-cyan-300/80 bg-cyan-200/20 text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.24)]'
+                  : isDay
+                    ? 'border-sky-500/24 bg-white/72 text-sky-950/72 hover:border-sky-500/55 hover:bg-sky-50/86 hover:text-sky-950'
+                    : 'border-white/18 bg-[#050611]/50 text-slate-100/76 hover:border-cyan-300/55 hover:text-cyan-50'
+              }`}
+            >
+              <span>自由探索</span>
+              <span className={`h-1.5 w-1.5 rounded-full ${interactiveMode ? (isDay ? 'bg-sky-600' : 'bg-cyan-200') : (isDay ? 'bg-sky-400/45' : 'bg-white/45')}`} />
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* Explore 模式提示条 */}
+      {interactiveMode && (
+        <div className="absolute bottom-24 left-4 right-4 z-20 mx-auto max-w-sm border border-cyan-300/35 bg-[#050611]/76 px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-cyan-100/78 shadow-[0_0_34px_rgba(34,211,238,0.16)] backdrop-blur md:bottom-8">
+          拖动旋转场景，双指缩放。右键或双击退出。
         </div>
       )}
     </div>
@@ -584,7 +559,7 @@ function Scene({
   focus,
   focusFlightId,
   activeFocusKey,
-  onFocusChange,
+  onHotspotActivate,
 }: {
   debugControlsOpen: boolean;
   interactiveMode: boolean;
@@ -592,7 +567,7 @@ function Scene({
   focus: CameraFocusPreset;
   focusFlightId: number;
   activeFocusKey: CameraFocusKey;
-  onFocusChange: (key: CameraFocusKey) => void;
+  onHotspotActivate: (key: CameraFocusKey) => void;
 }) {
   const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
@@ -684,7 +659,7 @@ function Scene({
       {pShowFurniture && (
         <SceneHotspots
           activeFocusKey={activeFocusKey}
-          onFocusChange={onFocusChange}
+          onHotspotActivate={onHotspotActivate}
         />
       )}
       {pShowRain && <RainEffect />}
@@ -857,30 +832,37 @@ export default function CyberpunkBanner({
     setFocusFlightId((value) => value + 1);
   }, []);
 
-  const enterExploreMode = useCallback(() => {
-    setCameraFocus('default');
-    setInteractiveMode(true);
-  }, [setCameraFocus]);
+  const isDefaultMode = !interactiveMode && activeFocusKey === 'default';
 
-  const exitExploreMode = useCallback(() => {
+  const handleHotspotActivate = useCallback((key: CameraFocusKey) => {
+    setInteractiveMode(false);
+    setActiveFocusKey(key);
+    setFocusFlightId((v) => v + 1);
+  }, []);
+
+  const handleFreeExplore = useCallback(() => {
+    setActiveFocusKey('default');
+    setInteractiveMode(true);
+  }, []);
+
+  const exitToDefault = useCallback(() => {
     setInteractiveMode(false);
     setCameraFocus('default');
   }, [setCameraFocus]);
 
   const handleSceneDoubleClick = useCallback(() => {
     if (interactiveMode) {
-      exitExploreMode();
+      exitToDefault();
       return;
     }
-
-    enterExploreMode();
-  }, [enterExploreMode, exitExploreMode, interactiveMode]);
+    handleFreeExplore();
+  }, [exitToDefault, handleFreeExplore, interactiveMode]);
 
   const handleSceneContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!interactiveMode) return;
+    if (isDefaultMode) return;
     event.preventDefault();
-    exitExploreMode();
-  }, [exitExploreMode, interactiveMode]);
+    exitToDefault();
+  }, [exitToDefault, isDefaultMode]);
 
   useEffect(() => {
     const handleWindowDoubleClick = (event: MouseEvent) => {
@@ -895,16 +877,16 @@ export default function CyberpunkBanner({
   }, [handleSceneDoubleClick]);
 
   useEffect(() => {
-    if (!interactiveMode) return;
+    if (isDefaultMode) return;
 
     const handleWindowContextMenu = (event: MouseEvent) => {
       event.preventDefault();
-      exitExploreMode();
+      exitToDefault();
     };
 
     window.addEventListener('contextmenu', handleWindowContextMenu);
     return () => window.removeEventListener('contextmenu', handleWindowContextMenu);
-  }, [exitExploreMode, interactiveMode]);
+  }, [exitToDefault, isDefaultMode]);
 
   if (!capabilityChecked || !webglOk || lowEnd || prefersReducedMotion || hasError) {
     return (
@@ -913,13 +895,11 @@ export default function CyberpunkBanner({
         <HeroInterfaceOverlay
           sceneReady
           variant={variant}
-          posts={posts}
           interactiveMode={false}
           activeFocusKey="default"
-          canExplore={false}
-          onExplore={() => undefined}
-          onExitExplore={() => undefined}
-          onFocusChange={() => undefined}
+          isDefaultMode={true}
+          onHotspotActivate={() => undefined}
+          onFreeExplore={() => undefined}
         />
         <div className="absolute bottom-10 left-4 right-4 z-10 text-center text-xs uppercase tracking-[0.28em] text-sky-900/50 dark:text-cyan-100/50">
           {prefersReducedMotion ? 'Reduced motion visual mode' : 'Static visual mode'}
@@ -963,7 +943,7 @@ export default function CyberpunkBanner({
               focus={activeFocus}
               focusFlightId={focusFlightId}
               activeFocusKey={activeFocusKey}
-              onFocusChange={setCameraFocus}
+              onHotspotActivate={handleHotspotActivate}
             />
           </Suspense>
         </Canvas>
@@ -974,12 +954,11 @@ export default function CyberpunkBanner({
       <HeroInterfaceOverlay
         sceneReady={sceneReady && !hasError}
         variant={variant}
-        posts={posts}
         interactiveMode={interactiveMode}
         activeFocusKey={activeFocusKey}
-        onExplore={enterExploreMode}
-        onExitExplore={exitExploreMode}
-        onFocusChange={setCameraFocus}
+        isDefaultMode={isDefaultMode}
+        onHotspotActivate={handleHotspotActivate}
+        onFreeExplore={handleFreeExplore}
       />
       <ScrollFadeOverlay scrollProgress={scrollProgress} variant={variant} />
 
