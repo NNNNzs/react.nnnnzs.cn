@@ -85,7 +85,7 @@ jobs:
         run: |
           curl -k -sS -X POST "https://www.nnnnzs.cn/api/deploy/webhook" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer *** secrets.WEBHOOK_SECRET }}" \
+            -H "Authorization: Bearer ${{ secrets.WEBHOOK_SECRET }}" \
             -d '{"status":"deploying","run_id":"${{ github.run_id }}","commit":"${{ steps.version.outputs.SHORT_SHA }}","version":"${{ steps.version.outputs.VERSION }}"}' || true
 
       - name: 设置 Docker Buildx
