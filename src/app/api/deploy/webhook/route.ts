@@ -52,7 +52,7 @@ function isDeployStatusPayload(value: unknown): value is DeployStatusWebhookPayl
  */
 export async function POST(request: NextRequest) {
   try {
-    const expectedToken = process.env.DEPLOY_WEBHOOK_SECRET;
+    const expectedToken = process.env.DEPLOY_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
     const authorization = request.headers.get('authorization') || '';
     const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
 
