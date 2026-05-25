@@ -81,6 +81,13 @@ jobs:
 
           echo "📦 构建版本: ${VERSION}"
 
+      - name: 通知博客部署开始
+        run: |
+          curl -k -sS -X POST "https://www.nnnnzs.cn/api/deploy/webhook" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer *** secrets.WEBHOOK_SECRET }}" \
+            -d '{"status":"deploying","run_id":"${{ github.run_id }}","commit":"${{ steps.version.outputs.SHORT_SHA }}","version":"${{ steps.version.outputs.VERSION }}"}' || true
+
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -113,13 +120,6 @@ jobs:
             REDIS_DB=${{ secrets.REDIS_DB }}
             WX_APP_ID=${{ secrets.WX_APP_ID }}
             WX_APP_SECRET=${{ secrets.WX_APP_SECRET }}
-
-      - name: 通知博客部署开始
-        run: |
-          curl -k -sS -X POST "https://www.nnnnzs.cn/api/deploy/webhook" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"status":"deploying","run_id":"${{ github.run_id }}","commit":"${{ steps.version.outputs.SHORT_SHA }}","version":"${{ steps.version.outputs.VERSION }}"}' || true
 
       - name: 服务器部署
         uses: appleboy/ssh-action@v1.0.3

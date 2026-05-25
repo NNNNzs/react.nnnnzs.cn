@@ -36,6 +36,7 @@ export const QUEUE_VIEW = 'queue:view';
 export const VECTOR_VIEW = 'vector:view';
 export const TTS_VIEW = 'tts:view';
 export const IMAGE_VIEW = 'image:view';
+export const FILE_UPLOAD = 'file:upload';
 
 // ============ 全部权限码列表 ============
 
@@ -61,6 +62,7 @@ export const ALL_PERMISSION_CODES: string[] = [
   VECTOR_VIEW,
   TTS_VIEW,
   IMAGE_VIEW,
+  FILE_UPLOAD,
 ];
 
 // ============ 模块标签 ============
@@ -91,5 +93,5 @@ export const PERMISSION_MODULES: Record<string, string[]> = {
   collection: [COLLECTION_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE],
   config: [CONFIG_VIEW, CONFIG_EDIT],
   user: [USER_VIEW, USER_MANAGE, USER_ROLE_ASSIGN],
-  tool: [QUEUE_VIEW, VECTOR_VIEW, TTS_VIEW, IMAGE_VIEW],
+  tool: [QUEUE_VIEW, VECTOR_VIEW, TTS_VIEW, IMAGE_VIEW, FILE_UPLOAD],
 };

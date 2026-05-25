@@ -16,16 +16,17 @@ import type { ApiDescriptor } from '@/types/api-descriptor';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
-  code: 'upload_image',
-  name: '上传图片',
+  code: 'upload_file',
+  name: '上传文件',
   module: 'upload',
   method: 'POST',
   inputSchema: {
     type: 'object',
     properties: {
-      file: { type: 'string', description: '图片文件（FormData）' },
+      base64: { type: 'string', description: 'base64 编码的文件数据（不带 data:... 前缀），用于 MCP 调用' },
+      ext: { type: 'string', description: '文件扩展名（例如 png、jpg、txt、pdf），默认根据内容推断' },
+      file: { type: 'string', description: '文件（FormData），保留兼容现有表单上传' },
     },
-    required: ['file'],
   },
 };
 

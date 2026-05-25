@@ -12,7 +12,7 @@
  */
 
 import type { AuthUser } from '@/types/auth';
-import { POST_CREATE, POST_EDIT, POST_DELETE, POST_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE, CONFIG_EDIT, IMAGE_VIEW } from '@/constants/permissions';
+import { POST_CREATE, POST_EDIT, POST_DELETE, POST_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE, CONFIG_EDIT, IMAGE_VIEW, FILE_UPLOAD } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
 // ---- 从 route.ts 导入 descriptor（元数据 Source of Truth）----
@@ -22,6 +22,7 @@ import { descriptor as postListRoute } from '@/app/api/post/list/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
 import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
+import { descriptor as uploadRoute } from '@/app/api/upload/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -234,6 +235,22 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         size: args.size as string | undefined,
         quality: args.quality as string | undefined,
       }, user.id, 'MCP');
+    },
+  },
+  // ---- 图片上传模块（MCP 可用）----
+  {
+    ...desc(uploadRoute),
+    apiPath: '/api/upload',
+    mcpEnabled: true,
+    mcpToolName: 'upload_file',
+    permissionCode: FILE_UPLOAD,
+    handler: async (args) => {
+      const { proxyBase64ImageToCDN } = await import('@/services/image-proxy');
+      const url = await proxyBase64ImageToCDN(
+        args.base64 as string,
+        (args.ext as string) || '.png'
+      );
+      return { url };
     },
   },
   // ---- 合集模块（仅 API，不暴露 MCP）----
