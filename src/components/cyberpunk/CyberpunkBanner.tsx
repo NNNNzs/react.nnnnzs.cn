@@ -168,6 +168,7 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
   const mouse = useRef({ x: 0, y: 0 });
   const target = useRef({ x: 0, y: 0 });
   const wheelZoom = useRef(0);
+  const transitionOffset = useRef<{ x: number; y: number } | null>(null);
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   // 开发模式订阅 store，生产模式不需要
@@ -177,6 +178,7 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
   const lookX = useSceneStore(s => s.camera.lookAtX);
   const lookY = useSceneStore(s => s.camera.lookAtY);
   const lookZ = useSceneStore(s => s.camera.lookAtZ);
+  const cameraFov = useSceneStore(s => s.camera.fov);
   const parallaxEnabled = useSceneStore(s => s.parallax.enabled);
   const parallaxX = useSceneStore(s => s.parallax.intensityX);
   const parallaxY = useSceneStore(s => s.parallax.intensityY);
@@ -194,6 +196,7 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
   const pX = editable ? parallaxX : d.parallax.intensityX;
   const pY = editable ? parallaxY : d.parallax.intensityY;
   const pSmooth = editable ? parallaxSmooth : d.parallax.smoothness;
+  const targetFov = editable ? cameraFov : preset.camera.fov;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -222,9 +225,32 @@ function ParallaxCamera({ editable, variant }: { editable: boolean; variant: Hom
     target.current.x += (mouse.current.x - target.current.x) * pSmooth;
     target.current.y += (mouse.current.y - target.current.y) * pSmooth;
 
-    camera.position.x = pCamX + target.current.x * pX;
-    camera.position.y = pCamY + target.current.y * pY;
+    const desiredX = pCamX + target.current.x * pX;
+    const desiredY = pCamY + target.current.y * pY;
+
+    // 首帧捕获当前相机偏移量，用于从 OrbitControls/热点 等模式平滑过渡
+    if (transitionOffset.current === null) {
+      transitionOffset.current = {
+        x: camera.position.x - desiredX,
+        y: camera.position.y - desiredY,
+      };
+    }
+
+    // 平滑消除过渡偏移
+    const t = transitionOffset.current;
+    t.x += (0 - t.x) * 0.05;
+    t.y += (0 - t.y) * 0.05;
+
+    camera.position.x = desiredX + t.x;
+    camera.position.y = desiredY + t.y;
     camera.position.z += (pCamZ + wheelZoom.current - camera.position.z) * 0.08;
+
+    // 平滑恢复 FOV
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov += (targetFov - camera.fov) * 0.05;
+      camera.updateProjectionMatrix();
+    }
+
     camera.lookAt(pLookX, pLookY, pLookZ);
   });
 
