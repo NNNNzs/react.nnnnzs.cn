@@ -123,6 +123,7 @@ export default function Header() {
                       <Link
                         key={item.href}
                         href={item.href}
+                        suppressHydrationWarning
                         className="group/ai flex items-center gap-1.5 px-3 py-1.5 rounded-full
                           bg-indigo-50 dark:bg-indigo-900/20
                           text-indigo-600 dark:text-indigo-400

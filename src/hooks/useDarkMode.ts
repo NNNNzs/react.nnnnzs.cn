@@ -86,12 +86,6 @@ const getSnapshot = (): boolean => currentTheme === "dark";
 
 const getServerSnapshot = (): boolean => false;
 
-if (typeof window !== "undefined") {
-  currentTheme = readStoredTheme();
-  initialized = true;
-  applyThemeToDocument(currentTheme);
-}
-
 export function useDarkMode(): UseDarkModeResult {
   const [mounted, setMounted] = useState(false);
 
