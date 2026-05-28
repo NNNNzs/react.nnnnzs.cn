@@ -79,6 +79,8 @@ export const ROOM_OBJECTS = {
     { position: [clampCenteredX(-0.8, 3.15), 4.24, -2.25] as Vec3, bounds: { width: clampCeilingSpan(3.15), height: 0.015, depth: 0.015 }, style: 'warm-cyan' },
     { position: [clampCenteredX(0.35, 3.45), 4.3, 0.2] as Vec3, bounds: { width: clampCeilingSpan(3.45), height: 0.015, depth: 0.015 }, style: 'cool-purple' },
     { position: [clampCenteredX(-0.1, 4.55), 4.2, -2.95] as Vec3, bounds: { width: clampCeilingSpan(4.55), height: 0.015, depth: 0.015 }, style: 'alert-pink' },
+    { position: [clampCenteredX(-0.55, 2.95), 4.32, 0.95] as Vec3, bounds: { width: clampCeilingSpan(2.95), height: 0.015, depth: 0.015 }, style: 'warm-cyan' },
+    { position: [clampCenteredX(0.7, 3.55), 4.28, -1.05] as Vec3, bounds: { width: clampCeilingSpan(3.55), height: 0.015, depth: 0.015 }, style: 'cool-purple' },
   ],
 } as const;
 

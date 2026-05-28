@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { forwardRef, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
@@ -15,10 +15,142 @@ import { FURNITURE_LAYOUT, ROOM_OBJECTS } from './sceneLayout';
 const PD = PRODUCTION_DEFAULTS.lights;
 const isDev = process.env.NODE_ENV === 'development';
 
+function CeilingBarFixture({
+  position,
+  width,
+  color,
+  intensity,
+  distance,
+  decay,
+  variant,
+}: {
+  position: [number, number, number];
+  width: number;
+  color: string;
+  intensity: number;
+  distance: number;
+  decay: number;
+  variant: HomepageSceneVariant;
+}) {
+  const bodyColor = variant === 'day' ? '#f8fafc' : '#061522';
+
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[width, 0.06, 0.06]} />
+        <meshStandardMaterial color={bodyColor} emissive={color} emissiveIntensity={variant === 'day' ? 0.12 : 0.68} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, -0.03, 0]}>
+        <boxGeometry args={[Math.min(width * 0.78, 0.65), 0.016, 0.016]} />
+        <meshStandardMaterial color={variant === 'day' ? '#dbeafe' : '#050611'} emissive={color} emissiveIntensity={variant === 'day' ? 0.05 : 0.26} toneMapped={false} />
+      </mesh>
+      <pointLight position={[0, -0.12, 0]} intensity={intensity} color={color} distance={distance} decay={decay} />
+    </group>
+  );
+}
+
+const PointFixture = forwardRef<THREE.PointLight, {
+  position: [number, number, number];
+  color: string;
+  intensity: number;
+  distance: number;
+  decay: number;
+  bodyColor: string;
+  size?: number;
+  emissiveIntensity: number;
+}>(
+  (
+    {
+      position,
+      color,
+      intensity,
+      distance,
+      decay,
+      bodyColor,
+      size = 0.08,
+      emissiveIntensity,
+    },
+    ref,
+  ) => {
+    return (
+      <group position={position}>
+        <mesh>
+          <sphereGeometry args={[size, 18, 18]} />
+          <meshStandardMaterial color={bodyColor} emissive={color} emissiveIntensity={emissiveIntensity} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, -size - 0.02, 0]}>
+          <cylinderGeometry args={[size * 0.35, size * 0.55, size * 1.3, 12]} />
+          <meshStandardMaterial color={bodyColor} metalness={0.55} roughness={0.3} />
+        </mesh>
+        <pointLight ref={ref} position={[0, 0, 0]} intensity={intensity} color={color} distance={distance} decay={decay} />
+      </group>
+    );
+  },
+);
+
+const SpotFixture = forwardRef<THREE.SpotLight, {
+  position: [number, number, number];
+  color: string;
+  intensity: number;
+  distance: number;
+  angle: number;
+  penumbra: number;
+  decay: number;
+  bodyColor: string;
+  emissiveColor: string;
+  targetPosition: [number, number, number];
+}>(
+  (
+    {
+      position,
+      color,
+      intensity,
+      distance,
+      angle,
+      penumbra,
+      decay,
+      bodyColor,
+      emissiveColor,
+      targetPosition,
+    },
+    ref,
+  ) => {
+    const target = useMemo(() => {
+      const object = new THREE.Object3D();
+      object.position.set(targetPosition[0], targetPosition[1], targetPosition[2]);
+      return object;
+    }, [targetPosition]);
+
+    return (
+      <group position={position}>
+        <primitive object={target} />
+        <mesh>
+          <boxGeometry args={[0.48, 0.12, 0.2]} />
+          <meshStandardMaterial color={bodyColor} emissive={emissiveColor} emissiveIntensity={0.18} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, -0.06, 0.05]}>
+          <coneGeometry args={[0.08, 0.22, 12]} />
+          <meshStandardMaterial color={bodyColor} metalness={0.42} roughness={0.28} />
+        </mesh>
+        <spotLight
+          ref={ref}
+          position={[0, 0, 0]}
+          angle={angle}
+          penumbra={penumbra}
+          intensity={intensity}
+          color={color}
+          distance={distance}
+          decay={decay}
+          target={target}
+        />
+      </group>
+    );
+  },
+);
+
 export default function CyberpunkLights({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
   const windowLight = useRef<THREE.SpotLight>(null);
   const exteriorWindowLight = useRef<THREE.SpotLight>(null);
-  const exteriorWindowTarget = useMemo(() => new THREE.Object3D(), []);
   const monitorLight = useRef<THREE.PointLight>(null);
   const serverLight = useRef<THREE.PointLight>(null);
   const neonSignLight = useRef<THREE.PointLight>(null);
@@ -155,67 +287,105 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
     <>
       <ambientLight ref={ambientLightRef} intensity={v.ambientIntensity} color={v.ambientColor} />
 
-      <spotLight
+      <SpotFixture
         ref={windowLight}
         position={[0, 3.0, -6]}
+        color={v.windowColor}
+        intensity={v.windowIntensity}
+        distance={15}
         angle={v.windowAngle}
         penumbra={v.windowPenumbra}
-        intensity={v.windowIntensity}
-        color={v.windowColor}
-        target-position={[0, 0, 2]}
         decay={v.windowDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#0b1020'}
+        emissiveColor={v.windowColor}
+        targetPosition={[0, 0, 2]}
       />
-
-      <primitive object={exteriorWindowTarget} position={[0.15, 1.1, -0.85]} />
-      <spotLight
+      <SpotFixture
         ref={exteriorWindowLight}
         position={[-0.6, 2.85, -5.4]}
-        target={exteriorWindowTarget}
+        color={v.exteriorWindowColor}
+        intensity={v.exteriorWindowIntensity + nightBoost * 1.1}
+        distance={v.exteriorWindowDistance}
         angle={0.52}
         penumbra={0.82}
-        intensity={v.exteriorWindowIntensity + nightBoost * 1.1}
-        color={v.exteriorWindowColor}
-        distance={v.exteriorWindowDistance}
         decay={v.exteriorWindowDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#0b1020'}
+        emissiveColor={v.exteriorWindowColor}
+        targetPosition={[0.15, 1.1, -0.85]}
       />
 
       {/* 固定补充光 */}
-      <pointLight position={[-1, 2.5, -5]} intensity={variant === 'day' ? 0.7 : 0.8} color={variant === 'day' ? '#fff0c4' : '#334488'} distance={10} decay={2} />
-      <pointLight position={[1.5, 2, -5]} intensity={variant === 'day' ? 0.22 : 0.4} color={variant === 'day' ? '#dbeafe' : '#662244'} distance={8} decay={2} />
+      <PointFixture
+        position={[-1, 2.5, -5]}
+        color={variant === 'day' ? '#fff0c4' : '#334488'}
+        intensity={variant === 'day' ? 0.7 : 0.8}
+        distance={10}
+        decay={2}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#0b1020'}
+        emissiveIntensity={variant === 'day' ? 0.08 : 0.22}
+      />
+      <PointFixture
+        position={[1.5, 2, -5]}
+        color={variant === 'day' ? '#dbeafe' : '#662244'}
+        intensity={variant === 'day' ? 0.22 : 0.4}
+        distance={8}
+        decay={2}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#12081f'}
+        emissiveIntensity={variant === 'day' ? 0.06 : 0.2}
+        size={0.065}
+      />
 
-      <pointLight
+      <PointFixture
         ref={monitorLight}
         position={[FURNITURE_LAYOUT.desk.position[0], 1.2, FURNITURE_LAYOUT.desk.position[2]]}
-        intensity={v.monitorIntensity + nightBoost * 1.2}
         color={v.monitorColor}
+        intensity={v.monitorIntensity + nightBoost * 1.2}
         distance={v.monitorDistance + nightBoost * 1.2}
         decay={v.monitorDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#061522'}
+        emissiveIntensity={variant === 'day' ? 0.12 : 0.34}
+        size={0.06}
       />
 
-      <pointLight
+      <PointFixture
         ref={serverLight}
         position={[FURNITURE_LAYOUT.serverRack.position[0], 1, FURNITURE_LAYOUT.serverRack.position[2]]}
-        intensity={v.serverIntensity + nightBoost * 1.0}
         color={v.serverColor}
+        intensity={v.serverIntensity + nightBoost * 1.0}
         distance={v.serverDistance + nightBoost * 1.2}
         decay={v.serverDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#12081f'}
+        emissiveIntensity={variant === 'day' ? 0.1 : 0.3}
+        size={0.055}
       />
 
-      <pointLight
+      <PointFixture
         ref={neonSignLight}
         position={[FURNITURE_LAYOUT.neonSign.position[0], 3.3, FURNITURE_LAYOUT.neonSign.position[2] + 0.4]}
-        intensity={v.neonSignIntensity + nightBoost * 1.8}
         color={v.neonSignColor}
+        intensity={v.neonSignIntensity + nightBoost * 1.8}
         distance={v.neonSignDistance + nightBoost * 1.5}
         decay={v.neonSignDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#160617'}
+        emissiveIntensity={variant === 'day' ? 0.12 : 0.4}
+        size={0.07}
       />
-      <pointLight position={[0, 3.3, -3.5]} intensity={variant === 'day' ? 0.18 : 2.2} color={variant === 'day' ? '#38bdf8' : '#00aacc'} distance={5.5} decay={2} />
+      <PointFixture
+        position={[0, 3.3, -3.5]}
+        color={variant === 'day' ? '#38bdf8' : '#00aacc'}
+        intensity={variant === 'day' ? 0.18 : 2.2}
+        distance={5.5}
+        decay={2}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#061522'}
+        emissiveIntensity={variant === 'day' ? 0.08 : 0.34}
+        size={0.08}
+      />
 
       {ROOM_OBJECTS.ceilingLightBars.map((bar) => (
-        <pointLight
-          key={`ceiling-light-${bar.style}`}
+        <CeilingBarFixture
+          key={`ceiling-light-${bar.style}-${bar.position.join('-')}`}
           position={[bar.position[0], bar.position[1] - 0.12, bar.position[2]]}
-          intensity={variant === 'day' ? 0.08 : 1.6}
+          width={bar.bounds.width}
           color={
             bar.style === 'cool-purple'
               ? (variant === 'day' ? '#bae6fd' : '#8844ff')
@@ -223,26 +393,34 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
                 ? (variant === 'day' ? '#fde68a' : '#ff0066')
                 : (variant === 'day' ? '#ffe8bf' : '#00f0ff')
           }
+          intensity={variant === 'day' ? 0.08 : 1.6}
           distance={variant === 'day' ? 2.4 : 4.8}
           decay={1.7}
+          variant={variant}
         />
       ))}
 
-      <pointLight
+      <PointFixture
         ref={ceilingCyanLight}
         position={[-1.2, 3.5, -2]}
-        intensity={v.ceilingCyanIntensity}
         color={v.ceilingCyanColor}
+        intensity={v.ceilingCyanIntensity}
         distance={v.ceilingCyanDistance}
         decay={v.ceilingCyanDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#061522'}
+        emissiveIntensity={variant === 'day' ? 0.1 : 0.42}
+        size={0.075}
       />
-      <pointLight
+      <PointFixture
         ref={ceilingPurpleLight}
         position={[1.5, 3.55, 0.5]}
-        intensity={v.ceilingPurpleIntensity}
         color={v.ceilingPurpleColor}
+        intensity={v.ceilingPurpleIntensity}
         distance={v.ceilingPurpleDistance}
         decay={v.ceilingPurpleDecay}
+        bodyColor={variant === 'day' ? '#f8fafc' : '#12081f'}
+        emissiveIntensity={variant === 'day' ? 0.1 : 0.42}
+        size={0.075}
       />
     </>
   );
