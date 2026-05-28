@@ -11,6 +11,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import React, { useState } from 'react';
 import { useControls, button } from 'leva';
 import { useSceneStore, type SceneConfig } from './useSceneStore';
+import { SCENE_EDITOR_TARGETS, useSceneEditorStore, type SceneEditorMode, type SceneEditorTargetId } from './sceneEditor';
 
 type LightConfig = SceneConfig['lights'];
 
@@ -112,6 +113,41 @@ function LightEditor({ selected }: { selected: string }) {
     case 'ceilingPurple': return <PointLightPanel name="天花板紫光" prefix="ceilingPurple" />;
     default: return null;
   }
+}
+
+// ========================
+// 鍦烘櫙鍏冪礌鎿嶄綔闈㈡澘
+// ========================
+
+function SceneEditorPanel() {
+  const selectedId = useSceneEditorStore((s) => s.selectedId);
+  const setSelectedId = useSceneEditorStore((s) => s.setSelectedId);
+  const mode = useSceneEditorStore((s) => s.mode);
+  const setMode = useSceneEditorStore((s) => s.setMode);
+
+  const targetOptions = Object.fromEntries(
+    SCENE_EDITOR_TARGETS.map((item) => [item.label, item.id]),
+  ) as Record<string, SceneEditorTargetId>;
+
+  useControls('🧩 模型变换', {
+    '选中对象': {
+      value: selectedId ?? SCENE_EDITOR_TARGETS[0].id,
+      options: targetOptions,
+      onChange: (v: SceneEditorTargetId) => setSelectedId(v),
+    },
+    '工具模式': {
+      value: mode,
+      options: {
+        '移动': 'translate',
+        '旋转': 'rotate',
+        '缩放': 'scale',
+      },
+      onChange: (v: SceneEditorMode) => setMode(v),
+    },
+    '清除选择': button(() => setSelectedId(null)),
+  });
+
+  return null;
 }
 
 // ========================
@@ -249,6 +285,7 @@ function DevPanel() {
     <>
       <CameraPresets />
       <LightSelector onSelect={setSelectedLight} />
+      <SceneEditorPanel />
       <LightEditor key={selectedLight} selected={selectedLight} />
     </>
   );

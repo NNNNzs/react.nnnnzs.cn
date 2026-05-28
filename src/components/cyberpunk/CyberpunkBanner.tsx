@@ -24,6 +24,7 @@ import RainEffect from './RainEffect';
 import Furniture from './Furniture';
 import CyberpunkLights from './CyberpunkLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
+import { SceneEditorTransformControls, useSceneEditorStore } from './sceneEditor';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
 import { getBannerSubtitle } from '@/lib/content';
 import type { Post } from '@/types';
@@ -572,6 +573,7 @@ function Scene({
   const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls> | null>(null);
+  const selectedEditorId = useSceneEditorStore((s) => s.selectedId);
 
   // Zustand selector - 只有对应字段变化时才重渲染
   const useOrbit = useSceneStore(s => s.controls.useOrbit);
@@ -625,7 +627,7 @@ function Scene({
         <OrbitControls
           ref={controlsRef}
           makeDefault
-          enabled={interactiveMode || editable}
+          enabled={interactiveMode || (editable && !selectedEditorId)}
           enableDamping
           dampingFactor={0.05}
           minDistance={2}
@@ -656,6 +658,7 @@ function Scene({
       )}
       {pShowRoom && <Room variant={variant} />}
       {pShowFurniture && <Furniture variant={variant} />}
+      {editable && <SceneEditorTransformControls enabled={editable} />}
       {pShowFurniture && (
         <SceneHotspots
           activeFocusKey={activeFocusKey}

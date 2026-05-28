@@ -2,12 +2,13 @@
 
 import { NeonStrip, metalDark } from './shared';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
+import { EditableGroup } from '../sceneEditor';
 
-export default function WardrobeZone() {
+function WardrobeCabinet() {
   const layout = FURNITURE_LAYOUT.wardrobe;
 
   return (
-    <group position={layout.position} rotation={layout.rotation}>
+    <EditableGroup id="wardrobe-zone" position={layout.position} rotation={layout.rotation}>
       <mesh position={[0, 1.15, -0.22]}>
         <boxGeometry args={[layout.bounds.width, layout.bounds.height, 0.08]} />
         <meshStandardMaterial color="#0b0b14" metalness={0.48} roughness={0.44} />
@@ -28,6 +29,10 @@ export default function WardrobeZone() {
       ))}
       <NeonStrip position={[0, 0.72, 0.27]} scale={[1.06, 0.035, 0.03]} color="#ff2a9a" intensity={1.1} />
       <NeonStrip position={[0.62, 1.45, 0.03]} scale={[0.025, 1.35, 0.025]} color="#7b61ff" intensity={1.0} />
-    </group>
+    </EditableGroup>
   );
+}
+
+export default function WardrobeZone() {
+  return <WardrobeCabinet />;
 }

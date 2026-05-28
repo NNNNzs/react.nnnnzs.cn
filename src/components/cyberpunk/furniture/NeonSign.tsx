@@ -2,13 +2,14 @@
 
 import { Text } from '@react-three/drei';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
+import { EditableGroup } from '../sceneEditor';
 
 export default function NeonSign({ variant }: { variant: 'day' | 'night' }) {
   const layout = FURNITURE_LAYOUT.neonSign;
   const isDay = variant === 'day';
 
   return (
-    <group position={layout.position} rotation={layout.rotation}>
+    <EditableGroup id="neon-sign" position={layout.position} rotation={layout.rotation}>
       <mesh>
         <planeGeometry args={[1.4, 0.55]} />
         <meshStandardMaterial
@@ -26,6 +27,6 @@ export default function NeonSign({ variant }: { variant: 'day' | 'night' }) {
       <Text position={[0, -0.18, 0.02]} fontSize={0.12} anchorX="center" anchorY="middle" color={isDay ? '#0f172a' : '#ffd8f2'}>
         FUTURE
       </Text>
-    </group>
+    </EditableGroup>
   );
 }

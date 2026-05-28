@@ -3,12 +3,13 @@
 import { Text } from '@react-three/drei';
 import { BlinkingLED, NeonStrip, metalDark } from './shared';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
+import { EditableGroup } from '../sceneEditor';
 
 function Bookshelf() {
   const layout = FURNITURE_LAYOUT.bookshelf;
 
   return (
-    <group position={layout.position} rotation={layout.rotation}>
+    <EditableGroup id="bookshelf" position={layout.position} rotation={layout.rotation}>
       <mesh position={[0, 1.35, 0]}>
         <boxGeometry args={[layout.bounds.width, layout.bounds.height, 0.08]} />
         <meshStandardMaterial color="#0c0c15" metalness={0.5} roughness={0.44} />
@@ -46,7 +47,7 @@ function Bookshelf() {
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.46} toneMapped={false} />
         </mesh>
       ))}
-    </group>
+    </EditableGroup>
   );
 }
 
@@ -55,7 +56,7 @@ function ServerRack() {
   const colors = ['#00f0ff', '#6dffb4', '#ff2a9a', '#7b61ff'];
 
   return (
-    <group position={layout.position} rotation={layout.rotation}>
+    <EditableGroup id="server-rack" position={layout.position} rotation={layout.rotation}>
       <mesh position={[0, 0.98, 0]}>
         <boxGeometry args={[layout.bounds.width, layout.bounds.height, layout.bounds.depth]} />
         <meshStandardMaterial color="#080812" metalness={0.86} roughness={0.24} />
@@ -72,17 +73,17 @@ function ServerRack() {
         </group>
       ))}
       <NeonStrip position={[0.35, 1.0, 0.03]} scale={[0.022, 1.75, 0.025]} color="#00d8ff" intensity={1.2} />
-    </group>
+    </EditableGroup>
   );
 }
 
 export default function StorageWallZone() {
   return (
-    <group>
+    <>
       <Bookshelf />
       <ServerRack />
 
-      <group position={[3.56, 1.58, -3.03]} rotation={[0, -Math.PI / 2, 0]}>
+      <EditableGroup id="data-ghost-sign" position={[3.56, 1.58, -3.03]} rotation={[0, -Math.PI / 2, 0]}>
         <mesh>
           <planeGeometry args={[0.72, 1.0]} />
           <meshStandardMaterial color="#0b0714" emissive="#7b61ff" emissiveIntensity={0.28} toneMapped={false} />
@@ -94,9 +95,9 @@ export default function StorageWallZone() {
         <Text position={[0, -0.42, 0.02]} fontSize={0.08} anchorX="center" anchorY="middle" color="#ffb9ea">
           DATA GHOST
         </Text>
-      </group>
+      </EditableGroup>
 
-      <group position={[3.55, 1.38, -0.48]} rotation={[0, -Math.PI / 2, 0]}>
+      <EditableGroup id="kiroshi-index-sign" position={[3.55, 1.38, -0.48]} rotation={[0, -Math.PI / 2, 0]}>
         <mesh>
           <planeGeometry args={[1.15, 0.72]} />
           <meshStandardMaterial color="#050712" emissive="#ff2a9a" emissiveIntensity={0.14} toneMapped={false} />
@@ -108,7 +109,7 @@ export default function StorageWallZone() {
         <Text position={[0, -0.25, 0.025]} fontSize={0.075} anchorX="center" anchorY="middle" color="#7ee7ff">
           KIROSHI INDEX
         </Text>
-      </group>
-    </group>
+      </EditableGroup>
+    </>
   );
 }
