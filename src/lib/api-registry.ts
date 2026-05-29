@@ -226,12 +226,21 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
+    description: '使用 AI 生成图片(文生图)。图片生成通常需要 30-90 秒，请耐心等待，不要重试。无异步通知机制，超时(90s)将报错。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        prompt: { type: 'string', description: '图片描述提示词' },
+        size: { type: 'string', description: '图片尺寸，如 1024x1024' },
+        quality: { type: 'string', description: '图片质量: high 或 medium' },
+      },
+      required: ['prompt'],
+    },
     handler: async (args, user) => {
       const { generateImageWithLog } = await import('@/services/image-gen');
       return generateImageWithLog({
-        mode: args.mode as 'generate' | 'edit',
+        mode: 'generate',
         prompt: args.prompt as string,
-        image: args.image as string | undefined,
         size: args.size as string | undefined,
         quality: args.quality as string | undefined,
       }, user.id, 'MCP');
