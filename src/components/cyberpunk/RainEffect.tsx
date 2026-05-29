@@ -11,7 +11,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const DEFAULT_COUNT = 120;
+const DEFAULT_COUNT = 300;
 const WINDOW_WIDTH = 4.5;
 const WINDOW_HEIGHT = 3.5;
 const WINDOW_POS: [number, number, number] = [0, 1.85, -3.97];
@@ -24,7 +24,6 @@ function randomUnit(seed: number) {
 export default function RainEffect({ count = DEFAULT_COUNT, enabled = true }: { count?: number; enabled?: boolean }) {
   const pointsRef = useRef<THREE.Points>(null);
   const resetNonceRef = useRef(0);
-  const frameCountRef = useRef(0);
 
   const { velocities, isStreak, posAttribute, geometry } = useMemo(() => {
     const positions = new Float32Array(count * 3);
@@ -94,19 +93,13 @@ export default function RainEffect({ count = DEFAULT_COUNT, enabled = true }: { 
   useFrame(() => {
     if (!pointsRef.current || !enabled) return;
 
-    frameCountRef.current += 1;
     const posArray = posAttribute.array as Float32Array;
-    const skipDrift = frameCountRef.current % 3 !== 0;
-
     resetNonceRef.current += 1;
     const nonce = resetNonceRef.current;
 
     for (let i = 0; i < count; i++) {
       posArray[i * 3 + 1] -= velocities[i];
-
-      if (!skipDrift) {
-        posArray[i * 3] += (randomUnit(i + nonce) - 0.5) * 0.001;
-      }
+      posArray[i * 3] += (randomUnit(i + nonce) - 0.5) * 0.001;
 
       if (isStreak[i]) {
         posArray[i * 3] *= 0.999;

@@ -34,10 +34,7 @@ import type { Post } from '@/types';
 // ========================
 
 type CameraFocusKey = 'default' | 'desk' | 'living' | 'bookshelf' | 'server' | 'sleep';
-type PerformanceTier = 'low' | 'medium' | 'high';
-
 interface PerformanceProfile {
-  tier: PerformanceTier;
   dpr: number | [number, number];
   antialias: boolean;
 }
@@ -142,29 +139,10 @@ const isWebGLAvailable = (): boolean => {
   }
 };
 
-const isMobileDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
-};
-
-const isLowEndDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const nav = navigator as Navigator & {
-    deviceMemory?: number;
-    hardwareConcurrency?: number;
-  };
-  return (nav.deviceMemory !== undefined && nav.deviceMemory <= 4) || (nav.hardwareConcurrency !== undefined && nav.hardwareConcurrency <= 4);
-};
-
-const detectPerformanceProfile = (prefersReducedMotion: boolean): PerformanceProfile => {
-  const tier: PerformanceTier = prefersReducedMotion || isMobileDevice() || isLowEndDevice() ? 'low' : 'high';
-
-  return {
-    tier,
-    dpr: tier === 'high' ? [1, 1.25] : 1,
-    antialias: true,
-  };
-};
+const detectPerformanceProfile = (): PerformanceProfile => ({
+  dpr: [1, 1.5],
+  antialias: true,
+});
 
 // ========================
 // 相机控制器（鼠标视差）
@@ -381,9 +359,9 @@ function PostProcessing({ editable, variant }: { editable: boolean; variant: Hom
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={editable && variant === 'night' ? bloomThreshold : Math.max(0.45, preset.postProcessing.bloomThreshold)}
-        luminanceSmoothing={editable && variant === 'night' ? bloomSmoothing : Math.max(0.65, preset.postProcessing.bloomSmoothing)}
-        intensity={variant === 'night' ? (editable ? bloomIntensity : 0.7) : 0}
+        luminanceThreshold={editable && variant === 'night' ? bloomThreshold : preset.postProcessing.bloomThreshold}
+        luminanceSmoothing={editable && variant === 'night' ? bloomSmoothing : preset.postProcessing.bloomSmoothing}
+        intensity={editable && variant === 'night' ? bloomIntensity : preset.postProcessing.bloomIntensity}
         mipmapBlur
       />
       <Vignette
@@ -596,7 +574,6 @@ function Scene({
   focus,
   focusFlightId,
   activeFocusKey,
-  performanceTier,
   isHeroVisible,
   onHotspotActivate,
   onFpsUpdate,
@@ -607,7 +584,6 @@ function Scene({
   focus: CameraFocusPreset;
   focusFlightId: number;
   activeFocusKey: CameraFocusKey;
-  performanceTier: PerformanceTier;
   isHeroVisible: boolean;
   onHotspotActivate: (key: CameraFocusKey) => void;
   onFpsUpdate: (fps: number) => void;
@@ -708,7 +684,7 @@ function Scene({
         />
       )}
       {pShowRain && isHeroVisible && (
-        <RainEffect count={performanceTier === 'high' ? 300 : 120} enabled={isHeroVisible} />
+        <RainEffect enabled={isHeroVisible} />
       )}
       <PostProcessing editable={editable} variant={variant} />
       <RendererStatsLogger enabled={process.env.NODE_ENV === 'development'} onFpsUpdate={onFpsUpdate} />
@@ -743,8 +719,7 @@ export default function CyberpunkBanner({
   const [capabilityChecked, setCapabilityChecked] = useState(false);
   const [webglOk, setWebglOk] = useState(false);
   const [performanceProfile, setPerformanceProfile] = useState<PerformanceProfile>({
-    tier: 'high',
-    dpr: [1, 1.25],
+    dpr: [1, 1.5],
     antialias: true,
   });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -779,7 +754,7 @@ export default function CyberpunkBanner({
         return;
       }
       setWebglOk(true);
-      setPerformanceProfile(detectPerformanceProfile(window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+      setPerformanceProfile(detectPerformanceProfile());
       setCapabilityChecked(true);
     });
 
@@ -790,7 +765,6 @@ export default function CyberpunkBanner({
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const syncPreference = () => {
       setPrefersReducedMotion(mediaQuery.matches);
-      setPerformanceProfile(detectPerformanceProfile(mediaQuery.matches));
     };
 
     syncPreference();
@@ -887,7 +861,6 @@ export default function CyberpunkBanner({
   }, []);
 
   const isDefaultMode = !interactiveMode && activeFocusKey === 'default';
-  const performanceTier = performanceProfile.tier;
   const onFpsUpdate = useMemo(() => setFps, []);
   const isHeroVisible = scrollProgress < 1.05;
 
@@ -895,11 +868,10 @@ export default function CyberpunkBanner({
     if (process.env.NODE_ENV !== 'development' || !capabilityChecked || !webglOk) return;
 
     console.table({
-      performanceTier,
       dpr: Array.isArray(performanceProfile.dpr) ? performanceProfile.dpr.join('-') : performanceProfile.dpr,
       antialias: performanceProfile.antialias,
     });
-  }, [capabilityChecked, performanceProfile, performanceTier, webglOk]);
+  }, [capabilityChecked, performanceProfile, webglOk]);
 
   const handleHotspotActivate = useCallback((key: CameraFocusKey) => {
     setInteractiveMode(false);
@@ -1010,7 +982,6 @@ export default function CyberpunkBanner({
               focus={activeFocus}
               focusFlightId={focusFlightId}
               activeFocusKey={activeFocusKey}
-              performanceTier={performanceTier}
               isHeroVisible={isHeroVisible}
               onHotspotActivate={handleHotspotActivate}
               onFpsUpdate={onFpsUpdate}
