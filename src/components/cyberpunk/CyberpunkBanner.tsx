@@ -34,6 +34,14 @@ import type { Post } from '@/types';
 // ========================
 
 type CameraFocusKey = 'default' | 'desk' | 'living' | 'bookshelf' | 'server' | 'sleep';
+type PerformanceTier = 'low' | 'medium' | 'high';
+
+interface PerformanceProfile {
+  tier: PerformanceTier;
+  renderer: string;
+  dpr: number | [number, number];
+  antialias: boolean;
+}
 
 interface CameraFocusPreset {
   key: CameraFocusKey;
@@ -135,29 +143,56 @@ const isWebGLAvailable = (): boolean => {
   }
 };
 
-const isLowEndDevice = (): boolean => {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+const getWebGLRenderer = (): string => {
+  if (typeof document === 'undefined') return '';
   try {
-    const nav = navigator as Navigator & {
-      deviceMemory?: number;
-      hardwareConcurrency?: number;
-    };
-    if (nav.deviceMemory && nav.deviceMemory <= 4) return true;
-    if (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) return true;
-
     const canvas = document.createElement('canvas');
     const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    if (!gl) return true;
+    if (!gl) return '';
+
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-    if (debugInfo) {
-      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-      const lowEndKeywords = ['mali-4', 'adreno 3', 'adreno 4', 'powervr sgx', 'intel hd graphics', 'intel uhd graphics'];
-      return lowEndKeywords.some((k: string) => (renderer as string).toLowerCase().includes(k));
-    }
+    if (!debugInfo) return '';
+
+    return String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '');
   } catch {
-    // 无法检测时保守降级
+    return '';
   }
-  return false;
+};
+
+const getForcedPerformanceTier = (): PerformanceTier | null => {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('perf');
+  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
+};
+
+const detectPerformanceProfile = (prefersReducedMotion: boolean): PerformanceProfile => {
+  const forcedTier = getForcedPerformanceTier();
+  const nav = navigator as Navigator & {
+    deviceMemory?: number;
+    hardwareConcurrency?: number;
+  };
+  const renderer = getWebGLRenderer();
+  const rendererText = renderer.toLowerCase();
+  const isMobile = window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+  const isIntelIntegrated = rendererText.includes('intel uhd') || rendererText.includes('intel hd');
+  const memory = nav.deviceMemory ?? 8;
+  const cores = nav.hardwareConcurrency ?? 8;
+
+  let tier: PerformanceTier = 'high';
+  if (prefersReducedMotion || isMobile || memory <= 4 || cores <= 4) {
+    tier = 'low';
+  } else if (isIntelIntegrated || memory <= 8 || cores <= 6) {
+    tier = 'medium';
+  }
+
+  const finalTier = forcedTier ?? tier;
+
+  return {
+    tier: finalTier,
+    renderer,
+    dpr: finalTier === 'high' ? [1, 1.25] : 1,
+    antialias: true,
+  };
 };
 
 // ========================
@@ -364,7 +399,7 @@ function SceneHotspots({
 // 后处理
 // ========================
 
-function PostProcessing({ editable, variant }: { editable: boolean; variant: HomepageSceneVariant }) {
+function PostProcessing({ editable, variant, performanceTier }: { editable: boolean; variant: HomepageSceneVariant; performanceTier: PerformanceTier }) {
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const bloomThreshold = useSceneStore(s => s.postProcessing.bloomThreshold);
@@ -372,13 +407,18 @@ function PostProcessing({ editable, variant }: { editable: boolean; variant: Hom
   const bloomIntensity = useSceneStore(s => s.postProcessing.bloomIntensity);
   const vignetteDarkness = useSceneStore(s => s.postProcessing.vignetteDarkness);
 
+  const bloomActive = variant === 'night' && performanceTier !== 'low';
+  const resolvedBloomIntensity = bloomActive
+    ? (editable && variant === 'night' ? bloomIntensity : (performanceTier === 'high' ? 0.7 : 0.35))
+    : 0;
+
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={editable && variant === 'night' ? bloomThreshold : preset.postProcessing.bloomThreshold}
-        luminanceSmoothing={editable && variant === 'night' ? bloomSmoothing : preset.postProcessing.bloomSmoothing}
-        intensity={editable && variant === 'night' ? bloomIntensity : preset.postProcessing.bloomIntensity}
-        mipmapBlur
+        luminanceThreshold={editable && variant === 'night' && bloomActive ? bloomThreshold : Math.max(0.45, preset.postProcessing.bloomThreshold)}
+        luminanceSmoothing={editable && variant === 'night' && bloomActive ? bloomSmoothing : Math.max(0.65, preset.postProcessing.bloomSmoothing)}
+        intensity={resolvedBloomIntensity}
+        mipmapBlur={performanceTier === 'high' && bloomActive}
       />
       <Vignette
         eskil={false}
@@ -387,6 +427,27 @@ function PostProcessing({ editable, variant }: { editable: boolean; variant: Hom
       />
     </EffectComposer>
   );
+}
+
+function RendererStatsLogger({ enabled }: { enabled: boolean }) {
+  const lastLogRef = useRef(0);
+
+  useFrame(({ gl }) => {
+    if (!enabled) return;
+
+    const now = performance.now();
+    if (now - lastLogRef.current < 3000) return;
+    lastLogRef.current = now;
+
+    console.log('Cyberpunk renderer.info', {
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      points: gl.info.render.points,
+      lines: gl.info.render.lines,
+    });
+  });
+
+  return null;
 }
 
 // ========================
@@ -560,6 +621,10 @@ function Scene({
   focus,
   focusFlightId,
   activeFocusKey,
+  performanceTier,
+  isHeroVisible,
+  enableLightAnimation,
+  enablePostProcessing,
   onHotspotActivate,
 }: {
   debugControlsOpen: boolean;
@@ -568,6 +633,10 @@ function Scene({
   focus: CameraFocusPreset;
   focusFlightId: number;
   activeFocusKey: CameraFocusKey;
+  performanceTier: PerformanceTier;
+  isHeroVisible: boolean;
+  enableLightAnimation: boolean;
+  enablePostProcessing: boolean;
   onHotspotActivate: (key: CameraFocusKey) => void;
 }) {
   const editable = debugControlsOpen;
@@ -640,7 +709,7 @@ function Scene({
           target={focus.target}
         />
       )}
-      <CyberpunkLights variant={variant} />
+      <CyberpunkLights variant={variant} performanceTier={performanceTier} enableAnimation={enableLightAnimation} />
       {pShowGrid && (
         <Grid
           args={[20, 20]}
@@ -665,8 +734,13 @@ function Scene({
           onHotspotActivate={onHotspotActivate}
         />
       )}
-      {pShowRain && <RainEffect />}
-      <PostProcessing editable={editable} variant={variant} />
+      {pShowRain && performanceTier !== 'low' && isHeroVisible && (
+        <RainEffect count={performanceTier === 'high' ? 300 : 120} enabled={isHeroVisible} />
+      )}
+      {enablePostProcessing && (
+        <PostProcessing editable={editable} variant={variant} performanceTier={performanceTier} />
+      )}
+      <RendererStatsLogger enabled={process.env.NODE_ENV === 'development'} />
     </>
   );
 }
@@ -697,7 +771,12 @@ export default function CyberpunkBanner({
 }) {
   const [capabilityChecked, setCapabilityChecked] = useState(false);
   const [webglOk, setWebglOk] = useState(false);
-  const [lowEnd, setLowEnd] = useState(false);
+  const [performanceProfile, setPerformanceProfile] = useState<PerformanceProfile>({
+    tier: 'medium',
+    renderer: '',
+    dpr: 1,
+    antialias: false,
+  });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -729,9 +808,7 @@ export default function CyberpunkBanner({
         return;
       }
       setWebglOk(true);
-      if (isLowEndDevice()) {
-        setLowEnd(true);
-      }
+      setPerformanceProfile(detectPerformanceProfile(window.matchMedia('(prefers-reduced-motion: reduce)').matches));
       setCapabilityChecked(true);
     });
 
@@ -740,7 +817,10 @@ export default function CyberpunkBanner({
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    const syncPreference = () => {
+      setPrefersReducedMotion(mediaQuery.matches);
+      setPerformanceProfile(detectPerformanceProfile(mediaQuery.matches));
+    };
 
     syncPreference();
     mediaQuery.addEventListener('change', syncPreference);
@@ -836,6 +916,25 @@ export default function CyberpunkBanner({
   }, []);
 
   const isDefaultMode = !interactiveMode && activeFocusKey === 'default';
+  const performanceTier = performanceProfile.tier;
+  const isHeroVisible = scrollProgress < 1.05;
+  const enablePostProcessing = variant === 'night' && performanceTier === 'high' && isHeroVisible;
+  const enableRain = variant === 'night' && performanceTier !== 'low' && isHeroVisible;
+  const enableLightAnimation = variant === 'night' && performanceTier !== 'low' && isHeroVisible;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development' || !capabilityChecked || !webglOk) return;
+
+    console.table({
+      performanceTier,
+      dpr: Array.isArray(performanceProfile.dpr) ? performanceProfile.dpr.join('-') : performanceProfile.dpr,
+      antialias: performanceProfile.antialias,
+      enablePostProcessing,
+      enableRain,
+      enableLightAnimation,
+      renderer: performanceProfile.renderer || 'unknown',
+    });
+  }, [capabilityChecked, enableLightAnimation, enablePostProcessing, enableRain, performanceProfile, performanceTier, webglOk]);
 
   const handleHotspotActivate = useCallback((key: CameraFocusKey) => {
     setInteractiveMode(false);
@@ -891,7 +990,7 @@ export default function CyberpunkBanner({
     return () => window.removeEventListener('contextmenu', handleWindowContextMenu);
   }, [exitToDefault, isDefaultMode]);
 
-  if (!capabilityChecked || !webglOk || lowEnd || prefersReducedMotion || hasError) {
+  if (!capabilityChecked || !webglOk || hasError) {
     return (
       <div className={`relative h-screen overflow-hidden ${variant === 'day' ? 'bg-[#f8fafc]' : 'bg-[#050611]'}`}>
         <div className="cyberpunk-static-fallback" />
@@ -930,11 +1029,11 @@ export default function CyberpunkBanner({
             far: 200,
           }}
           gl={{
-            antialias: true,
+            antialias: performanceProfile.antialias,
             alpha: false,
             powerPreference: 'high-performance',
           }}
-          dpr={[1, 1.5]}
+          dpr={performanceProfile.dpr}
           onCreated={handleCreated}
           onError={() => setHasError(true)}
         >
@@ -946,6 +1045,10 @@ export default function CyberpunkBanner({
               focus={activeFocus}
               focusFlightId={focusFlightId}
               activeFocusKey={activeFocusKey}
+              performanceTier={performanceTier}
+              isHeroVisible={isHeroVisible}
+              enableLightAnimation={enableLightAnimation}
+              enablePostProcessing={enablePostProcessing}
               onHotspotActivate={handleHotspotActivate}
             />
           </Suspense>

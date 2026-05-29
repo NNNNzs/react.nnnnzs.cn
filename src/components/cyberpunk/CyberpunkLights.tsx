@@ -148,7 +148,15 @@ const SpotFixture = forwardRef<THREE.SpotLight, {
   },
 );
 
-export default function CyberpunkLights({ variant = 'night' }: { variant?: HomepageSceneVariant }) {
+export default function CyberpunkLights({
+  variant = 'night',
+  performanceTier = 'high',
+  enableAnimation = true,
+}: {
+  variant?: HomepageSceneVariant;
+  performanceTier?: 'low' | 'medium' | 'high';
+  enableAnimation?: boolean;
+}) {
   const windowLight = useRef<THREE.SpotLight>(null);
   const exteriorWindowLight = useRef<THREE.SpotLight>(null);
   const monitorLight = useRef<THREE.PointLight>(null);
@@ -158,6 +166,8 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
   const ceilingPurpleLight = useRef<THREE.PointLight>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ambientLightRef = useRef<any>(null);
+  const animElapsed = useRef(0);
+  const staticPropsApplied = useRef(false);
 
   // Zustand selector 订阅（只在对应值变化时重渲染）
   const ambientIntensity = useSceneStore(st => st.lights.ambientIntensity);
@@ -217,69 +227,103 @@ export default function CyberpunkLights({ variant = 'night' }: { variant?: Homep
     : nightValues;
   const nightBoost = variant === 'night' ? 1 : 0;
 
-  useFrame(() => {
-    const t = performance.now() * 0.001;
+  useFrame((_, delta) => {
+    // 静态属性只设置一次
+    if (!staticPropsApplied.current) {
+      staticPropsApplied.current = true;
 
-    // 环境光
-    if (ambientLightRef.current) {
-      ambientLightRef.current.intensity = v.ambientIntensity;
-      ambientLightRef.current.color.set(v.ambientColor);
+      if (ambientLightRef.current) {
+        ambientLightRef.current.color.set(v.ambientColor);
+      }
+      if (windowLight.current) {
+        windowLight.current.color.set(v.windowColor);
+        windowLight.current.angle = v.windowAngle;
+        windowLight.current.penumbra = v.windowPenumbra;
+        windowLight.current.decay = v.windowDecay;
+      }
+      if (exteriorWindowLight.current) {
+        exteriorWindowLight.current.color.set(v.exteriorWindowColor);
+        exteriorWindowLight.current.distance = v.exteriorWindowDistance;
+        exteriorWindowLight.current.decay = v.exteriorWindowDecay;
+        exteriorWindowLight.current.angle = 0.52;
+        exteriorWindowLight.current.penumbra = 0.82;
+      }
+      if (monitorLight.current) {
+        monitorLight.current.color.set(v.monitorColor);
+        monitorLight.current.distance = v.monitorDistance;
+        monitorLight.current.decay = v.monitorDecay;
+      }
+      if (serverLight.current) {
+        serverLight.current.color.set(v.serverColor);
+        serverLight.current.distance = v.serverDistance;
+        serverLight.current.decay = v.serverDecay;
+      }
+      if (neonSignLight.current) {
+        neonSignLight.current.color.set(v.neonSignColor);
+        neonSignLight.current.distance = v.neonSignDistance;
+        neonSignLight.current.decay = v.neonSignDecay;
+      }
+      if (ceilingCyanLight.current) {
+        ceilingCyanLight.current.color.set(v.ceilingCyanColor);
+        ceilingCyanLight.current.distance = v.ceilingCyanDistance;
+        ceilingCyanLight.current.decay = v.ceilingCyanDecay;
+      }
+      if (ceilingPurpleLight.current) {
+        ceilingPurpleLight.current.color.set(v.ceilingPurpleColor);
+        ceilingPurpleLight.current.distance = v.ceilingPurpleDistance;
+        ceilingPurpleLight.current.decay = v.ceilingPurpleDecay;
+      }
     }
 
-    // 窗外主光（带呼吸）
+    // 无动画时只设置静态 intensity
+    if (!enableAnimation) {
+      if (ambientLightRef.current) ambientLightRef.current.intensity = v.ambientIntensity;
+      if (windowLight.current) windowLight.current.intensity = v.windowIntensity;
+      if (exteriorWindowLight.current) exteriorWindowLight.current.intensity = v.exteriorWindowIntensity + nightBoost * 1.1;
+      if (monitorLight.current) monitorLight.current.intensity = v.monitorIntensity + nightBoost * 1.2;
+      if (serverLight.current) serverLight.current.intensity = v.serverIntensity + nightBoost * 1.0;
+      if (neonSignLight.current) neonSignLight.current.intensity = v.neonSignIntensity + nightBoost * 1.8;
+      if (ceilingCyanLight.current) ceilingCyanLight.current.intensity = v.ceilingCyanIntensity + nightBoost * 0.9;
+      if (ceilingPurpleLight.current) ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity + nightBoost * 0.9;
+      return;
+    }
+
+    // 中等性能模式降频：每 100ms 更新一次
+    animElapsed.current += delta;
+    if (performanceTier !== 'high' && animElapsed.current < 0.1) return;
+    animElapsed.current = 0;
+
+    const t = performance.now() * 0.001;
+
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = v.ambientIntensity;
+    }
+
     if (windowLight.current) {
       windowLight.current.intensity = v.windowIntensity + Math.sin(t * 0.3) * 0.2 + Math.sin(t * 0.7) * 0.1;
-      windowLight.current.color.set(v.windowColor);
-      windowLight.current.angle = v.windowAngle;
-      windowLight.current.penumbra = v.windowPenumbra;
-      windowLight.current.decay = v.windowDecay;
     }
 
     if (exteriorWindowLight.current) {
       exteriorWindowLight.current.intensity = v.exteriorWindowIntensity + nightBoost * 1.1 + Math.sin(t * 0.45) * 0.12;
-      exteriorWindowLight.current.color.set(v.exteriorWindowColor);
-      exteriorWindowLight.current.distance = v.exteriorWindowDistance;
-      exteriorWindowLight.current.decay = v.exteriorWindowDecay;
-      exteriorWindowLight.current.angle = 0.52;
-      exteriorWindowLight.current.penumbra = 0.82;
     }
 
-    // 显示器光（带呼吸）
     if (monitorLight.current) {
       monitorLight.current.intensity = v.monitorIntensity + nightBoost * 1.2 + Math.sin(t * 1.5) * 0.2;
-      monitorLight.current.color.set(v.monitorColor);
-      monitorLight.current.distance = v.monitorDistance;
-      monitorLight.current.decay = v.monitorDecay;
     }
 
-    // 服务器光（带呼吸）
     if (serverLight.current) {
       serverLight.current.intensity = v.serverIntensity + nightBoost * 1.0 + Math.sin(t * 2 + 1) * 0.15;
-      serverLight.current.color.set(v.serverColor);
-      serverLight.current.distance = v.serverDistance;
-      serverLight.current.decay = v.serverDecay;
     }
 
-    // 霓虹招牌（带呼吸）
     if (neonSignLight.current) {
       neonSignLight.current.intensity = v.neonSignIntensity + nightBoost * 1.8 + Math.sin(t * 2 + 2) * 0.25;
-      neonSignLight.current.color.set(v.neonSignColor);
-      neonSignLight.current.distance = v.neonSignDistance;
-      neonSignLight.current.decay = v.neonSignDecay;
     }
 
-    // 天花板灯带
     if (ceilingCyanLight.current) {
       ceilingCyanLight.current.intensity = v.ceilingCyanIntensity + nightBoost * 0.9;
-      ceilingCyanLight.current.color.set(v.ceilingCyanColor);
-      ceilingCyanLight.current.distance = v.ceilingCyanDistance;
-      ceilingCyanLight.current.decay = v.ceilingCyanDecay;
     }
     if (ceilingPurpleLight.current) {
       ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity + nightBoost * 0.9;
-      ceilingPurpleLight.current.color.set(v.ceilingPurpleColor);
-      ceilingPurpleLight.current.distance = v.ceilingPurpleDistance;
-      ceilingPurpleLight.current.decay = v.ceilingPurpleDecay;
     }
   });
 

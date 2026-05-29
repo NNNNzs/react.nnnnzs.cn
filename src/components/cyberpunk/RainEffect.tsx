@@ -1,17 +1,17 @@
 /**
  * 窗户雨滴粒子效果
- * 大型落地窗 4.5x3.5，300 雨滴
+ * 大型落地窗 4.5x3.5，支持动态 count 和 enabled 控制
  */
 
 /* eslint-disable react-hooks/immutability */
 
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const RAIN_COUNT = 300;
+const DEFAULT_COUNT = 120;
 const WINDOW_WIDTH = 4.5;
 const WINDOW_HEIGHT = 3.5;
 const WINDOW_POS: [number, number, number] = [0, 1.85, -3.97];
@@ -21,17 +21,18 @@ function randomUnit(seed: number) {
   return x - Math.floor(x);
 }
 
-export default function RainEffect() {
+export default function RainEffect({ count = DEFAULT_COUNT, enabled = true }: { count?: number; enabled?: boolean }) {
   const pointsRef = useRef<THREE.Points>(null);
   const resetNonceRef = useRef(0);
+  const frameCountRef = useRef(0);
 
-  const { positions, velocities, sizes, isStreak } = useMemo(() => {
-    const positions = new Float32Array(RAIN_COUNT * 3);
-    const velocities = new Float32Array(RAIN_COUNT);
-    const sizes = new Float32Array(RAIN_COUNT);
-    const isStreak = new Uint8Array(RAIN_COUNT);
+  const { velocities, isStreak, posAttribute, geometry } = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const velocities = new Float32Array(count);
+    const sizes = new Float32Array(count);
+    const isStreak = new Uint8Array(count);
 
-    for (let i = 0; i < RAIN_COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       positions[i * 3] = (randomUnit(i + 1) - 0.5) * WINDOW_WIDTH;
       positions[i * 3 + 1] = randomUnit(i + 101) * WINDOW_HEIGHT;
       positions[i * 3 + 2] = 0;
@@ -39,16 +40,22 @@ export default function RainEffect() {
       velocities[i] = 0.015 + randomUnit(i + 201) * 0.035;
       sizes[i] = 1 + randomUnit(i + 301) * 2;
 
-      // 20% 的雨滴是流动雨痕
       isStreak[i] = randomUnit(i + 401) > 0.8 ? 1 : 0;
       if (isStreak[i]) {
-        velocities[i] *= 1.5; // 雨痕下落更快
+        velocities[i] *= 1.5;
         sizes[i] = 1.5 + randomUnit(i + 501) * 1.5;
       }
     }
 
-    return { positions, velocities, sizes, isStreak };
-  }, []);
+    const posAttribute = new THREE.BufferAttribute(positions, 3);
+    const sizeAttribute = new THREE.BufferAttribute(sizes, 1);
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', posAttribute);
+    geo.setAttribute('size', sizeAttribute);
+
+    return { velocities, isStreak, posAttribute, geometry: geo };
+  }, [count]);
 
   const rainTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -56,7 +63,6 @@ export default function RainEffect() {
     canvas.height = 64;
     const ctx = canvas.getContext('2d')!;
 
-    // 竖向细长的雨滴
     const grad = ctx.createLinearGradient(16, 0, 16, 64);
     grad.addColorStop(0, 'rgba(150, 200, 255, 0)');
     grad.addColorStop(0.2, 'rgba(150, 200, 255, 0.4)');
@@ -69,7 +75,6 @@ export default function RainEffect() {
     ctx.ellipse(16, 32, 3, 28, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 高光点
     const hlGrad = ctx.createRadialGradient(14, 26, 0, 14, 26, 6);
     hlGrad.addColorStop(0, 'rgba(220, 240, 255, 0.9)');
     hlGrad.addColorStop(1, 'rgba(200, 230, 255, 0)');
@@ -80,37 +85,35 @@ export default function RainEffect() {
     return texture;
   }, []);
 
-  const posAttribute = useMemo(() => new THREE.BufferAttribute(positions, 3), [positions]);
-  const sizeAttribute = useMemo(() => new THREE.BufferAttribute(sizes, 1), [sizes]);
-
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', posAttribute);
-    geo.setAttribute('size', sizeAttribute);
-    return geo;
-  }, [posAttribute, sizeAttribute]);
+  useEffect(() => {
+    if (pointsRef.current) {
+      pointsRef.current.visible = enabled;
+    }
+  }, [enabled]);
 
   useFrame(() => {
-    if (!pointsRef.current) return;
+    if (!pointsRef.current || !enabled) return;
 
+    frameCountRef.current += 1;
     const posArray = posAttribute.array as Float32Array;
-    resetNonceRef.current += 1;
+    const skipDrift = frameCountRef.current % 3 !== 0;
 
-    for (let i = 0; i < RAIN_COUNT; i++) {
-      // 向下移动
+    resetNonceRef.current += 1;
+    const nonce = resetNonceRef.current;
+
+    for (let i = 0; i < count; i++) {
       posArray[i * 3 + 1] -= velocities[i];
 
-      // 轻微随机横向漂移
-      posArray[i * 3] += (randomUnit(i + resetNonceRef.current) - 0.5) * 0.001;
-
-      // 流动雨痕漂移更少（基本直线下落）
-      if (isStreak[i]) {
-        posArray[i * 3] *= 0.999; // 缓慢回归原位
+      if (!skipDrift) {
+        posArray[i * 3] += (randomUnit(i + nonce) - 0.5) * 0.001;
       }
 
-      // 到底部后重置
+      if (isStreak[i]) {
+        posArray[i * 3] *= 0.999;
+      }
+
       if (posArray[i * 3 + 1] < -WINDOW_HEIGHT / 2) {
-        const seed = i + resetNonceRef.current * 17;
+        const seed = i + nonce * 17;
         posArray[i * 3] = (randomUnit(seed) - 0.5) * WINDOW_WIDTH;
         posArray[i * 3 + 1] = WINDOW_HEIGHT / 2 + randomUnit(seed + 100) * 0.5;
         velocities[i] = 0.015 + randomUnit(seed + 200) * 0.035;
