@@ -38,7 +38,6 @@ type PerformanceTier = 'low' | 'medium' | 'high';
 
 interface PerformanceProfile {
   tier: PerformanceTier;
-  renderer: string;
   dpr: number | [number, number];
   antialias: boolean;
 }
@@ -143,54 +142,26 @@ const isWebGLAvailable = (): boolean => {
   }
 };
 
-const getWebGLRenderer = (): string => {
-  if (typeof document === 'undefined') return '';
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    if (!gl) return '';
-
-    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-    if (!debugInfo) return '';
-
-    return String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '');
-  } catch {
-    return '';
-  }
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
 };
 
-const getForcedPerformanceTier = (): PerformanceTier | null => {
-  if (typeof window === 'undefined') return null;
-  const value = new URLSearchParams(window.location.search).get('perf');
-  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
-};
-
-const detectPerformanceProfile = (prefersReducedMotion: boolean): PerformanceProfile => {
-  const forcedTier = getForcedPerformanceTier();
+const isLowEndDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
   const nav = navigator as Navigator & {
     deviceMemory?: number;
     hardwareConcurrency?: number;
   };
-  const renderer = getWebGLRenderer();
-  const rendererText = renderer.toLowerCase();
-  const isMobile = window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
-  const isIntelIntegrated = rendererText.includes('intel uhd') || rendererText.includes('intel hd');
-  const memory = nav.deviceMemory ?? 8;
-  const cores = nav.hardwareConcurrency ?? 8;
+  return (nav.deviceMemory !== undefined && nav.deviceMemory <= 4) || (nav.hardwareConcurrency !== undefined && nav.hardwareConcurrency <= 4);
+};
 
-  let tier: PerformanceTier = 'high';
-  if (prefersReducedMotion || isMobile || memory <= 4 || cores <= 4) {
-    tier = 'low';
-  } else if (isIntelIntegrated || memory <= 8 || cores <= 6) {
-    tier = 'medium';
-  }
-
-  const finalTier = forcedTier ?? tier;
+const detectPerformanceProfile = (prefersReducedMotion: boolean): PerformanceProfile => {
+  const tier: PerformanceTier = prefersReducedMotion || isMobileDevice() || isLowEndDevice() ? 'low' : 'high';
 
   return {
-    tier: finalTier,
-    renderer,
-    dpr: finalTier === 'high' ? [1, 1.25] : 1,
+    tier,
+    dpr: tier === 'high' ? [1, 1.25] : 1,
     antialias: true,
   };
 };
@@ -399,7 +370,7 @@ function SceneHotspots({
 // 后处理
 // ========================
 
-function PostProcessing({ editable, variant, performanceTier }: { editable: boolean; variant: HomepageSceneVariant; performanceTier: PerformanceTier }) {
+function PostProcessing({ editable, variant }: { editable: boolean; variant: HomepageSceneVariant }) {
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
   const bloomThreshold = useSceneStore(s => s.postProcessing.bloomThreshold);
@@ -407,18 +378,13 @@ function PostProcessing({ editable, variant, performanceTier }: { editable: bool
   const bloomIntensity = useSceneStore(s => s.postProcessing.bloomIntensity);
   const vignetteDarkness = useSceneStore(s => s.postProcessing.vignetteDarkness);
 
-  const bloomActive = variant === 'night' && performanceTier !== 'low';
-  const resolvedBloomIntensity = bloomActive
-    ? (editable && variant === 'night' ? bloomIntensity : (performanceTier === 'high' ? 0.7 : 0.35))
-    : 0;
-
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={editable && variant === 'night' && bloomActive ? bloomThreshold : Math.max(0.45, preset.postProcessing.bloomThreshold)}
-        luminanceSmoothing={editable && variant === 'night' && bloomActive ? bloomSmoothing : Math.max(0.65, preset.postProcessing.bloomSmoothing)}
-        intensity={resolvedBloomIntensity}
-        mipmapBlur={performanceTier === 'high' && bloomActive}
+        luminanceThreshold={editable && variant === 'night' ? bloomThreshold : Math.max(0.45, preset.postProcessing.bloomThreshold)}
+        luminanceSmoothing={editable && variant === 'night' ? bloomSmoothing : Math.max(0.65, preset.postProcessing.bloomSmoothing)}
+        intensity={variant === 'night' ? (editable ? bloomIntensity : 0.7) : 0}
+        mipmapBlur
       />
       <Vignette
         eskil={false}
@@ -632,8 +598,6 @@ function Scene({
   activeFocusKey,
   performanceTier,
   isHeroVisible,
-  enableLightAnimation,
-  enablePostProcessing,
   onHotspotActivate,
   onFpsUpdate,
 }: {
@@ -645,8 +609,6 @@ function Scene({
   activeFocusKey: CameraFocusKey;
   performanceTier: PerformanceTier;
   isHeroVisible: boolean;
-  enableLightAnimation: boolean;
-  enablePostProcessing: boolean;
   onHotspotActivate: (key: CameraFocusKey) => void;
   onFpsUpdate: (fps: number) => void;
 }) {
@@ -720,7 +682,7 @@ function Scene({
           target={focus.target}
         />
       )}
-      <CyberpunkLights variant={variant} performanceTier={performanceTier} enableAnimation={enableLightAnimation} />
+      <CyberpunkLights variant={variant} />
       {pShowGrid && (
         <Grid
           args={[20, 20]}
@@ -745,12 +707,10 @@ function Scene({
           onHotspotActivate={onHotspotActivate}
         />
       )}
-      {pShowRain && performanceTier !== 'low' && isHeroVisible && (
+      {pShowRain && isHeroVisible && (
         <RainEffect count={performanceTier === 'high' ? 300 : 120} enabled={isHeroVisible} />
       )}
-      {enablePostProcessing && (
-        <PostProcessing editable={editable} variant={variant} performanceTier={performanceTier} />
-      )}
+      <PostProcessing editable={editable} variant={variant} />
       <RendererStatsLogger enabled={process.env.NODE_ENV === 'development'} onFpsUpdate={onFpsUpdate} />
     </>
   );
@@ -783,10 +743,9 @@ export default function CyberpunkBanner({
   const [capabilityChecked, setCapabilityChecked] = useState(false);
   const [webglOk, setWebglOk] = useState(false);
   const [performanceProfile, setPerformanceProfile] = useState<PerformanceProfile>({
-    tier: 'medium',
-    renderer: '',
-    dpr: 1,
-    antialias: false,
+    tier: 'high',
+    dpr: [1, 1.25],
+    antialias: true,
   });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
@@ -931,9 +890,6 @@ export default function CyberpunkBanner({
   const performanceTier = performanceProfile.tier;
   const onFpsUpdate = useMemo(() => setFps, []);
   const isHeroVisible = scrollProgress < 1.05;
-  const enablePostProcessing = variant === 'night' && performanceTier === 'high' && isHeroVisible;
-  const enableRain = variant === 'night' && performanceTier !== 'low' && isHeroVisible;
-  const enableLightAnimation = variant === 'night' && performanceTier !== 'low' && isHeroVisible;
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development' || !capabilityChecked || !webglOk) return;
@@ -942,12 +898,8 @@ export default function CyberpunkBanner({
       performanceTier,
       dpr: Array.isArray(performanceProfile.dpr) ? performanceProfile.dpr.join('-') : performanceProfile.dpr,
       antialias: performanceProfile.antialias,
-      enablePostProcessing,
-      enableRain,
-      enableLightAnimation,
-      renderer: performanceProfile.renderer || 'unknown',
     });
-  }, [capabilityChecked, enableLightAnimation, enablePostProcessing, enableRain, performanceProfile, performanceTier, webglOk]);
+  }, [capabilityChecked, performanceProfile, performanceTier, webglOk]);
 
   const handleHotspotActivate = useCallback((key: CameraFocusKey) => {
     setInteractiveMode(false);
@@ -1060,8 +1012,6 @@ export default function CyberpunkBanner({
               activeFocusKey={activeFocusKey}
               performanceTier={performanceTier}
               isHeroVisible={isHeroVisible}
-              enableLightAnimation={enableLightAnimation}
-              enablePostProcessing={enablePostProcessing}
               onHotspotActivate={handleHotspotActivate}
               onFpsUpdate={onFpsUpdate}
             />

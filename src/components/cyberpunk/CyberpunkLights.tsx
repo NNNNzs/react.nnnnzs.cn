@@ -87,6 +87,7 @@ const PointFixture = forwardRef<THREE.PointLight, {
     );
   },
 );
+PointFixture.displayName = 'PointFixture';
 
 const SpotFixture = forwardRef<THREE.SpotLight, {
   position: [number, number, number];
@@ -147,15 +148,12 @@ const SpotFixture = forwardRef<THREE.SpotLight, {
     );
   },
 );
+SpotFixture.displayName = 'SpotFixture';
 
 export default function CyberpunkLights({
   variant = 'night',
-  performanceTier = 'high',
-  enableAnimation = true,
 }: {
   variant?: HomepageSceneVariant;
-  performanceTier?: 'low' | 'medium' | 'high';
-  enableAnimation?: boolean;
 }) {
   const windowLight = useRef<THREE.SpotLight>(null);
   const exteriorWindowLight = useRef<THREE.SpotLight>(null);
@@ -166,7 +164,6 @@ export default function CyberpunkLights({
   const ceilingPurpleLight = useRef<THREE.PointLight>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ambientLightRef = useRef<any>(null);
-  const animElapsed = useRef(0);
   const staticPropsApplied = useRef(false);
 
   // Zustand selector 订阅（只在对应值变化时重渲染）
@@ -227,7 +224,7 @@ export default function CyberpunkLights({
     : nightValues;
   const nightBoost = variant === 'night' ? 1 : 0;
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     // 静态属性只设置一次
     if (!staticPropsApplied.current) {
       staticPropsApplied.current = true;
@@ -274,24 +271,6 @@ export default function CyberpunkLights({
         ceilingPurpleLight.current.decay = v.ceilingPurpleDecay;
       }
     }
-
-    // 无动画时只设置静态 intensity
-    if (!enableAnimation) {
-      if (ambientLightRef.current) ambientLightRef.current.intensity = v.ambientIntensity;
-      if (windowLight.current) windowLight.current.intensity = v.windowIntensity;
-      if (exteriorWindowLight.current) exteriorWindowLight.current.intensity = v.exteriorWindowIntensity + nightBoost * 1.1;
-      if (monitorLight.current) monitorLight.current.intensity = v.monitorIntensity + nightBoost * 1.2;
-      if (serverLight.current) serverLight.current.intensity = v.serverIntensity + nightBoost * 1.0;
-      if (neonSignLight.current) neonSignLight.current.intensity = v.neonSignIntensity + nightBoost * 1.8;
-      if (ceilingCyanLight.current) ceilingCyanLight.current.intensity = v.ceilingCyanIntensity + nightBoost * 0.9;
-      if (ceilingPurpleLight.current) ceilingPurpleLight.current.intensity = v.ceilingPurpleIntensity + nightBoost * 0.9;
-      return;
-    }
-
-    // 中等性能模式降频：每 100ms 更新一次
-    animElapsed.current += delta;
-    if (performanceTier !== 'high' && animElapsed.current < 0.1) return;
-    animElapsed.current = 0;
 
     const t = performance.now() * 0.001;
 
