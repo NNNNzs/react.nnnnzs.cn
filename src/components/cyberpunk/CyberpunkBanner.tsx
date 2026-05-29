@@ -13,7 +13,7 @@
 
 'use client';
 
-import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { DownOutlined } from '@ant-design/icons';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
@@ -429,13 +429,22 @@ function PostProcessing({ editable, variant, performanceTier }: { editable: bool
   );
 }
 
-function RendererStatsLogger({ enabled }: { enabled: boolean }) {
+function RendererStatsLogger({ enabled, onFpsUpdate }: { enabled: boolean; onFpsUpdate?: (fps: number) => void }) {
   const lastLogRef = useRef(0);
+  const frameTimes = useRef<number[]>([]);
 
   useFrame(({ gl }) => {
-    if (!enabled) return;
-
     const now = performance.now();
+    frameTimes.current.push(now);
+    while (frameTimes.current.length > 0 && frameTimes.current[0] < now - 1000) {
+      frameTimes.current.shift();
+    }
+
+    if (onFpsUpdate) {
+      onFpsUpdate(frameTimes.current.length);
+    }
+
+    if (!enabled) return;
     if (now - lastLogRef.current < 3000) return;
     lastLogRef.current = now;
 
@@ -626,6 +635,7 @@ function Scene({
   enableLightAnimation,
   enablePostProcessing,
   onHotspotActivate,
+  onFpsUpdate,
 }: {
   debugControlsOpen: boolean;
   interactiveMode: boolean;
@@ -638,6 +648,7 @@ function Scene({
   enableLightAnimation: boolean;
   enablePostProcessing: boolean;
   onHotspotActivate: (key: CameraFocusKey) => void;
+  onFpsUpdate: (fps: number) => void;
 }) {
   const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
@@ -740,7 +751,7 @@ function Scene({
       {enablePostProcessing && (
         <PostProcessing editable={editable} variant={variant} performanceTier={performanceTier} />
       )}
-      <RendererStatsLogger enabled={process.env.NODE_ENV === 'development'} />
+      <RendererStatsLogger enabled={process.env.NODE_ENV === 'development'} onFpsUpdate={onFpsUpdate} />
     </>
   );
 }
@@ -785,6 +796,7 @@ export default function CyberpunkBanner({
   const [interactiveMode, setInteractiveMode] = useState(false);
   const [activeFocusKey, setActiveFocusKey] = useState<CameraFocusKey>('default');
   const [focusFlightId, setFocusFlightId] = useState(0);
+  const [fps, setFps] = useState(0);
   const devControlsModuleRef = useRef<Promise<typeof import('./DevControls')> | null>(null);
   const preset = HOMEPAGE_THEME_PRESETS[variant];
 
@@ -917,6 +929,7 @@ export default function CyberpunkBanner({
 
   const isDefaultMode = !interactiveMode && activeFocusKey === 'default';
   const performanceTier = performanceProfile.tier;
+  const onFpsUpdate = useMemo(() => setFps, []);
   const isHeroVisible = scrollProgress < 1.05;
   const enablePostProcessing = variant === 'night' && performanceTier === 'high' && isHeroVisible;
   const enableRain = variant === 'night' && performanceTier !== 'low' && isHeroVisible;
@@ -1050,10 +1063,23 @@ export default function CyberpunkBanner({
               enableLightAnimation={enableLightAnimation}
               enablePostProcessing={enablePostProcessing}
               onHotspotActivate={handleHotspotActivate}
+              onFpsUpdate={onFpsUpdate}
             />
           </Suspense>
         </Canvas>
       </div>
+
+      {sceneReady && !hasError && (
+        <div className="pointer-events-none absolute right-4 top-4 z-20 font-mono text-[11px] tabular-nums">
+          <span className={`inline-block rounded border px-2 py-0.5 ${
+            variant === 'day'
+              ? 'border-sky-500/30 bg-sky-50/70 text-sky-800/80'
+              : 'border-cyan-400/25 bg-[#050611]/60 text-cyan-300/80'
+          }`}>
+            {fps} FPS
+          </span>
+        </div>
+      )}
 
       {!sceneReady && !hasError && <LoadingFallback variant={variant} />}
       {hasError && <ErrorFallback variant={variant} />}
