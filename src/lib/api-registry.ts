@@ -30,45 +30,18 @@ export type McpHandler = (
   user: AuthUser,
 ) => Promise<unknown>;
 
-/** 接口注册表条目 */
-export interface ApiRegistryEntry {
-  /** 接口编码（唯一标识） */
-  code: string;
-  /** 接口名称 */
-  name: string;
-  /** 详细描述（同时作为 MCP 工具描述） */
-  description?: string;
-  /** 所属模块 */
-  module: string;
+/** 接口注册表条目（继承 ApiDescriptor，仅补充运行时字段） */
+export interface ApiRegistryEntry extends ApiDescriptor {
   /** API 路径模式 */
   apiPath: string;
-  /** HTTP 方法 */
-  apiMethod: string;
   /** 是否暴露为 MCP 工具 */
   mcpEnabled: boolean;
   /** MCP 工具名（为空则自动生成） */
   mcpToolName?: string;
-  /** 关联权限码 */
-  permissionCode?: string;
-  /** 输入参数 JSON Schema（用于 MCP inputSchema） */
-  inputSchema?: Record<string, unknown>;
-  /** 缓存失效标签 */
-  cacheTags?: string[];
   /** MCP 工具的处理函数，直接引用 service 层方法 */
   handler?: McpHandler;
   /** 数据权限检查时，从资源中提取 owner_id 的函数 */
   getOwnerId?: (resource: unknown) => number | undefined;
-}
-
-/**
- * 将 ApiDescriptor 展开为 ApiRegistryEntry 基础字段
- * 映射 descriptor.method → apiMethod
- */
-function desc(d: ApiDescriptor): Omit<ApiRegistryEntry, 'apiPath' | 'mcpEnabled' | 'handler' | 'getOwnerId'> & { apiMethod: string } {
-  return {
-    ...d,
-    apiMethod: d.method,
-  };
 }
 
 /**
@@ -79,7 +52,7 @@ function desc(d: ApiDescriptor): Omit<ApiRegistryEntry, 'apiPath' | 'mcpEnabled'
 export const API_REGISTRY: ApiRegistryEntry[] = [
   // ---- 文章模块 ----
   {
-    ...desc(postCreateRoute),
+    ...postCreateRoute,
     apiPath: '/api/post/create',
     mcpEnabled: true,
     mcpToolName: 'create_article',
@@ -108,7 +81,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     },
   },
   {
-    ...desc(postUpdateRoute),
+    ...postUpdateRoute,
     apiPath: '/api/post/[id]',
     mcpEnabled: true,
     mcpToolName: 'update_article',
@@ -159,7 +132,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
   {
-    ...desc(postDeleteRoute),
+    ...postDeleteRoute,
     apiPath: '/api/post/[id]',
     mcpEnabled: true,
     mcpToolName: 'delete_article',
@@ -172,7 +145,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     getOwnerId: (resource) => (resource as { post?: { created_by?: number } })?.post?.created_by,
   },
   {
-    ...desc(postGetRoute),
+    ...postGetRoute,
     apiPath: '/api/post/[id]',
     mcpEnabled: true,
     mcpToolName: 'get_article',
@@ -189,7 +162,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     },
   },
   {
-    ...desc(postListRoute),
+    ...postListRoute,
     apiPath: '/api/post/list',
     mcpEnabled: true,
     mcpToolName: 'list_articles',
@@ -222,7 +195,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   },
   // ---- 图片生成模块 ----
   {
-    ...desc(imageGenRoute),
+    ...imageGenRoute,
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
@@ -248,7 +221,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   },
   // ---- 图片上传模块（MCP 可用）----
   {
-    ...desc(uploadRoute),
+    ...uploadRoute,
     apiPath: '/api/fs/upload',
     mcpEnabled: true,
     mcpToolName: 'upload_file',
@@ -281,17 +254,17 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   },
   // ---- 合集模块（仅 API，不暴露 MCP）----
   {
-    ...desc(collectionCreateRoute),
+    ...collectionCreateRoute,
     apiPath: '/api/collection/create',
     mcpEnabled: false,
   },
   {
-    ...desc(collectionUpdateRoute),
+    ...collectionUpdateRoute,
     apiPath: '/api/collection/[id]',
     mcpEnabled: false,
   },
   {
-    ...desc(collectionDeleteRoute),
+    ...collectionDeleteRoute,
     apiPath: '/api/collection/[id]',
     mcpEnabled: false,
   },
@@ -301,7 +274,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     name: '修改配置',
     module: 'config',
     apiPath: '/api/config/[key]',
-    apiMethod: 'PUT',
+    method: 'PUT',
     mcpEnabled: false,
     permissionCode: CONFIG_EDIT,
   },
@@ -318,7 +291,7 @@ const registryByMcpTool: Map<string, ApiRegistryEntry> = new Map();
 
 // 构建索引
 for (const entry of API_REGISTRY) {
-  const key = `${entry.apiMethod}:${entry.apiPath}`;
+  const key = `${entry.method}:${entry.apiPath}`;
 
   // 区分精确路径和模式路径（含 [id] 等动态段）
   if (entry.apiPath.includes('[')) {
@@ -374,7 +347,7 @@ export function matchApiRegistry(pathname: string, method: string): ApiRegistryE
 
   // 2. 模式匹配（遍历动态路径模式）
   for (const entry of registryByPattern) {
-    if (entry.apiMethod !== method) continue;
+    if (entry.method !== method) continue;
     if (matchRoutePattern(entry.apiPath, pathname)) {
       return entry;
     }
@@ -400,7 +373,6 @@ export async function getMcpEnabledEntries(): Promise<ApiRegistryEntry[]> {
         mcpEnabled: true,
         mcpToolName: db.mcp_tool_name || codeEntry.mcpToolName,
         permissionCode: db.permission_code || codeEntry.permissionCode,
-        description: db.description || codeEntry.description,
       };
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);

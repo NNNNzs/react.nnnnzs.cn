@@ -241,7 +241,7 @@ const seedApiRegistry: ApiRegistrySeed[] = [
   {
     code: 'image_gen',
     name: 'AI图片生成',
-    description: '使用 AI 生成图片(文生图)。图片生成通常需要 30-90 秒，请耐心等待，不要重试。无异步通知机制，超时(90s)将报错。',
+    description: '使用 AI 生成图片，支持 chat_completions 和 images_generations 两种接口模式',
     module: 'image',
     api_path: '/api/image-gen',
     api_method: 'POST',
@@ -251,11 +251,13 @@ const seedApiRegistry: ApiRegistrySeed[] = [
     input_schema: {
       type: 'object',
       properties: {
-        prompt: { type: 'string', description: '图片描述提示词' },
+        mode: { type: 'string', description: '模式：generate（文生图）或 edit（图文编辑）' },
+        prompt: { type: 'string', description: '提示词' },
+        image: { type: 'string', description: '参考图片URL（编辑模式必填）' },
         size: { type: 'string', description: '图片尺寸，如 1024x1024' },
-        quality: { type: 'string', description: '图片质量: high 或 medium' },
+        quality: { type: 'string', description: '图片质量：high 或 medium' },
       },
-      required: ['prompt'],
+      required: ['mode', 'prompt'],
     },
   },
   // ---- 合集模块（仅 API，不暴露 MCP）----
