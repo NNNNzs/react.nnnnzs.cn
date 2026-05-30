@@ -3,12 +3,12 @@
 import { useMemo } from 'react';
 import type { HomepageSceneVariant } from '../theme';
 import { ROOM, WALL_COLOR } from './shared';
-import { createWallTexture } from './textures';
+import { createWallTextures, type WallTexturesSet } from './textures';
 import type * as THREE from 'three';
 
-function BackWall({ variant, wallTexture, hh, hd }: {
+function BackWall({ variant, textures, hh, hd }: {
   variant: HomepageSceneVariant;
-  wallTexture: THREE.CanvasTexture;
+  textures: WallTexturesSet['back'];
   hh: number;
   hd: number;
 }) {
@@ -16,17 +16,18 @@ function BackWall({ variant, wallTexture, hh, hd }: {
     <mesh position={[0, hh / 2, -hd]}>
       <planeGeometry args={[ROOM.width, hh]} />
       <meshStandardMaterial
-        map={wallTexture}
+        map={textures.color}
+        roughnessMap={textures.roughness}
         color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
-        roughness={0.92}
+        roughness={0.88}
       />
     </mesh>
   );
 }
 
-function LeftWall({ variant, wallTexture, hh, hw }: {
+function LeftWall({ variant, textures, hh, hw }: {
   variant: HomepageSceneVariant;
-  wallTexture: THREE.CanvasTexture;
+  textures: WallTexturesSet['left'];
   hh: number;
   hw: number;
 }) {
@@ -34,17 +35,18 @@ function LeftWall({ variant, wallTexture, hh, hw }: {
     <mesh position={[-hw, hh / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
       <planeGeometry args={[ROOM.depth, hh]} />
       <meshStandardMaterial
-        map={wallTexture}
+        map={textures.color}
+        roughnessMap={textures.roughness}
         color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
-        roughness={0.92}
+        roughness={0.88}
       />
     </mesh>
   );
 }
 
-function RightWall({ variant, wallTexture, hh, hw }: {
+function RightWall({ variant, textures, hh, hw }: {
   variant: HomepageSceneVariant;
-  wallTexture: THREE.CanvasTexture;
+  textures: WallTexturesSet['right'];
   hh: number;
   hw: number;
 }) {
@@ -52,26 +54,27 @@ function RightWall({ variant, wallTexture, hh, hw }: {
     <mesh position={[hw, hh / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
       <planeGeometry args={[ROOM.depth, hh]} />
       <meshStandardMaterial
-        map={wallTexture}
+        map={textures.color}
+        roughnessMap={textures.roughness}
         color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
-        roughness={0.92}
+        roughness={0.88}
       />
     </mesh>
   );
 }
 
 export default function WallSection({ variant }: { variant: HomepageSceneVariant }) {
-  const wallTexture = useMemo(() => createWallTexture(variant), [variant]);
-  // 鍙敾鑳屽鍜屽乏鍙冲锛屽墠渚т繚鐣欏紑鍙ｏ紝鏂逛究闀滃ご瑙傚療鍐呴儴
+  const textures = useMemo(() => createWallTextures(variant), [variant]);
+  // 只画背景墙和左右墙，前侧保留开口，方便镜头观察内部
   const hw = ROOM.width / 2;
   const hh = ROOM.height;
   const hd = ROOM.depth / 2;
 
   return (
     <>
-      <BackWall variant={variant} wallTexture={wallTexture} hh={hh} hd={hd} />
-      <LeftWall variant={variant} wallTexture={wallTexture} hh={hh} hw={hw} />
-      <RightWall variant={variant} wallTexture={wallTexture} hh={hh} hw={hw} />
+      <BackWall variant={variant} textures={textures.back} hh={hh} hd={hd} />
+      <LeftWall variant={variant} textures={textures.left} hh={hh} hw={hw} />
+      <RightWall variant={variant} textures={textures.right} hh={hh} hw={hw} />
     </>
   );
 }

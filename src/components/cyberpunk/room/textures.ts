@@ -301,39 +301,385 @@ export function createFloorTexture(variant: HomepageSceneVariant): THREE.CanvasT
   return texture;
 }
 
-export function createWallTexture(variant: HomepageSceneVariant): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d')!;
+// ─── 墙面纹理系统 ───────────────────────────────────────────
 
-  // 墙面纹理只保留轻量噪点，避免压过窗景和家具的视觉重心
-  ctx.fillStyle = variant === 'day' ? '#dfe7ef' : '#0d0d1a';
-  ctx.fillRect(0, 0, 256, 256);
+type SeededRNG = () => number;
 
-  for (let i = 0; i < 500; i++) {
-    const x = Math.random() * 256;
-    const y = Math.random() * 256;
-    ctx.fillStyle = variant === 'day'
-      ? `rgba(${190 + Math.random() * 35}, ${202 + Math.random() * 35}, ${215 + Math.random() * 30}, 0.25)`
-      : `rgba(${15 + Math.random() * 15}, ${15 + Math.random() * 15}, ${25 + Math.random() * 15}, 0.3)`;
-    ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
-  }
+function createSeededRandom(seed: number): SeededRNG {
+  let s = seed;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
 
-  for (let i = 0; i < 5; i++) {
-    const cx = Math.random() * 256;
-    const cy = Math.random() * 256;
-    const r = 20 + Math.random() * 40;
+interface WallContext {
+  seed: number;
+  neonLights: Array<{ x: number; y: number; radius: number; color: string; alpha: number }>;
+  waterStainPositions: Array<{ x: number; y: number }>;
+  pipeShadowYs: number[];
+}
+
+const WALL_SEEDS = { back: 42, left: 137, right: 256 } as const;
+
+function buildWallContexts(variant: HomepageSceneVariant): Record<string, WallContext> {
+  return {
+    back: {
+      seed: WALL_SEEDS.back,
+      neonLights: [
+        // 窗户映射光（窗中心 x=-1.18, 宽3.9 → 后墙约 30%-70%）
+        { x: 512, y: 180, radius: 200, color: variant === 'day' ? '255,230,180' : '0,100,180', alpha: variant === 'day' ? 0.03 : 0.04 },
+      ],
+      waterStainPositions: [
+        { x: 400, y: 420 },  // 窗台下方
+        { x: 620, y: 450 },
+      ],
+      pipeShadowYs: [15, 35],
+    },
+    left: {
+      seed: WALL_SEEDS.left,
+      neonLights: [
+        // 显示器蓝光（monitors y≈1.22, 在墙面高度约25%处）
+        { x: 180, y: 130, radius: 100, color: '0,200,255', alpha: 0.035 },
+        // 天花灯带映射
+        { x: 500, y: 25, radius: 150, color: '0,240,255', alpha: 0.02 },
+      ],
+      waterStainPositions: [
+        { x: 300, y: 460 },
+      ],
+      pipeShadowYs: [12, 28, 48],
+    },
+    right: {
+      seed: WALL_SEEDS.right,
+      neonLights: [
+        // 服务器 LED 映射（serverRack y≈0-1.85, 中心约 40%）
+        { x: 700, y: 200, radius: 80, color: '0,200,255', alpha: 0.03 },
+        // 霓虹灯牌映射（neonSign y≈2.45, 在墙面约50%处）
+        { x: 500, y: 256, radius: 120, color: '255,0,102', alpha: 0.025 },
+      ],
+      waterStainPositions: [
+        { x: 200, y: 480 },
+        { x: 600, y: 440 },
+      ],
+      pipeShadowYs: [18, 40],
+    },
+  };
+}
+
+// Layer 1: 混凝土大色块差异
+function drawConcretePatches(ctx: CanvasRenderingContext2D, rng: SeededRNG, variant: HomepageSceneVariant) {
+  for (let i = 0; i < 10; i++) {
+    const cx = rng() * 1024;
+    const cy = rng() * 512;
+    const r = 80 + rng() * 120;
     const radGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    radGrad.addColorStop(0, 'rgba(10, 10, 20, 0.3)');
-    radGrad.addColorStop(1, 'rgba(10, 10, 20, 0)');
+    if (variant === 'day') {
+      radGrad.addColorStop(0, `rgba(${210 + rng() * 25}, ${218 + rng() * 20}, ${228 + rng() * 15}, 0.12)`);
+      radGrad.addColorStop(1, `rgba(${210 + rng() * 25}, ${218 + rng() * 20}, ${228 + rng() * 15}, 0)`);
+    } else {
+      radGrad.addColorStop(0, `rgba(${10 + rng() * 12}, ${10 + rng() * 12}, ${18 + rng() * 16}, 0.15)`);
+      radGrad.addColorStop(1, `rgba(${10 + rng() * 12}, ${10 + rng() * 12}, ${18 + rng() * 16}, 0)`);
+    }
     ctx.fillStyle = radGrad;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   }
+}
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 2);
-  return texture;
+// Layer 2: 混凝土骨料颗粒
+function drawConcreteAggregate(ctx: CanvasRenderingContext2D, rng: SeededRNG, variant: HomepageSceneVariant) {
+  for (let i = 0; i < 20000; i++) {
+    const x = rng() * 1024;
+    const y = rng() * 512;
+    if (variant === 'day') {
+      ctx.fillStyle = `rgba(${195 + rng() * 30}, ${205 + rng() * 25}, ${218 + rng() * 20}, ${0.12 + rng() * 0.18})`;
+    } else {
+      ctx.fillStyle = `rgba(${12 + rng() * 18}, ${12 + rng() * 18}, ${22 + rng() * 18}, ${0.15 + rng() * 0.2})`;
+    }
+    const size = 1 + rng() * 2;
+    ctx.fillRect(x, y, size, size);
+  }
+}
+
+// Layer 3: 裂缝网络
+function drawCrackNetwork(ctx: CanvasRenderingContext2D, rng: SeededRNG, variant: HomepageSceneVariant) {
+  const crackColor = variant === 'day' ? 'rgba(160,155,148,0.35)' : 'rgba(28,28,45,0.4)';
+  const shadowColor = variant === 'day' ? 'rgba(140,138,132,0.15)' : 'rgba(5,5,12,0.25)';
+
+  // 主裂缝
+  const mainCrackCount = 2 + Math.floor(rng() * 3);
+  for (let c = 0; c < mainCrackCount; c++) {
+    const startX = rng() * 1024;
+    const startY = rng() * 512;
+    const angle = (rng() - 0.5) * 0.6 + (rng() > 0.5 ? 0 : Math.PI);
+    let cx = startX;
+    let cy = startY;
+    const segCount = 8 + Math.floor(rng() * 15);
+    const segLen = 30 + rng() * 60;
+
+    ctx.strokeStyle = crackColor;
+    ctx.lineWidth = 0.8 + rng() * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+
+    for (let s = 0; s < segCount; s++) {
+      const da = (rng() - 0.5) * 0.8;
+      cx += Math.cos(angle + da) * segLen;
+      cy += Math.sin(angle + da) * segLen;
+      ctx.lineTo(cx, cy);
+
+      // 裂缝阴影
+      ctx.strokeStyle = shadowColor;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.strokeStyle = crackColor;
+      ctx.lineWidth = 0.8 + rng() * 1.2;
+      ctx.stroke();
+
+      // 分叉
+      if (rng() > 0.65) {
+        const branchAngle = angle + (rng() > 0.5 ? 1 : -1) * (0.5 + rng() * 1.2);
+        const branchLen = 30 + rng() * 90;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(branchAngle) * branchLen, cy + Math.sin(branchAngle) * branchLen);
+        ctx.strokeStyle = crackColor;
+        ctx.lineWidth = 0.3 + rng() * 0.7;
+        ctx.stroke();
+      }
+    }
+    ctx.stroke();
+  }
+
+  // 微裂缝
+  for (let i = 0; i < 12; i++) {
+    const x = rng() * 1024;
+    const y = rng() * 512;
+    const angle = rng() * Math.PI * 2;
+    const len = 20 + rng() * 100;
+    ctx.strokeStyle = crackColor;
+    ctx.lineWidth = 0.3 + rng() * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+}
+
+// Layer 4: 水渍痕迹
+function drawWaterStains(ctx: CanvasRenderingContext2D, rng: SeededRNG, positions: Array<{ x: number; y: number }>, variant: HomepageSceneVariant) {
+  const color = variant === 'day' ? 'rgba(180,195,210,0.12)' : 'rgba(18,20,30,0.18)';
+  for (const pos of positions) {
+    const w = 20 + rng() * 40;
+    const h = 40 + rng() * 80;
+    const radGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y + h / 2, h);
+    radGrad.addColorStop(0, color);
+    radGrad.addColorStop(0.6, color.replace(/[\d.]+\)$/, `${parseFloat(color.match(/[\d.]+\)$/)?.[0] || '0') * 0.5})`));
+    radGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = radGrad;
+    ctx.fillRect(pos.x - w, pos.y - h / 2, w * 2, h * 1.5);
+
+    // 流水线条
+    for (let l = 0; l < 4; l++) {
+      const lx = pos.x + (rng() - 0.5) * w * 1.5;
+      const ly = pos.y;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      for (let s = 0; s < 6; s++) {
+        ctx.lineTo(lx + (rng() - 0.5) * 4, ly + s * (h / 6));
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+// Layer 5: 墙皮剥落
+function drawPeelingAreas(ctx: CanvasRenderingContext2D, rng: SeededRNG, variant: HomepageSceneVariant) {
+  const count = 2 + Math.floor(rng() * 3);
+  for (let i = 0; i < count; i++) {
+    const cx = rng() * 1024;
+    const cy = rng() * 512;
+    const size = 25 + rng() * 55;
+    const vertices = 5 + Math.floor(rng() * 4);
+    const color = variant === 'day' ? 'rgba(200,192,182,0.2)' : 'rgba(20,18,25,0.25)';
+    const edgeColor = variant === 'day' ? 'rgba(210,205,195,0.15)' : 'rgba(35,30,45,0.2)';
+
+    // 不规则多边形剥落区
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let v = 0; v < vertices; v++) {
+      const angle = (v / vertices) * Math.PI * 2;
+      const r = size * (0.6 + rng() * 0.4);
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      if (v === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 翘起的边缘高光
+    ctx.strokeStyle = edgeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+// Layer 6: 管道阴影
+function drawPipeShadows(ctx: CanvasRenderingContext2D, rng: SeededRNG, ys: number[], variant: HomepageSceneVariant) {
+  for (const y of ys) {
+    const w = 150 + rng() * 250;
+    const x = rng() * (1024 - w);
+    const h = 6 + rng() * 10;
+    const color = variant === 'day' ? 'rgba(170,175,185,0.1)' : 'rgba(5,5,12,0.2)';
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+
+    // 螺栓痕迹
+    const boltCount = 2 + Math.floor(rng() * 3);
+    for (let b = 0; b < boltCount; b++) {
+      const bx = x + (b + 1) * (w / (boltCount + 1));
+      const by = y + h / 2;
+      ctx.fillStyle = variant === 'day' ? 'rgba(150,148,142,0.15)' : 'rgba(25,25,40,0.25)';
+      ctx.beginPath();
+      ctx.arc(bx, by, 3 + rng() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// Layer 7: 霓虹映射光晕
+function drawNeonMapping(ctx: CanvasRenderingContext2D, variant: HomepageSceneVariant, lights: WallContext['neonLights']) {
+  for (const light of lights) {
+    const radGrad = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, light.radius);
+    radGrad.addColorStop(0, `rgba(${light.color},${light.alpha})`);
+    radGrad.addColorStop(0.5, `rgba(${light.color},${light.alpha * 0.4})`);
+    radGrad.addColorStop(1, `rgba(${light.color},0)`);
+    ctx.fillStyle = radGrad;
+    ctx.fillRect(light.x - light.radius, light.y - light.radius, light.radius * 2, light.radius * 2);
+  }
+}
+
+// ─── RoughnessMap 绘制 ─────────────────────────────────────
+
+function drawBrickPattern(ctx: CanvasRenderingContext2D, rng: SeededRNG) {
+  const brickW = 50;
+  const brickH = 25;
+  const gap = 2;
+
+  for (let row = 0; row * (brickH + gap) < 256; row++) {
+    const offset = (row % 2) * (brickW / 2);
+    for (let col = -1; col * (brickW + gap) < 512 + brickW; col++) {
+      const bx = col * (brickW + gap) + offset;
+      const by = row * (brickH + gap);
+      // 砖缝（低 roughness = 暗色）
+      ctx.fillStyle = `rgb(${Math.floor(140 + rng() * 10)},${Math.floor(140 + rng() * 10)},${Math.floor(140 + rng() * 10)})`;
+      ctx.fillRect(bx, by, brickW + gap, brickH + gap);
+      // 砖面（高 roughness = 亮色）
+      const roughVal = 217 + Math.floor(rng() * 12);
+      ctx.fillStyle = `rgb(${roughVal},${roughVal},${roughVal})`;
+      ctx.fillRect(bx + gap, by + gap, brickW - gap, brickH - gap);
+    }
+  }
+}
+
+function drawRoughnessCracks(ctx: CanvasRenderingContext2D, rng: SeededRNG) {
+  const crackCount = 2 + Math.floor(rng() * 2);
+  for (let c = 0; c < crackCount; c++) {
+    const startX = rng() * 512;
+    const startY = rng() * 256;
+    const angle = rng() * Math.PI;
+    let cx = startX, cy = startY;
+    ctx.strokeStyle = `rgb(${Math.floor(153 + rng() * 25)},${Math.floor(153 + rng() * 25)},${Math.floor(153 + rng() * 25)})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    for (let s = 0; s < 10; s++) {
+      cx += Math.cos(angle + (rng() - 0.5) * 0.8) * 30;
+      cy += Math.sin(angle + (rng() - 0.5) * 0.8) * 30;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+}
+
+// ─── 组合：单面墙纹理 ──────────────────────────────────────
+
+interface WallTextures {
+  color: THREE.CanvasTexture;
+  roughness: THREE.CanvasTexture;
+}
+
+function createSingleWallTextures(variant: HomepageSceneVariant, wallCtx: WallContext): WallTextures {
+  const rng = createSeededRandom(wallCtx.seed);
+
+  // ColorMap: 1024 x 512
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = 1024;
+  colorCanvas.height = 512;
+  const colorCtx = colorCanvas.getContext('2d')!;
+
+  colorCtx.fillStyle = variant === 'day' ? '#dfe7ef' : '#0d0d1a';
+  colorCtx.fillRect(0, 0, 1024, 512);
+
+  drawConcretePatches(colorCtx, rng, variant);
+  drawConcreteAggregate(colorCtx, rng, variant);
+  drawCrackNetwork(colorCtx, rng, variant);
+  drawWaterStains(colorCtx, rng, wallCtx.waterStainPositions, variant);
+  drawPeelingAreas(colorCtx, rng, variant);
+  drawPipeShadows(colorCtx, rng, wallCtx.pipeShadowYs, variant);
+  drawNeonMapping(colorCtx, variant, wallCtx.neonLights);
+
+  const colorTexture = new THREE.CanvasTexture(colorCanvas);
+  colorTexture.wrapS = THREE.ClampToEdgeWrapping;
+  colorTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+  // RoughnessMap: 512 x 256
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = 512;
+  roughCanvas.height = 256;
+  const roughCtx = roughCanvas.getContext('2d')!;
+
+  // 基础 roughness 0.88 → 灰度 224
+  roughCtx.fillStyle = 'rgb(224,224,224)';
+  roughCtx.fillRect(0, 0, 512, 256);
+
+  // 天花板附近：更高 roughness（灰尘）
+  const ceilGrad = roughCtx.createLinearGradient(0, 0, 0, 30);
+  ceilGrad.addColorStop(0, 'rgb(242,242,242)');
+  ceilGrad.addColorStop(1, 'rgb(224,224,224)');
+  roughCtx.fillStyle = ceilGrad;
+  roughCtx.fillRect(0, 0, 512, 30);
+
+  // 下部墙裙：更高 roughness（磨损）
+  const baseGrad = roughCtx.createLinearGradient(0, 220, 0, 256);
+  baseGrad.addColorStop(0, 'rgb(224,224,224)');
+  baseGrad.addColorStop(1, 'rgb(240,240,240)');
+  roughCtx.fillStyle = baseGrad;
+  roughCtx.fillRect(0, 220, 512, 36);
+
+  drawBrickPattern(roughCtx, rng);
+  drawRoughnessCracks(roughCtx, rng);
+
+  const roughTexture = new THREE.CanvasTexture(roughCanvas);
+  roughTexture.wrapS = THREE.ClampToEdgeWrapping;
+  roughTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+  return { color: colorTexture, roughness: roughTexture };
+}
+
+export interface WallTexturesSet {
+  back: WallTextures;
+  left: WallTextures;
+  right: WallTextures;
+}
+
+export function createWallTextures(variant: HomepageSceneVariant): WallTexturesSet {
+  const contexts = buildWallContexts(variant);
+  return {
+    back: createSingleWallTextures(variant, contexts.back),
+    left: createSingleWallTextures(variant, contexts.left),
+    right: createSingleWallTextures(variant, contexts.right),
+  };
 }
