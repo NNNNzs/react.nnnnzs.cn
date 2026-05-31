@@ -10,7 +10,10 @@ import redisService from '@/lib/redis';
 export const runtime = 'nodejs';
 
 const DEPLOY_STATUS_KEY = 'deploy:status';
+const DEPLOY_HISTORY_KEY = 'deploy:history';
+const DEPLOY_HISTORY_MAX = 24;
 const DEPLOY_STATUS_TTL_SECONDS = 60 * 60;
+const DEPLOY_HISTORY_TTL_SECONDS = 60 * 60 * 24 * 7;
 const DEPLOY_STATUS_VALUES = new Set(['deploying', 'success', 'failure']);
 
 interface DeployStatusWebhookPayload {
@@ -78,6 +81,25 @@ export async function POST(request: NextRequest) {
       DEPLOY_STATUS_KEY,
       DEPLOY_STATUS_TTL_SECONDS,
       JSON.stringify(deployStatus)
+    );
+
+    const historyRecord = {
+      status: deployStatus.status,
+      timestamp: deployStatus.updatedAt,
+      commit: deployStatus.commit,
+      version: deployStatus.version,
+    };
+
+    const existing = await redisService.get(DEPLOY_HISTORY_KEY);
+    const history: unknown[] = existing ? JSON.parse(existing as string) : [];
+    history.unshift(historyRecord);
+    if (history.length > DEPLOY_HISTORY_MAX) {
+      history.length = DEPLOY_HISTORY_MAX;
+    }
+    await redisService.setex(
+      DEPLOY_HISTORY_KEY,
+      DEPLOY_HISTORY_TTL_SECONDS,
+      JSON.stringify(history)
     );
 
     return NextResponse.json(successResponse(deployStatus, '部署状态已更新'));

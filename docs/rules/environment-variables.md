@@ -97,6 +97,17 @@ DOCKER_HUB_TOKEN=your-docker-hub-token
 DOCKERHUB_USERNAME=your-dockerhub-username
 ```
 
+### GitHub API（可选）
+```bash
+GITHUB_TOKEN=ghp_your_github_token
+```
+
+> **说明**：
+> - `GITHUB_TOKEN` 用于首页 3D 场景的 Git commit 活动数据获取（`GET /api/activity/commits`）。
+> - 不配置时仍可正常运行，但 GitHub API 匿名请求速率限制为 60 次/小时，可能触发限流。
+> - 建议使用 fine-grained personal access token，仅需 `Contents` 只读权限。
+> - 服务端 Redis 缓存 10 分钟，实际 API 调用频率很低。
+
 ## 已迁移至数据库的配置
 
 以下配置已从环境变量迁移到数据库 `tb_config` 表，通过**系统配置管理页面**配置：

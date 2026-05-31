@@ -28,6 +28,7 @@ import { SceneEditorTransformControls, useSceneEditorStore } from './sceneEditor
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
 import { getBannerSubtitle } from '@/lib/content';
 import type { Post } from '@/types';
+import type { BookshelfCollection, CommitEntry, DeployRecord, ScreenTextureData } from './furniture/types';
 
 // ========================
 // 常量
@@ -324,10 +325,14 @@ function CameraFocusController({
 function SceneHotspots({
   activeFocusKey,
   onHotspotActivate,
+  isDefaultMode,
 }: {
   activeFocusKey: CameraFocusKey;
   onHotspotActivate: (key: CameraFocusKey) => void;
+  isDefaultMode: boolean;
 }) {
+  if (!isDefaultMode) return null;
+
   return (
     <>
       {(['desk', 'living', 'bookshelf', 'server', 'sleep'] as CameraFocusKey[]).map((key) => {
@@ -599,6 +604,10 @@ function Scene({
   isHeroVisible,
   onHotspotActivate,
   onFpsUpdate,
+  collections,
+  screenData,
+  deployHistory,
+  isDefaultMode,
 }: {
   debugControlsOpen: boolean;
   interactiveMode: boolean;
@@ -609,6 +618,10 @@ function Scene({
   isHeroVisible: boolean;
   onHotspotActivate: (key: CameraFocusKey) => void;
   onFpsUpdate: (fps: number) => void;
+  collections?: BookshelfCollection[];
+  screenData?: [ScreenTextureData, ScreenTextureData, ScreenTextureData];
+  deployHistory?: DeployRecord[];
+  isDefaultMode: boolean;
 }) {
   const editable = debugControlsOpen;
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
@@ -700,12 +713,13 @@ function Scene({
         />
       )}
       {pShowRoom && <Room variant={variant} />}
-      {pShowFurniture && <Furniture variant={variant} />}
+      {pShowFurniture && <Furniture variant={variant} collections={collections} screenData={screenData} deployHistory={deployHistory} />}
       {editable && <SceneEditorTransformControls enabled={editable} />}
       {pShowFurniture && (
         <SceneHotspots
           activeFocusKey={activeFocusKey}
           onHotspotActivate={onHotspotActivate}
+          isDefaultMode={isDefaultMode}
         />
       )}
       {pShowRain && isHeroVisible && (
@@ -737,9 +751,11 @@ function ScrollFadeOverlay({ scrollProgress, variant }: { scrollProgress: number
 export default function CyberpunkBanner({
   variant = 'night',
   posts = [],
+  collections = [],
 }: {
   variant?: HomepageSceneVariant;
   posts?: Post[];
+  collections?: BookshelfCollection[];
 }) {
   const [capabilityChecked, setCapabilityChecked] = useState(false);
   const [webglOk, setWebglOk] = useState(false);
@@ -758,6 +774,91 @@ export default function CyberpunkBanner({
   const [fps, setFps] = useState(0);
   const devControlsModuleRef = useRef<Promise<typeof import('./DevControls')> | null>(null);
   const preset = HOMEPAGE_THEME_PRESETS[variant];
+
+  // 活动数据 hooks
+  const [deployHistory, setDeployHistory] = useState<DeployRecord[]>([]);
+  const [commits, setCommits] = useState<CommitEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchDeployHistory = async () => {
+      try {
+        const res = await fetch('/api/deploy/history');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json.status && json.data) {
+          setDeployHistory(json.data);
+        }
+      } catch { /* 静默失败 */ }
+    };
+
+    const fetchCommits = async () => {
+      try {
+        const res = await fetch('/api/activity/commits?limit=8');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json.status && json.data) {
+          setCommits(json.data);
+        }
+      } catch { /* 静默失败 */ }
+    };
+
+    fetchDeployHistory();
+    fetchCommits();
+
+    const deployInterval = setInterval(fetchDeployHistory, 30000);
+    const commitInterval = setInterval(fetchCommits, 300000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(deployInterval);
+      clearInterval(commitInterval);
+    };
+  }, []);
+
+  // 构建三联屏数据
+  const screenData = useMemo<[ScreenTextureData, ScreenTextureData, ScreenTextureData]>(() => {
+    const latestDeploy = deployHistory[0];
+
+    const commitScreen: ScreenTextureData = {
+      variant: 'commit-log',
+      headerColor: '#6dffb4',
+      headerText: 'COMMITS',
+      lines: commits.slice(0, 8).map((c, i) => ({
+        text: `${c.hash}  ${c.message.length > 40 ? c.message.slice(0, 40) + '...' : c.message}`,
+        color: i === 0 ? '#6dffb4' : '#a0c4e8',
+        highlight: i === 0,
+      })),
+    };
+
+    const deployScreen: ScreenTextureData = {
+      variant: 'deploy-status',
+      headerColor: '#00f0ff',
+      headerText: 'DEPLOY STATUS',
+      lines: latestDeploy
+        ? [
+            { text: `Status: ${latestDeploy.status.toUpperCase()}`, color: latestDeploy.status === 'success' ? '#00f0ff' : latestDeploy.status === 'failure' ? '#ff2a9a' : '#ffb347', highlight: true },
+            { text: `Commit: ${latestDeploy.commit}`, color: '#a0c4e8' },
+            { text: `Version: ${latestDeploy.version}`, color: '#a0c4e8' },
+            { text: `Updated: ${latestDeploy.timestamp}`, color: '#667788' },
+          ]
+        : [{ text: 'No deploy data', color: '#667788' }],
+    };
+
+    const postScreen: ScreenTextureData = {
+      variant: 'post-feed',
+      headerColor: '#ff2a9a',
+      headerText: 'RECENT POSTS',
+      lines: posts.slice(0, 8).map((post, i) => ({
+        text: `${post.date?.slice(0, 10) ?? ''}  ${post.title ?? ''}`,
+        color: i === 0 ? '#ff2a9a' : '#a0c4e8',
+        highlight: i === 0,
+      })),
+    };
+
+    return [commitScreen, deployScreen, postScreen];
+  }, [commits, deployHistory, posts]);
 
   const camPosX = useSceneStore(s => s.camera.positionX);
   const camPosY = useSceneStore(s => s.camera.positionY);
@@ -1009,6 +1110,10 @@ export default function CyberpunkBanner({
               isHeroVisible={isHeroVisible}
               onHotspotActivate={handleHotspotActivate}
               onFpsUpdate={onFpsUpdate}
+              collections={collections}
+              screenData={screenData}
+              deployHistory={deployHistory}
+              isDefaultMode={isDefaultMode}
             />
           </Suspense>
         </Canvas>

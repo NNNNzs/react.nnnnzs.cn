@@ -3,6 +3,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import type { ScreenTextureData } from './types';
 
 export const metalDark = {
   color: '#101018',
@@ -148,21 +149,76 @@ export function Cable({
   );
 }
 
-export function BlinkingLED({ position, color }: { position: [number, number, number]; color: string }) {
+export function createDataScreenTexture(data: ScreenTextureData): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 360;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#050712';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#07121f';
+  ctx.fillRect(0, 0, canvas.width, 28);
+  ctx.fillStyle = data.headerColor;
+  ctx.font = '11px monospace';
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(data.headerText, 12, 18);
+
+  ctx.globalAlpha = 1;
+  data.lines.forEach((line, i) => {
+    const y = 50 + i * 32;
+    if (y > 340) return;
+
+    if (line.highlight) {
+      ctx.fillStyle = line.color || '#00f0ff';
+      ctx.globalAlpha = 0.12;
+      ctx.fillRect(8, y - 14, canvas.width - 16, 28);
+    }
+
+    ctx.font = line.highlight ? 'bold 12px monospace' : '11px monospace';
+    ctx.fillStyle = line.color || '#a0c4e8';
+    ctx.globalAlpha = line.highlight ? 1.0 : 0.7;
+    ctx.fillText(line.text, 16, y);
+  });
+
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+export function BlinkingLED({ position, color, status }: { position: [number, number, number]; color?: string; status?: 'deploying' | 'success' | 'failure' }) {
   const ref = useRef<THREE.Mesh>(null);
-  const seed = Math.abs(position[0] * 31 + position[1] * 17 + position[2] * 47 + color.length);
+  const seed = Math.abs(position[0] * 31 + position[1] * 17 + position[2] * 47 + (color?.length ?? 0));
+
+  const ledColor = status ? getLedColorForStatus(status) : (color ?? '#00f0ff');
+  const isBreathing = status === 'deploying';
 
   useFrame(({ clock }) => {
     if (!ref.current) return;
     const material = ref.current.material as THREE.MeshStandardMaterial;
-    // 通过种子控制闪烁节奏，让每个 LED 看起来都“有自己的脾气”
-    material.emissiveIntensity = Math.sin(clock.getElapsedTime() * (1.2 + seed % 2) + seed) > -0.15 ? 1.7 : 0.18;
+    if (isBreathing) {
+      material.emissiveIntensity = 0.2 + 1.5 * (0.5 + 0.5 * Math.sin(clock.getElapsedTime() * 2 + seed));
+    } else if (status) {
+      material.emissiveIntensity = 1.1 + Math.sin(clock.getElapsedTime() * 1.5 + seed) * 0.15;
+    } else {
+      material.emissiveIntensity = Math.sin(clock.getElapsedTime() * (1.2 + seed % 2) + seed) > -0.15 ? 1.7 : 0.18;
+    }
   });
 
   return (
     <mesh ref={ref} position={position}>
       <sphereGeometry args={[0.025, 10, 10]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} toneMapped={false} />
+      <meshStandardMaterial color={ledColor} emissive={ledColor} emissiveIntensity={1.4} toneMapped={false} />
     </mesh>
   );
+}
+
+function getLedColorForStatus(status: 'deploying' | 'success' | 'failure'): string {
+  switch (status) {
+    case 'success': return '#00f0ff';
+    case 'failure': return '#ff2a9a';
+    case 'deploying': return '#ffb347';
+  }
 }

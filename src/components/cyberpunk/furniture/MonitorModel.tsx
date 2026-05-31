@@ -3,18 +3,24 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { createScreenTexture, metalDark } from './shared';
+import { createScreenTexture, createDataScreenTexture, metalDark } from './shared';
+import type { ScreenTextureData } from './types';
 
 export default function MonitorModel({
   position,
   rotation,
   variant,
+  screenData,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
   variant: number;
+  screenData?: ScreenTextureData;
 }) {
-  const texture = useMemo(() => createScreenTexture(variant), [variant]);
+  const texture = useMemo(
+    () => screenData ? createDataScreenTexture(screenData) : createScreenTexture(variant),
+    [variant, screenData],
+  );
   const ref = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {

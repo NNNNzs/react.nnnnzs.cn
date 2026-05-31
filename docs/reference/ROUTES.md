@@ -218,6 +218,37 @@ src/app/
 - `image_gen.model` - 模型名称（默认 gpt-image-2）
 - `image_gen.api_mode` - 图片生成接口模式：`chat_completions`（默认）或 `images_generations`
 
+### 部署与活动数据 API 端点（新增）
+
+```
+/api/deploy/webhook    # 部署状态 Webhook（POST，接收 GitHub Actions 通知）
+/api/deploy/history    # 部署历史查询（GET，查询 GitHub Actions API 获取最近 24 条 Docker Release workflow 运行记录）
+/api/activity/commits  # GitHub Commits 查询（GET，获取最近提交记录）
+```
+
+**部署历史流程**：
+1. `GET /api/deploy/history?limit=24` 直接查询 GitHub Actions API（`docker-release.yml` workflow runs）
+2. 不依赖 webhook 累积，首次即可获得真实部署历史
+3. 结果缓存到 Redis `deploy:history`（TTL 5 分钟），前端 `CyberpunkBanner` 每 30 秒轮询
+4. 部署历史驱动服务器机柜 LED 状态灯和中屏 deploy-status 纹理
+
+> **注意**：Webhook（`POST /api/deploy/webhook`）仍保留，会同时写入 `deploy:status`（单条最新状态）和 `deploy:history`（历史列表）。但历史查询已改为直接走 GitHub Actions API，不再依赖 webhook 累积。
+
+**GitHub Commits 流程**：
+1. `GET /api/activity/commits?limit=8` 从 GitHub API 获取最近提交
+2. 结果缓存到 Redis `activity:commits`（TTL 10 分钟）
+3. 前端 `CyberpunkBanner` 每 5 分钟（300 秒）轮询该接口
+4. Commits 数据驱动三联屏左屏 commit-log 纹理
+
+**请求参数**：
+```
+GET /api/activity/commits?limit=8   # limit 可选，默认 8，最大 20
+GET /api/deploy/history?limit=24    # limit 可选，默认 24，最大 24
+```
+
+**环境变量**（可选）：
+- `GITHUB_TOKEN` — GitHub Personal Access Token，提升 API 速率限制（匿名 60 次/小时 → 认证 5000 次/小时）
+
 ## 📝 路径生成规则
 
 ### 文章 path 字段

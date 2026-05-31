@@ -4,9 +4,11 @@
  */
 
 import { getPostList } from "@/services/post";
+import { getCollectionList } from "@/services/collection";
 import { unstable_cache } from "next/cache";
 import HomePageContainer from "@/components/HomePageContainer";
 import Footer from "@/components/Footer";
+import type { BookshelfCollection } from "@/components/cyberpunk/furniture/types";
 
 // 每页固定条数
 const PAGE_SIZE = 10;
@@ -36,6 +38,28 @@ const getCachedPosts = unstable_cache(
   }
 );
 
+const getCachedCollections = unstable_cache(
+  async (): Promise<BookshelfCollection[]> => {
+    const result = await getCollectionList({
+      pageNum: 1,
+      pageSize: 20,
+      status: 1,
+    });
+    return result.record.map((c) => ({
+      id: c.id,
+      title: c.title,
+      slug: c.slug,
+      articleCount: c.article_count,
+      color: c.color,
+    }));
+  },
+  ['home', 'collection-list'],
+  {
+    revalidate: 3600,
+    tags: ['collections'],
+  }
+);
+
 export default async function Home({ searchParams }: HomeProps) {
   // 从 URL query 参数读取页码，默认为 1
   const params = await searchParams;
@@ -49,6 +73,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   // 获取所有需要的数据（从第1页到当前页）
   const { record, total } = await getCachedPosts(totalItemsToLoad);
+  const collections = await getCachedCollections();
 
   return (
     <>
@@ -56,6 +81,7 @@ export default async function Home({ searchParams }: HomeProps) {
         posts={record}
         total={total}
         currentPageNum={validPageNum}
+        collections={collections}
       />
       <Footer />
     </>

@@ -5,11 +5,13 @@ import dynamic from 'next/dynamic';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
 import { useDarkMode } from '@/hooks/useDarkMode';
+import type { BookshelfCollection } from '@/components/cyberpunk/furniture/types';
 
 interface HomePageClientProps {
   posts: Post[];
   hasMore: boolean;
   onLoadMore: () => void;
+  collections: BookshelfCollection[];
 }
 
 // 滚动位置缓存键名
@@ -50,6 +52,7 @@ export default function HomePageClient({
   posts,
   hasMore,
   onLoadMore,
+  collections,
 }: HomePageClientProps) {
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
   const postsAnchorRef = useRef<HTMLDivElement>(null);
@@ -139,7 +142,7 @@ export default function HomePageClient({
   return (
     <div className="bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
-      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} />
+      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} collections={collections} />
 
       {/* 文章列表 */}
       <div ref={postsAnchorRef} />

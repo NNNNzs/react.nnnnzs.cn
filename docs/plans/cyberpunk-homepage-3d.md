@@ -2,7 +2,7 @@
 
 > **状态**：🔄 进行中（阶段一：紧凑赛博单间 primitive 版已接入，继续打磨昼夜双主题）
 > **创建时间**：2025-05-18
-> **最近更新**：2026-05-24
+> **最近更新**：2026-05-31
 > **合集**：小破站建设
 
 ---
@@ -34,9 +34,9 @@ NNNNzs = Neon Nomad Navigating Night Zones
 
 ---
 
-## 〇、当前实现快照（2026-05-24）
+## 〇、当前实现快照（2026-05-31）
 
-当前代码已经从“计划验证”进入“可见的阶段一实现”：
+当前代码已经从”计划验证”进入”可见的阶段一实现”：
 
 - 首页已接入 `src/components/cyberpunk/CyberpunkBanner.tsx`，首屏可使用 R3F `Canvas` 渲染 3D 房间。
 - 已有程序化房间：地板、墙体、天花板、落地窗、城市夜景纹理、窗框、管线、灯带。
@@ -48,6 +48,17 @@ NNNNzs = Neon Nomad Navigating Night Zones
 - 2026-05-20 已开始昼夜双主题实现：新增 `HomepageSceneVariant` 与 theme preset，首页日间/夜间都走同一个 3D Banner，日间关闭雨滴并降低 Bloom。
 - 2026-05-24 新增活动数据家具原型方向：保留服务器机柜部署状态灯、三联显示器活动纹理、书架数据核心三个概念，用于把 Git commit、GitHub Actions 部署记录和文章发表历史接入同一 3D 房间。
 - 2026-05-24 已把参考图方向落成第一版紧凑单间：北墙收窄，窗子改为三块玻璃，书架/服务器/衣柜集中在东墙，默认镜头从西南室内角落看向东北，探索模式改为双击进入、右键或再次双击退出。
+- 2026-05-31 **活动数据家具化已完成**：真实博客数据已接入 3D 房间家具。
+  - **书架数据核心**：`DataCore` 和 `CollectionDataCoreGroup` 组件，合集数据来自服务端 `unstable_cache`（1h revalidation），hover 显示 tooltip、点击跳转合集页。
+  - **三联显示器纹理**：`createDataScreenTexture()` 数据驱动纹理，左屏 commit-log（GitHub API + Redis 缓存 10min）、中屏 deploy-status（Redis `deploy:history`）、右屏 post-feed（首页文章 props）。
+  - **服务器机柜 LED**：`BlinkingLED` 支持 `status` prop（deploying 琥珀呼吸灯、success 青绿、failure 粉红），由 `useDeployHistory` 30s 轮询驱动。部署历史直接查询 GitHub Actions API（`docker-release.yml` workflow runs），不依赖 webhook 累积。
+  - **新增 API 路由**：`GET /api/deploy/history`（部署历史，GitHub Actions API + Redis 5min）、`GET /api/activity/commits`（GitHub 提交记录，GitHub API + Redis 10min）。
+  - **新增类型定义**：`src/components/cyberpunk/furniture/types.ts`（DeployRecord、BookshelfCollection、ScreenTextureData、CommitEntry）。
+  - **环境变量**：可选 `GITHUB_TOKEN`（提升 GitHub API 速率限制）。
+- 2026-05-31 **聚焦隐藏热点 + 服务器机柜交互已完成**：
+  - **热点隐藏**：`SceneHotspots` 接受 `isDefaultMode` prop，聚焦/探索模式下不渲染热点按钮，避免遮挡 3D 模型。
+  - **服务器抽拉交互**：`ServerUnit` 组件，点击沿 Z 轴滑出（lerp），再点缩回，单行互斥。抽拉后 Html 面板显示版本、commit message、状态、时间。
+  - **收缩态可见**：LED 灯、分割线在收缩态始终可见（Z=0.26，位于机柜正面外侧）。
 
 ## 〇二、参考图紧凑赛博单间重构计划（2026-05-24）
 
@@ -127,16 +138,17 @@ fov: 68
 
 - 空间比例和默认视角已收敛为紧凑赛博单间，后续不再优先扩大房间或回到宽幅 Loft。
 - 当前仍是 Three.js primitive 占位模型，桌椅、床、沙发、服务器、书架等焦点物件需要逐步替换为 GLB 或自建模型。
-- “空间叙事”和博客内容之间的连接还不够强，需要把合集、文章、标签逐步接入 3D 物件。
+- ~~”空间叙事”和博客内容之间的连接还不够强，需要把合集、文章、标签逐步接入 3D 物件。~~ 已通过活动数据家具化初步解决：书架映射合集、三联屏映射 commit/deploy/post、服务器机柜映射部署状态。
 - 日间主题已经能走同一套 3D Banner，但材质、光照和 HUD 还需要继续往温暖、文艺、明亮方向打磨。
 - 低端设备降级目前是视觉回退，不是真正的静态截图，需要后续生成一张高质量 fallback 海报。
+- 活动数据家具化的书架交互（hover tooltip、点击跳转）在移动端需要验证和降级处理。
 
 ### 下一步优先级
 
 1. **关键模型替换**：优先替换电竞椅、沙发、床、服务器柜、书架，减少 primitive 方块感。
-2. **内容数据家具化**：让书架映射合集，三联屏映射最近文章/commit 活动，服务器机柜映射部署状态。
-3. **日间主题打磨**：同一紧凑单间结构下切换暖光、蓝天/窗景、低 Bloom、温暖材质、轻 HUD。
-4. **夜间主题打磨**：保留霓虹、雨夜、Bloom、终端、HUD，但控制性能和滚动体验。
+2. **日间主题打磨**：同一紧凑单间结构下切换暖光、蓝天/窗景、低 Bloom、温暖材质、轻 HUD。
+3. **夜间主题打磨**：保留霓虹、雨夜、Bloom、终端、HUD，但控制性能和滚动体验。
+4. **移动端交互验证**：书架 tooltip、显示器点击等数据家具交互在移动端需要验证和降级处理。
 5. **组件重命名/抽象**：把 `CyberpunkBanner` 逐步抽象为 `Homepage3DBanner`，保留 `variant="day" | "night"`。
 6. **静态 fallback**：生成一张高质量静态海报，用于低端设备和 reduced motion 降级。
 
@@ -364,13 +376,13 @@ interface HomepageThemePreset {
 
 **目标**：在 3D 场景中加入书架，书架上的"书"对应博客合集，点击可跳转。
 
-- 当前已有程序化书架和发光数据核心，下一步把它改为数据驱动。
-- 每个合集 = 书架上一排发光的书/数据模块。
-- hover 显示合集名称 + 文章数。
-- 点击跳转到合集页。
-- 移动端不做精细 hover，改为点击后显示轻量浮层或直接跳转。
+- ~~当前已有程序化书架和发光数据核心，下一步把它改为数据驱动。~~ 已在阶段二点一完成数据化。
+- 每个合集 = 书架上一排发光的书/数据模块（已实现 `DataCore` + `CollectionDataCoreGroup`）。
+- hover 显示合集名称 + 文章数（已实现 Html tooltip）。
+- 点击跳转到合集页（已实现）。
+- 移动端不做精细 hover，改为点击后显示轻量浮层或直接跳转（待验证）。
 
-### 🟢 阶段二点一：活动数据家具化（新增原型方向）
+### ✅ 阶段二点一：活动数据家具化（已完成 2026-05-31）
 
 **目标**：把 Git commit、GitHub Actions 部署记录、文章发表历史变成房间中已有家具的状态，而不是在首屏叠加大型 dashboard。3D 负责氛围和入口，HTML 区域继续负责可读性、SEO 和完整列表。
 
@@ -403,18 +415,34 @@ interface HomepageThemePreset {
 
 | 数据来源 | 3D 家具 | 夜间表现 | 日间表现 | 交互 |
 |---------|---------|----------|----------|------|
-| GitHub Actions 部署记录 | 服务器机柜 | 青绿成功灯、粉红失败灯、琥珀运行中呼吸灯。 | 整洁设备柜状态灯、轻量状态牌。 | 点击/hover 显示最近部署、分支、状态、时间。 |
+| GitHub Actions 部署记录 | 服务器机柜 | 青绿成功灯、粉红失败灯、琥珀运行中呼吸灯，收缩态可见。 | 整洁设备柜状态灯、轻量状态牌。 | 点击抽拉滑出，显示版本、commit message、状态、时间；再点缩回，单行互斥。 |
 | Git commit 记录 | 三联显示器左/中屏 | 代码流、commit hash、diff 脉冲节点。 | IDE 最近修改、代码笔记、低亮度屏幕。 | 点击跳转到代码活动详情或 GitHub commit。 |
 | 文章发表历史 | 三联显示器右屏 + 书架数据核心 | 广播卡片、发表节点、同日多次亮点聚合。 | 书脊/便签/归档盒上的轻量标记。 | 点击跳转文章或按日期展开。 |
 | 合集与长期文章积累 | 书架 | 每个合集一层数据核心，文章越多越亮。 | 书、归档盒、纸质标签和少量柔光数据块。 | hover 显示合集名和文章数，点击进合集页。 |
 
 #### 实施切片
 
-1. **服务器机柜部署灯**：先用静态/mock 数据驱动 LED 数组，验证视觉和性能，再接 GitHub Actions 数据。
-2. **三联显示器纹理升级**：扩展当前 `createScreenTexture`，按数据类型生成 commit/deploy/post 三类屏幕纹理。
-3. **书架数据核心数据化**：把现有固定发光方块改为合集数组渲染，支持合集名、文章数、slug。
-4. **数据获取边界**：Git commit 可从本地构建脚本或 GitHub API 同步，GitHub Actions 从 workflow run 记录同步，文章发表历史复用现有 `posts` 数据。
-5. **完整历史入口**：首屏只做状态摘要；如果后续需要全年热力图，放到文章列表后方或独立 timeline/archives 页面。
+1. **服务器机柜部署灯** ~~：先用静态/mock 数据驱动 LED 数组，验证视觉和性能，再接 GitHub Actions 数据。~~ ✅ 已完成：直接查询 GitHub Actions API（`docker-release.yml` workflow runs），Redis 缓存 5min，`useDeployHistory` 30s 轮询驱动 LED + 抽拉交互。
+2. **三联显示器纹理升级** ~~：扩展当前 `createScreenTexture`，按数据类型生成 commit/deploy/post 三类屏幕纹理。~~ ✅ 已完成：`createDataScreenTexture()` 数据驱动，左屏 commit-log（`/api/activity/commits`，5min 轮询）、中屏 deploy-status（`/api/deploy/history`）、右屏 post-feed（服务端 posts props）。
+3. **书架数据核心数据化** ~~：把现有固定发光方块改为合集数组渲染，支持合集名、文章数、slug。~~ ✅ 已完成：`DataCore` + `CollectionDataCoreGroup` 组件，hover tooltip + 点击跳转合集页，数据来自 `getCachedCollections`（unstable_cache 1h）。
+4. **数据获取边界** ~~：Git commit 可从本地构建脚本或 GitHub API 同步，GitHub Actions 从 workflow run 记录同步，文章发表历史复用现有 `posts` 数据。~~ ✅ 已完成：GitHub API + Redis 缓存 10min（commits）、Redis 历史列表（deploy）、服务端缓存（collections/posts）。
+5. **完整历史入口**：首屏只做状态摘要；如果后续需要全年热力图，放到文章列表后方或独立 timeline/archives 页面。（保留为后续优化方向）
+
+### ✅ 阶段二点二：聚焦隐藏热点 + 服务器机柜交互（已完成 2026-05-31）
+
+**目标**：优化相机聚焦后的视觉体验，并增强服务器机柜的交互深度。
+
+#### 聚焦后隐藏热点卡片
+
+- `SceneHotspots` 新增 `isDefaultMode` prop，当相机已聚焦到某个热点（非默认视角）或处于自由探索模式时，返回 `null` 不渲染任何热点按钮。
+- 避免 3D 悬浮热点遮挡已聚焦的 3D 模型。
+
+#### 服务器机柜抽拉交互
+
+- `ServerUnit` 组件：每行服务器独立可点击，点击后沿 Z 轴滑出（`useFrame` + `lerp`），再点缩回，单行互斥。
+- 收缩态可见：LED 灯、分割线、薄板始终在机柜正面可见（Z=0.26），不是藏入机柜内部。
+- 抽拉后显示 `Html` 详情面板：版本号、commit message（截断 28 字符）、状态指示灯、commit hash、时间戳。
+- 底部分割线增强行间分隔可见性。
 
 ### 🟦 阶段一点五：最近文章内容终端（阶段一和阶段二之间）
 

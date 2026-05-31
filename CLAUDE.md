@@ -65,7 +65,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（阶段一：3D Banner 房间场景）
+- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（活动数据家具化已完成，下一步 GLB 模型替换 + 日间主题打磨）
 
 ### 已完成计划
 - **[LangChain/LangGraph 迁移](docs/plans/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph（已完成）

@@ -4,11 +4,13 @@ import React, { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import HomePageClient from '@/components/HomePageClient';
 import type { Post } from '@/types';
+import type { BookshelfCollection } from '@/components/cyberpunk/furniture/types';
 
 interface HomePageContainerProps {
   posts: Post[];
   total: number;
   currentPageNum: number;
+  collections: BookshelfCollection[];
 }
 
 /**
@@ -19,6 +21,7 @@ export default function HomePageContainer({
   posts,
   total,
   currentPageNum,
+  collections,
 }: HomePageContainerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,6 +47,7 @@ export default function HomePageContainer({
       posts={posts}
       hasMore={hasMore}
       onLoadMore={handleLoadMore}
+      collections={collections}
     />
   );
 }

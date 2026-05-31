@@ -4,6 +4,7 @@ import MonitorModel from './MonitorModel';
 import { BlinkingLED, NeonStrip, metalDark } from './shared';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
 import { EditableGroup } from '../sceneEditor';
+import type { ScreenTextureData } from './types';
 
 function WorkstationDesk() {
   const desk = FURNITURE_LAYOUT.desk;
@@ -57,17 +58,18 @@ function WorkstationAccessories() {
   );
 }
 
-export default function WorkstationZone() {
+export default function WorkstationZone({ screenData }: { screenData?: [ScreenTextureData, ScreenTextureData, ScreenTextureData] }) {
   return (
     <EditableGroup id="workstation-zone">
       <WorkstationDesk />
 
-      {FURNITURE_LAYOUT.monitors.map((monitor) => (
+      {FURNITURE_LAYOUT.monitors.map((monitor, i) => (
         <MonitorModel
           key={monitor.variant}
           position={monitor.position}
           rotation={monitor.rotation}
           variant={monitor.variant}
+          screenData={screenData?.[i]}
         />
       ))}
 
