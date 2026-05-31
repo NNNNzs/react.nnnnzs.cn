@@ -266,9 +266,38 @@ function CameraFocusController({
   }, [flightId, focus, instant]);
 
   useFrame(({ camera }) => {
-    if (!flightActive.current) return;
+    if (!flightActive.current) {
+      if (controlsRef?.current) {
+        controlsRef.current.target.copy(desiredTarget.current);
+        controlsRef.current.update();
+      }
+      return;
+    }
 
     const factor = needsInstantSync.current ? 1 : 0.08;
+
+    if (controlsRef?.current) {
+      // OrbitControls 存在时只 lerp target，相机位置交给 OrbitControls
+      currentTarget.current.lerp(desiredTarget.current, factor);
+      controlsRef.current.target.copy(currentTarget.current);
+      controlsRef.current.update();
+
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.fov += (focus.fov - camera.fov) * factor;
+        camera.updateProjectionMatrix();
+      }
+
+      const targetSettled = currentTarget.current.distanceTo(desiredTarget.current) < 0.02;
+      const fovSettled = !(camera instanceof THREE.PerspectiveCamera) || Math.abs(camera.fov - focus.fov) < 0.05;
+
+      needsInstantSync.current = false;
+      if (targetSettled && fovSettled) {
+        flightActive.current = false;
+      }
+      return;
+    }
+
+    // 无 OrbitControls 时 lerp 全部（热点飞行）
     camera.position.lerp(desiredPosition.current, factor);
     currentTarget.current.lerp(desiredTarget.current, factor);
 
@@ -277,14 +306,7 @@ function CameraFocusController({
       camera.updateProjectionMatrix();
     }
 
-    if (controlsRef?.current) {
-      controlsRef.current.target.copy(currentTarget.current);
-      controlsRef.current.update();
-    }
-
-    if (!controlsRef?.current) {
-      camera.lookAt(currentTarget.current);
-    }
+    camera.lookAt(currentTarget.current);
 
     const positionSettled = camera.position.distanceTo(desiredPosition.current) < 0.02;
     const targetSettled = currentTarget.current.distanceTo(desiredTarget.current) < 0.02;
@@ -592,6 +614,9 @@ function Scene({
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(false);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls> | null>(null);
   const selectedEditorId = useSceneEditorStore((s) => s.selectedId);
+  const setEditorEnabled = useSceneEditorStore((s) => s.setEnabled);
+
+  useEffect(() => { setEditorEnabled(editable); }, [editable, setEditorEnabled]);
 
   // Zustand selector - 只有对应字段变化时才重渲染
   const useOrbit = useSceneStore(s => s.controls.useOrbit);
@@ -880,7 +905,6 @@ export default function CyberpunkBanner({
   }, []);
 
   const handleFreeExplore = useCallback(() => {
-    setActiveFocusKey('default');
     setInteractiveMode(true);
   }, []);
 

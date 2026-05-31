@@ -27,16 +27,22 @@ export type SceneEditorMode = 'translate' | 'rotate' | 'scale';
 type SceneEditorState = {
   selectedId: SceneEditorTargetId | null;
   mode: SceneEditorMode;
+  enabled: boolean;
   setSelectedId: (id: SceneEditorTargetId | null) => void;
   setMode: (mode: SceneEditorMode) => void;
+  setEnabled: (enabled: boolean) => void;
 };
 
 export const useSceneEditorStore = create<SceneEditorState>((set) => ({
   selectedId: null,
   mode: 'translate',
+  enabled: false,
   setSelectedId: (selectedId) => set({ selectedId }),
   setMode: (mode) => set({ mode }),
+  setEnabled: (enabled) => set({ enabled }),
 }));
+
+export const useSceneEditorEnabled = () => useSceneEditorStore((s) => s.enabled);
 
 const sceneEditorRegistry = new Map<SceneEditorTargetId, React.RefObject<THREE.Object3D>>();
 type EditableGroupProps = Omit<ThreeElements['group'], 'id'> & {
@@ -67,15 +73,16 @@ export function EditableGroup({
 }: React.PropsWithChildren<EditableGroupProps>) {
   const ref = useSceneEditorTargetRef<THREE.Group>(id);
   const setSelectedId = useSceneEditorStore((s) => s.setSelectedId);
+  const enabled = useSceneEditorEnabled();
 
   return (
     <group
       ref={ref}
       {...props}
-      onPointerDown={(event) => {
+      onPointerDown={enabled ? (event) => {
         event.stopPropagation();
         setSelectedId(id);
-      }}
+      } : undefined}
     >
       {children}
     </group>
