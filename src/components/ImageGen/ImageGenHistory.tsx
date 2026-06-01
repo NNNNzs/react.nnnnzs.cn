@@ -7,17 +7,16 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  Image,
   Tag,
   Empty,
   Spin,
   Tooltip,
   message,
   Button,
-  Select,
   Space,
   Modal,
   Checkbox,
+  Popover,
 } from "antd";
 import {
   CopyOutlined,
@@ -27,6 +26,10 @@ import {
   ClockCircleOutlined,
   EyeOutlined,
   DeleteOutlined,
+  CheckSquareOutlined,
+  BorderOutlined,
+  FilterOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
@@ -90,6 +93,11 @@ export default function ImageGenHistory({
   const [total, setTotal] = useState(0);
   const [pageNum, setPageNum] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   const pageSize = 20;
   const canDelete = hasPermission(USER_MANAGE);
@@ -102,6 +110,7 @@ export default function ImageGenHistory({
         pageSize: String(pageSize),
       });
       if (sourceFilter) params.set("source", sourceFilter);
+      if (statusFilter) params.set("status", statusFilter);
 
       const res = await fetch(`/api/image-gen/logs?${params}`, {
         headers: { "Content-Type": "application/json" },
@@ -116,7 +125,7 @@ export default function ImageGenHistory({
     } finally {
       setLoading(false);
     }
-  }, [pageNum, sourceFilter]);
+  }, [pageNum, sourceFilter, statusFilter]);
 
   useEffect(() => {
     fetchLogs();
@@ -187,6 +196,78 @@ export default function ImageGenHistory({
     []
   );
 
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === records.length) return new Set();
+      return new Set(records.map((r) => r.id));
+    });
+  }, [records]);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBatchDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    let deleteCos = false;
+
+    Modal.confirm({
+      title: `批量删除 ${selectedIds.size} 条记录`,
+      content: (
+        <div className="space-y-3">
+          <p>确定删除选中的 {selectedIds.size} 条图片生成记录吗？</p>
+          <Checkbox onChange={(event) => {
+            deleteCos = event.target.checked;
+          }}>
+            同时删除 COS 中的图片文件
+          </Checkbox>
+        </div>
+      ),
+      okText: "批量删除",
+      okType: "danger",
+      cancelText: "取消",
+      async onOk() {
+        setBatchDeleting(true);
+        try {
+          const res = await fetch("/api/image-gen/logs", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ids: Array.from(selectedIds),
+              deleteCos,
+            }),
+          });
+          const json = await res.json();
+          if (!json?.status) {
+            throw new Error(json?.message || "批量删除失败");
+          }
+          const deletedCount = json.data?.deletedCount || 0;
+          setRecords((items) => items.filter((item) => !selectedIds.has(item.id)));
+          setTotal((count) => Math.max(0, count - deletedCount));
+          setSelectedIds(new Set());
+          setSelectMode(false);
+          if (deleteCos && json?.data?.failedCosUrls?.length > 0) {
+            message.warning(`已删除 ${deletedCount} 条记录，部分 COS 文件删除失败`);
+          } else {
+            message.success(`成功删除 ${deletedCount} 条记录`);
+          }
+        } finally {
+          setBatchDeleting(false);
+        }
+      },
+    });
+  }, [selectedIds]);
+
   const displayUrl = (record: LogRecord) =>
     record.status === "SUCCESS" ? record.cdn_url || record.original_url : null;
 
@@ -200,21 +281,120 @@ export default function ImageGenHistory({
             <span className="text-xs text-gray-400 ml-2">{total} 条</span>
           )}
         </span>
-        <Select
-          value={sourceFilter}
-          onChange={(val) => {
-            setSourceFilter(val || undefined);
-            setPageNum(1);
-          }}
-          allowClear
-          placeholder="来源筛选"
-          size="small"
-          className="w-28"
-          options={[
-            { value: "ADMIN", label: "后台" },
-            { value: "MCP", label: "MCP" },
-          ]}
-        />
+        <Space size={4}>
+          {canDelete && !selectMode && (
+            <Tooltip title="多选删除">
+              <Button
+                type="text"
+                size="small"
+                icon={<CheckSquareOutlined />}
+                onClick={() => setSelectMode(true)}
+              />
+            </Tooltip>
+          )}
+          {selectMode && (
+            <>
+              <Button
+                type="text"
+                size="small"
+                onClick={exitSelectMode}
+              >
+                取消
+              </Button>
+              {selectedIds.size > 0 && (
+                <>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<BorderOutlined />}
+                    onClick={toggleSelectAll}
+                  >
+                    {selectedIds.size === records.length ? "取消全选" : "全选"}
+                  </Button>
+                  <Button
+                    type="primary"
+                    danger
+                    size="small"
+                    loading={batchDeleting}
+                    onClick={handleBatchDelete}
+                  >
+                    删除 ({selectedIds.size})
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            title="筛选条件"
+            content={
+              <div className="space-y-3 min-w-[160px]">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">来源</p>
+                  <Checkbox.Group
+                    value={sourceFilter ? [sourceFilter] : []}
+                    onChange={(vals) => {
+                      const v = vals.length === 1 ? vals[0] : undefined;
+                      setSourceFilter(v);
+                      setPageNum(1);
+                    }}
+                    options={[
+                      { label: "后台", value: "ADMIN" },
+                      { label: "MCP", value: "MCP" },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">状态</p>
+                  <Checkbox.Group
+                    value={statusFilter ? [statusFilter] : []}
+                    onChange={(vals) => {
+                      const v = vals.length === 1 ? vals[0] : undefined;
+                      setStatusFilter(v);
+                      setPageNum(1);
+                    }}
+                    options={[
+                      { label: "成功", value: "SUCCESS" },
+                      { label: "失败", value: "FAILED" },
+                    ]}
+                  />
+                </div>
+                {(sourceFilter || statusFilter) && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setSourceFilter(undefined);
+                      setStatusFilter(undefined);
+                      setPageNum(1);
+                    }}
+                  >
+                    清除筛选
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            <Tooltip title="筛选">
+              <Button
+                type="text"
+                size="small"
+                icon={<FilterOutlined />}
+                className={sourceFilter || statusFilter ? "text-blue-500" : ""}
+              />
+            </Tooltip>
+          </Popover>
+          <Tooltip title="刷新">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={fetchLogs}
+              loading={loading}
+            />
+          </Tooltip>
+        </Space>
       </div>
 
       {/* 列表 */}
@@ -234,13 +414,37 @@ export default function ImageGenHistory({
             {records.map((record) => {
               const url = displayUrl(record);
               const sourceInfo = SOURCE_MAP[record.source];
+              const isSelected = selectedIds.has(record.id);
 
               return (
                 <div
                   key={record.id}
-                  className="group relative rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer hover:border-blue-400 transition-all hover:shadow-md"
-                  onClick={() => url && onSelect?.(url, record.prompt)}
+                  className={`group relative rounded-lg border overflow-hidden cursor-pointer transition-all hover:shadow-md ${
+                    isSelected
+                      ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
+                      : "border-gray-200 dark:border-gray-700 hover:border-blue-400"
+                  }`}
+                  onClick={() => {
+                    if (selectMode) {
+                      toggleSelect(record.id);
+                    } else if (url) {
+                      onSelect?.(url, record.prompt);
+                    }
+                  }}
                 >
+                  {/* 选中勾 */}
+                  {selectMode && (
+                    <div className="absolute top-1 left-1 z-10">
+                      <div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
+                        isSelected
+                          ? "bg-blue-500 text-white"
+                          : "bg-white/80 dark:bg-gray-800/80 text-transparent border border-gray-300 dark:border-gray-600"
+                      }`}>
+                        {isSelected && "✓"}
+                      </div>
+                    </div>
+                  )}
+
                   {/* 缩略图 */}
                   <div className="aspect-square bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
                     {url ? (
@@ -281,44 +485,46 @@ export default function ImageGenHistory({
                           {formatDuration(record.duration_ms)}
                         </span>
                       </Space>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {url && (
-                          <Tooltip title="复制图片链接">
+                      {!selectMode && (
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {url && (
+                            <Tooltip title="复制图片链接">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<CopyOutlined />}
+                                className="text-xs"
+                                onClick={(e) => handleCopyUrl(e, url)}
+                              />
+                            </Tooltip>
+                          )}
+                          <Tooltip title="复制提示词">
                             <Button
                               type="text"
                               size="small"
-                              icon={<CopyOutlined />}
+                              icon={
+                                <span className="text-[10px]">T</span>
+                              }
                               className="text-xs"
-                              onClick={(e) => handleCopyUrl(e, url)}
+                              onClick={(e) =>
+                                handleCopyPrompt(e, record.prompt)
+                              }
                             />
                           </Tooltip>
-                        )}
-                        <Tooltip title="复制提示词">
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={
-                              <span className="text-[10px]">T</span>
-                            }
-                            className="text-xs"
-                            onClick={(e) =>
-                              handleCopyPrompt(e, record.prompt)
-                            }
-                          />
-                        </Tooltip>
-                        {canDelete && (
-                          <Tooltip title="删除记录">
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<DeleteOutlined />}
-                              className="text-xs"
-                              onClick={(e) => handleDelete(e, record)}
-                            />
-                          </Tooltip>
-                        )}
-                      </div>
+                          {canDelete && (
+                            <Tooltip title="删除记录">
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                className="text-xs"
+                                onClick={(e) => handleDelete(e, record)}
+                              />
+                            </Tooltip>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <p className="text-[10px] text-gray-300 mt-0.5">
                       {formatTime(record.created_at)}

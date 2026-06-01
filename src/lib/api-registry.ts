@@ -199,7 +199,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
-    description: '使用 AI 生成图片(文生图)。图片生成通常需要 30-90 秒，请耐心等待，不要重试。无异步通知机制，超时(90s)将报错。',
+    description: '使用 AI 生成图片(文生图)。图片生成通常需要 30-90 秒，请耐心等待，不要重试。无异步通知机制，超时(180s)将报错。',
     inputSchema: {
       type: 'object',
       properties: {

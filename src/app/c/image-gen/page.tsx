@@ -7,8 +7,9 @@
 
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Card, Tag, Spin, message } from "antd";
+import { debounce } from "lodash-es";
 import {
   PictureOutlined,
   HistoryOutlined,
@@ -37,6 +38,7 @@ export default function ImageGenPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<ResultMeta | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const generatingRef = useRef(false);
 
   useEffect(() => {
     if (!authLoading && user && !hasPermission(IMAGE_VIEW)) {
@@ -47,6 +49,8 @@ export default function ImageGenPage() {
 
   const handleGenerate = useCallback(
     async (params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams) => {
+      if (generatingRef.current) return;
+      generatingRef.current = true;
       setGenerating(true);
       setImageUrl(null);
       setMeta(null);
@@ -69,7 +73,6 @@ export default function ImageGenPage() {
             quality: params.quality,
           });
           message.success("图片生成成功");
-          // 触发历史记录刷新
           setRefreshTrigger((t) => t + 1);
         } else {
           message.error(res.data?.message || "图片生成失败");
@@ -81,11 +84,29 @@ export default function ImageGenPage() {
             ?.message || "图片生成失败，请检查网络或配置";
         message.error(msg);
       } finally {
+        generatingRef.current = false;
         setGenerating(false);
       }
     },
     []
   );
+
+  const debouncedGenerate = useMemo(
+    () => debounce(
+      (params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams) => {
+        handleGenerate(params);
+      },
+      3000,
+      { leading: true, trailing: false }
+    ),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedGenerate.cancel();
+    };
+  }, [debouncedGenerate]);
 
   const handleHistorySelect = useCallback(
     (url: string, prompt: string) => {
@@ -118,7 +139,7 @@ export default function ImageGenPage() {
           {/* 左侧：生成面板 + 结果 */}
           <div className="w-full lg:w-1/2 xl:w-[55%] shrink-0 flex flex-col gap-4 lg:overflow-y-auto">
             <Card title="参数配置" size="small">
-              <ImageGenPanel loading={generating} onGenerate={handleGenerate} />
+              <ImageGenPanel loading={generating} onGenerate={debouncedGenerate} />
             </Card>
             <ImageResultCard
               imageUrl={imageUrl}

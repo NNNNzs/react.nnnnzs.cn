@@ -134,3 +134,49 @@ export async function deleteImageGenLog(
     failedCosUrls,
   };
 }
+
+/**
+ * 批量删除图片生成日志，可选择同时删除 COS 文件
+ */
+export async function batchDeleteImageGenLogs(
+  ids: number[],
+  options: { deleteCos?: boolean } = {},
+) {
+  const logs = await prisma.tbImageGenLog.findMany({
+    where: { id: { in: ids } },
+  });
+
+  const deletedCosUrls: string[] = [];
+  const failedCosUrls: Array<{ url: string; error: string }> = [];
+
+  if (options.deleteCos) {
+    const { deleteCdnImage } = await import('./image-proxy');
+    const urls = logs.flatMap((log) =>
+      [log.cdn_url, log.original_url].filter(
+        (url): url is string => Boolean(url && url.startsWith('http'))
+      )
+    );
+
+    for (const url of Array.from(new Set(urls))) {
+      try {
+        const deleted = await deleteCdnImage(url);
+        if (deleted) deletedCosUrls.push(url);
+      } catch (error) {
+        failedCosUrls.push({
+          url,
+          error: error instanceof Error ? error.message : '删除 COS 文件失败',
+        });
+      }
+    }
+  }
+
+  await prisma.tbImageGenLog.deleteMany({
+    where: { id: { in: ids } },
+  });
+
+  return {
+    deletedCount: logs.length,
+    deletedCosUrls,
+    failedCosUrls,
+  };
+}
