@@ -50,6 +50,8 @@ const getCachedCollections = unstable_cache(
       title: c.title,
       slug: c.slug,
       articleCount: c.article_count,
+      cover: c.cover,
+      background: c.background,
       color: c.color,
     }));
   },

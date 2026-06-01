@@ -15,6 +15,8 @@ export interface BookshelfCollection {
   title: string;
   slug: string;
   articleCount: number;
+  cover?: string | null;
+  background?: string | null;
   color?: string | null;
 }
 

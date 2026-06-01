@@ -46,10 +46,10 @@ NNNNzs = Neon Nomad Navigating Night Zones
 - 2026-05-20 新增首屏 HUD、诊断面板、暗色日志流文章区、湿润地面反光、悬浮内容终端和 `NNNNzs` 霓虹标识。
 - 2026-05-20 方向调整：不再让日间模式使用赛博朋克视觉，后续应改成同一 3D 房间的日间温暖文艺主题。
 - 2026-05-20 已开始昼夜双主题实现：新增 `HomepageSceneVariant` 与 theme preset，首页日间/夜间都走同一个 3D Banner，日间关闭雨滴并降低 Bloom。
-- 2026-05-24 新增活动数据家具原型方向：保留服务器机柜部署状态灯、三联显示器活动纹理、书架数据核心三个概念，用于把 Git commit、GitHub Actions 部署记录和文章发表历史接入同一 3D 房间。
+- 2026-05-24 新增活动数据家具原型方向：保留服务器机柜部署状态灯、三联显示器活动纹理、书架合集入口三个概念，用于把 Git commit、GitHub Actions 部署记录和文章发表历史接入同一 3D 房间。
 - 2026-05-24 已把参考图方向落成第一版紧凑单间：北墙收窄，窗子改为三块玻璃，书架/服务器/衣柜集中在东墙，默认镜头从西南室内角落看向东北，探索模式改为双击进入、右键或再次双击退出。
 - 2026-05-31 **活动数据家具化已完成**：真实博客数据已接入 3D 房间家具。
-  - **书架数据核心**：`DataCore` 和 `CollectionDataCoreGroup` 组件，合集数据来自服务端 `unstable_cache`（1h revalidation），hover 显示 tooltip、点击跳转合集页。
+  - **书架合集书本**：`CollectionBookUnit` 组件，合集数据来自服务端 `unstable_cache`（1h revalidation），携带 cover/background/color，hover 抽出书本，click 展开封面卡片。
   - **三联显示器纹理**：`createDataScreenTexture()` 数据驱动纹理，左屏 commit-log（GitHub API + Redis 缓存 10min）、中屏 deploy-status（Redis `deploy:history`）、右屏 post-feed（首页文章 props）。
   - **服务器机柜 LED**：`BlinkingLED` 支持 `status` prop（deploying 琥珀呼吸灯、success 青绿、failure 粉红），由 `useDeployHistory` 30s 轮询驱动。部署历史直接查询 GitHub Actions API（`docker-release.yml` workflow runs），不依赖 webhook 累积。
   - **新增 API 路由**：`GET /api/deploy/history`（部署历史，GitHub Actions API + Redis 5min）、`GET /api/activity/commits`（GitHub 提交记录，GitHub API + Redis 10min）。
@@ -57,8 +57,14 @@ NNNNzs = Neon Nomad Navigating Night Zones
   - **环境变量**：可选 `GITHUB_TOKEN`（提升 GitHub API 速率限制）。
 - 2026-05-31 **聚焦隐藏热点 + 服务器机柜交互已完成**：
   - **热点隐藏**：`SceneHotspots` 接受 `isDefaultMode` prop，聚焦/探索模式下不渲染热点按钮，避免遮挡 3D 模型。
-  - **服务器抽拉交互**：`ServerUnit` 组件，点击沿 Z 轴滑出（lerp），再点缩回，单行互斥。抽拉后 Html 面板显示版本、commit message、状态、时间。
+  - **服务器抽拉交互**：`ServerUnit` 组件，hover 沿 Z 轴滑出（lerp），click 展开 Html 详情面板，再点同一行收起，点其他区域关闭当前详情。
   - **收缩态可见**：LED 灯、分割线在收缩态始终可见（Z=0.26，位于机柜正面外侧）。
+- 2026-06-01 **书架合集抽拉交互已完成**：
+  - **合集书本化**：`CollectionBookUnit` 取代原 `DataCore` 球体/芯片组，每个合集映射为一本立式书，书脊和侧边显示合集名称。
+  - **抽拉交互**：hover 仅将合集书沿 Z 轴抽出，不展开卡片；click 展开封面卡片，再点同一本收起，点其他书切换展开对象，点其他区域关闭当前卡片。
+  - **封面材质**：书本展开后优先使用合集视频背景，其次使用合集封面图，再回退到基于标题、文章数、主题色生成的 Canvas 封面。
+  - **卡片定位**：封面卡片根据书本所在层级自适应锚点，底层书会将卡片向上抬，避免靠近画面底部时显示不全。
+  - **填充策略**：真实合集最多展示 24 本，后排继续保留装饰书，保证合集较少时书架仍然饱满。
 
 ## 〇二、参考图紧凑赛博单间重构计划（2026-05-24）
 
@@ -141,14 +147,14 @@ fov: 68
 - ~~”空间叙事”和博客内容之间的连接还不够强，需要把合集、文章、标签逐步接入 3D 物件。~~ 已通过活动数据家具化初步解决：书架映射合集、三联屏映射 commit/deploy/post、服务器机柜映射部署状态。
 - 日间主题已经能走同一套 3D Banner，但材质、光照和 HUD 还需要继续往温暖、文艺、明亮方向打磨。
 - 低端设备降级目前是视觉回退，不是真正的静态截图，需要后续生成一张高质量 fallback 海报。
-- 活动数据家具化的书架交互（hover tooltip、点击跳转）在移动端需要验证和降级处理。
+- 活动数据家具化的书架/服务器交互（hover 抽出、click 展开、外部点击关闭）在移动端需要验证和降级处理。
 
 ### 下一步优先级
 
 1. **关键模型替换**：优先替换电竞椅、沙发、床、服务器柜、书架，减少 primitive 方块感。
 2. **日间主题打磨**：同一紧凑单间结构下切换暖光、蓝天/窗景、低 Bloom、温暖材质、轻 HUD。
 3. **夜间主题打磨**：保留霓虹、雨夜、Bloom、终端、HUD，但控制性能和滚动体验。
-4. **移动端交互验证**：书架 tooltip、显示器点击等数据家具交互在移动端需要验证和降级处理。
+4. **移动端交互验证**：书架/服务器 click 展开卡片、外部点击关闭、显示器点击等数据家具交互在移动端需要验证和降级处理。
 5. **组件重命名/抽象**：把 `CyberpunkBanner` 逐步抽象为 `Homepage3DBanner`，保留 `variant="day" | "night"`。
 6. **静态 fallback**：生成一张高质量静态海报，用于低端设备和 reduced motion 降级。
 
@@ -323,7 +329,7 @@ interface HomepageThemePreset {
 |------|------|------|
 | 睡眠区 | 左侧 | 床、墙上发光海报、床头柜+全息时钟 |
 | 工作区 | 中央偏右 | 桌子、发光键盘、双显示器 |
-| 存储/服务器区 | 右侧 | 书架（发光数据核心+旧书）、服务器机架+LED 指示灯 |
+| 存储/服务器区 | 右侧 | 书架（合集书本+旧书）、服务器机架+LED 指示灯 |
 | 窗户区 | 后墙 | 日间：柔光天空/城市远景；夜间：雨水、赛博朋克城市天际线 |
 | 生活细节 | 地面/各处 | 散落线缆、机器人宠物、咖啡杯、外套搭椅上、生物发光盆栽 |
 | 天花板 | 顶部 | 暴露管道、微弱霓虹灯条 |
@@ -372,15 +378,17 @@ interface HomepageThemePreset {
 
 ---
 
-### 🔵 阶段二：书架与合集入口（下一步）
+### ✅ 阶段二：书架与合集入口（已完成 2026-06-01）
 
-**目标**：在 3D 场景中加入书架，书架上的"书"对应博客合集，点击可跳转。
+**目标**：在 3D 场景中加入书架，书架上的"书"对应博客合集，通过抽拉和展开卡片进入合集。
 
 - ~~当前已有程序化书架和发光数据核心，下一步把它改为数据驱动。~~ 已在阶段二点一完成数据化。
-- 每个合集 = 书架上一排发光的书/数据模块（已实现 `DataCore` + `CollectionDataCoreGroup`）。
-- hover 显示合集名称 + 文章数（已实现 Html tooltip）。
-- 点击跳转到合集页（已实现）。
-- 移动端不做精细 hover，改为点击后显示轻量浮层或直接跳转（待验证）。
+- ~~每个合集 = 书架上一排发光的书/数据模块（已实现 `DataCore` + `CollectionDataCoreGroup`）。~~ 已升级为 `CollectionBookUnit`，每个合集对应一本立式书。
+- hover 只将书本从书架中抽出，不展开卡片。
+- click 展开封面卡片，卡片展示合集封面/视频、标题、文章数和“进入”链接。
+- 点同一本书收起，点其他书切换展开对象，点其他区域关闭当前卡片。
+- 卡片锚点根据书本层级自适应，底层书会把卡片上移，避免显示不全。
+- 移动端不做精细 hover，重点验证 click 展开卡片、外部点击关闭和直接进入合集的可用性。
 
 ### ✅ 阶段二点一：活动数据家具化（已完成 2026-05-31）
 
@@ -394,7 +402,7 @@ interface HomepageThemePreset {
 | 服务器机柜部署状态灯 | 映射 GitHub Actions 部署记录，成功/失败/运行中使用不同 LED 状态。 | `docs/plans/images/cyberpunk-homepage-activity/server-rack-deploy-status.png` |
 | 三联显示器活动纹理 | 映射 Git commit、部署状态、最近文章发表，作为工作区屏幕纹理。 | `docs/plans/images/cyberpunk-homepage-activity/triple-monitor-activity-texture.png` |
 | Activity Console 参考图 | 仅作为右侧 HUD/Recent Logs 的参考，不作为当前核心家具方向。 | `docs/plans/images/cyberpunk-homepage-activity/activity-console-reference.png` |
-| 书架数据核心 | 映射合集、文章数和发表历史光点，一天多次发表聚合为同层多个亮点。 | `docs/plans/images/cyberpunk-homepage-activity/bookshelf-data-cores.png` |
+| 书架合集书本 | 映射合集、文章数、封面图和视频背景，合集以可抽拉书本形式展示。 | `docs/plans/images/cyberpunk-homepage-activity/bookshelf-data-cores.png` |
 
 ![参考效果图原图](images/cyberpunk-homepage-activity/design.png)
 
@@ -402,12 +410,12 @@ interface HomepageThemePreset {
 
 ![三联显示器活动纹理](images/cyberpunk-homepage-activity/triple-monitor-activity-texture.png)
 
-![书架数据核心](images/cyberpunk-homepage-activity/bookshelf-data-cores.png)
+![书架合集书本参考](images/cyberpunk-homepage-activity/bookshelf-data-cores.png)
 
 #### 设计原则
 
 - **不新增主视觉大屏**：所有活动数据优先附着在已有家具上，保持“私人数字房间”的叙事。
-- **昼夜同构**：白天表现为创作记录、设备状态、书架整理；夜晚表现为霓虹日志、部署脉冲、数据核心。
+- **昼夜同构**：白天表现为创作记录、设备状态、书架整理；夜晚表现为霓虹日志、部署脉冲、合集书本。
 - **短期只展示近期状态**：首屏只承担 3-7 天或最近 N 条活动提示，完整历史放到下方 HTML 区域或独立归档页。
 - **移动端降级**：移动端不做复杂 hover，保留简化光点、状态数字和点击跳转。
 
@@ -415,20 +423,20 @@ interface HomepageThemePreset {
 
 | 数据来源 | 3D 家具 | 夜间表现 | 日间表现 | 交互 |
 |---------|---------|----------|----------|------|
-| GitHub Actions 部署记录 | 服务器机柜 | 青绿成功灯、粉红失败灯、琥珀运行中呼吸灯，收缩态可见。 | 整洁设备柜状态灯、轻量状态牌。 | 点击抽拉滑出，显示版本、commit message、状态、时间；再点缩回，单行互斥。 |
+| GitHub Actions 部署记录 | 服务器机柜 | 青绿成功灯、粉红失败灯、琥珀运行中呼吸灯，收缩态可见。 | 整洁设备柜状态灯、轻量状态牌。 | hover 抽出服务器薄板；click 展开版本、commit message、状态、时间详情；点其他区域关闭。 |
 | Git commit 记录 | 三联显示器左/中屏 | 代码流、commit hash、diff 脉冲节点。 | IDE 最近修改、代码笔记、低亮度屏幕。 | 点击跳转到代码活动详情或 GitHub commit。 |
-| 文章发表历史 | 三联显示器右屏 + 书架数据核心 | 广播卡片、发表节点、同日多次亮点聚合。 | 书脊/便签/归档盒上的轻量标记。 | 点击跳转文章或按日期展开。 |
-| 合集与长期文章积累 | 书架 | 每个合集一层数据核心，文章越多越亮。 | 书、归档盒、纸质标签和少量柔光数据块。 | hover 显示合集名和文章数，点击进合集页。 |
+| 文章发表历史 | 三联显示器右屏 + 书架合集书本 | 广播卡片、发表节点、书脊上的轻量标记。 | 书脊/便签/归档盒上的轻量标记。 | 点击跳转文章或按日期展开。 |
+| 合集与长期文章积累 | 书架 | 每个合集一本可抽拉书，书脊和侧边显示合集名。 | 书、归档盒、纸质标签和少量柔光数据块。 | hover 抽出书本；click 展开封面卡片；卡片内进入合集页；点其他区域关闭。 |
 
 #### 实施切片
 
-1. **服务器机柜部署灯** ~~：先用静态/mock 数据驱动 LED 数组，验证视觉和性能，再接 GitHub Actions 数据。~~ ✅ 已完成：直接查询 GitHub Actions API（`docker-release.yml` workflow runs），Redis 缓存 5min，`useDeployHistory` 30s 轮询驱动 LED + 抽拉交互。
+1. **服务器机柜部署灯** ~~：先用静态/mock 数据驱动 LED 数组，验证视觉和性能，再接 GitHub Actions 数据。~~ ✅ 已完成：直接查询 GitHub Actions API（`docker-release.yml` workflow runs），Redis 缓存 5min，`useDeployHistory` 30s 轮询驱动 LED + hover 抽出 + click 详情交互。
 2. **三联显示器纹理升级** ~~：扩展当前 `createScreenTexture`，按数据类型生成 commit/deploy/post 三类屏幕纹理。~~ ✅ 已完成：`createDataScreenTexture()` 数据驱动，左屏 commit-log（`/api/activity/commits`，5min 轮询）、中屏 deploy-status（`/api/deploy/history`）、右屏 post-feed（服务端 posts props）。
-3. **书架数据核心数据化** ~~：把现有固定发光方块改为合集数组渲染，支持合集名、文章数、slug。~~ ✅ 已完成：`DataCore` + `CollectionDataCoreGroup` 组件，hover tooltip + 点击跳转合集页，数据来自 `getCachedCollections`（unstable_cache 1h）。
+3. **书架合集书本化** ~~：把现有固定发光方块改为合集数组渲染，支持合集名、文章数、slug。~~ ✅ 已完成：`CollectionBookUnit` 组件，hover 抽出、click 展开封面卡片、外部点击关闭，数据来自 `getCachedCollections`（unstable_cache 1h，携带 cover/background/color）。
 4. **数据获取边界** ~~：Git commit 可从本地构建脚本或 GitHub API 同步，GitHub Actions 从 workflow run 记录同步，文章发表历史复用现有 `posts` 数据。~~ ✅ 已完成：GitHub API + Redis 缓存 10min（commits）、Redis 历史列表（deploy）、服务端缓存（collections/posts）。
 5. **完整历史入口**：首屏只做状态摘要；如果后续需要全年热力图，放到文章列表后方或独立 timeline/archives 页面。（保留为后续优化方向）
 
-### ✅ 阶段二点二：聚焦隐藏热点 + 服务器机柜交互（已完成 2026-05-31）
+### ✅ 阶段二点二：聚焦隐藏热点 + 服务器机柜交互（已完成 2026-06-01）
 
 **目标**：优化相机聚焦后的视觉体验，并增强服务器机柜的交互深度。
 
@@ -439,10 +447,22 @@ interface HomepageThemePreset {
 
 #### 服务器机柜抽拉交互
 
-- `ServerUnit` 组件：每行服务器独立可点击，点击后沿 Z 轴滑出（`useFrame` + `lerp`），再点缩回，单行互斥。
+- `ServerUnit` 组件：每行服务器 hover 后沿 Z 轴滑出（`useFrame` + `lerp`），click 后展开详情面板，再点同一行收起，点其他区域关闭。
 - 收缩态可见：LED 灯、分割线、薄板始终在机柜正面可见（Z=0.26），不是藏入机柜内部。
-- 抽拉后显示 `Html` 详情面板：版本号、commit message（截断 28 字符）、状态指示灯、commit hash、时间戳。
+- click 展开后显示 `Html` 详情面板：版本号、commit message（截断 28 字符）、状态指示灯、commit hash、时间戳。
 - 底部分割线增强行间分隔可见性。
+
+### ✅ 阶段二点三：书架合集书本交互（已完成 2026-06-01）
+
+**目标**：让合集入口从“数据核心”升级为更符合书架语义的抽拉书本，同时保留服务器机柜同款交互节奏。
+
+- `CollectionBookUnit` 组件：每个合集对应一本书，书脊和侧边显示合集名称。
+- hover 状态只将书从书架中抽出，不打开封面卡片，降低误触和视觉遮挡。
+- click 状态才展开 `Html` 封面卡片，显示合集封面/视频、标题、文章数和进入链接。
+- 展开卡片支持点同一本收起、点其他书切换、点其他区域关闭。
+- 封面资源优先级：合集视频背景 > 合集封面图 > 运行时 Canvas 生成封面。
+- 书架真实合集最多展示 24 本，后排装饰书继续用于填充空间密度。
+- 卡片位置根据书本所在层级自适应，底层书卡片上移，避免靠近画面底部时展示不全。
 
 ### 🟦 阶段一点五：最近文章内容终端（阶段一和阶段二之间）
 
