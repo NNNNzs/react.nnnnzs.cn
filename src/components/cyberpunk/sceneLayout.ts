@@ -87,18 +87,18 @@ export const ROOM_OBJECTS = {
 export const FURNITURE_LAYOUT = {
   // 左侧窗前工作区：长桌、三联屏、电竞椅。
   desk: {
-    position: [-2.18, 0, -2.08] as Vec3,
-    bounds: { width: 2.35, height: 0.82, depth: 0.82 },
+    position: [-2.16, 0, -2.08] as Vec3,
+    bounds: { width: 2.78, height: 0.82, depth: 0.86 },
     style: 'left window triple monitor workstation',
   },
   // 三联显示器：朝向默认相机，略微弧形包围。
   monitors: [
-    { position: [-2.78, 1.22, -2.36] as Vec3, rotation: [0, 0.16, 0] as Euler3, bounds: { width: 0.68, height: 0.6, depth: 0.12 }, variant: 0 },
-    { position: [-2.18, 1.24, -2.46] as Vec3, rotation: [0, 0, 0] as Euler3, bounds: { width: 0.76, height: 0.64, depth: 0.12 }, variant: 1 },
-    { position: [-1.56, 1.22, -2.36] as Vec3, rotation: [0, -0.16, 0] as Euler3, bounds: { width: 0.68, height: 0.6, depth: 0.12 }, variant: 2 },
+    { position: [-2.98, 1.22, -2.34] as Vec3, rotation: [0, 0.23, 0] as Euler3, bounds: { width: 0.8, height: 0.6, depth: 0.12 }, variant: 0 },
+    { position: [-2.16, 1.24, -2.48] as Vec3, rotation: [0, 0, 0] as Euler3, bounds: { width: 0.8, height: 0.64, depth: 0.12 }, variant: 1 },
+    { position: [-1.34, 1.22, -2.34] as Vec3, rotation: [0, -0.23, 0] as Euler3, bounds: { width: 0.8, height: 0.6, depth: 0.12 }, variant: 2 },
   ],
-  keyboard: { position: [-2.18, 0.84, -1.8] as Vec3, rotation: [-0.08, 0, 0] as Euler3, bounds: { width: 0.68, height: 0.03, depth: 0.23 } },
-  mouse: { position: [-1.65, 0.84, -1.75] as Vec3, bounds: { width: 0.08, height: 0.025, depth: 0.12 } },
+  keyboard: { position: [-2.16, 0.84, -1.78] as Vec3, rotation: [-0.08, 0, 0] as Euler3, bounds: { width: 0.68, height: 0.03, depth: 0.23 } },
+  mouse: { position: [-1.54, 0.84, -1.73] as Vec3, bounds: { width: 0.08, height: 0.025, depth: 0.12 } },
   chair: { position: [-2.1, 0, -0.96] as Vec3, rotation: [0, Math.PI, 0] as Euler3, bounds: { width: 0.66, height: 1.22, depth: 0.8 }, style: 'gaming chair facing triple monitors' },
 
   // 右侧睡眠区。
@@ -116,8 +116,8 @@ export const FURNITURE_LAYOUT = {
   wardrobe: { position: [3.4, 0, 1.72] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.1, height: 2.25, depth: 0.48 }, style: 'east wall open neon wardrobe' },
 
   // 小装饰物：作为整体摆件配置，内部发光/叶片/几何造型不在布局层展开。
-  coffeeMug: { position: [-1.28, 0.84, -1.98] as Vec3, bounds: { width: 0.08, height: 0.08, depth: 0.08 } },
-  glowPlant: { position: [-3.2, 0, -2.48] as Vec3, bounds: { width: 0.42, height: 0.72, depth: 0.42 } },
+  coffeeMug: { position: [-1.18, 0.84, -1.96] as Vec3, bounds: { width: 0.08, height: 0.08, depth: 0.08 } },
+  glowPlant: { position: [-3.32, 0, -1.34] as Vec3, bounds: { width: 0.42, height: 0.72, depth: 0.42 } },
   robotPet: { position: [-2.28, 0, 2.62] as Vec3, rotation: [0, -0.2, 0] as Euler3, bounds: { width: 0.3, height: 0.2, depth: 0.34 } },
   // 悬浮内容终端：动画只在 Y 轴围绕 position[1] 轻微浮动。
   hologramPanels: { position: [-0.08, 1.0, 0.72] as Vec3, rotation: [0, -0.08, 0] as Euler3, bounds: { width: 0.95, height: 1.0, depth: 0.08 } },

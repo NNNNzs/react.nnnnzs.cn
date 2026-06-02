@@ -5,16 +5,19 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createScreenTexture, createDataScreenTexture, metalDark } from './shared';
 import type { ScreenTextureData } from './types';
+import type { HomepageSceneVariant } from '../theme';
 
 export default function MonitorModel({
   position,
   rotation,
   variant,
+  sceneVariant,
   screenData,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
   variant: number;
+  sceneVariant: HomepageSceneVariant;
   screenData?: ScreenTextureData;
 }) {
   const texture = useMemo(
@@ -22,11 +25,19 @@ export default function MonitorModel({
     [variant, screenData],
   );
   const ref = useRef<THREE.Mesh>(null);
+  const lightRef = useRef<THREE.PointLight>(null);
 
   useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const material = ref.current.material as THREE.MeshStandardMaterial;
-    material.emissiveIntensity = 1.1 + Math.sin(clock.getElapsedTime() * 0.6 + variant) * 0.12;
+    const pulse = Math.sin(clock.getElapsedTime() * 0.6 + variant);
+
+    if (ref.current) {
+      const material = ref.current.material as THREE.MeshStandardMaterial;
+      material.emissiveIntensity = 1.1 + pulse * 0.12;
+    }
+
+    if (lightRef.current) {
+      lightRef.current.intensity = (sceneVariant === 'day' ? 0.18 : 0.55) + pulse * 0.04;
+    }
   });
 
   return (
@@ -53,6 +64,14 @@ export default function MonitorModel({
           toneMapped={false}
         />
       </mesh>
+      <pointLight
+        ref={lightRef}
+        position={[0, 0, 0.16]}
+        color={sceneVariant === 'day' ? '#89d7ff' : '#00c8ff'}
+        intensity={sceneVariant === 'day' ? 0.18 : 0.55}
+        distance={sceneVariant === 'day' ? 1.8 : 2.4}
+        decay={2}
+      />
     </group>
   );
 }

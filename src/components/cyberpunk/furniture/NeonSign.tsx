@@ -27,6 +27,13 @@ export default function NeonSign({ variant }: { variant: 'day' | 'night' }) {
       <Text position={[0, -0.18, 0.02]} fontSize={0.12} anchorX="center" anchorY="middle" color={isDay ? '#0f172a' : '#ffd8f2'}>
         FUTURE
       </Text>
+      <pointLight
+        position={[0, 0.02, 0.24]}
+        color={isDay ? '#38bdf8' : '#ff2a9a'}
+        intensity={isDay ? 0.16 : 1.4}
+        distance={isDay ? 1.8 : 3.2}
+        decay={2}
+      />
     </EditableGroup>
   );
 }

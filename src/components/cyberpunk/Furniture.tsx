@@ -24,7 +24,7 @@ export default function Furniture({
   return (
     <group>
       {/* 家具层只做装配，具体模型分文件维护，方便单独调形、调灯、调材质 */}
-      <WorkstationZone screenData={screenData} />
+      <WorkstationZone variant={variant} screenData={screenData} />
       <StorageWallZone collections={collections} deployHistory={deployHistory} variant={variant} />
       <LivingCoreZone variant={variant} />
       <SleepZone />

@@ -505,10 +505,11 @@ function ServerUnit({
   );
 }
 
-function ServerRack({ deployHistory }: { deployHistory?: DeployRecord[] }) {
+function ServerRack({ deployHistory, variant }: { deployHistory?: DeployRecord[]; variant?: HomepageSceneVariant }) {
   const layout = FURNITURE_LAYOUT.serverRack;
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const serverInteractionRef = useRef(false);
+  const isDay = variant === 'day';
 
   const handleToggle = (row: number) => {
     serverInteractionRef.current = true;
@@ -553,6 +554,13 @@ function ServerRack({ deployHistory }: { deployHistory?: DeployRecord[] }) {
         />
       ))}
       <NeonStrip position={[0.35, 1.0, 0.03]} scale={[0.022, 1.75, 0.025]} color="#00d8ff" intensity={1.2} />
+      <pointLight
+        position={[0.08, 1.04, 0.24]}
+        color={isDay ? '#a7d8ff' : '#00d8ff'}
+        intensity={isDay ? 0.18 : 0.9}
+        distance={isDay ? 1.8 : 2.8}
+        decay={2}
+      />
     </EditableGroup>
   );
 }
@@ -561,7 +569,7 @@ export default function StorageWallZone({ collections, deployHistory, variant }:
   return (
     <>
       <Bookshelf collections={collections} variant={variant} />
-      <ServerRack deployHistory={deployHistory} />
+      <ServerRack deployHistory={deployHistory} variant={variant} />
 
       <EditableGroup id="data-ghost-sign" position={[3.56, 1.58, -3.03]} rotation={[0, -Math.PI / 2, 0]}>
         <mesh>

@@ -63,10 +63,10 @@ const CAMERA_FOCUS_PRESETS: Record<CameraFocusKey, CameraFocusPreset> = {
   desk: {
     key: 'desk',
     label: '工作区',
-    position: [-0.65, 1.8, 1.15],
-    target: [-2.18, 1.05, -2.18],
+    position: [-2.04, 1.55, -0.62],
+    target: [-2.16, 1.24, -2.42],
     marker: [-1.85, 1.4, -1.9],
-    fov: 46,
+    fov: 36,
   },
   living: {
     key: 'living',

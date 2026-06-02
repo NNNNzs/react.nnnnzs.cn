@@ -39,21 +39,6 @@ export interface SceneConfig {
     exteriorWindowColor: string;
     exteriorWindowDistance: number;
     exteriorWindowDecay: number;
-    // 显示器冷蓝光
-    monitorIntensity: number;
-    monitorColor: string;
-    monitorDistance: number;
-    monitorDecay: number;
-    // 服务器紫光
-    serverIntensity: number;
-    serverColor: string;
-    serverDistance: number;
-    serverDecay: number;
-    // 霓虹招牌
-    neonSignIntensity: number;
-    neonSignColor: string;
-    neonSignDistance: number;
-    neonSignDecay: number;
     // 天花板青光
     ceilingCyanIntensity: number;
     ceilingCyanColor: string;
@@ -92,9 +77,6 @@ const DEFAULT_CONFIG: SceneConfig = {
     ambientIntensity: 0.08, ambientColor: '#ffffff',
     windowIntensity: 3.5, windowColor: '#4466aa', windowAngle: 0.8, windowPenumbra: 0.6, windowDecay: 1.5,
     exteriorWindowIntensity: 4.2, exteriorWindowColor: '#66ccff', exteriorWindowDistance: 9, exteriorWindowDecay: 1.4,
-    monitorIntensity: 2.5, monitorColor: '#0088cc', monitorDistance: 4, monitorDecay: 2,
-    serverIntensity: 1.5, serverColor: '#6644cc', serverDistance: 3, serverDecay: 2,
-    neonSignIntensity: 2.0, neonSignColor: '#cc0055', neonSignDistance: 5, neonSignDecay: 2,
     ceilingCyanIntensity: 0.3, ceilingCyanColor: '#0066aa', ceilingCyanDistance: 5, ceilingCyanDecay: 2,
     ceilingPurpleIntensity: 0.2, ceilingPurpleColor: '#5533aa', ceilingPurpleDistance: 4, ceilingPurpleDecay: 2,
   },

@@ -18,9 +18,6 @@ type LightConfig = SceneConfig['lights'];
 const LIGHT_OPTIONS = {
   '环境光': 'ambient',
   '窗外主光': 'window',
-  '显示器光': 'monitor',
-  '服务器光': 'server',
-  '霓虹招牌': 'neonSign',
   '天花板青光': 'ceilingCyan',
   '天花板紫光': 'ceilingPurple',
 };
@@ -83,7 +80,7 @@ function WindowPanel() {
 // 点光源通用面板
 // ========================
 
-type PointLightPrefix = 'exteriorWindow' | 'monitor' | 'server' | 'neonSign' | 'ceilingCyan' | 'ceilingPurple';
+type PointLightPrefix = 'exteriorWindow' | 'ceilingCyan' | 'ceilingPurple';
 
 function PointLightPanel({ name, prefix }: { name: string; prefix: PointLightPrefix }) {
   const store = useSceneStore.getState().lights;
@@ -106,9 +103,6 @@ function LightEditor({ selected }: { selected: string }) {
     case 'ambient': return <AmbientPanel />;
     case 'window': return <WindowPanel />;
     case 'exteriorWindow': return <PointLightPanel name="窗外射入光" prefix="exteriorWindow" />;
-    case 'monitor': return <PointLightPanel name="显示器" prefix="monitor" />;
-    case 'server': return <PointLightPanel name="服务器" prefix="server" />;
-    case 'neonSign': return <PointLightPanel name="霓虹招牌" prefix="neonSign" />;
     case 'ceilingCyan': return <PointLightPanel name="天花板青光" prefix="ceilingCyan" />;
     case 'ceilingPurple': return <PointLightPanel name="天花板紫光" prefix="ceilingPurple" />;
     default: return null;
@@ -158,7 +152,7 @@ function CameraPresets() {
   const presets = {
     '参考图默认视角': { x: -2.85, y: 2.2, z: 2.9 },
     '正面广角': { x: -0.2, y: 2.05, z: 3.95 },
-    '左窗工作区': { x: -0.65, y: 1.8, z: 1.15 },
+    '工作区屏幕近景': { x: -2.04, y: 1.55, z: -0.62 },
     '中央客厅': { x: 2.0, y: 2.0, z: 2.45 },
     '东墙设备区': { x: 0.95, y: 1.8, z: 0.42 },
     '右侧睡眠区': { x: -0.75, y: 1.75, z: 2.5 },
