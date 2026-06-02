@@ -37,11 +37,11 @@ const { confirm } = Modal;
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get('q') || '',
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -127,7 +127,7 @@ function CollectionsManagePageContent() {
       message.error('无权限访问合集管理');
       router.push('/c/post');
     }
-  }, [user, router]);
+  }, [user, hasPermission, router]);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值
@@ -188,7 +188,7 @@ function CollectionsManagePageContent() {
     if (user) {
       loadCollections(urlState.current, urlState.pageSize);
     }
-  }, [user, loadCollections, urlState.current, urlState.pageSize, urlState.searchText]);
+  }, [user, loadCollections, urlState]);
 
   // 删除合集
   const handleDelete = async (id: number, title: string) => {

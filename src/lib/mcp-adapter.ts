@@ -10,7 +10,7 @@
  */
 
 import { hasDataPermission } from '@/lib/permission';
-import type { ApiRegistryEntry, McpHandler } from '@/lib/api-registry';
+import type { ApiRegistryEntry } from '@/lib/api-registry';
 import type { AuthUser } from '@/types/auth';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -33,6 +33,8 @@ export async function handleMcpToApi(
   user: AuthUser,
   headers: Headers,
 ): Promise<McpToolResult> {
+  void headers;
+
   try {
     // 1. 检查功能权限
     if (entry.permissionCode && !user.permissions.includes(entry.permissionCode)) {

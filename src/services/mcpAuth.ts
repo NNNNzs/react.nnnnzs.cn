@@ -487,6 +487,9 @@ async function handleAuthorizationCodeGrant(
  * 处理刷新令牌
  */
 async function handleRefreshTokenGrant(_refreshToken: string, _scope?: string): Promise<NextResponse> {
+  void _refreshToken;
+  void _scope;
+
   // 验证刷新令牌
   // 这里可以实现完整的刷新令牌逻辑
   return NextResponse.json({

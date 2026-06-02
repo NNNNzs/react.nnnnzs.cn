@@ -17,8 +17,6 @@ export async function GET(request: NextRequest) {
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const searchParams = request.nextUrl.searchParams;
     const pageNum = Number(searchParams.get('pageNum')) || 1;
     const pageSize = Number(searchParams.get('pageSize')) || 10;

@@ -12,7 +12,7 @@
  */
 
 import type { AuthUser } from '@/types/auth';
-import { POST_CREATE, POST_EDIT, POST_DELETE, POST_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE, CONFIG_EDIT, IMAGE_VIEW, FILE_UPLOAD } from '@/constants/permissions';
+import { CONFIG_EDIT, FILE_UPLOAD } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
 // ---- 从 route.ts 导入 descriptor（元数据 Source of Truth）----

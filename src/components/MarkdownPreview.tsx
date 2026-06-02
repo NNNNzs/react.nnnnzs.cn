@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import { MdPreview, MdPreviewProps, MdCatalog } from "md-editor-rt";
 import "md-editor-rt/lib/preview.css";
 import { useDarkMode } from "@/hooks/useDarkMode";

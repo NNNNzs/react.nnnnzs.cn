@@ -29,7 +29,6 @@ interface CollectionLikeButtonProps {
 }
 
 export default function CollectionLikeButton({
-  collectionId,
   collectionSlug,
   initialLikes,
   initialLiked = false,

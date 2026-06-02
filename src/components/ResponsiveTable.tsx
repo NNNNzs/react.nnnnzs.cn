@@ -7,7 +7,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { Table, List, Card } from "antd";
+import { Table, List } from "antd";
 import type { TableProps, TableColumnsType } from "antd";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 

@@ -53,6 +53,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [dataScopes, setDataScopes] = useState<Record<string, string>>({});
 
   /**
+   * 刷新权限（从服务器重新获取）
+   */
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/auth/permissions");
+      if (response.data.status) {
+        setPermissions(response.data.data.permissions || []);
+        setDataScopes(response.data.data.dataScopes || {});
+      }
+    } catch {
+      setPermissions([]);
+      setDataScopes({});
+    }
+  }, []);
+
+  /**
    * 获取用户信息
    */
   const refreshUser = useCallback(async () => {
@@ -70,23 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  /**
-   * 刷新权限（从服务器重新获取）
-   */
-  const refreshPermissions = useCallback(async () => {
-    try {
-      const response = await axios.get("/api/auth/permissions");
-      if (response.data.status) {
-        setPermissions(response.data.data.permissions || []);
-        setDataScopes(response.data.data.dataScopes || {});
-      }
-    } catch {
-      setPermissions([]);
-      setDataScopes({});
-    }
-  }, []);
+  }, [refreshPermissions]);
 
   /**
    * 检查用户是否有指定权限码

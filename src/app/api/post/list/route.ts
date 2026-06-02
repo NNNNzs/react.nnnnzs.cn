@@ -8,7 +8,7 @@ import { getPostList } from '@/services/post';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import type { QueryCondition } from '@/dto/post.dto';
 import { getAuthUserFromRequest } from '@/lib/auth';
-import { hasPermissionCode, hasDataPermission } from '@/lib/permission';
+import { hasPermissionCode } from '@/lib/permission';
 import { POST_VIEW, POST_VIEW_DELETED } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 

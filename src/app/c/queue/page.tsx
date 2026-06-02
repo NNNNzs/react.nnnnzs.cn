@@ -7,13 +7,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Tag, Space, Statistic, Row, Col, Progress, Alert, Typography } from 'antd';
+import { Card, Table, Button, Tag, Space, Statistic, Row, Col, Alert, Typography } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { QUEUE_VIEW } from '@/constants/permissions';
-import { useRouter } from 'next/navigation';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text } = Typography;
@@ -35,7 +34,6 @@ interface EmbedStatus {
 
 export default function QueueMonitorPage() {
   const { user, hasPermission } = useAuth();
-  const router = useRouter();
   const { isMobile } = useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
@@ -204,7 +202,6 @@ export default function QueueMonitorPage() {
       key: 'status',
       render: (_, record) => {
         const status = taskStatuses.get(record.postId);
-        const ragStatus = status?.ragStatus || 'processing';
         const ragError = status?.ragError;
 
         return (

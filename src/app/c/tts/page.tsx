@@ -140,7 +140,7 @@ export default function TTSPage() {
       message.warning("您没有权限访问此页面");
       router.push("/c/post");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, hasPermission, router]);
 
   // 模型切换时重置音色
   const handleModelChange = useCallback(
@@ -463,4 +463,3 @@ export default function TTSPage() {
     </div>
   );
 }
-

@@ -44,11 +44,11 @@ const { confirm } = Modal;
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get('q') || '',
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -230,7 +230,7 @@ function RolesPageContent() {
    */
   useEffect(() => {
     loadRoles(urlState.current, urlState.pageSize);
-  }, [loadRoles, urlState.current, urlState.pageSize, urlState.searchText]);
+  }, [loadRoles, urlState]);
 
   /**
    * 创建角色

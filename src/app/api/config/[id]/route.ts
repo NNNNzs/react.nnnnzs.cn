@@ -25,8 +25,6 @@ export async function GET(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await context.params;
 
     const config = await getConfigById(Number(id));
@@ -57,8 +55,6 @@ export async function PUT(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await context.params;
     const body = await request.json();
 
@@ -85,8 +81,6 @@ export async function DELETE(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await context.params;
 
     await deleteConfig(Number(id));

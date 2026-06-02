@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getQueueStatus, embeddingQueue } from '@/services/embedding';
+import { getQueueStatus } from '@/services/embedding';
 import { getTokenFromRequest, validateToken } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 

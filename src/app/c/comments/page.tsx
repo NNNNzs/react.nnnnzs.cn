@@ -11,7 +11,6 @@ import { Button, Input, Space, Tag, message, Modal, Select, Tooltip, Card } from
 import type { TableColumnsType } from 'antd';
 import {
   DeleteOutlined,
-  EyeOutlined,
   SearchOutlined,
   UserOutlined,
   FileTextOutlined,
@@ -19,7 +18,6 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin } from '@/types/role';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
@@ -67,12 +65,12 @@ interface Comment {
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get('q') || '',
     statusFilter: searchParams.get('status') || 'all',
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -251,7 +249,7 @@ function CommentsPageContent() {
     if (user) {
       loadComments(urlState.current, urlState.pageSize);
     }
-  }, [user, urlState.current, urlState.pageSize, urlState.statusFilter, urlState.searchText]);
+  }, [user, loadComments, urlState]);
 
   /**
    * 表格列定义

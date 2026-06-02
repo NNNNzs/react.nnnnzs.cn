@@ -8,7 +8,7 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { createOpenAIModel } from '@/lib/ai';
 import { chatTools } from '@/services/ai/tools/langchain-tools';
-import { StreamTagGenerator, type StepType } from '@/lib/stream-tags';
+import { StreamTagGenerator } from '@/lib/stream-tags';
 import { getAllTags } from '@/services/tag';
 import { getAllCollectionsSummary } from '@/services/collection';
 
@@ -238,7 +238,7 @@ export const chatRAGAgentStream = async (
         );
 
         for await (const event of eventStream) {
-          const { event: eventType, name, data } = event;
+          const { event: eventType, data } = event;
 
           // === 模型流式输出 ===
           if (eventType === 'on_chat_model_stream') {

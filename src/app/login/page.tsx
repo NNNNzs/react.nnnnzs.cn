@@ -33,7 +33,7 @@ function LoginPage() {
   const [checkingConfig, setCheckingConfig] = useState(true);
   const [activeTab, setActiveTab] = useState('login');
   const [faceLoading, setFaceLoading] = useState(false);
-  const [faceCaptured, setFaceCaptured] = useState<string | null>(null);
+  const [, setFaceCaptured] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
 
   /**
@@ -526,4 +526,3 @@ export default function Page() {
     </Suspense>
   );
 }
-

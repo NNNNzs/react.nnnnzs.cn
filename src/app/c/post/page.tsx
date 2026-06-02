@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Button, Input, Space, Tag, message, Modal, Select, Progress, Dropdown, Card } from 'antd';
-import type { TableColumnsType, MenuProps } from 'antd';
+import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -24,9 +24,8 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { POST_VIEW_DELETED, POST_DELETE } from '@/constants/permissions';
+import { POST_VIEW_DELETED } from '@/constants/permissions';
 import type { Post } from '@/types';
-import { useCachedApi } from '@/hooks/useCachedApi';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -41,14 +40,14 @@ const { confirm } = Modal;
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get('q') || '',
     hideFilter: searchParams.get('hide') || 'all',
     ownerFilter: searchParams.get('owner') || 'mine', // 创建者筛选，默认'mine'（我创建的）
     includeDeleted: searchParams.get('is_delete') === '1', // 是否包含已删除文章（仅管理员）
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -246,7 +245,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [urlState, user]); // urlState 已经包含了 ownerFilter，所以不需要额外添加依赖
+  }, [urlState, user, hasPermission]); // urlState 已经包含了 ownerFilter，所以不需要额外添加依赖
 
   /**
    * 删除文章
@@ -813,4 +812,3 @@ export default function AdminPage() {
     </Suspense>
   );
 }
-

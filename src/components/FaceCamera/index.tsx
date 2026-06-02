@@ -8,6 +8,8 @@
 
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
+
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from 'antd';
 import {
@@ -180,6 +182,20 @@ export default function FaceCamera({
   }, [facingMode, drawFaceBox, onCapture]);
 
   /**
+   * 停止检测循环
+   */
+  const stopDetection = useCallback(() => {
+    if (detectionTimerRef.current) {
+      clearInterval(detectionTimerRef.current);
+      detectionTimerRef.current = null;
+    }
+    setDetecting(false);
+    stableCountRef.current = 0;
+    setFaceDetected(false);
+    drawFaceBox(null);
+  }, [drawFaceBox]);
+
+  /**
    * 单次人脸检测
    */
   const detectOnce = useCallback(async () => {
@@ -222,7 +238,7 @@ export default function FaceCamera({
     } catch {
       // 偶尔检测失败，忽略
     }
-  }, [faceDetected, drawFaceBox, doCapture]);
+  }, [faceDetected, drawFaceBox, doCapture, stopDetection]);
 
   /**
    * 启动检测循环
@@ -238,21 +254,7 @@ export default function FaceCamera({
     detectionTimerRef.current = setInterval(() => {
       detectOnce();
     }, DETECT_INTERVAL);
-  }, [detectOnce, drawFaceBox]);
-
-  /**
-   * 停止检测循环
-   */
-  const stopDetection = useCallback(() => {
-    if (detectionTimerRef.current) {
-      clearInterval(detectionTimerRef.current);
-      detectionTimerRef.current = null;
-    }
-    setDetecting(false);
-    stableCountRef.current = 0;
-    setFaceDetected(false);
-    drawFaceBox(null);
-  }, [drawFaceBox]);
+  }, [detectOnce, drawFaceBox, stopDetection]);
 
   /**
    * 启动流

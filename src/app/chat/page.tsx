@@ -436,7 +436,7 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [isRequesting],
+    [isRequesting, messages],
   );
 
   /**

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.clone().json();
     console.log('📋 [Token Endpoint] 请求体:', body);
-  } catch (error) {
+  } catch {
     // 如果不是 JSON，尝试读取文本
     const text = await request.clone().text();
     console.log('📋 [Token Endpoint] 请求体 (文本):', text);

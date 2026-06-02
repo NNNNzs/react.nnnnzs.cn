@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const body = await request.json();
     const result = await createConfig(body);
 

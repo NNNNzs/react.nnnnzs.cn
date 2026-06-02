@@ -10,7 +10,6 @@ import {
   Input,
   Select,
   Button,
-  Space,
   Image,
   InputNumber,
 } from "antd";

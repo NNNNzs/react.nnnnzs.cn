@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     const {
       token,
       appKey,
-      status,
       openId,
       scanData,
       params,

@@ -16,7 +16,7 @@ const { Option } = Select;
  */
 function AuthorizePageContent() {
   const searchParams = useSearchParams();
-  const { isDark, toggleDark } = useDarkMode();
+  const { toggleDark } = useDarkMode();
   const [mounted, setMounted] = useState(false);
 
   const [loading, setLoading] = useState(false);

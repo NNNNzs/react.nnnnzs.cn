@@ -16,7 +16,6 @@ import {
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
-import { unstable_cache } from "next/cache";
 import { getPostByPath, getPostList, getPostByTitle } from "@/services/post";
 
 import { getCollectionsByPostId } from "@/services/collection";

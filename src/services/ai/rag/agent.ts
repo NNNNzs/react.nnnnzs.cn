@@ -88,9 +88,6 @@ async function buildRAGAgentSystemPrompt(
   const getLimitGuidelines = () => {
     if (sortedTags.length === 0) return 'limit=5（默认）';
 
-    const medianCount = sortedTags[Math.floor(sortedTags.length / 2)][1];
-    const maxCount = sortedTags[0][1];
-
     // 生成智能化的 limit 建议
     return `**核心原则：根据涉及标签的实际文章数量设置 limit**
      - 如果问题涉及某个标签，limit 应该接近或等于该标签的文章数量

@@ -5,13 +5,12 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Table, Tag, Space, Spin, Empty, Timeline } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   HistoryOutlined,
   ClockCircleOutlined,
-  UserOutlined,
   FieldStringOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons';
@@ -127,7 +126,7 @@ function formatValue(value: string | null, valueType: string): React.ReactNode {
         }
         return value;
     }
-  } catch (error) {
+  } catch {
     return value;
   }
 }
@@ -147,7 +146,7 @@ export default function EntityChangeHistoryModal({
   const [timelineMode, setTimelineMode] = useState(false);
 
   // 加载变更历史
-  const loadChangeHistory = async () => {
+  const loadChangeHistory = useCallback(async () => {
     if (!visible || !entityId) return;
 
     setLoading(true);
@@ -164,11 +163,11 @@ export default function EntityChangeHistoryModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [visible, entityId, entityType]);
 
   useEffect(() => {
     loadChangeHistory();
-  }, [visible, entityType, entityId]);
+  }, [loadChangeHistory]);
 
   // 表格列定义
   const columns: TableColumnsType<ChangeLog> = [

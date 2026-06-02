@@ -4,7 +4,9 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+/* eslint-disable @next/next/no-img-element */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, message, Spin } from 'antd';
 import { QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -14,7 +16,6 @@ import axios from 'axios';
 export default function BindWechatPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [token, setToken] = useState<string>('');
   const [imgSrc, setImgSrc] = useState<string>('');
   const [message_text, setMessageText] = useState<string>('请使用微信扫码绑定');
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,7 +37,7 @@ export default function BindWechatPage() {
   /**
    * 获取 token（绑定场景）
    */
-  const getToken = async (): Promise<string> => {
+  const getToken = useCallback(async (): Promise<string> => {
     if (!user?.id) {
       throw new Error('用户未登录');
     }
@@ -52,12 +53,12 @@ export default function BindWechatPage() {
       message.error('获取 token 失败');
       throw error;
     }
-  };
+  }, [user?.id]);
 
   /**
    * 获取状态
    */
-  const getStatus = async (currentToken: string) => {
+  const getStatus = useCallback(async (currentToken: string) => {
     if (!isMountedRef.current || currentTokenRef.current !== currentToken) {
       return;
     }
@@ -95,12 +96,12 @@ export default function BindWechatPage() {
     } catch (error) {
       console.error('获取状态失败:', error);
     }
-  };
+  }, [router]);
 
   /**
    * 初始化二维码
    */
-  const initQRCode = async () => {
+  const initQRCode = useCallback(async () => {
     if (!isMountedRef.current || !user?.id) {
       return;
     }
@@ -124,7 +125,6 @@ export default function BindWechatPage() {
       }
 
       currentTokenRef.current = newToken;
-      setToken(newToken);
 
       // 设置图片地址
       const imgUrl = `/api/wechat/getImg?token=${newToken}&env=release`;
@@ -161,7 +161,7 @@ export default function BindWechatPage() {
         setMessageText('生成二维码失败，请重试');
       }
     }
-  };
+  }, [getStatus, getToken, user?.id]);
 
   /**
    * 组件挂载时初始化
@@ -184,7 +184,7 @@ export default function BindWechatPage() {
         timerRef.current = null;
       }
     };
-  }, [user?.id]);
+  }, [user?.id, initQRCode]);
 
   if (!user) {
     return null;

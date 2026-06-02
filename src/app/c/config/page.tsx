@@ -56,12 +56,12 @@ type Config = TbConfig;
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get("q") || "",
     statusFilter: searchParams.get("status") || "all",
     current: parseInt(searchParams.get("page") || "1", 10),
     pageSize: parseInt(searchParams.get("pageSize") || "20", 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -149,7 +149,7 @@ function ConfigPageContent() {
       message.error("无权限访问配置管理");
       router.push("/c/post");
     }
-  }, [user, router]);
+  }, [user, hasPermission, router]);
 
   const pagination = useMemo(
     () => ({
@@ -318,6 +318,7 @@ function ConfigPageContent() {
     }
   }, [
     user,
+    hasPermission,
     loadConfigs,
     urlState,
   ]);

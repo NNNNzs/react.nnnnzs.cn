@@ -186,11 +186,6 @@ function checkNextConfig() {
   console.log('\n\n⚙️  Next.js 配置检查\n');
   console.log('='.repeat(80));
 
-  const configFiles = [
-    path.join(__dirname, '..', 'next.config.ts'),
-    path.join(__dirname, '..', 'next.config.js')
-  ];
-
   let hasConfig = false;
   const configStatus = [];
 

@@ -5,6 +5,8 @@
 
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Tag,

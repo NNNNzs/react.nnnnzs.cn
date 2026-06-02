@@ -75,8 +75,6 @@ export async function PUT(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await params;
     const collectionId = parseInt(id, 10);
 
@@ -139,8 +137,6 @@ export async function DELETE(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await params;
     const collectionId = parseInt(id, 10);
 

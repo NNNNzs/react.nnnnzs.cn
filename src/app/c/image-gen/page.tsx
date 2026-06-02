@@ -99,7 +99,7 @@ export default function ImageGenPage() {
       3000,
       { leading: true, trailing: false }
     ),
-    []
+    [handleGenerate]
   );
 
   useEffect(() => {

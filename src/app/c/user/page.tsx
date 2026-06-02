@@ -53,13 +53,13 @@ const { confirm } = Modal;
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get("q") || "",
     roleFilter: searchParams.get("role") || "all",
     statusFilter: searchParams.get("status") || "all",
     current: parseInt(searchParams.get("page") || "1", 10),
     pageSize: parseInt(searchParams.get("pageSize") || "20", 10),
-  };
+  }), [searchParams]);
 }
 
 /**
@@ -171,7 +171,7 @@ function UserPageContent() {
       message.error("无权限访问用户管理");
       router.push("/c/post");
     }
-  }, [user, router]);
+  }, [user, hasPermission, router]);
 
   /**
    * 当 URL 中的搜索关键词变化时，同步搜索框的值

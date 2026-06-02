@@ -50,7 +50,6 @@ function PermissionsPageContent() {
   const { isMobile } = useBreakpoint();
 
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
-  const [grouped, setGrouped] = useState<Record<string, PermissionItem[]>>({});
   const [modules, setModules] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -70,7 +69,6 @@ function PermissionsPageContent() {
       if (response.data.status) {
         const data = response.data.data;
         setPermissions(data.list || []);
-        setGrouped(data.grouped || {});
         setModules(data.modules || []);
       }
     } catch (error) {

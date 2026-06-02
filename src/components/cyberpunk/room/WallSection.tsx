@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import type { HomepageSceneVariant } from '../theme';
 import { ROOM, WALL_COLOR } from './shared';
 import { createWallTextures, type WallTexturesSet } from './textures';
-import type * as THREE from 'three';
 
 function BackWall({ variant, textures, hh, hd }: {
   variant: HomepageSceneVariant;

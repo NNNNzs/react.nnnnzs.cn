@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Form,
@@ -74,7 +74,7 @@ export default function EditPostPage() {
   /**
    * 加载标签列表
    */
-  const loadTags = async () => {
+  const loadTags = useCallback(async () => {
     try {
       const response = await axios.get("/api/post/tags");
       if (response.data.status) {
@@ -86,12 +86,12 @@ export default function EditPostPage() {
     } catch (error) {
       console.error("加载标签失败:", error);
     }
-  };
+  }, []);
 
   /**
    * 加载文章数据
    */
-  const loadPost = async () => {
+  const loadPost = useCallback(async () => {
     if (isNewPost) {
       setLoading((prev) => ({ ...prev, fetch: false }));
       return;
@@ -138,104 +138,19 @@ export default function EditPostPage() {
     } finally {
       setLoading((prev) => ({ ...prev, fetch: false }));
     }
-  };
+  }, [form, isNewPost, params.id]);
 
   useEffect(() => {
     if (user) {
       loadTags();
       loadPost();
     }
-  }, [user, params.id]);
+  }, [user, loadTags, loadPost]);
 
   /**
    * 键盘快捷键
    */
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-
-
-      if (cmdOrCtrl) {
-        switch (e.key.toLowerCase()) {
-          case "s":
-            e.preventDefault();
-            handleSubmit();
-            break;
-          case ",":
-            e.preventDefault();
-            setSettingsDrawerOpen((prev) => !prev);
-            break;
-          case "p":
-            e.preventDefault();
-            setPreviewDrawerOpen((prev) => !prev);
-            break;
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [form, content]);
-
-  /**
-   * 生成描述（流式）
-   */
-  const genDescription = async () => {
-    const currentContent = content || form.getFieldValue("content") || "";
-    if (!content.trim()) {
-      message.warning("请先输入文章内容");
-      return;
-    }
-
-    try {
-      setLoading((prev) => ({ ...prev, generateDescription: true }));
-      form.setFieldsValue({ description: "" });
-
-      let accumulatedText = "";
-
-      await fetchAndProcessStream(
-        "/api/ai/generate/description",
-        {
-          method: "POST",
-          body: JSON.stringify({ content: currentContent }),
-        },
-        {
-          onChunk: (chunk) => {
-            accumulatedText += chunk;
-            form.setFieldsValue({ description: accumulatedText });
-          },
-          onComplete: () => {
-            message.success("描述生成成功");
-          },
-          onError: (error) => {
-            console.error("生成描述失败:", error);
-            message.error("生成描述失败");
-          },
-        },
-      );
-    } catch (error) {
-      console.error("生成描述失败:", error);
-      message.error("生成描述失败");
-    } finally {
-      setLoading((prev) => ({ ...prev, generateDescription: false }));
-    }
-  };
-
-  /**
-   * 生成背景图
-   */
-  const genCover = () => {
-    const date = form.getFieldValue("date") || dayjs();
-    const dateStr = dayjs(date).format("YYYYMMDD");
-    const cover = `https://static.nnnnzs.cn/bing/${dateStr}.png`;
-    form.setFieldsValue({ cover });
-  };
-
-  /**
-   * 提交表单
-   */
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
       // 验证必填字段（标题和内容）
       await form.validateFields(["title", "content"]);
@@ -361,6 +276,88 @@ export default function EditPostPage() {
     } finally {
       setLoading((prev) => ({ ...prev, submit: false }));
     }
+  }, [form, isNewPost, loadPost, originalDate, params.id, router]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+
+      if (cmdOrCtrl) {
+        switch (e.key.toLowerCase()) {
+          case "s":
+            e.preventDefault();
+            handleSubmit();
+            break;
+          case ",":
+            e.preventDefault();
+            setSettingsDrawerOpen((prev) => !prev);
+            break;
+          case "p":
+            e.preventDefault();
+            setPreviewDrawerOpen((prev) => !prev);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSubmit]);
+
+  /**
+   * 生成描述（流式）
+   */
+  const genDescription = async () => {
+    const currentContent = content || form.getFieldValue("content") || "";
+    if (!content.trim()) {
+      message.warning("请先输入文章内容");
+      return;
+    }
+
+    try {
+      setLoading((prev) => ({ ...prev, generateDescription: true }));
+      form.setFieldsValue({ description: "" });
+
+      let accumulatedText = "";
+
+      await fetchAndProcessStream(
+        "/api/ai/generate/description",
+        {
+          method: "POST",
+          body: JSON.stringify({ content: currentContent }),
+        },
+        {
+          onChunk: (chunk) => {
+            accumulatedText += chunk;
+            form.setFieldsValue({ description: accumulatedText });
+          },
+          onComplete: () => {
+            message.success("描述生成成功");
+          },
+          onError: (error) => {
+            console.error("生成描述失败:", error);
+            message.error("生成描述失败");
+          },
+        },
+      );
+    } catch (error) {
+      console.error("生成描述失败:", error);
+      message.error("生成描述失败");
+    } finally {
+      setLoading((prev) => ({ ...prev, generateDescription: false }));
+    }
+  };
+
+  /**
+   * 生成背景图
+   */
+  const genCover = () => {
+    const date = form.getFieldValue("date") || dayjs();
+    const dateStr = dayjs(date).format("YYYYMMDD");
+    const cover = `https://static.nnnnzs.cn/bing/${dateStr}.png`;
+    form.setFieldsValue({ cover });
   };
 
   if (authLoading || loading.fetch) {

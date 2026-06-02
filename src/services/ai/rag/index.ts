@@ -414,15 +414,6 @@ function extractText(message: unknown): string {
 }
 
 /**
- * 创建文本提取器（用于流式响应）
- */
-function createTextExtractor() {
-  return {
-    extract: (message: unknown): string => extractText(message),
-  };
-}
-
-/**
  * 获取检索结果（用于前端展示来源）
  * @param query 查询文本
  * @param limit 返回数量限制

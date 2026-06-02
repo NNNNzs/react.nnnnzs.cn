@@ -8,34 +8,6 @@ import { EntityType, ValueType, FieldChange } from '@/types/entity-change';
 import { getEntityFieldConfigs, type FieldConfig } from '@/config/entity-field-configs';
 
 /**
- * 序列化值
- *
- * @param value - 需要序列化的值
- * @param config - 字段配置
- * @returns 序列化后的字符串
- */
-function serializeValue(value: unknown, config: FieldConfig): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  // 使用自定义序列化函数
-  if (config.serialize) {
-    return config.serialize(value);
-  }
-
-  // 根据值类型序列化
-  switch (config.valueType) {
-    case ValueType.ARRAY:
-    case ValueType.OBJECT:
-    case ValueType.DATE:
-      return JSON.stringify(value);
-    default:
-      return String(value);
-  }
-}
-
-/**
  * 比较两个值是否相等
  *
  * @param oldValue - 旧值
@@ -145,6 +117,9 @@ export function detectDeletionChanges(
   entityType: EntityType,
   deletedData: Record<string, unknown>
 ): FieldChange[] {
+  void entityType;
+  void deletedData;
+
   return [
     {
       fieldName: 'is_delete',
@@ -167,6 +142,8 @@ export function detectDeletionChanges(
 export function detectRestorationChanges(
   entityType: EntityType
 ): FieldChange[] {
+  void entityType;
+
   return [
     {
       fieldName: 'is_delete',

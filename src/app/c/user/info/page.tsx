@@ -22,7 +22,6 @@ import {
   Alert,
   Modal,
 } from "antd";
-import type { UploadProps } from "antd";
 import {
   UserOutlined,
   SaveOutlined,

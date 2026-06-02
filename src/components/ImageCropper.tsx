@@ -7,7 +7,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Modal, Button, Space, Typography, Alert, Checkbox, Divider } from "antd";
+import { Modal, Button, Space, Typography, Alert, Checkbox } from "antd";
 import Cropper from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import type { ReactCropperElement } from "react-cropper";

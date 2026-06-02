@@ -28,8 +28,6 @@ export async function PUT(
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
-    const { user } = check;
-
     const { id } = await params;
     const collectionId = parseInt(id, 10);
 

@@ -45,13 +45,13 @@ const METHOD_COLORS: Record<string, string> = {
 function useUrlState() {
   const searchParams = useSearchParams();
 
-  return {
+  return useMemo(() => ({
     searchText: searchParams.get("q") || "",
     moduleFilter: searchParams.get("module") || "",
     mcpFilter: searchParams.get("mcp_enabled") || "",
     current: parseInt(searchParams.get("page") || "1", 10),
     pageSize: parseInt(searchParams.get("pageSize") || "20", 10),
-  };
+  }), [searchParams]);
 }
 
 interface QueryParams {
@@ -214,7 +214,7 @@ function ApiRegistryPageContent() {
 
   useEffect(() => {
     loadApis(urlState.current, urlState.pageSize);
-  }, [loadApis, urlState.current, urlState.pageSize, urlState.searchText, urlState.moduleFilter, urlState.mcpFilter]);
+  }, [loadApis, urlState]);
 
   const handleToggleMcp = async (record: ApiRegistryItem, enabled: boolean) => {
     try {
@@ -228,7 +228,7 @@ function ApiRegistryPageContent() {
       } else {
         message.error(response.data.message || "操作失败");
       }
-    } catch (error) {
+    } catch {
       message.error("操作失败");
     }
   };
