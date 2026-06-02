@@ -2,6 +2,7 @@ name: Docker Release
 
 # 推送到 main 分支时触发，在 job 中判断是否跳过
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -51,9 +52,11 @@ jobs:
     name: 构建并部署
     needs: skip-check
     if: |
-      needs.skip-check.result == 'success' && needs.skip-check.outputs.should_build == 'true'
+      always() && (
+        needs.skip-check.result == 'success' && needs.skip-check.outputs.should_build == 'true'
       || github.event_name != 'push'
       || github.ref != 'refs/heads/main'
+      )
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: nnnnzs/react-nnnnzs-cn
