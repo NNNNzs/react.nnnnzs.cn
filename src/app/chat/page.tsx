@@ -3,7 +3,7 @@
 /**
  * 聊天页面
  * 使用 Ant Design X 组件实现知识库检索对话
- * 使用 ReAct Agent 驱动的 RAG 架构
+ * 使用 ReAct Agent 编排工具，RAG 检索作为工具按需调用
  * 支持多轮 ReAct 循环步骤展示和打字机效果
  * 支持会话列表、历史记录恢复
  */
@@ -66,6 +66,20 @@ interface ReactLoop {
   steps: ReactStep[];
 }
 
+interface ReactTimelineThinkItem {
+  type: "think";
+  content: string;
+  isStreaming?: boolean;
+}
+
+interface ReactTimelineLoopItem {
+  type: "loop";
+  index: number;
+  steps: ReactStep[];
+}
+
+type ReactTimelineItem = ReactTimelineThinkItem | ReactTimelineLoopItem;
+
 /**
  * 消息类型定义
  */
@@ -75,8 +89,8 @@ interface ChatMessage {
   content: string;
   thoughts: string[];
   reactLoops: ReactLoop[];
+  reactTimeline: ReactTimelineItem[];
   loading?: boolean;
-  expanded?: boolean;
 }
 
 /**
@@ -103,9 +117,9 @@ const STEP_CONFIG: Record<
 };
 
 /**
- * 过滤 thought 中的 JSON-RPC 代码块
+ * 兼容旧版历史记录：过滤旧手写 Agent 遗留的 JSON-RPC 代码块
  */
-function filterJsonRpc(text: string): string {
+function filterLegacyToolCallArtifacts(text: string): string {
   return text.replace(/```json-rpc\s*[\s\S]*?```/g, "").trim();
 }
 
@@ -117,7 +131,7 @@ const ReactStepItem: React.FC<{ step: ReactStep }> = React.memo(({ step }) => {
 
   const displayContent = useMemo(() => {
     if (step.type !== "thought") return step.content;
-    return step.isStreaming ? step.content : filterJsonRpc(step.content);
+    return step.isStreaming ? step.content : filterLegacyToolCallArtifacts(step.content);
   }, [step.content, step.type, step.isStreaming]);
 
   if (!displayContent) return null;
@@ -145,9 +159,33 @@ interface MessageContentProps {
   content: string;
   thoughts: string[];
   reactLoops: ReactLoop[];
+  reactTimeline: ReactTimelineItem[];
   loading?: boolean;
-  expanded?: boolean;
-  onToggle?: () => void;
+}
+
+function buildLegacyTimeline(
+  thoughts: string[],
+  reactLoops: ReactLoop[],
+): ReactTimelineItem[] {
+  const timeline: ReactTimelineItem[] = [];
+
+  for (const thought of thoughts) {
+    timeline.push({
+      type: "think",
+      content: thought,
+      isStreaming: false,
+    });
+  }
+
+  for (const loop of reactLoops) {
+    timeline.push({
+      type: "loop",
+      index: loop.index,
+      steps: loop.steps,
+    });
+  }
+
+  return timeline;
 }
 
 /**
@@ -159,14 +197,9 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
     content,
     thoughts = [],
     reactLoops = [],
+    reactTimeline = [],
     loading,
-    expanded,
-    onToggle,
   }) => {
-    const thoughtContent = useMemo(() => {
-      return thoughts.join("\n\n");
-    }, [thoughts]);
-
     const [title, defaultExpanded] = useMemo(() => {
       if (loading) {
         return ["正在思考...", true];
@@ -174,10 +207,15 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
       return ["思考完成", false];
     }, [loading]);
 
-    const isExpanded = expanded !== undefined ? expanded : defaultExpanded;
+    const orderedTimeline = useMemo(() => {
+      if (reactTimeline.length > 0) return reactTimeline;
+      return buildLegacyTimeline(thoughts, reactLoops);
+    }, [reactLoops, reactTimeline, thoughts]);
 
-    const collapseItems = useMemo(() => {
-      return reactLoops.map((loop) => ({
+    const [expandedThinkMap, setExpandedThinkMap] = useState<Record<number, boolean>>({});
+
+    const renderLoop = useCallback((loop: ReactTimelineLoopItem) => {
+      const collapseItems = [{
         key: `loop-${loop.index}`,
         label: (
           <span className="flex items-center gap-2">
@@ -192,48 +230,57 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
             ))}
           </div>
         ),
-      }));
-    }, [reactLoops]);
+      }];
 
-    // 默认只展开最后一轮
-    const defaultActiveKeys = useMemo(() => {
-      if (reactLoops.length === 0) return [];
-      return [`loop-${reactLoops[reactLoops.length - 1].index}`];
-    }, [reactLoops]);
+      return (
+        <Collapse
+          key={`timeline-loop-${loop.index}`}
+          size="small"
+          defaultActiveKey={[`loop-${loop.index}`]}
+          className="mb-3"
+          items={collapseItems}
+        />
+      );
+    }, []);
 
     return (
       <div>
         {loading &&
         !content &&
-        thoughts.length === 0 &&
-        reactLoops.length === 0 ? (
+        orderedTimeline.length === 0 ? (
           <div className="text-gray-400 flex items-center gap-2">
             <RobotOutlined spin />
             <span>正在思考...</span>
           </div>
         ) : (
           <>
-            {/* 状态提示（初始化信息） */}
-            {thoughts.length > 0 && (
-              <Think
-                title={title}
-                loading={loading}
-                expanded={isExpanded}
-                onClick={onToggle}
-              >
-                {thoughtContent}
-              </Think>
-            )}
+            {orderedTimeline.map((item, index) => {
+              if (item.type === "think") {
+                const isLatestThink = index === orderedTimeline.length - 1;
+                const defaultThinkExpanded = loading && isLatestThink
+                  ? defaultExpanded
+                  : false;
+                const isExpanded = expandedThinkMap[index] ?? defaultThinkExpanded;
+                return (
+                  <Think
+                    key={`timeline-think-${index}`}
+                    title={loading && isLatestThink ? title : "思考片段"}
+                    loading={loading && isLatestThink}
+                    expanded={isExpanded}
+                    onClick={() => {
+                      setExpandedThinkMap((prev) => ({
+                        ...prev,
+                        [index]: !(prev[index] ?? defaultExpanded),
+                      }));
+                    }}
+                  >
+                    {item.content}
+                  </Think>
+                );
+              }
 
-            {/* ReAct 多轮循环展示 */}
-            {reactLoops.length > 0 && (
-              <Collapse
-                size="small"
-                defaultActiveKey={defaultActiveKeys}
-                className="mb-3"
-                items={collapseItems}
-              />
-            )}
+              return renderLoop(item);
+            })}
 
             {/* 最终答案 */}
             {content && <XMarkdown>{content}</XMarkdown>}
@@ -460,6 +507,17 @@ export default function ChatPage() {
                 index: number;
                 steps: Array<{ type: string; content: string }>;
               }>;
+              reactTimeline?: Array<
+                | {
+                    type: "think";
+                    content: string;
+                  }
+                | {
+                    type: "loop";
+                    index: number;
+                    steps: Array<{ type: string; content: string }>;
+                  }
+              >;
             } | null;
             created_at: string;
           }) => ({
@@ -475,6 +533,23 @@ export default function ChatPage() {
                 isStreaming: false,
               })),
             })),
+            reactTimeline: (msg.metadata?.reactTimeline || []).map((item) => (
+              item.type === "think"
+                ? {
+                    type: "think" as const,
+                    content: item.content,
+                    isStreaming: false,
+                  }
+                : {
+                    type: "loop" as const,
+                    index: item.index,
+                    steps: item.steps.map((step) => ({
+                      ...step,
+                      type: step.type as StepType,
+                      isStreaming: false,
+                    })),
+                  }
+            )),
           }));
 
           setMessages(sessionMessages);
@@ -595,6 +670,7 @@ export default function ChatPage() {
         content: text,
         thoughts: [],
         reactLoops: [],
+        reactTimeline: [],
       };
 
       // 添加 AI 消息占位符
@@ -605,8 +681,8 @@ export default function ChatPage() {
         content: "",
         thoughts: [],
         reactLoops: [],
+        reactTimeline: [],
         loading: true,
-        expanded: true,
       };
 
       setMessages((prev) => [...prev, userMessage, aiMessage]);
@@ -661,7 +737,28 @@ export default function ChatPage() {
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
-                return { ...msg, thoughts: [...msg.thoughts, thinkContent] };
+                const thoughts = [...msg.thoughts];
+                const reactTimeline = [...msg.reactTimeline];
+                const lastTimelineItem = reactTimeline[reactTimeline.length - 1];
+
+                if (lastTimelineItem?.type === "think") {
+                  lastTimelineItem.content += thinkContent;
+                  const lastThoughtIndex = thoughts.length - 1;
+                  if (lastThoughtIndex >= 0) {
+                    thoughts[lastThoughtIndex] += thinkContent;
+                  } else {
+                    thoughts.push(thinkContent);
+                  }
+                } else {
+                  thoughts.push(thinkContent);
+                  reactTimeline.push({
+                    type: "think",
+                    content: thinkContent,
+                    isStreaming: true,
+                  });
+                }
+
+                return { ...msg, thoughts, reactTimeline };
               }),
             );
           },
@@ -671,6 +768,7 @@ export default function ChatPage() {
                 if (msg.id !== aiMessageId) return msg;
 
                 const loops = [...msg.reactLoops];
+                const reactTimeline = [...msg.reactTimeline];
 
                 // 确保 loops 数组有足够长度
                 while (loops.length < stepIndex) {
@@ -724,11 +822,26 @@ export default function ChatPage() {
                       content: stepContent,
                       isStreaming: false,
                     },
-                  ];
+                    ];
                 }
 
                 loops[stepIndex - 1] = currentLoop;
-                return { ...msg, reactLoops: loops };
+
+                const lastTimelineItem = reactTimeline[reactTimeline.length - 1];
+                if (
+                  lastTimelineItem?.type === "loop" &&
+                  lastTimelineItem.index === stepIndex
+                ) {
+                  lastTimelineItem.steps = currentLoop.steps;
+                } else {
+                  reactTimeline.push({
+                    type: "loop",
+                    index: stepIndex,
+                    steps: currentLoop.steps,
+                  });
+                }
+
+                return { ...msg, reactLoops: loops, reactTimeline };
               }),
             );
           },
@@ -747,7 +860,17 @@ export default function ChatPage() {
                 return {
                   ...msg,
                   loading: false,
-                  expanded: false,
+                  reactTimeline: msg.reactTimeline.map((item) => (
+                    item.type === "think"
+                      ? { ...item, isStreaming: false }
+                      : {
+                          ...item,
+                          steps: item.steps.map((step) => ({
+                            ...step,
+                            isStreaming: false,
+                          })),
+                        }
+                  )),
                   reactLoops: msg.reactLoops.map((loop) => ({
                     ...loop,
                     steps: loop.steps.map((step) => ({
@@ -832,17 +955,6 @@ export default function ChatPage() {
   }, []);
 
   /**
-   * 切换消息展开状态
-   */
-  const toggleMessageExpanded = useCallback((messageId: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, expanded: !msg.expanded } : msg,
-      ),
-    );
-  }, []);
-
-  /**
    * 转换消息为 Bubble.List 需要的格式
    */
   const bubbleItems = useMemo(() => {
@@ -858,14 +970,13 @@ export default function ChatPage() {
               content={msg.content}
               thoughts={msg.thoughts}
               reactLoops={msg.reactLoops}
+              reactTimeline={msg.reactTimeline}
               loading={msg.loading}
-              expanded={msg.expanded}
-              onToggle={() => toggleMessageExpanded(msg.id)}
             />
           ),
       };
     });
-  }, [messages, toggleMessageExpanded]);
+  }, [messages]);
 
   /**
    * 设置 Markdown 中的链接在新标签页打开

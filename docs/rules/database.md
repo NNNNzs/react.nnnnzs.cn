@@ -8,7 +8,7 @@
 > - [实体变更日志设计](../designs/entity-change-design.md) - 数据变更追踪系统的数据库设计
 > - [评论系统设计](../designs/comment-system-design.md) - 评论功能的数据库模型
 > - [合集功能设计](../designs/collection-design.md) - 文章合集的数据库设计
-> - [RAG 聊天系统](../designs/chat/rag-chat.md) - 聊天会话和消息记录的数据库设计
+> - [Agent 聊天系统](../designs/chat/rag-chat.md) - 聊天会话和消息记录的数据库设计
 
 ## 数据库技术栈
 

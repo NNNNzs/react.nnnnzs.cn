@@ -44,7 +44,7 @@
 - **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
 #### AI 对话系统
-- **[RAG 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的 RAG 聊天机器人与聊天记录持久化
+- **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
 
 #### 权限与认证
 - **[权限系统设计](docs/designs/permission-design.md)** - 多层权限防护架构
@@ -67,11 +67,9 @@
 ### 当前计划
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（活动数据家具化已完成，下一步 GLB 模型替换 + 日间主题打磨）
 
-### 已完成计划
-- **[LangChain/LangGraph 迁移](docs/plans/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph（已完成）
-- **[管理后台移动端适配](docs/plans/admin-mobile-ux.md)** - 响应式 Sider/Drawer 切换（已完成）
-- **[聊天系统简化](docs/plans/chat-system-simplification.md)** - 从 ReAct 到简单 RAG（已被 LangGraph 迁移替代）
-- 已归档到 `docs/designs/` 目录
+### 已完成计划（已归档到 `docs/designs/archive/`）
+- **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph
+- **[管理后台移动端适配](docs/designs/archive/admin-mobile-ux.md)** - 响应式 Sider/Drawer 切换
 
 ## 📖 技术参考目录
 
@@ -82,6 +80,7 @@
 - **[队列调试指南](docs/reference/QUEUE-DEBUG-GUIDE.md)** - 向量化队列调试
 - **[Prisma 版本说明](docs/reference/PRISMA_VERSION_NOTE.md)** - Prisma 相关技术说明
 - **[MCP 合集使用指南](docs/reference/mcp-collections-guide.md)** - MCP 合集功能使用指南
+- **[Chat Agent 系统提示词模板](docs/reference/chat-agent-system-prompt.md)** - Chat Agent 提示词模板，运行时由 LangChain `PromptTemplate` 注入变量
 
 ## 🚀 部署
 

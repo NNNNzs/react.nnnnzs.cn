@@ -1,4 +1,4 @@
-# RAG 聊天系统
+# Agent 聊天系统
 
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
@@ -7,14 +7,15 @@
 
 ## 概述
 
-本项目实现了一个基于 **LangGraph ReAct Agent** 的 RAG 聊天机器人，通过向量检索增强 LLM 的回答能力，提供基于博客知识库的智能问答服务。
+本项目实现了一个基于 **LangGraph ReAct Agent** 的聊天机器人。Agent 作为核心编排层，负责判断问题意图并按需调用工具；RAG/向量检索是其中最重要的一类知识检索工具，而不是固定前置流程。
 
 ### 核心特性
 
 - **LangGraph ReAct Agent**：使用 `createReactAgent` 进行多步推理（替代原手写 ReAct 循环）
 - **原生 Function Calling**：使用 LangChain `tool()` + zod schema 定义工具（替代 JSON-RPC）
-- **向量检索**：基于 Qdrant 的语义搜索，检索相关文章
+- **RAG 检索工具**：基于 Qdrant 的语义搜索，作为 `search_articles` 工具由 Agent 按需调用
 - **流式响应**：使用 SSE（Server-Sent Events）+ XML 标签协议实现实时流式输出
+- **DeepSeek think 展示**：从模型原生 `reasoning_content` 提取推理内容，映射到 `<think>...</think>` 并由前端 `Think` 组件展示
 - **工具调用**：支持可扩展的工具系统（当前实现 3 个工具）
 - **对话历史**：支持多轮对话上下文管理
 - **聊天记录**：支持登录用户和游客会话持久化、历史恢复和后台查看
@@ -40,7 +41,7 @@ flowchart TB
         B5["聊天记录落库"]
     end
 
-    subgraph Agent["LangGraph Agent services/ai/rag/langgraph-agent.ts"]
+    subgraph Agent["LangGraph Agent services/ai/chat-agent/langgraph-agent.ts"]
         C1["createReactAgent（LangGraph 预构建）"]
         C2["streamEvents 事件流"]
         C3["XML 标签流式协议转换"]
@@ -89,12 +90,12 @@ flowchart TB
 | **后台记录页面** | `src/app/c/chat-logs/page.tsx` | 聊天记录管理、筛选、查看详情、删除 |
 | **聊天记录服务** | `src/services/chat-log.ts` | 会话和消息 CRUD、后台查询 |
 | **游客设备标识** | `src/lib/device-id.ts` | localStorage 持久化游客设备 ID |
-| **LangGraph Agent** | `src/services/ai/rag/langgraph-agent.ts` | LangGraph `createReactAgent` 实现 |
-| **旧版 Agent** | `src/lib/react-agent.ts` | 旧版手写 ReAct 循环（保留兼容） |
-| **Agent 编排** | `src/services/ai/rag/agent.ts` | 旧版系统指令构建、流程协调 |
-| **Agent 统一入口** | `src/services/ai/rag/index.ts` | Agent 选择和统一导出 |
+| **LangGraph Agent** | `src/services/ai/chat-agent/langgraph-agent.ts` | LangGraph `createReactAgent` 实现 |
+| **系统提示词模板** | `docs/reference/chat-agent-system-prompt.md` | Chat Agent 系统提示词，使用 LangChain `PromptTemplate` 注入变量 |
+| **提示词注入服务** | `src/services/ai/chat-agent/prompt.ts` | 读取提示词模板并注入站点、用户、知识库和合集变量 |
+| **旧版兼容入口** | `src/services/ai/rag/index.ts` | 兼容导出，主入口已迁移到 `src/services/ai/chat-agent` |
 | **LangChain 工具** | `src/services/ai/tools/langchain-tools.ts` | LangChain `tool()` + zod schema 定义 |
-| **搜索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具 |
+| **RAG 检索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具，供 Agent 按需调用 |
 | **元数据搜索** | `src/services/ai/tools/search-posts-meta.ts` | 按时间/热度/分类搜索 |
 | **合集搜索** | `src/services/ai/tools/search-collection.ts` | 合集内文章搜索 |
 | **流式标签** | `src/lib/stream-tags.ts` | XML 标签流式协议（前后端通信） |
@@ -147,6 +148,20 @@ interface MessageMetadata {
       content: string;
     }>;
   }>;
+  reactTimeline?: Array<
+    | {
+        type: 'think';
+        content: string;
+      }
+    | {
+        type: 'loop';
+        index: number;
+        steps: Array<{
+          type: 'thought' | 'action' | 'observation';
+          content: string;
+        }>;
+      }
+  >;
 }
 ```
 
@@ -189,27 +204,21 @@ interface ReactStep {
 ### 工具定义
 
 ```typescript
-// 工具接口
+// 业务工具接口
 interface Tool {
   name: string;
   description: string;
   parameters: {
-    type: string;
-    properties: Record<string, ToolParameter>;
-    required?: string[];
+    [key: string]: {
+      type: string;
+      description: string;
+      required?: boolean;
+    };
   };
-  executor: (params: unknown) => Promise<unknown>;
+  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
 }
 
-// 工具注册表
-class ToolRegistry {
-  private tools: Map<string, Tool> = new Map();
-
-  register(tool: Tool): void;
-  get(name: string): Tool | undefined;
-  getToolsDescription(): string;
-  callTool(name: string, params: unknown): Promise<unknown>;
-}
+// LangChain wrapper 位于 langchain-tools.ts，使用 tool() + zod schema 暴露给 Agent。
 ```
 
 ## 关键流程
@@ -233,7 +242,7 @@ flowchart TD
     I -->|是| J["[3.3] 工具调用流程"]
     I -->|否| K["[3.4] 生成最终答案"]
 
-    J --> L["解析 JSON-RPC 2.0 格式的工具调用"]
+    J --> L["LangChain 原生 function calling"]
     L --> M["执行工具<br/>如 search_articles"]
     M --> N["获取工具结果"]
     N --> G
@@ -389,29 +398,46 @@ export const myTool: Tool = {
   name: 'my_tool',
   description: '工具描述',
   parameters: {
-    type: 'object',
-    properties: {
-      param1: { type: 'string', description: '参数说明' },
+    param1: {
+      type: 'string',
+      description: '参数说明',
+      required: true,
     },
-    required: ['param1'],
   },
-  executor: async (params) => {
+  execute: async (args) => {
     // 执行逻辑
-    return { result: '...' };
+    return {
+      success: true,
+      data: { result: args.param1 },
+    };
   },
 };
 ```
 
-2. **注册工具**（`src/services/ai/tools/index.ts`）：
+2. **包装为 LangChain tool**（`src/services/ai/tools/langchain-tools.ts`）：
 
 ```typescript
-import { toolRegistry } from '@/services/ai/tools';
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
 import { myTool } from '@/services/ai/tools/my-tool';
 
-toolRegistry.register(myTool);
+export const lcMyTool = tool(
+  async ({ param1 }) => {
+    const result = await myTool.execute({ param1 });
+    if (!result.success) return JSON.stringify({ error: result.error });
+    return JSON.stringify(result.data);
+  },
+  {
+    name: 'my_tool',
+    description: '工具描述',
+    schema: z.object({
+      param1: z.string().describe('参数说明'),
+    }),
+  },
+);
 ```
 
-3. **更新系统指令**：工具描述会自动添加到系统指令中。
+3. **加入 `chatTools` 数组**：Agent 会通过 LangChain 原生 function calling 按需调用。
 
 ## 性能考虑
 
@@ -497,7 +523,7 @@ toolRegistry.register(myTool);
 
 2. **智能路由**
    - 根据问题复杂度选择策略
-   - 简单问题：直接 RAG
+- 简单知识库问题：可直接调用 RAG 检索工具
    - 复杂问题：ReAct Agent
 
 3. **多模态支持**
@@ -527,7 +553,6 @@ toolRegistry.register(myTool);
 
 - **LangChain**: https://js.langchain.com/
 - **SSE 标准**: https://html.spec.whatwg.org/multipage/server-sent-events.html
-- **JSON-RPC 2.0**: https://www.jsonrpc.org/specification
 
 ### 项目相关
 

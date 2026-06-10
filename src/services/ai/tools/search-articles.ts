@@ -1,6 +1,6 @@
 /**
- * 文章搜索工具
- * 通过向量相似度搜索相关文章
+ * RAG 检索工具
+ * 通过向量相似度搜索相关文章，供 Chat Agent 按需调用
  */
 
 import { embedText } from '@/services/embedding/embedding';
@@ -23,11 +23,11 @@ interface ArticleSearchResult {
 }
 
 /**
- * 文章搜索工具
+ * RAG 检索工具
  */
 export const searchArticlesTool: Tool = {
   name: 'search_articles',
-  description: '在知识库中搜索与查询相关的文章。当用户询问关于博客文章、技术文档或知识库内容的问题时，使用此工具检索相关信息。',
+  description: 'RAG 检索工具：在知识库中搜索与查询相关的文章。当用户询问关于博客文章、技术文档或知识库内容的问题时，使用此工具检索相关信息。',
   parameters: {
     query: {
       type: 'string',

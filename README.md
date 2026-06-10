@@ -22,7 +22,7 @@
 - **向量数据库**: Qdrant
 
 ### AI 能力
-- **聊天系统**: 基于 ReAct Agent 的 RAG 聊天机器人
+- **聊天系统**: 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用
 - **向量化**: 文章自动向量化，支持语义搜索
 - **MCP 集成**: 支持 Model Context Protocol
 - **多模型支持**: Anthropic Claude、OpenAI 等
@@ -38,7 +38,7 @@
 - **时间线** - 文章时间轴展示
 - **归档** - 文章归档页面
 - **评论系统** - 支持评论和回复
-- **AI 聊天** - 基于 RAG 的智能问答
+- **AI 聊天** - 基于 ReAct Agent 的智能问答，按需调用 RAG 检索
 - **用户认证** - 登录/注册/GitHub OAuth
 - **响应式设计** - 移动端友好
 
@@ -228,7 +228,7 @@ src/
 - 支持手动触发向量化
 
 ### AI 聊天
-- 基于 ReAct Agent 的 RAG 聊天
+- 基于 ReAct Agent 的知识问答聊天，RAG 检索作为工具按需调用
 - 支持多模型切换
 - 工具调用可视化
 - 流式响应支持
@@ -238,7 +238,7 @@ src/
 - OAuth 2.0 认证
 - 博客合集管理
 
-详见：[向量化系统](./docs/designs/vector/overview.md)、[RAG 聊天系统](./docs/designs/chat/rag-chat.md)
+详见：[向量化系统](./docs/designs/vector/overview.md)、[Agent 聊天系统](./docs/designs/chat/rag-chat.md)
 
 ##  权限系统
 

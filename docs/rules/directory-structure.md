@@ -94,7 +94,6 @@ src/
 │   ├── ai.ts                     # OpenAI LangChain 抽象层
 │   ├── ai-config.ts              # AI 配置管理（数据库驱动）
 │   ├── ai-text.ts                # AI 文本处理工具函数
-│   ├── react-agent.ts            # 旧版 ReAct Agent 核心逻辑（保留兼容）
 │   ├── sse.ts                    # SSE 服务端推送工具
 │   ├── stream-tags.ts            # XML 标签流式协议（前后端通信）
 │   ├── stream.ts                 # 流式响应基础工具
@@ -117,9 +116,9 @@ src/
 │   │   │   ├── search-posts-meta.ts  # 元数据搜索工具
 │   │   │   ├── search-collection.ts  # 合集搜索工具
 │   │   │   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
-│   │   │   ├── register.ts           # 工具注册辅助
 │   │   │   └── index.ts              # 工具统一导出
-│   │   ├── rag/                  # RAG Agent 服务
+│   │   ├── chat-agent/           # Chat Agent 编排服务
+│   │   ├── rag/                  # 历史兼容目录 + 旧版 RAG helper
 │   │   │   ├── agent.ts          # 旧 Agent 系统指令构建（保留兼容）
 │   │   │   ├── langgraph-agent.ts # LangGraph ReAct Agent 实现
 │   │   │   └── index.ts          # Agent 统一导出

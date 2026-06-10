@@ -216,6 +216,20 @@ export interface MessageMetadata {
       content: string;
     }>;
   }>;
+  reactTimeline?: Array<
+    | {
+        type: 'think';
+        content: string;
+      }
+    | {
+        type: 'loop';
+        index: number;
+        steps: Array<{
+          type: string;
+          content: string;
+        }>;
+      }
+  >;
 }
 
 /**

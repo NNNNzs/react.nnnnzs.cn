@@ -2,7 +2,7 @@
 
 > **状态**: ✅ 已实施
 > **创建日期**: 2026-01-17
-> **相关文档**: [向量化总览](../vector/overview.md) | [RAG 聊天系统](../chat/rag-chat.md)
+> **相关文档**: [向量化总览](../vector/overview.md) | [Agent 聊天系统](../chat/rag-chat.md)
 
 ## 概述
 
@@ -354,7 +354,7 @@ curl http://localhost:6333/collections/post_vectors
 
 - [Qdrant 搜索文档](https://qdrant.tech/documentation/concepts/search/)
 - [向量化总览](../vector/overview.md)
-- [RAG 聊天系统](../chat/rag-chat.md)
+- [Agent 聊天系统](../chat/rag-chat.md)
 
 ---
 

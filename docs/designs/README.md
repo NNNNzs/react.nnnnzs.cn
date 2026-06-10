@@ -14,7 +14,7 @@ docs/designs/
 ├── search/                # 检索系统
 │   └── semantic-search.md # 语义搜索
 ├── chat/                  # 聊天系统
-│   └── rag-chat.md        # RAG 聊天系统
+│   └── rag-chat.md        # Agent 聊天系统（RAG 检索工具）
 ├── archive/               # 归档文档
 │   └── rag-system-refactor.md
 ├── analytics-system-design.md        # 统计系统设计
@@ -47,7 +47,7 @@ docs/designs/
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [RAG 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + 聊天记录持久化 | ✅ 已实施 |
+| [Agent 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + RAG 检索工具 + 聊天记录持久化 | ✅ 已实施 |
 
 ### 业务功能
 

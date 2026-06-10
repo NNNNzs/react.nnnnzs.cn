@@ -53,6 +53,20 @@ export class StreamTagGenerator {
   }
 
   /**
+   * 开始 think 标签（用于模型原生推理内容的流式输出）
+   */
+  startThink(): Uint8Array {
+    return this.encoder.encode('<think>');
+  }
+
+  /**
+   * 结束 think 标签
+   */
+  endThink(): Uint8Array {
+    return this.encoder.encode('</think>');
+  }
+
+  /**
    * 开始 content 标签
    * @returns 编码后的开始标签
    */
@@ -116,14 +130,16 @@ export class StreamTagGenerator {
  * 标签解析器
  * 用于前端解析流式响应中的 XML 标签
  *
- * 支持三种标签：
+ * 支持四种标签：
  * 1. <think content="..."/> — 自闭合，直接提取 content 属性
- * 2. <step type="..." index="...">...</step> — 支持流式，逐步输出内容
- * 3. <content>...</content> — 支持流式，逐步输出内容
+ * 2. <think>...</think> — 支持 DeepSeek 等模型原生推理内容流式输出
+ * 3. <step type="..." index="...">...</step> — 支持流式，逐步输出内容
+ * 4. <content>...</content> — 支持流式，逐步输出内容
  */
 export class StreamTagParser {
   private decoder: TextDecoder;
   private buffer: string = '';
+  private inThink: boolean = false;
   private inContent: boolean = false;
   private inStep: boolean = false;
   private stepType: StepType | null = null;
@@ -149,7 +165,9 @@ export class StreamTagParser {
    * @param onTag 标签回调
    */
   finish(onTag: (tag: StreamTag) => void): void {
-    if (this.inContent && this.buffer) {
+    if (this.inThink && this.buffer) {
+      onTag({ type: 'think', content: this.unescapeXml(this.buffer) });
+    } else if (this.inContent && this.buffer) {
       onTag({ type: 'content', content: this.unescapeXml(this.buffer) });
     } else if (this.inStep && this.buffer) {
       onTag({
@@ -168,12 +186,19 @@ export class StreamTagParser {
   private parseBuffer(onTag: (tag: StreamTag) => void): void {
     while (this.buffer.length > 0) {
       // 1. 自由状态下，尝试匹配各种开始标签
-      if (!this.inContent && !this.inStep) {
+      if (!this.inThink && !this.inContent && !this.inStep) {
         // 匹配自闭合 <think content="..."/>
         const thinkMatch = this.buffer.match(/^<think\s+content="((?:[^"]|&(?:quot|amp|lt|gt|apos);)*)"\s*\/>/);
         if (thinkMatch) {
           onTag({ type: 'think', content: this.unescapeXml(thinkMatch[1]) });
           this.buffer = this.buffer.substring(thinkMatch[0].length);
+          continue;
+        }
+
+        // 匹配 <think>，用于模型原生推理内容的流式输出
+        if (this.buffer.startsWith('<think>')) {
+          this.inThink = true;
+          this.buffer = this.buffer.substring(7);
           continue;
         }
 
@@ -196,6 +221,27 @@ export class StreamTagParser {
 
         // 都不匹配，跳过一个字符
         this.buffer = this.buffer.substring(1);
+        continue;
+      }
+
+      // 2. think 内容解析（流式输出）
+      if (this.inThink) {
+        const thinkEnd = this.buffer.indexOf('</think>');
+        if (thinkEnd !== -1) {
+          const remaining = this.buffer.substring(0, thinkEnd);
+          if (remaining) {
+            onTag({ type: 'think', content: this.unescapeXml(remaining) });
+          }
+          this.buffer = this.buffer.substring(thinkEnd + 8);
+          this.inThink = false;
+        } else {
+          if (this.buffer.length > 0) {
+            const content = this.buffer;
+            this.buffer = '';
+            onTag({ type: 'think', content: this.unescapeXml(content) });
+          }
+          break;
+        }
         continue;
       }
 
@@ -272,6 +318,7 @@ export class StreamTagParser {
    */
   reset(): void {
     this.buffer = '';
+    this.inThink = false;
     this.inContent = false;
     this.inStep = false;
     this.stepType = null;

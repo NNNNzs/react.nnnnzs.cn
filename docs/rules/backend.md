@@ -133,16 +133,15 @@ src/services/ai/
 │   ├── client.ts     # 客户端和配置
 │   ├── stream.ts     # 流式响应处理
 │   └── index.ts      # 统一导出
-├── rag/              # RAG Agent 服务
-│   ├── agent.ts      # 旧版 Agent 系统指令构建（保留兼容）
-│   ├── langgraph-agent.ts  # LangGraph ReAct Agent 实现（当前使用）
+├── chat-agent/       # Chat Agent 编排服务（LangGraph + DeepSeek think）
+├── rag/              # 历史兼容目录 + 旧版 RAG helper
+│   ├── langgraph-agent.ts  # 兼容导出，主实现位于 chat-agent/
 │   └── index.ts      # Agent 统一导出
 ├── tools/            # ReAct Agent 工具系统
 │   ├── search-articles.ts    # 向量语义搜索工具
 │   ├── search-posts-meta.ts  # 元数据搜索工具
 │   ├── search-collection.ts  # 合集搜索工具
 │   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
-│   ├── register.ts           # 工具注册辅助
 │   └── index.ts              # 工具统一导出
 ├── text/              # AI文本处理服务（使用 Anthropic）
 │   └── index.ts
@@ -165,7 +164,7 @@ import { streamAnthropicMessagesWithSystem } from '@/services/ai/anthropic';
 import { createAIChain, streamFromChain } from '@/lib/ai';
 
 // ✅ 正确：导入 LangGraph Agent
-import { createChatAgent } from '@/services/ai/rag/langgraph-agent';
+import { chatAgentStream } from '@/services/ai/chat-agent';
 
 // ✅ 正确：导入 LangChain 格式工具
 import { chatTools } from '@/services/ai/tools/langchain-tools';
@@ -176,7 +175,8 @@ import { chatTools } from '@/services/ai/tools/langchain-tools';
 
 **目录职责**：
 - `anthropic/` - Anthropic 官方 SDK 工具类，提供直接调用接口
-- `rag/` - RAG Agent 服务，包含 LangGraph 和旧版 Agent 实现
+- `chat-agent/` - Chat Agent 主实现，包含 LangGraph 编排、系统提示词注入和 DeepSeek think 流式映射
+- `rag/` - 历史兼容目录和旧版 RAG helper；新代码不要从这里接入 Chat Agent
 - `tools/` - ReAct Agent 的工具系统，包含自定义格式和 LangChain 格式
 - `text/` - AI 文本处理相关功能（使用 Anthropic）
 - `description/` - 文章描述生成功能（使用 Anthropic）

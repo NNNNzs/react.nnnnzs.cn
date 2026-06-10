@@ -506,7 +506,7 @@ export interface CollectionSummary {
 
 /**
  * 获取所有已发布合集的简要信息
- * 用于 RAG Agent 上下文，包含合集名称、描述和文章 ID 列表
+ * 用于 Chat Agent 上下文，包含合集名称、描述和文章 ID 列表
  */
 export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
   const prisma = await getPrisma();

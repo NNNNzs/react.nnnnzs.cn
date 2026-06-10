@@ -3,7 +3,18 @@
  * 用于服务端和客户端的 SSE 通信
  */
 
-import type { SSEEvent } from './react-agent';
+export type SSEEventType =
+  | 'thought'
+  | 'action'
+  | 'observation'
+  | 'answer'
+  | 'error'
+  | 'done';
+
+export interface SSEEvent {
+  type: SSEEventType;
+  data: unknown;
+}
 
 /**
  * 格式化 SSE 消息

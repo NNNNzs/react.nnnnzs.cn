@@ -11,8 +11,8 @@ import { searchPostsMetaTool as _searchPostsMetaTool } from './search-posts-meta
 import { searchCollectionTool as _searchCollectionTool } from './search-collection';
 
 /**
- * 文章语义搜索工具
- * 通过向量相似度搜索相关文章
+ * RAG 检索工具
+ * 通过向量相似度搜索相关文章，供 Chat Agent 按需调用
  */
 export const lcSearchArticlesTool = tool(
   async ({ query, limit }) => {
@@ -23,7 +23,7 @@ export const lcSearchArticlesTool = tool(
   {
     name: 'search_articles',
     description:
-      '在知识库中搜索与查询相关的文章。当用户询问关于博客文章、技术文档或知识库内容的问题时，使用此工具检索相关信息。',
+      'RAG 检索工具：在知识库中搜索与查询相关的文章。当用户询问关于博客文章、技术文档或知识库内容的问题时，使用此工具检索相关信息。',
     schema: z.object({
       query: z.string().describe('搜索查询文本，描述用户想要查找的内容'),
       limit: z

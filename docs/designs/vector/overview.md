@@ -283,7 +283,7 @@ services:
 ### 项目相关
 
 - [语义搜索](../search/semantic-search.md)
-- [RAG 聊天系统](../chat/rag-chat.md)
+- [Agent 聊天系统](../chat/rag-chat.md)
 - [队列调试指南](../../reference/QUEUE-DEBUG-GUIDE.md)
 
 ---

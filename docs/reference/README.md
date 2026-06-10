@@ -56,6 +56,14 @@
 - 合集操作接口
 - 使用示例
 
+#### Chat Agent 系统提示词模板
+**文档**: [chat-agent-system-prompt.md](./chat-agent-system-prompt.md)
+**描述**: Chat Agent 的系统提示词模板，由 `src/services/ai/chat-agent/prompt.ts` 使用 LangChain `PromptTemplate` 注入运行时变量
+**内容**:
+- 站点与用户状态变量
+- 知识库与合集上下文变量
+- 工具选择策略与回答要求
+
 ---
 
 ## 如何添加技术参考文档

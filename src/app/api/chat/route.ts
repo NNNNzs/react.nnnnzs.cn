@@ -1,7 +1,7 @@
 /**
  * 聊天 API 路由
  * POST /api/chat
- * 使用 ReAct Agent 驱动的 RAG 架构和 SSE 流式响应
+ * 使用 Chat Agent 编排工具调用和 SSE 流式响应
  * 流式完成后异步存储聊天记录
  */
 
@@ -17,18 +17,19 @@ function getClientIp(request: NextRequest): string | undefined {
     || request.headers.get('x-real-ip')
     || undefined;
 }
-import { chatRAGAgentStream } from '@/services/ai/rag';
+import { chatAgentStream } from '@/services/ai/chat-agent';
 import { createStreamResponse } from '@/lib/stream';
 import { createSession, createMessage, getSessionDetail, touchSession } from '@/services/chat-log';
 import { StreamTagParser, type StreamTag } from '@/lib/stream-tags';
 import { errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import type { StepType } from '@/lib/stream-tags';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
   code: 'chat_send',
   name: '发送聊天消息',
-  description: '与 AI 聊天机器人对话，基于 RAG 检索博客内容回答问题',
+  description: '与 AI 聊天机器人对话，由 Chat Agent 按需检索博客内容并回答问题',
   module: 'chat',
   method: 'POST',
   inputSchema: {
@@ -63,6 +64,22 @@ interface ChatRequest {
   }>;
   sessionId?: number;
 }
+
+type StoredReactStep = {
+  type: StepType;
+  content: string;
+};
+
+type StoredReactTimelineItem =
+  | {
+      type: 'think';
+      content: string;
+    }
+  | {
+      type: 'loop';
+      index: number;
+      steps: StoredReactStep[];
+    };
 
 /**
  * 聊天 API
@@ -133,8 +150,8 @@ export async function POST(request: NextRequest) {
     });
     await touchSession(activeSessionId, { increment: 1 });
 
-    // 调用 RAG Agent 服务（流式响应，ReAct 范式）
-    const originalStream = await chatRAGAgentStream({
+    // 调用 Chat Agent 服务（流式响应，ReAct 范式）
+    const originalStream = await chatAgentStream({
       question: message,
       userInfo,
       siteName,
@@ -149,9 +166,45 @@ export async function POST(request: NextRequest) {
 
     // 收集 AI 回复的各部分内容
     const collectedThoughts: string[] = [];
-    const collectedSteps: Array<{ type: string; content: string; index: number }> = [];
+    const collectedSteps: Array<{ type: StepType; content: string; index: number }> = [];
+    const collectedTimeline: StoredReactTimelineItem[] = [];
     let collectedContent = '';
     const parser = new StreamTagParser();
+
+    const appendThink = (content: string) => {
+      const lastTimelineItem = collectedTimeline[collectedTimeline.length - 1];
+      if (lastTimelineItem?.type === 'think') {
+        const lastThoughtIndex = collectedThoughts.length - 1;
+        if (lastThoughtIndex >= 0) {
+          collectedThoughts[lastThoughtIndex] += content;
+        } else {
+          collectedThoughts.push(content);
+        }
+        lastTimelineItem.content += content;
+      } else {
+        collectedThoughts.push(content);
+        collectedTimeline.push({
+          type: 'think',
+          content,
+        });
+      }
+    };
+
+    const appendStep = (type: StepType, content: string, index: number) => {
+      collectedSteps.push({ type, content, index });
+
+      const lastTimelineItem = collectedTimeline[collectedTimeline.length - 1];
+      if (lastTimelineItem?.type === 'loop' && lastTimelineItem.index === index) {
+        lastTimelineItem.steps.push({ type, content });
+        return;
+      }
+
+      collectedTimeline.push({
+        type: 'loop',
+        index,
+        steps: [{ type, content }],
+      });
+    };
 
     // 将原始流的数据泵入 writer，同时用 parser 收集内容
     const pumpAndCollect = async () => {
@@ -168,12 +221,10 @@ export async function POST(request: NextRequest) {
 
           // 用 parser 收集内容
           parser.parseChunk(value, (tag: StreamTag) => {
-            if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-              collectedSteps.push({
-                type: tag.stepType,
-                content: tag.content,
-                index: tag.stepIndex,
-              });
+            if (tag.type === 'think') {
+              appendThink(tag.content);
+            } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
+              appendStep(tag.stepType, tag.content, tag.stepIndex);
             } else if (tag.type === 'content') {
               collectedContent += tag.content;
             }
@@ -182,12 +233,10 @@ export async function POST(request: NextRequest) {
 
         // 处理 parser 缓冲区剩余内容
         parser.finish((tag: StreamTag) => {
-          if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-            collectedSteps.push({
-              type: tag.stepType,
-              content: tag.content,
-              index: tag.stepIndex,
-            });
+          if (tag.type === 'think') {
+            appendThink(tag.content);
+          } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
+            appendStep(tag.stepType, tag.content, tag.stepIndex);
           } else if (tag.type === 'content') {
             collectedContent += tag.content;
           }
@@ -218,6 +267,7 @@ export async function POST(request: NextRequest) {
             metadata: {
               thoughts: collectedThoughts.length > 0 ? collectedThoughts : undefined,
               reactLoops: reactLoops.length > 0 ? reactLoops : undefined,
+              reactTimeline: collectedTimeline.length > 0 ? collectedTimeline : undefined,
             },
           })
             .then(() => touchSession(activeSessionId!, { increment: 1 }))
@@ -255,6 +305,6 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: true,
-    message: '聊天 API 正常运行（ReAct Agent 驱动的 RAG 模式）',
+    message: '聊天 API 正常运行（Chat Agent 模式，RAG 作为工具按需调用）',
   });
 }
