@@ -53,6 +53,9 @@ const seedPermissions: PermissionSeed[] = [
   { code: 'tts:view', name: '语音合成', module: 'tool', type: 'menu', sort_order: 3 },
   { code: 'image:view', name: 'AI 图片生成', module: 'tool', type: 'menu', sort_order: 4 },
   { code: 'file:upload', name: '上传附件', module: 'tool', type: 'button', sort_order: 5 },
+  // 聊天记录模块
+  { code: 'chat:log:view', name: '查看聊天记录', module: 'chat', type: 'menu', sort_order: 1 },
+  { code: 'chat:log:delete', name: '删除聊天记录', module: 'chat', type: 'button', sort_order: 2 },
 ];
 
 // ============ 角色定义 ============

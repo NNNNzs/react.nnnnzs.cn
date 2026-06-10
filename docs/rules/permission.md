@@ -77,6 +77,8 @@ Layer 3: 服务层过滤（最后一道防线）
 | | `vector:view` | 向量检索 |
 | | `tts:view` | 语音合成 |
 | | `image:view` | AI 图片生成 |
+| **聊天记录** | `chat:log:view` | 查看聊天记录 |
+| | `chat:log:delete` | 删除聊天记录 |
 
 ### 数据权限（data_scope）
 
@@ -91,7 +93,7 @@ Layer 3: 服务层过滤（最后一道防线）
 
 | 角色 | 说明 | 默认权限 |
 |------|------|----------|
-| `admin` | 管理员 | 全部 21 个权限码，data_scope=all |
+| `admin` | 管理员 | 全部权限码，data_scope=all |
 | `user` | 普通用户 | post:view/create/edit/hide，data_scope=self |
 
 > 内置角色的权限可通过 `/c/roles` 管理页面修改，但不允许删除。
@@ -192,6 +194,33 @@ export async function GET(request: NextRequest) {
   // 业务逻辑...
 }
 ```
+
+### 公开接口 + 资源归属校验
+
+聊天这类公开接口允许匿名使用，但对已有资源操作必须做归属校验。登录用户使用服务端 Token 解析出的用户 ID，游客使用服务端接收到的设备标识。
+
+```typescript
+export async function POST(request: NextRequest) {
+  const user = await getUserFromToken(request);
+  const deviceId = user ? undefined : request.headers.get('X-Device-Id') || undefined;
+
+  if (sessionId) {
+    const session = await getSessionDetail({
+      sessionId,
+      userId: user?.id,
+      deviceId,
+    });
+
+    if (!session) {
+      return NextResponse.json(errorResponse('会话不存在或无权访问'), { status: 404 });
+    }
+  }
+
+  // 业务逻辑...
+}
+```
+
+后台查看所有聊天记录必须使用 `chat:log:view`，删除必须使用 `chat:log:delete`。不要用删除权限代替查看权限。
 
 ## 权限工具库
 

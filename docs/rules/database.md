@@ -8,6 +8,7 @@
 > - [实体变更日志设计](../designs/entity-change-design.md) - 数据变更追踪系统的数据库设计
 > - [评论系统设计](../designs/comment-system-design.md) - 评论功能的数据库模型
 > - [合集功能设计](../designs/collection-design.md) - 文章合集的数据库设计
+> - [RAG 聊天系统](../designs/chat/rag-chat.md) - 聊天会话和消息记录的数据库设计
 
 ## 数据库技术栈
 
@@ -148,6 +149,43 @@ model TbLikeRecord {
   @@index([target_type, target_id, ip_address], name: "idx_target_ip")
   @@index([created_at], name: "idx_created_at")
   @@map("tb_like_record")
+}
+
+// 示例：聊天会话表（登录用户或游客）
+model TbChatSession {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?
+  device_id     String?   @db.VarChar(36)
+  title         String?   @db.VarChar(255)
+  message_count Int       @default(0)
+  ip_address    String?   @db.VarChar(45)
+  user_agent    String?   @db.Text
+  is_delete     Int       @default(0)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  user     TbUser?         @relation(fields: [user_id], references: [id])
+  messages TbChatMessage[]
+
+  @@index([user_id, created_at], name: "idx_session_user_time")
+  @@index([device_id, created_at], name: "idx_session_device_time")
+  @@index([created_at], name: "idx_session_created_at")
+  @@map("tb_chat_session")
+}
+
+// 示例：聊天消息表
+model TbChatMessage {
+  id         Int      @id @default(autoincrement())
+  session_id Int
+  role       String   @db.VarChar(20)
+  content    String   @db.Text
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, created_at], name: "idx_msg_session_time")
+  @@map("tb_chat_message")
 }
 ```
 

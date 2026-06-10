@@ -44,7 +44,7 @@
 - **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
 #### AI 对话系统
-- **[RAG 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的 RAG 聊天机器人
+- **[RAG 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的 RAG 聊天机器人与聊天记录持久化
 
 #### 权限与认证
 - **[权限系统设计](docs/designs/permission-design.md)** - 多层权限防护架构

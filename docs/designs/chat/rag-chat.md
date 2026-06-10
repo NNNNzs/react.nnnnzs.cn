@@ -2,7 +2,7 @@
 
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
-> **最后更新**: 2026-05-10
+> **最后更新**: 2026-06-10
 > **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [LangChain 迁移计划](../../plans/chat-langchain-migration.md)
 
 ## 概述
@@ -17,6 +17,7 @@
 - **流式响应**：使用 SSE（Server-Sent Events）+ XML 标签协议实现实时流式输出
 - **工具调用**：支持可扩展的工具系统（当前实现 3 个工具）
 - **对话历史**：支持多轮对话上下文管理
+- **聊天记录**：支持登录用户和游客会话持久化、历史恢复和后台查看
 
 ## 架构设计
 
@@ -28,6 +29,7 @@ flowchart TB
         A1["Ant Design X 组件"]
         A2["SSE 流式响应解析"]
         A3["ReAct 步骤可视化<br/>Collapse 折叠面板"]
+        A4["会话侧栏<br/>历史记录恢复"]
     end
 
     subgraph API["API 层 api/chat/route.ts"]
@@ -35,6 +37,7 @@ flowchart TB
         B2["用户身份识别"]
         B3["系统指令构建"]
         B4["LangGraph Agent 调度"]
+        B5["聊天记录落库"]
     end
 
     subgraph Agent["LangGraph Agent services/ai/rag/langgraph-agent.ts"]
@@ -59,8 +62,16 @@ flowchart TB
         F2["文章排序和过滤"]
     end
 
+    subgraph Storage["记录存储层"]
+        G1["services/chat-log.ts"]
+        G2["tb_chat_session"]
+        G3["tb_chat_message"]
+    end
+
     Frontend -->|HTTP POST /api/chat| API
+    Frontend -->|GET/DELETE /api/chat/sessions| Storage
     API --> Agent
+    API --> Storage
     Agent --> Tools
     Agent --> LLM
     Tools --> Search
@@ -72,6 +83,12 @@ flowchart TB
 |------|------|------|
 | **聊天页面** | `src/app/chat/page.tsx` | 用户界面、SSE 解析、ReAct 步骤展示 |
 | **聊天 API** | `src/app/api/chat/route.ts` | 请求处理、Agent 调度、系统指令构建 |
+| **会话 API** | `src/app/api/chat/sessions/route.ts` | 当前用户/游客会话列表、新建会话 |
+| **会话详情 API** | `src/app/api/chat/sessions/[id]/route.ts` | 会话详情读取、逻辑删除 |
+| **后台记录 API** | `src/app/api/admin/chat-logs/route.ts` | 管理后台聊天记录查询和批量删除 |
+| **后台记录页面** | `src/app/c/chat-logs/page.tsx` | 聊天记录管理、筛选、查看详情、删除 |
+| **聊天记录服务** | `src/services/chat-log.ts` | 会话和消息 CRUD、后台查询 |
+| **游客设备标识** | `src/lib/device-id.ts` | localStorage 持久化游客设备 ID |
 | **LangGraph Agent** | `src/services/ai/rag/langgraph-agent.ts` | LangGraph `createReactAgent` 实现 |
 | **旧版 Agent** | `src/lib/react-agent.ts` | 旧版手写 ReAct 循环（保留兼容） |
 | **Agent 编排** | `src/services/ai/rag/agent.ts` | 旧版系统指令构建、流程协调 |
@@ -84,6 +101,54 @@ flowchart TB
 | **SSE 工具** | `src/lib/sse.ts` | SSE 流式响应创建和事件发送 |
 
 ## 数据结构
+
+### 聊天记录表
+
+聊天记录使用会话表和消息表分离存储。登录用户按 `user_id` 归属，游客按 `device_id` 归属。
+
+```prisma
+model TbChatSession {
+  id            Int      @id @default(autoincrement())
+  user_id       Int?
+  device_id     String?  @db.VarChar(36)
+  title         String?  @db.VarChar(255)
+  message_count Int      @default(0)
+  ip_address    String?  @db.VarChar(45)
+  user_agent    String?  @db.Text
+  is_delete     Int      @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  user     TbUser?         @relation(fields: [user_id], references: [id])
+  messages TbChatMessage[]
+}
+
+model TbChatMessage {
+  id         Int      @id @default(autoincrement())
+  session_id Int
+  role       String   @db.VarChar(20)
+  content    String   @db.Text
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+}
+```
+
+`metadata` 用于存储 ReAct 过程数据，目前结构如下：
+
+```typescript
+interface MessageMetadata {
+  thoughts?: string[];
+  reactLoops?: Array<{
+    index: number;
+    steps: Array<{
+      type: 'thought' | 'action' | 'observation';
+      content: string;
+    }>;
+  }>;
+}
+```
 
 ### ReAct 步骤类型
 
@@ -221,6 +286,7 @@ data: null
 ```json
 {
   "message": "Next.js 有哪些新特性？",
+  "sessionId": 123,
   "history": [
     {
       "role": "user",
@@ -234,7 +300,9 @@ data: null
 }
 ```
 
-**响应**：SSE 流式响应
+`sessionId` 可选。不传时后端自动创建会话，并在响应头 `X-Session-Id` 中返回新会话 ID。登录用户的会话绑定 `user_id`，游客会话绑定请求头 `X-Device-Id`。
+
+**响应**：流式响应，内容使用 XML 标签协议。
 
 **事件类型**：
 
@@ -246,6 +314,67 @@ data: null
 | `answer` | 最终答案 | `{ content: string }` |
 | `error` | 错误信息 | `{ message: string }` |
 | `done` | 完成标记 | `null` |
+
+### 会话 API
+
+#### 获取当前用户或游客会话列表
+
+```
+GET /api/chat/sessions?pageNum=1&pageSize=20
+```
+
+游客请求需要携带 `X-Device-Id` 请求头。登录用户优先按 `user_id` 查询，不叠加设备 ID。
+
+#### 获取会话详情
+
+```
+GET /api/chat/sessions/:id
+```
+
+非后台用户只能读取自己的会话。拥有 `chat:log:view` 权限的后台用户可读取所有会话详情。
+
+#### 删除会话
+
+```
+DELETE /api/chat/sessions/:id
+```
+
+普通登录用户和游客只能删除自己的会话。后台删除所有会话需要 `chat:log:delete` 权限。
+
+### 后台聊天记录 API
+
+#### 查询聊天记录
+
+```
+GET /api/admin/chat-logs?pageNum=1&pageSize=20&keyword=xxx&userId=1&startDate=2026-06-01&endDate=2026-06-10
+```
+
+需要 `chat:log:view` 权限。支持按用户 ID、关键词、时间范围筛选，关键词匹配会话标题、用户昵称、账号和消息内容。
+
+#### 批量删除聊天记录
+
+```
+DELETE /api/admin/chat-logs
+```
+
+请求体：
+
+```json
+{
+  "ids": [1, 2, 3]
+}
+```
+
+需要 `chat:log:delete` 权限，删除采用逻辑删除。
+
+## 权限与安全
+
+- 前台聊天接口允许匿名访问，但会对已有 `sessionId` 做归属校验。
+- 登录用户会话按服务端 Token 解析出的 `user_id` 归属，客户端提交的用户身份不可信。
+- 游客会话通过 `X-Device-Id` 归属，设备 ID 由前端保存在 localStorage。
+- 后台记录列表和详情查看需要 `chat:log:view`。
+- 后台删除需要 `chat:log:delete`。
+- 聊天消息写入失败不应影响流式回答，但已有会话归属校验失败必须拒绝请求。
 
 ### 扩展工具
 

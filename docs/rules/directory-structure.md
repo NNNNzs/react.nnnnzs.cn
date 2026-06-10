@@ -10,6 +10,10 @@ src/
 │   │   ├── user/                 # 用户认证 API
 │   │   ├── ai/                   # AI 生成端点
 │   │   ├── chat/                 # 聊天 API (LangGraph ReAct Agent + SSE)
+│   │   │   ├── route.ts          # 聊天流式响应 + 会话落库
+│   │   │   └── sessions/         # 当前用户/游客聊天会话 API
+│   │   ├── admin/                # 后台管理 API
+│   │   │   └── chat-logs/        # 聊天记录后台查询/删除 API
 │   │   ├── tts/                  # 语音合成 API (TTS)
 │   │   │   └── synthesize/       # 语音合成端点
 │   │   ├── mcp/                  # Model Context Protocol
@@ -45,7 +49,8 @@ src/
 │   │   ├── user/                 # 用户管理
 │   │   ├── config/               # 配置管理
 │   │   ├── tts/                  # 语音合成页面 (TTS)
-│   │   └── image-gen/            # AI 图片生成页面 (GPT Image 2)
+│   │   ├── image-gen/            # AI 图片生成页面 (GPT Image 2)
+│   │   └── chat-logs/            # 聊天记录管理
 │   ├── tags/                     # 标签页面
 │   ├── archives/                 # 归档页面
 │   ├── chat/                     # AI 聊天界面
@@ -93,6 +98,7 @@ src/
 │   ├── sse.ts                    # SSE 服务端推送工具
 │   ├── stream-tags.ts            # XML 标签流式协议（前后端通信）
 │   ├── stream.ts                 # 流式响应基础工具
+│   ├── device-id.ts              # 游客聊天设备 ID 持久化
 │   ├── qdrant.ts                 # Qdrant 客户端（单例+配置热更新）
 │   ├── vector-db-config.ts       # 向量数据库配置（数据库驱动）
 │   ├── permission.ts             # 权限检查工具
@@ -135,6 +141,7 @@ src/
 │   ├── entity-change-log.ts      # 变更日志服务
 │   ├── face.ts                   # 腾讯云人脸识别（IAI）服务
 │   ├── image-gen.ts              # AI 图片生成 service（GPT Image 2）
+│   ├── chat-log.ts               # 聊天会话和消息记录服务
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务
 │   └── post-version.ts           # 文章版本控制

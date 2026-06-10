@@ -47,7 +47,7 @@ docs/designs/
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [RAG 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 | ✅ 已实施 |
+| [RAG 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + 聊天记录持久化 | ✅ 已实施 |
 
 ### 业务功能
 
@@ -91,4 +91,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-05-20
+**最后更新**: 2026-06-10

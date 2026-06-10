@@ -72,6 +72,7 @@ model TbUser {
   collections        TbCollection[]      // 创建的合集
   comments           TbComment[]         // 用户发表的评论
   createdChangeLogs  TbEntityChangeLog[] @relation("EntityChangeLogCreator") // 创建的变更日志
+  chatSessions       TbChatSession[]     // 聊天会话
   userRoles          TbUserRole[]        // 用户角色关联（RBAC）
 
   @@map("tb_user")
@@ -347,4 +348,43 @@ model TbImageGenLog {
   @@index([status], name: "idx_status")
   @@index([created_at], name: "idx_created_at")
   @@map("tb_image_gen_log")
+}
+
+// 聊天会话表
+model TbChatSession {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?                                     // 已登录用户ID，游客为 null
+  device_id     String?   @db.VarChar(36)               // 游客设备标识（UUID），已登录用户为 null
+  title         String?   @db.VarChar(255)               // 会话标题（取第一条用户消息前20字）
+  message_count Int       @default(0)                    // 消息数量
+  ip_address    String?   @db.VarChar(45)               // IPv4 或 IPv6
+  user_agent    String?   @db.Text                       // 浏览器 User-Agent
+  is_delete     Int       @default(0)                    // 逻辑删除：0-未删除，1-已删除
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  // 关联关系
+  user     TbUser?        @relation(fields: [user_id], references: [id])
+  messages TbChatMessage[]
+
+  @@index([user_id, created_at], name: "idx_session_user_time")
+  @@index([device_id, created_at], name: "idx_session_device_time")
+  @@index([created_at], name: "idx_session_created_at")
+  @@map("tb_chat_session")
+}
+
+// 聊天消息表
+model TbChatMessage {
+  id         Int      @id @default(autoincrement())
+  session_id Int                                        // 关联会话ID
+  role       String  @db.VarChar(20)                    // 角色：user / assistant
+  content    String  @db.Text                          // 用户原文 / AI 最终回答
+  metadata   Json?                                     // ReAct 步骤等结构化数据（JSON）
+  created_at DateTime @default(now())
+
+  // 关联关系
+  session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, created_at], name: "idx_msg_session_time")
+  @@map("tb_chat_message")
 }

@@ -38,6 +38,10 @@ export const TTS_VIEW = 'tts:view';
 export const IMAGE_VIEW = 'image:view';
 export const FILE_UPLOAD = 'file:upload';
 
+// ============ 聊天记录模块 ============
+export const CHAT_LOG_VIEW = 'chat:log:view';
+export const CHAT_LOG_DELETE = 'chat:log:delete';
+
 // ============ 全部权限码列表 ============
 
 export const ALL_PERMISSION_CODES: string[] = [
@@ -63,6 +67,8 @@ export const ALL_PERMISSION_CODES: string[] = [
   TTS_VIEW,
   IMAGE_VIEW,
   FILE_UPLOAD,
+  CHAT_LOG_VIEW,
+  CHAT_LOG_DELETE,
 ];
 
 // ============ 模块标签 ============
@@ -74,6 +80,7 @@ export const MODULE_LABELS: Record<string, string> = {
   config: "配置",
   user: "用户",
   tool: "工具",
+  chat: "聊天记录",
 };
 
 export const MODULE_COLORS: Record<string, string> = {
@@ -83,6 +90,7 @@ export const MODULE_COLORS: Record<string, string> = {
   config: "orange",
   user: "red",
   tool: "cyan",
+  chat: "geekblue",
 };
 
 // ============ 模块分组 ============
@@ -94,4 +102,5 @@ export const PERMISSION_MODULES: Record<string, string[]> = {
   config: [CONFIG_VIEW, CONFIG_EDIT],
   user: [USER_VIEW, USER_MANAGE, USER_ROLE_ASSIGN],
   tool: [QUEUE_VIEW, VECTOR_VIEW, TTS_VIEW, IMAGE_VIEW, FILE_UPLOAD],
+  chat: [CHAT_LOG_VIEW, CHAT_LOG_DELETE],
 };

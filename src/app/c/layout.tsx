@@ -40,6 +40,7 @@ import {
   CONFIG_VIEW,
   USER_VIEW,
   USER_MANAGE,
+  CHAT_LOG_VIEW,
 } from "@/constants/permissions";
 
 const { Sider, Content } = Layout;
@@ -119,6 +120,14 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       });
     }
 
+    if (hasPermission(CHAT_LOG_VIEW)) {
+      items.push({
+        key: "/c/chat-logs",
+        icon: <MessageOutlined />,
+        label: "聊天记录",
+      });
+    }
+
     if (hasPermission(CONFIG_VIEW)) {
       items.push({
         key: "/c/config",
@@ -195,6 +204,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         '/c/vector-search': VECTOR_VIEW,
         '/c/tts': TTS_VIEW,
         '/c/image-gen': IMAGE_VIEW,
+        '/c/chat-logs': CHAT_LOG_VIEW,
       };
 
       // 个人中心页面例外处理
@@ -236,6 +246,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/vector-search',
       '/c/tts',
       '/c/image-gen',
+      '/c/chat-logs',
       '/c/edit/new',
     ];
 

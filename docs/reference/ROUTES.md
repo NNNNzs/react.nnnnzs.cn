@@ -45,6 +45,8 @@ src/app/
     │   └── page.tsx                           # 工具页面（新增）
     ├── vector-search/
     │   └── page.tsx                           # 向量搜索管理（新增）
+    ├── chat-logs/
+    │   └── page.tsx                           # 聊天记录管理（新增）
     ├── collections/
     │   ├── page.tsx                           # 合集管理
     │   └── [id]/
@@ -89,6 +91,7 @@ src/app/
 | `/c` | `/c` | 管理后台首页（文章列表） |
 | `/c/tools` | `/c/tools` | 工具页面（新增） |
 | `/c/vector-search` | `/c/vector-search` | 向量搜索管理（新增） |
+| - | `/c/chat-logs` | 聊天记录管理（新增） |
 | `/c/collections` | `/c/collections` | 合集管理 |
 | `/c/collections/:id` | `/c/collections/[id]` | 合集编辑 |
 | `/c/collections/:id/posts` | `/c/collections/[id]/posts` | 合集文章管理 |
@@ -137,7 +140,29 @@ src/app/
 /c/collections/1/posts # 合集文章管理
 /c/tools               # 工具页面
 /c/vector-search       # 向量搜索管理
+/c/chat-logs           # 聊天记录管理
 ```
+
+### 聊天记录 API 端点（新增）
+
+```
+/api/chat              # AI 聊天（POST，返回流式响应，响应头返回 X-Session-Id）
+/api/chat/sessions     # 当前用户/游客会话列表（GET），创建会话（POST）
+/api/chat/sessions/:id # 会话详情（GET），逻辑删除会话（DELETE）
+/api/admin/chat-logs   # 后台聊天记录查询（GET），批量逻辑删除（DELETE）
+```
+
+**聊天记录流程**：
+1. 前台 `/chat` 通过 `localStorage` 保存游客 `device_id`，请求时携带 `X-Device-Id`
+2. `POST /api/chat` 不传 `sessionId` 时创建新会话，返回头 `X-Session-Id`
+3. 用户消息和 AI 最终回答分别写入 `tb_chat_message`
+4. AI 回答的 ReAct 步骤写入消息 `metadata.reactLoops`
+5. `/c/chat-logs` 通过后台接口按关键词、用户 ID、时间范围查询记录
+
+**权限要求**：
+- `/api/chat/sessions/:id` 普通用户和游客只能访问自己的会话
+- `/api/admin/chat-logs` 查询需要 `chat:log:view`
+- `/api/admin/chat-logs` 删除需要 `chat:log:delete`
 
 ### OAuth 2.0 端点（新增）
 

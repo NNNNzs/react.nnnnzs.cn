@@ -5,6 +5,7 @@
  * 使用 Ant Design X 组件实现知识库检索对话
  * 使用 ReAct Agent 驱动的 RAG 架构
  * 支持多轮 ReAct 循环步骤展示和打字机效果
+ * 支持会话列表、历史记录恢复
  */
 
 import React, {
@@ -22,13 +23,20 @@ import {
   SearchOutlined,
   FileTextOutlined,
   LoadingOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import { Bubble, Sender, Think } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
-import { Typography, Button, Collapse, message as antdMessage } from "antd";
+import { Typography, Button, Collapse, message as antdMessage, List, Popconfirm, Spin } from "antd";
+import dayjs from "dayjs";
 import type { StepType } from "@/lib/stream-tags";
+import { getDeviceId } from "@/lib/device-id";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 /**
  * 单个 ReAct 步骤
@@ -58,6 +66,17 @@ interface ChatMessage {
   reactLoops: ReactLoop[];
   loading?: boolean;
   expanded?: boolean;
+}
+
+/**
+ * 会话摘要类型
+ */
+interface SessionSummary {
+  id: number;
+  title: string | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -217,6 +236,113 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
 MessageContent.displayName = "MessageContent";
 
 /**
+ * 会话列表侧栏组件
+ */
+const SessionSidebar: React.FC<{
+  sessions: SessionSummary[];
+  activeSessionId: number | null;
+  loading: boolean;
+  onSelect: (id: number) => void;
+  onNew: () => void;
+  onDelete: (id: number) => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}> = React.memo(({
+  sessions,
+  activeSessionId,
+  loading,
+  onSelect,
+  onNew,
+  onDelete,
+  collapsed,
+  onToggleCollapse,
+}) => {
+  if (collapsed) {
+    return (
+      <div className="shrink-0 flex flex-col items-center py-2 w-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+        <Button
+          type="text"
+          icon={<RightOutlined />}
+          onClick={onToggleCollapse}
+          className="mb-2"
+        />
+        <Button
+          type="text"
+          icon={<PlusOutlined />}
+          onClick={onNew}
+          title="新建对话"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="shrink-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+      {/* 侧栏头部 */}
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <Text strong className="text-sm">对话记录</Text>
+        <div className="flex gap-1">
+          <Button type="text" size="small" icon={<PlusOutlined />} onClick={onNew} title="新建对话" />
+          <Button type="text" size="small" icon={<LeftOutlined />} onClick={onToggleCollapse} />
+        </div>
+      </div>
+
+      {/* 会话列表 */}
+      <div className="flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Spin />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <Text type="secondary" className="text-xs">暂无对话记录</Text>
+          </div>
+        ) : (
+          <List
+            size="small"
+            dataSource={sessions}
+            renderItem={(session) => (
+              <List.Item
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-0 border-b border-gray-100 dark:border-gray-600 ${activeSessionId === session.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                onClick={() => onSelect(session.id)}
+                actions={[
+                  <Popconfirm
+                    key="delete"
+                    title="确定删除这个对话？"
+                    onConfirm={(e) => {
+                      e?.stopPropagation();
+                      onDelete(session.id);
+                    }}
+                    onCancel={(e) => e?.stopPropagation()}
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Popconfirm>,
+                ]}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{session.title || '新对话'}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {dayjs(session.updated_at).format('MM-DD HH:mm')} · {session.message_count}条消息
+                  </div>
+                </div>
+              </List.Item>
+            )}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
+SessionSidebar.displayName = "SessionSidebar";
+
+/**
  * 聊天页面组件
  */
 export default function ChatPage() {
@@ -224,6 +350,161 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isRequesting, setIsRequesting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 会话相关状态
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(false);
+
+  const { isMobile } = useBreakpoint();
+
+  /**
+   * 加载会话列表
+   */
+  const loadSessions = useCallback(async () => {
+    try {
+      setSessionsLoading(true);
+      const deviceId = getDeviceId();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (deviceId) {
+        headers["X-Device-Id"] = deviceId;
+      }
+
+      const response = await fetch("/api/chat/sessions", { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status) {
+          setSessions(data.data.record || []);
+        }
+      }
+    } catch {
+      // 静默失败
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, []);
+
+  /**
+   * 加载会话详情（消息列表）
+   */
+  const loadSessionMessages = useCallback(async (sessionId: number) => {
+    try {
+      setLoadingSession(true);
+      const deviceId = getDeviceId();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (deviceId) {
+        headers["X-Device-Id"] = deviceId;
+      }
+
+      const response = await fetch(`/api/chat/sessions/${sessionId}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status && data.data) {
+          const sessionMessages = (data.data.messages || []).map((msg: {
+            id: number;
+            role: string;
+            content: string;
+            metadata: {
+              thoughts?: string[];
+              reactLoops?: Array<{
+                index: number;
+                steps: Array<{ type: string; content: string }>;
+              }>;
+            } | null;
+            created_at: string;
+          }) => ({
+            id: `db-${msg.id}`,
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+            thoughts: msg.metadata?.thoughts || [],
+            reactLoops: (msg.metadata?.reactLoops || []).map((loop) => ({
+              ...loop,
+              steps: loop.steps.map((step) => ({
+                ...step,
+                type: step.type as StepType,
+                isStreaming: false,
+              })),
+            })),
+          }));
+
+          setMessages(sessionMessages);
+          setActiveSessionId(sessionId);
+        }
+      }
+    } catch {
+      antdMessage.error("加载对话记录失败");
+    } finally {
+      setLoadingSession(false);
+    }
+  }, []);
+
+  /**
+   * 页面加载时获取会话列表
+   */
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarCollapsed(true);
+    }
+  }, [isMobile]);
+
+  /**
+   * 新建对话
+   */
+  const handleNewSession = useCallback(() => {
+    setMessages([]);
+    setActiveSessionId(null);
+    setContent("");
+  }, []);
+
+  /**
+   * 选择会话
+   */
+  const handleSelectSession = useCallback((id: number) => {
+    if (id === activeSessionId) return;
+    loadSessionMessages(id);
+  }, [activeSessionId, loadSessionMessages]);
+
+  /**
+   * 删除会话
+   */
+  const handleDeleteSession = useCallback(async (id: number) => {
+    try {
+      const deviceId = getDeviceId();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (deviceId) {
+        headers["X-Device-Id"] = deviceId;
+      }
+
+      const response = await fetch(`/api/chat/sessions/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (response.ok) {
+        antdMessage.success("删除成功");
+        // 如果删除的是当前会话，清空消息
+        if (id === activeSessionId) {
+          setMessages([]);
+          setActiveSessionId(null);
+        }
+        loadSessions();
+      }
+    } catch {
+      antdMessage.error("删除失败");
+    }
+  }, [activeSessionId, loadSessions]);
 
   /**
    * 处理提交
@@ -278,15 +559,23 @@ export default function ChatPage() {
             content: msg.content,
           }));
 
+        // 构建请求头（携带设备ID）
+        const deviceId = getDeviceId();
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (deviceId) {
+          headers["X-Device-Id"] = deviceId;
+        }
+
         // 发起流式请求
         const response = await fetch("/api/chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify({
             message: text,
             history,
+            sessionId: activeSessionId || undefined,
           }),
           signal: abortController.signal,
         });
@@ -294,6 +583,12 @@ export default function ChatPage() {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+
+        // 从响应头获取 sessionId
+        const newSessionId = response.headers.get("X-Session-Id");
+        if (newSessionId && !activeSessionId) {
+          setActiveSessionId(parseInt(newSessionId, 10));
         }
 
         // 使用流式标签解析器
@@ -400,6 +695,10 @@ export default function ChatPage() {
                 };
               }),
             );
+            // 服务端会在流结束后落库，稍后刷新避免列表短暂显示旧计数
+            window.setTimeout(() => {
+              loadSessions();
+            }, 300);
           },
           onError: (error) => {
             setMessages((prev) =>
@@ -436,7 +735,7 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [isRequesting, messages],
+    [isRequesting, messages, activeSessionId, loadSessions],
   );
 
   /**
@@ -553,52 +852,71 @@ export default function ChatPage() {
   }, [messages, isRequesting]);
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl h-[calc(100vh-var(--header-height))] flex flex-col overflow-hidden">
-      <div className="mb-6 flex items-center justify-between gap-80">
-        <div>
-          <Title level={2} style={{ marginBottom: 16 }}>
-            纸上余温
-          </Title>
-          <Typography.Text type="secondary" className="block">
-            如果死后会幻化为书，这便是我提前整理出的草稿。它记录了代码的逻辑，也收纳了旅途的风尘。不必急于定义它是一本菜谱还是登记簿，只需开始对话，让故事发生。
-          </Typography.Text>
-        </div>
-        {messages.length > 0 && (
-          <Button
-            icon={<ClearOutlined />}
-            onClick={handleClear}
-            disabled={isRequesting}
-            danger
-          >
-            清空对话
-          </Button>
-        )}
-      </div>
+    <div className="container mx-auto max-w-6xl h-[calc(100vh-var(--header-height))] flex overflow-hidden">
+      {/* 移动端默认折叠侧栏 */}
+      <SessionSidebar
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        loading={sessionsLoading}
+        onSelect={handleSelectSession}
+        onNew={handleNewSession}
+        onDelete={handleDeleteSession}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+      />
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* 消息列表 */}
-        <div ref={messageContainerRef} className="h-full overflow-auto px-2">
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <Typography.Text type="secondary" className="text-center">
-                &quot;我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。&quot;
-              </Typography.Text>
-            </div>
-          ) : (
-            <Bubble.List role={roles} items={bubbleItems} />
+      {/* 主聊天区域 */}
+      <div className="flex-1 flex flex-col overflow-hidden px-4 py-6">
+        <div className="mb-6 flex items-center justify-between gap-80">
+          <div>
+            <Title level={2} style={{ marginBottom: 16 }}>
+              纸上余温
+            </Title>
+            <Text type="secondary" className="block">
+              如果死后会幻化为书，这便是我提前整理出的草稿。它记录了代码的逻辑，也收纳了旅途的风尘。不必急于定义它是一本菜谱还是登记簿，只需开始对话，让故事发生。
+            </Text>
+          </div>
+          {messages.length > 0 && (
+            <Button
+              icon={<ClearOutlined />}
+              onClick={handleClear}
+              disabled={isRequesting}
+              danger
+            >
+              清空对话
+            </Button>
           )}
         </div>
-      </div>
 
-      {/* 输入框 */}
-      <div className="shrink-0 pt-2">
-        <Sender
-          loading={isRequesting}
-          value={content}
-          onChange={setContent}
-          onSubmit={handleSubmit}
-          placeholder="输入您的问题，我会从知识库中检索相关内容并回答...例如你去过哪些地方旅游"
-        />
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* 消息列表 */}
+          <div ref={messageContainerRef} className="h-full overflow-auto px-2">
+            {loadingSession ? (
+              <div className="flex items-center justify-center h-full">
+                <Spin tip="加载对话记录..." />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <Text type="secondary" className="text-center">
+                  &quot;我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。&quot;
+                </Text>
+              </div>
+            ) : (
+              <Bubble.List role={roles} items={bubbleItems} />
+            )}
+          </div>
+        </div>
+
+        {/* 输入框 */}
+        <div className="shrink-0 pt-2">
+          <Sender
+            loading={isRequesting}
+            value={content}
+            onChange={setContent}
+            onSubmit={handleSubmit}
+            placeholder="输入您的问题，我会从知识库中检索相关内容并回答...例如你去过哪些地方旅游"
+          />
+        </div>
       </div>
     </div>
   );
