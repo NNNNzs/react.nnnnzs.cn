@@ -22,8 +22,8 @@ export default function Footer() {
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
 
   useEffect(() => {
-    // 读取构建信息
-    fetch("/version.json")
+    // 读取构建信息（加时间戳参数避免 CDN 缓存）
+    fetch(`/version.json?t=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => setBuildInfo(data))
       .catch(() => {
