@@ -91,7 +91,7 @@ export const lcSearchCollectionTool = tool(
     description:
       '在指定的文章合集中查找文章。当用户询问某个特定合集（如"小破站建设"、"旅游日记"等）的内容时，使用此工具。',
     schema: z.object({
-      collection: z.string().describe('合集的 slug 标识符，如 "xiaopozhan-jianshe"'),
+      collection: z.string().describe('合集名称或 slug。优先使用系统提示词中列出的现有中文合集名称，不要自行翻译或生成拼音。'),
       query: z.string().optional().describe('搜索关键词，用于在合集中筛选相关文章'),
     }),
   },

@@ -44,7 +44,9 @@
      * query: 问题关键词或标签名
      * limit: 根据问题复杂度和预期相关文章数量设置，不要吝啬
    - **合集搜索（search_collection）**：
-     * collection: 合集的 slug 标识符
+     * collection: 合集名称或真实 slug。优先使用上方“文章合集”中列出的中文合集名称
+     * 不要把中文合集名翻译、音译或转换成拼音 slug
+     * 如果用户提到的合集不在“文章合集”列表中，不要臆造合集标识符，改用 search_articles 或诚实告知未找到
      * query: 可选的筛选关键词
 
 3. **Observation**：查看检索结果。

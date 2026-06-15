@@ -3,7 +3,7 @@
  * 在指定合集中搜索文章
  */
 
-import { getCollectionBySlug } from '@/services/collection';
+import { getCollectionByIdentifier } from '@/services/collection';
 import type { Tool, ToolResult } from './index';
 
 /**
@@ -15,7 +15,7 @@ export const searchCollectionTool: Tool = {
   parameters: {
     collection: {
       type: 'string',
-      description: '合集的 slug 标识符，如 "xiaopozhan-jianshe"',
+      description: '合集名称或 slug，优先使用系统提示词中列出的现有中文合集名称，不要自行翻译或生成拼音',
       required: true,
     },
     query: {
@@ -26,23 +26,23 @@ export const searchCollectionTool: Tool = {
   },
   async execute(args): Promise<ToolResult> {
     try {
-      const collectionSlug = args.collection as string;
+      const collectionIdentifier = args.collection as string;
       const query = args.query as string || '';
 
-      if (!collectionSlug || typeof collectionSlug !== 'string' || collectionSlug.trim().length === 0) {
+      if (!collectionIdentifier || typeof collectionIdentifier !== 'string' || collectionIdentifier.trim().length === 0) {
         return {
           success: false,
-          error: '合集标识符不能为空',
+          error: '合集名称或标识符不能为空',
         };
       }
 
       // 获取合集详情
-      const collection = await getCollectionBySlug(collectionSlug);
+      const collection = await getCollectionByIdentifier(collectionIdentifier);
 
       if (!collection) {
         return {
           success: false,
-          error: `未找到合集 "${collectionSlug}"，请检查合集标识符是否正确`,
+          error: `未找到合集 "${collectionIdentifier}"，请使用系统提示词中列出的现有合集名称或真实 slug`,
         };
       }
 

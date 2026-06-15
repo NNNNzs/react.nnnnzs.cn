@@ -87,13 +87,15 @@ export async function getCollectionList(
 }
 
 /**
- * 根据slug获取合集详情及文章
+ * 根据条件获取合集详情及文章
  */
-export async function getCollectionBySlug(slug: string): Promise<CollectionDetail | null> {
+async function getCollectionDetail(
+  where: { slug: string } | { OR: Array<{ slug: string } | { title: string }> },
+): Promise<CollectionDetail | null> {
   const prisma = await getPrisma();
 
   const collection = await prisma.tbCollection.findFirst({
-    where: { slug, status: 1, is_delete: 0 },
+    where: { ...where, status: 1, is_delete: 0 },
     include: {
       // 通过中间表关联文章，按 sort_order 排序
       collectionPosts: {
@@ -151,6 +153,29 @@ export async function getCollectionBySlug(slug: string): Promise<CollectionDetai
     ...serializeCollection(collection),
     articles,
   };
+}
+
+/**
+ * 根据slug获取合集详情及文章
+ */
+export async function getCollectionBySlug(slug: string): Promise<CollectionDetail | null> {
+  return getCollectionDetail({ slug });
+}
+
+/**
+ * 根据 slug 或中文标题获取合集详情及文章
+ */
+export async function getCollectionByIdentifier(identifier: string): Promise<CollectionDetail | null> {
+  const trimmedIdentifier = identifier.trim();
+
+  if (!trimmedIdentifier) return null;
+
+  return getCollectionDetail({
+    OR: [
+      { slug: trimmedIdentifier },
+      { title: trimmedIdentifier },
+    ],
+  });
 }
 
 /**
