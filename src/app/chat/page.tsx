@@ -42,7 +42,7 @@ import {
   Empty,
 } from "antd";
 import dayjs from "dayjs";
-import type { StepType } from "@/lib/stream-tags";
+import type { StreamStepMeta, StepType } from "@/lib/stream-tags";
 import { getDeviceId } from "@/lib/device-id";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
@@ -56,6 +56,10 @@ interface ReactStep {
   type: StepType;
   content: string;
   isStreaming?: boolean;
+  toolName?: string;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
 }
 
 /**
@@ -425,6 +429,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isRequesting, setIsRequesting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   // 会话相关状态
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -436,6 +441,19 @@ export default function ChatPage() {
 
   const { isMobile } = useBreakpoint();
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
+
+  const isNearMessageBottom = useCallback((element: HTMLDivElement) => {
+    const distanceToBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    return distanceToBottom <= 32;
+  }, []);
+
+  const handleMessageScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      shouldAutoScrollRef.current = isNearMessageBottom(event.currentTarget);
+    },
+    [isNearMessageBottom],
+  );
 
   /**
    * 聊天页使用正常文档流 Header，避免 fixed Header 遮挡顶部内容。
@@ -505,7 +523,14 @@ export default function ChatPage() {
               thoughts?: string[];
               reactLoops?: Array<{
                 index: number;
-                steps: Array<{ type: string; content: string }>;
+                steps: Array<{
+                  type: string;
+                  content: string;
+                  toolName?: string;
+                  startedAt?: string;
+                  endedAt?: string;
+                  durationMs?: number;
+                }>;
               }>;
               reactTimeline?: Array<
                 | {
@@ -515,7 +540,14 @@ export default function ChatPage() {
                 | {
                     type: "loop";
                     index: number;
-                    steps: Array<{ type: string; content: string }>;
+                    steps: Array<{
+                      type: string;
+                      content: string;
+                      toolName?: string;
+                      startedAt?: string;
+                      endedAt?: string;
+                      durationMs?: number;
+                    }>;
                   }
               >;
             } | null;
@@ -686,6 +718,7 @@ export default function ChatPage() {
       };
 
       setMessages((prev) => [...prev, userMessage, aiMessage]);
+      shouldAutoScrollRef.current = true;
       setIsRequesting(true);
       setContent("");
 
@@ -762,7 +795,12 @@ export default function ChatPage() {
               }),
             );
           },
-          onStep: (stepContent, stepType, stepIndex) => {
+          onStep: (
+            stepContent,
+            stepType,
+            stepIndex,
+            stepMeta: StreamStepMeta = {},
+          ) => {
             setMessages((prev) =>
               prev.map((msg) => {
                 if (msg.id !== aiMessageId) return msg;
@@ -821,18 +859,27 @@ export default function ChatPage() {
                       type: stepType,
                       content: stepContent,
                       isStreaming: false,
+                      ...(stepMeta.toolName ? { toolName: stepMeta.toolName } : {}),
+                      ...(stepMeta.startedAt ? { startedAt: stepMeta.startedAt } : {}),
+                      ...(stepMeta.endedAt ? { endedAt: stepMeta.endedAt } : {}),
+                      ...(typeof stepMeta.durationMs === "number"
+                        ? { durationMs: stepMeta.durationMs }
+                        : {}),
                     },
                     ];
                 }
 
                 loops[stepIndex - 1] = currentLoop;
 
-                const lastTimelineItem = reactTimeline[reactTimeline.length - 1];
-                if (
-                  lastTimelineItem?.type === "loop" &&
-                  lastTimelineItem.index === stepIndex
-                ) {
-                  lastTimelineItem.steps = currentLoop.steps;
+                const existingTimelineIndex = reactTimeline.findIndex(
+                  (item) => item.type === "loop" && item.index === stepIndex,
+                );
+                if (existingTimelineIndex >= 0) {
+                  reactTimeline[existingTimelineIndex] = {
+                    type: "loop",
+                    index: stepIndex,
+                    steps: currentLoop.steps,
+                  };
                 } else {
                   reactTimeline.push({
                     type: "loop",
@@ -885,6 +932,9 @@ export default function ChatPage() {
             window.setTimeout(() => {
               loadSessions();
             }, 300);
+            window.setTimeout(() => {
+              loadSessions();
+            }, 1500);
           },
           onError: (error) => {
             setMessages((prev) =>
@@ -1015,9 +1065,9 @@ export default function ChatPage() {
    * 自动滚动到底部（流式响应时）
    */
   useEffect(() => {
-    if (messageContainerRef.current && isRequesting) {
+    if (messageContainerRef.current && isRequesting && shouldAutoScrollRef.current) {
       requestAnimationFrame(() => {
-        if (messageContainerRef.current) {
+        if (messageContainerRef.current && shouldAutoScrollRef.current) {
           messageContainerRef.current.scrollTop =
             messageContainerRef.current.scrollHeight;
         }
@@ -1105,6 +1155,7 @@ export default function ChatPage() {
           {/* 消息列表 */}
           <div
             ref={messageContainerRef}
+            onScroll={handleMessageScroll}
             className="min-h-0 flex-1 overflow-auto px-3 py-4 sm:px-6"
           >
             {loadingSession ? (

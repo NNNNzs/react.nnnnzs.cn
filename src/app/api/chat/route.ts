@@ -19,11 +19,18 @@ function getClientIp(request: NextRequest): string | undefined {
 }
 import { chatAgentStream } from '@/services/ai/chat-agent';
 import { createStreamResponse } from '@/lib/stream';
-import { createSession, createMessage, getSessionDetail, touchSession } from '@/services/chat-log';
-import { StreamTagParser, type StreamTag } from '@/lib/stream-tags';
+import {
+  createSession,
+  createMessage,
+  getSessionDetail,
+  touchSession,
+  updateSessionTitle,
+} from '@/services/chat-log';
+import { StreamTagParser, type StreamStepMeta, type StreamTag } from '@/lib/stream-tags';
 import { errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 import type { StepType } from '@/lib/stream-tags';
+import { generateChatSessionTitle } from '@/services/ai/chat-agent/title';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -68,6 +75,10 @@ interface ChatRequest {
 type StoredReactStep = {
   type: StepType;
   content: string;
+  toolName?: string;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
 };
 
 type StoredReactTimelineItem =
@@ -106,7 +117,7 @@ export async function POST(request: NextRequest) {
     const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'NNNNzs';
     const ipAddress = getClientIp(request);
     const deviceId = user ? undefined : request.headers.get('X-Device-Id') || undefined;
-    const title = message.length > 20 ? `${message.substring(0, 20)}...` : message;
+    let shouldGenerateSessionTitle = false;
 
     // 构建用户信息
     const userInfo = user
@@ -119,11 +130,12 @@ export async function POST(request: NextRequest) {
       const session = await createSession({
         userId: user?.id,
         deviceId,
-        title,
+        title: null,
         ipAddress,
         userAgent: request.headers.get('User-Agent') || undefined,
       });
       activeSessionId = session.id;
+      shouldGenerateSessionTitle = true;
     } else {
       const session = await getSessionDetail({
         sessionId: activeSessionId,
@@ -135,11 +147,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(errorResponse('会话不存在或无权访问'), { status: 404 });
       }
 
-      if (!session.title) {
-        await touchSession(activeSessionId, { title }).catch(() => {
-          // 标题更新失败不影响主流程
-        });
-      }
+      shouldGenerateSessionTitle = !session.title && session.message_count <= 1;
     }
 
     // 保存用户消息
@@ -166,7 +174,7 @@ export async function POST(request: NextRequest) {
 
     // 收集 AI 回复的各部分内容
     const collectedThoughts: string[] = [];
-    const collectedSteps: Array<{ type: StepType; content: string; index: number }> = [];
+    const collectedSteps: Array<StoredReactStep & { index: number }> = [];
     const collectedTimeline: StoredReactTimelineItem[] = [];
     let collectedContent = '';
     const parser = new StreamTagParser();
@@ -190,19 +198,39 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const appendStep = (type: StepType, content: string, index: number) => {
-      collectedSteps.push({ type, content, index });
+    const appendStep = (
+      type: StepType,
+      content: string,
+      index: number,
+      meta: StreamStepMeta = {},
+    ) => {
+      const step: StoredReactStep & { index: number } = {
+        type,
+        content,
+        index,
+        ...(meta.toolName ? { toolName: meta.toolName } : {}),
+        ...(meta.startedAt ? { startedAt: meta.startedAt } : {}),
+        ...(meta.endedAt ? { endedAt: meta.endedAt } : {}),
+        ...(typeof meta.durationMs === 'number' ? { durationMs: meta.durationMs } : {}),
+      };
 
-      const lastTimelineItem = collectedTimeline[collectedTimeline.length - 1];
-      if (lastTimelineItem?.type === 'loop' && lastTimelineItem.index === index) {
-        lastTimelineItem.steps.push({ type, content });
+      collectedSteps.push(step);
+      const { index: _stepIndex, ...storedStep } = step;
+      void _stepIndex;
+
+      const existingTimelineItem = collectedTimeline.find(
+        (item): item is Extract<StoredReactTimelineItem, { type: 'loop' }> =>
+          item.type === 'loop' && item.index === index,
+      );
+      if (existingTimelineItem) {
+        existingTimelineItem.steps.push(storedStep);
         return;
       }
 
       collectedTimeline.push({
         type: 'loop',
         index,
-        steps: [{ type, content }],
+        steps: [storedStep],
       });
     };
 
@@ -224,7 +252,7 @@ export async function POST(request: NextRequest) {
             if (tag.type === 'think') {
               appendThink(tag.content);
             } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-              appendStep(tag.stepType, tag.content, tag.stepIndex);
+              appendStep(tag.stepType, tag.content, tag.stepIndex, tag);
             } else if (tag.type === 'content') {
               collectedContent += tag.content;
             }
@@ -236,7 +264,7 @@ export async function POST(request: NextRequest) {
           if (tag.type === 'think') {
             appendThink(tag.content);
           } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-            appendStep(tag.stepType, tag.content, tag.stepIndex);
+            appendStep(tag.stepType, tag.content, tag.stepIndex, tag);
           } else if (tag.type === 'content') {
             collectedContent += tag.content;
           }
@@ -249,10 +277,12 @@ export async function POST(request: NextRequest) {
         // 异步存储 AI 回复（不阻塞响应）
         if (collectedContent) {
           // 按 index 分组 steps 为 reactLoops
-          const reactLoopsMap = new Map<number, Array<{ type: string; content: string }>>();
+          const reactLoopsMap = new Map<number, StoredReactStep[]>();
           for (const step of collectedSteps) {
             const existing = reactLoopsMap.get(step.index) || [];
-            existing.push({ type: step.type, content: step.content });
+            const { index, ...storedStep } = step;
+            void index;
+            existing.push(storedStep);
             reactLoopsMap.set(step.index, existing);
           }
           const reactLoops = Array.from(reactLoopsMap.entries()).map(([index, steps]) => ({
@@ -270,7 +300,24 @@ export async function POST(request: NextRequest) {
               reactTimeline: collectedTimeline.length > 0 ? collectedTimeline : undefined,
             },
           })
-            .then(() => touchSession(activeSessionId!, { increment: 1 }))
+            .then(async () => {
+              await touchSession(activeSessionId!, { increment: 1 });
+
+              if (!shouldGenerateSessionTitle) return;
+
+              try {
+                const generatedTitle = await generateChatSessionTitle({
+                  userMessage: message,
+                  assistantMessage: collectedContent,
+                });
+
+                if (generatedTitle) {
+                  await updateSessionTitle(activeSessionId!, generatedTitle);
+                }
+              } catch (titleError) {
+                console.error('生成会话标题失败:', titleError);
+              }
+            })
             .catch((err) => {
               console.error('异步存储 AI 回复失败:', err);
             });

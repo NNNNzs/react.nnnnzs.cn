@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { searchArticlesTool as _searchArticlesTool } from './search-articles';
 import { searchPostsMetaTool as _searchPostsMetaTool } from './search-posts-meta';
 import { searchCollectionTool as _searchCollectionTool } from './search-collection';
+import { githubSearchTool as _githubSearchTool } from './github-search';
 
 /**
  * RAG 检索工具
@@ -98,10 +99,57 @@ export const lcSearchCollectionTool = tool(
 );
 
 /**
+ * GitHub 搜索工具
+ * 搜索开源仓库、Issue/PR、用户仓库和 Star 列表
+ */
+export const lcGithubSearchTool = tool(
+  async ({ type, query, username, repo, language, sort, order, state, limit }) => {
+    const result = await _githubSearchTool.execute({
+      type,
+      query,
+      username,
+      repo,
+      language,
+      sort,
+      order,
+      state,
+      limit,
+    });
+    if (!result.success) return JSON.stringify({ error: result.error });
+    return JSON.stringify(result.data);
+  },
+  {
+    name: 'github_search',
+    description:
+      'GitHub 搜索工具：搜索开源仓库、Issue/PR、GitHub 用户、指定用户的仓库列表或 Star 列表。当用户询问"有什么开源项目"、"有哪些作品"、"某仓库有哪些 issue"、"某用户 star 了什么"时使用此工具。',
+    schema: z.object({
+      type: z
+        .enum(['repositories', 'issues', 'users', 'user_repositories', 'user_starred'])
+        .describe('搜索类型：repositories 仓库搜索、issues Issue/PR 搜索、users 用户搜索、user_repositories 用户仓库列表、user_starred 用户 Star 列表'),
+      query: z
+        .string()
+        .optional()
+        .describe('搜索关键词，支持 GitHub 搜索语法，如 "nextjs auth language:typescript"'),
+      username: z.string().optional().describe('GitHub 用户名，用于 user_repositories 或 user_starred'),
+      repo: z.string().optional().describe('仓库全名，如 "vercel/next.js"，用于 issues 搜索'),
+      language: z.string().optional().describe('仓库语言筛选，如 TypeScript、Python、Go'),
+      sort: z
+        .string()
+        .optional()
+        .describe('排序字段。repositories 支持 stars/forks/updated；issues 支持 created/updated/comments；users 支持 followers/repositories/joined；用户仓库和 Star 列表支持 created/updated/pushed/full_name'),
+      order: z.enum(['desc', 'asc']).optional().describe('排序方向：desc 或 asc，默认 desc'),
+      state: z.enum(['open', 'closed', 'all']).optional().describe('Issue 状态：open、closed、all，默认 open'),
+      limit: z.number().optional().describe('返回结果数量，默认 5，最多 20'),
+    }),
+  },
+);
+
+/**
  * 所有 LangChain 工具集合
  */
 export const chatTools = [
   lcSearchArticlesTool,
   lcSearchPostsMetaTool,
   lcSearchCollectionTool,
+  lcGithubSearchTool,
 ];

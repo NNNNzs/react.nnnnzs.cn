@@ -2,7 +2,7 @@
 
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
-> **最后更新**: 2026-06-10
+> **最后更新**: 2026-06-15
 > **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [LangChain 迁移计划](../../plans/chat-langchain-migration.md)
 
 ## 概述
@@ -16,9 +16,11 @@
 - **RAG 检索工具**：基于 Qdrant 的语义搜索，作为 `search_articles` 工具由 Agent 按需调用
 - **流式响应**：使用 SSE（Server-Sent Events）+ XML 标签协议实现实时流式输出
 - **DeepSeek think 展示**：从模型原生 `reasoning_content` 提取推理内容，映射到 `<think>...</think>` 并由前端 `Think` 组件展示
-- **工具调用**：支持可扩展的工具系统（当前实现 3 个工具）
+- **工具调用**：支持可扩展的工具系统（当前实现 4 个工具）
+- **工具耗时追踪**：工具调用的名称、开始时间、结束时间和耗时写入消息 `metadata`
 - **对话历史**：支持多轮对话上下文管理
 - **聊天记录**：支持登录用户和游客会话持久化、历史恢复和后台查看
+- **标题总结**：第一轮对话结束后异步总结会话标题，不再直接使用用户首问作为标题
 
 ## 架构设计
 
@@ -31,6 +33,7 @@ flowchart TB
         A2["SSE 流式响应解析"]
         A3["ReAct 步骤可视化<br/>Collapse 折叠面板"]
         A4["会话侧栏<br/>历史记录恢复"]
+        A5["流式输出滚动控制<br/>离开底部后不再强制跟随"]
     end
 
     subgraph API["API 层 api/chat/route.ts"]
@@ -51,6 +54,7 @@ flowchart TB
         D1["search_articles（向量语义搜索）"]
         D2["search_posts_meta（元数据搜索）"]
         D3["search_collection（合集搜索）"]
+        D4["github_search（GitHub 搜索）"]
     end
 
     subgraph LLM["LLM 层 ChatOpenAI"]
@@ -93,11 +97,13 @@ flowchart TB
 | **LangGraph Agent** | `src/services/ai/chat-agent/langgraph-agent.ts` | LangGraph `createReactAgent` 实现 |
 | **系统提示词模板** | `docs/reference/chat-agent-system-prompt.md` | Chat Agent 系统提示词，使用 LangChain `PromptTemplate` 注入变量 |
 | **提示词注入服务** | `src/services/ai/chat-agent/prompt.ts` | 读取提示词模板并注入站点、用户、知识库和合集变量 |
+| **会话标题生成** | `src/services/ai/chat-agent/title.ts` | 第一轮对话完成后根据用户首问和 assistant 回复生成短标题 |
 | **旧版兼容入口** | `src/services/ai/rag/index.ts` | 兼容导出，主入口已迁移到 `src/services/ai/chat-agent` |
 | **LangChain 工具** | `src/services/ai/tools/langchain-tools.ts` | LangChain `tool()` + zod schema 定义 |
 | **RAG 检索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具，供 Agent 按需调用 |
 | **元数据搜索** | `src/services/ai/tools/search-posts-meta.ts` | 按时间/热度/分类搜索 |
 | **合集搜索** | `src/services/ai/tools/search-collection.ts` | 合集内文章搜索 |
+| **GitHub 搜索** | `src/services/ai/tools/github-search.ts` | GitHub 仓库、Issue/PR、用户仓库和 Star 列表搜索 |
 | **流式标签** | `src/lib/stream-tags.ts` | XML 标签流式协议（前后端通信） |
 | **SSE 工具** | `src/lib/sse.ts` | SSE 流式响应创建和事件发送 |
 
@@ -146,6 +152,10 @@ interface MessageMetadata {
     steps: Array<{
       type: 'thought' | 'action' | 'observation';
       content: string;
+      toolName?: string;
+      startedAt?: string;
+      endedAt?: string;
+      durationMs?: number;
     }>;
   }>;
   reactTimeline?: Array<
@@ -159,11 +169,23 @@ interface MessageMetadata {
         steps: Array<{
           type: 'thought' | 'action' | 'observation';
           content: string;
+          toolName?: string;
+          startedAt?: string;
+          endedAt?: string;
+          durationMs?: number;
         }>;
       }
   >;
 }
 ```
+
+工具调用耗时写入 `action` / `observation` step：
+
+- `toolName`：LangChain 工具名，例如 `search_articles`
+- `startedAt` / `endedAt`：ISO 时间字符串
+- `durationMs`：工具执行耗时，毫秒
+
+该信息用于排查检索慢、外部 API 超时、向量数据库异常等问题。
 
 ### ReAct 步骤类型
 
@@ -220,6 +242,15 @@ interface Tool {
 
 // LangChain wrapper 位于 langchain-tools.ts，使用 tool() + zod schema 暴露给 Agent。
 ```
+
+当前工具：
+
+| 工具 | 说明 | 超时策略 |
+|------|------|----------|
+| `search_articles` | embedding + Qdrant 向量语义搜索 | embedding 8 秒，Qdrant 搜索 8 秒 |
+| `search_posts_meta` | 文章列表结构化查询 | 内部 HTTP 查询 8 秒 |
+| `search_collection` | 合集内文章搜索 | 数据库查询 |
+| `github_search` | GitHub 仓库、Issue/PR、用户仓库、Star 列表 | GitHub API 10 秒 |
 
 ## 关键流程
 
@@ -311,18 +342,14 @@ data: null
 
 `sessionId` 可选。不传时后端自动创建会话，并在响应头 `X-Session-Id` 中返回新会话 ID。登录用户的会话绑定 `user_id`，游客会话绑定请求头 `X-Device-Id`。
 
-**响应**：流式响应，内容使用 XML 标签协议。
+**响应**：流式响应，内容使用 XML 标签协议。工具 step 可携带元数据属性：
 
-**事件类型**：
-
-| 事件 | 说明 | 数据格式 |
-|------|------|----------|
-| `thought` | 思考过程 | `{ content: string }` |
-| `action` | 工具调用 | `{ method, params, id }` |
-| `observation` | 工具结果 | `{ jsonrpc, result?, error?, id }` |
-| `answer` | 最终答案 | `{ content: string }` |
-| `error` | 错误信息 | `{ message: string }` |
-| `done` | 完成标记 | `null` |
+```xml
+<think>模型推理片段</think>
+<step type="action" index="1" tool_name="search_articles" started_at="2026-06-15T14:00:00.000Z">搜索文章：...</step>
+<step type="observation" index="1" tool_name="search_articles" started_at="..." ended_at="..." duration_ms="812">找到相关文章...</step>
+<content>最终回答...</content>
+```
 
 ### 会话 API
 
@@ -457,13 +484,21 @@ export const lcMyTool = tool(
    - SSE 事件解析使用流式 API
    - Markdown 渲染使用 `@ant-design/x-markdown`
    - ReAct 步骤折叠减少视觉干扰
+   - 流式输出仅在消息区贴近底部时自动跟随；用户手动滚离底部后不再强制滚动
+
+4. **工具超时和降级**
+   - 外部 API、embedding、Qdrant 和内部 HTTP 查询都应设置业务级超时
+   - Agent 异常时输出错误内容并正常关闭流，避免前端永久 loading
+   - 工具耗时写入消息 metadata，便于按会话排查慢工具
 
 ### 潜在瓶颈
 
 | 瓶颈 | 影响 | 缓解措施 |
 |------|------|----------|
 | LLM 响应时间 | 每轮迭代 ~2-3 秒 | 限制迭代次数（5） |
-| 向量检索 | ~500ms | 使用缓存、优化索引 |
+| embedding 服务 | RAG 首步可能超时 | `search_articles` embedding 8 秒超时，必要时切换稳定服务 |
+| Qdrant 云库 | 向量搜索可能超时 | Qdrant 搜索 8 秒超时，记录 `durationMs` |
+| GitHub API | 外部网络和代理不稳定 | `github_search` 10 秒超时，支持代理 |
 | 网络延迟 | SSE 事件延迟 | 使用 CDN、压缩 |
 
 ### 监控指标
@@ -471,6 +506,7 @@ export const lcMyTool = tool(
 - 平均响应时间（目标 < 10 秒）
 - LLM 调用次数（每轮对话）
 - 工具调用成功率
+- 工具调用耗时（`metadata.reactLoops[].steps[].durationMs`）
 - SSE 事件丢失率
 
 ## 安全考虑

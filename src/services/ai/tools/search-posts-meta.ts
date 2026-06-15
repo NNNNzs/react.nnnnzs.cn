@@ -6,6 +6,8 @@
 
 import type { Tool, ToolResult } from './index';
 
+const POST_META_TIMEOUT_MS = 8_000;
+
 interface PostMetaResult {
   id: number;
   title: string;
@@ -105,12 +107,29 @@ export const searchPostsMetaTool: Tool = {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
       const url = `${baseUrl}/api/post/query?${queryParams.toString()}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), POST_META_TIMEOUT_MS);
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return {
+            success: false,
+            error: `文章列表查询超时（${POST_META_TIMEOUT_MS / 1000} 秒）`,
+          };
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch((): { message?: string } => ({}));

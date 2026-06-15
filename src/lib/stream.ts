@@ -3,7 +3,12 @@
  * 包含客户端和服务端的流式响应处理
  */
 
-import { StreamTagParser, type StreamTag, type StepType } from './stream-tags';
+import {
+  StreamTagParser,
+  type StreamStepMeta,
+  type StreamTag,
+  type StepType,
+} from './stream-tags';
 
 /**
  * 创建流式响应的选项
@@ -53,7 +58,12 @@ export interface StreamTagProcessOptions {
   /**
    * step 标签回调函数，收到 step 标签时调用
    */
-  onStep?: (content: string, stepType: StepType, stepIndex: number) => void;
+  onStep?: (
+    content: string,
+    stepType: StepType,
+    stepIndex: number,
+    stepMeta?: StreamStepMeta,
+  ) => void;
 
   /**
    * content 标签回调函数，每次收到 content 标签内容时调用（流式）
@@ -187,7 +197,7 @@ export const processStreamResponseWithTags = async (
           if (tag.type === 'think') {
             onThink?.(tag.content);
           } else if (tag.type === 'step') {
-            onStep?.(tag.content, tag.stepType!, tag.stepIndex!);
+            onStep?.(tag.content, tag.stepType!, tag.stepIndex!, tag);
           } else if (tag.type === 'content') {
             onContent?.(tag.content);
           }
@@ -202,7 +212,7 @@ export const processStreamResponseWithTags = async (
           if (tag.type === 'think') {
             onThink?.(tag.content);
           } else if (tag.type === 'step') {
-            onStep?.(tag.content, tag.stepType!, tag.stepIndex!);
+            onStep?.(tag.content, tag.stepType!, tag.stepIndex!, tag);
           } else if (tag.type === 'content') {
             onContent?.(tag.content);
           }

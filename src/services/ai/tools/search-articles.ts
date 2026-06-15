@@ -8,6 +8,22 @@ import { searchSimilarVectors } from '@/services/embedding/vector-store';
 import { getPostById } from '@/services/post';
 import type { Tool, ToolResult } from './index';
 
+const EMBEDDING_TIMEOUT_MS = 8_000;
+const VECTOR_SEARCH_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    }),
+  ]);
+}
+
 /**
  * 文章搜索结果
  */
@@ -61,7 +77,11 @@ export const searchArticlesTool: Tool = {
 
 
       // 1. 将查询文本转换为向量
-      const queryVector = await embedText(query);
+      const queryVector = await withTimeout(
+        embedText(query),
+        EMBEDDING_TIMEOUT_MS,
+        `生成查询向量超时（${EMBEDDING_TIMEOUT_MS / 1000} 秒）`,
+      );
 
       // 2. 搜索相似向量（带重试机制）
       let searchResults: Array<{
@@ -73,7 +93,11 @@ export const searchArticlesTool: Tool = {
       }>;
       
       try {
-        searchResults = await searchSimilarVectors(queryVector, limit, undefined, 2);
+        searchResults = await withTimeout(
+          searchSimilarVectors(queryVector, limit, undefined, 0),
+          VECTOR_SEARCH_TIMEOUT_MS,
+          `向量数据库搜索超时（${VECTOR_SEARCH_TIMEOUT_MS / 1000} 秒）`,
+        );
       } catch (searchError) {
         // 向量搜索失败时的降级处理
         const errorMessage = searchError instanceof Error ? searchError.message : String(searchError);

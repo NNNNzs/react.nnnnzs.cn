@@ -206,15 +206,21 @@ export async function batchDeleteSessions(ids: number[]) {
 
 // ============ 消息 CRUD ============
 
+export interface MessageMetadataStep {
+  type: string;
+  content: string;
+  toolName?: string;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
+}
+
 /** 消息 metadata 结构 */
 export interface MessageMetadata {
   thoughts?: string[];
   reactLoops?: Array<{
     index: number;
-    steps: Array<{
-      type: string;
-      content: string;
-    }>;
+    steps: MessageMetadataStep[];
   }>;
   reactTimeline?: Array<
     | {
@@ -224,10 +230,7 @@ export interface MessageMetadata {
     | {
         type: 'loop';
         index: number;
-        steps: Array<{
-          type: string;
-          content: string;
-        }>;
+        steps: MessageMetadataStep[];
       }
   >;
 }

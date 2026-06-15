@@ -4,7 +4,7 @@
  *
  * 协议规范：
  * - <think content="..."/> — 自闭合标签，状态提示（初始化、检索信息等）
- * - <step type="thought|action|observation" index="N">...</step> — ReAct 循环步骤
+ * - <step type="thought|action|observation" index="N" ...>...</step> — ReAct 循环步骤
  * - <content>...</content> — 最终答案
  */
 
@@ -28,6 +28,21 @@ export interface StreamTag {
   stepType?: StepType;
   /** step 标签的轮次索引（从 1 开始） */
   stepIndex?: number;
+  /** 工具名称（仅 action/observation 常用） */
+  toolName?: string;
+  /** 工具开始时间（ISO 字符串） */
+  startedAt?: string;
+  /** 工具结束时间（ISO 字符串） */
+  endedAt?: string;
+  /** 工具耗时（毫秒） */
+  durationMs?: number;
+}
+
+export interface StreamStepMeta {
+  toolName?: string;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
 }
 
 /**
@@ -107,9 +122,23 @@ export class StreamTagGenerator {
    * @param content 标签内容
    * @returns 编码后的完整标签
    */
-  generateStep(type: StepType, index: number, content: string): Uint8Array {
+  generateStep(
+    type: StepType,
+    index: number,
+    content: string,
+    meta: StreamStepMeta = {},
+  ): Uint8Array {
+    const attrs = [
+      `type="${type}"`,
+      `index="${index}"`,
+      meta.toolName ? `tool_name="${this.escapeXml(meta.toolName)}"` : '',
+      meta.startedAt ? `started_at="${this.escapeXml(meta.startedAt)}"` : '',
+      meta.endedAt ? `ended_at="${this.escapeXml(meta.endedAt)}"` : '',
+      typeof meta.durationMs === 'number' ? `duration_ms="${meta.durationMs}"` : '',
+    ].filter(Boolean).join(' ');
+
     return this.encoder.encode(
-      `<step type="${type}" index="${index}">${this.escapeXml(content)}</step>`
+      `<step ${attrs}>${this.escapeXml(content)}</step>`
     );
   }
 
@@ -144,6 +173,7 @@ export class StreamTagParser {
   private inStep: boolean = false;
   private stepType: StepType | null = null;
   private stepIndex: number = 0;
+  private stepMeta: StreamStepMeta = {};
 
   constructor() {
     this.decoder = new TextDecoder();
@@ -175,6 +205,7 @@ export class StreamTagParser {
         content: this.unescapeXml(this.buffer),
         stepType: this.stepType ?? undefined,
         stepIndex: this.stepIndex,
+        ...this.stepMeta,
       });
     }
     this.reset();
@@ -203,11 +234,18 @@ export class StreamTagParser {
         }
 
         // 匹配 <step type="..." index="...">
-        const stepStartMatch = this.buffer.match(/^<step\s+type="(\w+)"\s+index="(\d+)">/);
+        const stepStartMatch = this.buffer.match(/^<step\s+([^>]*)>/);
         if (stepStartMatch) {
+          const attrs = this.parseAttributes(stepStartMatch[1]);
           this.inStep = true;
-          this.stepType = stepStartMatch[1] as StepType;
-          this.stepIndex = parseInt(stepStartMatch[2], 10);
+          this.stepType = attrs.type as StepType;
+          this.stepIndex = parseInt(attrs.index || '0', 10);
+          this.stepMeta = {
+            toolName: attrs.tool_name,
+            startedAt: attrs.started_at,
+            endedAt: attrs.ended_at,
+            durationMs: attrs.duration_ms ? parseInt(attrs.duration_ms, 10) : undefined,
+          };
           this.buffer = this.buffer.substring(stepStartMatch[0].length);
           continue;
         }
@@ -256,11 +294,14 @@ export class StreamTagParser {
               content: this.unescapeXml(remaining),
               stepType: this.stepType ?? undefined,
               stepIndex: this.stepIndex,
+              ...this.stepMeta,
             });
           }
           this.buffer = this.buffer.substring(stepEnd + 7);
           this.inStep = false;
           this.stepType = null;
+          this.stepIndex = 0;
+          this.stepMeta = {};
         } else {
           // 流式输出当前缓冲区
           if (this.buffer.length > 0) {
@@ -271,6 +312,7 @@ export class StreamTagParser {
               content: this.unescapeXml(content),
               stepType: this.stepType ?? undefined,
               stepIndex: this.stepIndex,
+              ...this.stepMeta,
             });
           }
           break;
@@ -313,6 +355,18 @@ export class StreamTagParser {
       .replace(/&amp;/g, '&');
   }
 
+  private parseAttributes(rawAttrs: string): Record<string, string> {
+    const attrs: Record<string, string> = {};
+    const attrPattern = /(\w+)="((?:[^"]|&(?:quot|amp|lt|gt|apos);)*)"/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = attrPattern.exec(rawAttrs)) !== null) {
+      attrs[match[1]] = this.unescapeXml(match[2]);
+    }
+
+    return attrs;
+  }
+
   /**
    * 重置解析器状态
    */
@@ -323,5 +377,6 @@ export class StreamTagParser {
     this.inStep = false;
     this.stepType = null;
     this.stepIndex = 0;
+    this.stepMeta = {};
   }
 }

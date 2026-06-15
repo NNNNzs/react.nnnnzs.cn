@@ -22,11 +22,6 @@ export interface ChatAgentParams {
 
 type Phase = 'init' | 'answering';
 
-interface ToolCallChunk {
-  name?: string;
-  args?: Record<string, unknown>;
-}
-
 function getRecord(value: unknown): Record<string, unknown> | undefined {
   if (value && typeof value === 'object') {
     return value as Record<string, unknown>;
@@ -99,12 +94,30 @@ function extractObservationText(data: unknown): string {
     const parsed = JSON.parse(content);
 
     if (Array.isArray(parsed.results) && parsed.results.length > 0) {
-      const total = parsed.totalResults || parsed.results.length;
+      const total = parsed.totalResults || parsed.total || parsed.results.length;
+      const resultLabel = parsed.type === 'repositories' || parsed.type === 'user_repositories'
+        ? '个仓库'
+        : parsed.type === 'issues'
+          ? '个 Issue/PR'
+          : parsed.type === 'users'
+            ? '个用户'
+            : parsed.type === 'user_starred'
+              ? '个 Star 仓库'
+              : '篇相关文章';
       const titles = parsed.results
         .slice(0, 5)
-        .map((r: { title?: string }, i: number) => `${i + 1}. ${r.title || '未知文章'}`)
+        .map((r: {
+          title?: string;
+          fullName?: string;
+          repository?: string;
+          login?: string;
+          name?: string;
+        }, i: number) => {
+          const label = r.title || r.fullName || r.repository || r.login || r.name || '未知结果';
+          return `${i + 1}. ${label}`;
+        })
         .join('\n');
-      return `找到 ${total} 篇相关文章：\n${titles}`;
+      return `找到 ${total} ${resultLabel}：\n${titles}`;
     }
 
     if (parsed.results && typeof parsed.total === 'number') {
@@ -118,24 +131,23 @@ function extractObservationText(data: unknown): string {
   }
 }
 
-function extractToolCallInfo(toolCalls: ToolCallChunk[]): string {
-  if (toolCalls.length === 0) return '';
+function extractToolCallInfo(name: string, args: Record<string, unknown>): string {
+  const toolName = name || 'unknown';
 
-  const tc = toolCalls[0];
-  const name = tc.name || 'unknown';
-  const args = tc.args || {};
-
-  if (name === 'search_articles') {
+  if (toolName === 'search_articles') {
     return `搜索文章：${args.query || ''}（共 ${args.limit || 5} 篇）`;
   }
-  if (name === 'search_posts_meta') {
+  if (toolName === 'search_posts_meta') {
     return `查询文章列表（${args.sort_by || 'date'} ${args.sort_order || 'desc'}）`;
   }
-  if (name === 'search_collection') {
+  if (toolName === 'search_collection') {
     return `搜索合集：${args.collection || ''}`;
   }
+  if (toolName === 'github_search') {
+    return `搜索 GitHub：${args.query || args.username || args.repo || ''}`;
+  }
 
-  return `${name}(${JSON.stringify(args).slice(0, 80)})`;
+  return `${toolName}(${JSON.stringify(args).slice(0, 80)})`;
 }
 
 function buildMessages(
@@ -183,6 +195,8 @@ export const chatAgentStream = async (
         let stepIndex = 0;
         let hasToolExecuted = false;
         let phase: Phase = 'init';
+        const toolStepByRunId = new Map<string, number>();
+        const toolMetaByRunId = new Map<string, { toolName: string; startedAt: string; startedAtMs: number }>();
 
         const eventStream = agent.streamEvents(
           { messages },
@@ -206,27 +220,6 @@ export const chatAgentStream = async (
             }
 
             const chunkRecord = getRecord(chunk);
-            const toolCalls = (chunkRecord?.tool_calls || []) as ToolCallChunk[];
-            if (toolCalls.length > 0) {
-              if (inThinkTag) {
-                controller.enqueue(tagGenerator.endThink());
-                inThinkTag = false;
-              }
-              if (inContentTag) {
-                controller.enqueue(tagGenerator.endContent());
-                inContentTag = false;
-              }
-
-              stepIndex++;
-              controller.enqueue(
-                tagGenerator.generateStep('action', stepIndex, extractToolCallInfo(toolCalls)),
-              );
-
-              phase = 'init';
-              hasToolExecuted = true;
-              continue;
-            }
-
             const content = extractTextContent(chunkRecord?.content);
             if (content) {
               if (inThinkTag) {
@@ -249,14 +242,66 @@ export const chatAgentStream = async (
             }
           }
 
+          if (eventType === 'on_tool_start') {
+            if (inThinkTag) {
+              controller.enqueue(tagGenerator.endThink());
+              inThinkTag = false;
+            }
+            if (inContentTag) {
+              controller.enqueue(tagGenerator.endContent());
+              inContentTag = false;
+            }
+
+            const eventRecord = getRecord(event);
+            const dataRecord = getRecord(data);
+            const runId = getStringField(eventRecord, 'run_id') || `tool-${stepIndex + 1}`;
+            const toolName = getStringField(eventRecord, 'name');
+            const input = getRecord(dataRecord?.input) || {};
+            const startedAtMs = Date.now();
+            const startedAt = new Date(startedAtMs).toISOString();
+
+            stepIndex++;
+            toolStepByRunId.set(runId, stepIndex);
+            toolMetaByRunId.set(runId, { toolName, startedAt, startedAtMs });
+            controller.enqueue(
+              tagGenerator.generateStep(
+                'action',
+                stepIndex,
+                extractToolCallInfo(toolName, input),
+                { toolName, startedAt },
+              ),
+            );
+
+            phase = 'init';
+            hasToolExecuted = true;
+          }
+
           if (eventType === 'on_tool_end') {
             if (inThinkTag) {
               controller.enqueue(tagGenerator.endThink());
               inThinkTag = false;
             }
 
+            const eventRecord = getRecord(event);
+            const runId = getStringField(eventRecord, 'run_id');
+            const toolStepIndex = toolStepByRunId.get(runId) || stepIndex;
+            const toolMeta = toolMetaByRunId.get(runId);
+            const endedAtMs = Date.now();
+            const endedAt = new Date(endedAtMs).toISOString();
+            const durationMs = toolMeta ? endedAtMs - toolMeta.startedAtMs : undefined;
+
             controller.enqueue(
-              tagGenerator.generateStep('observation', stepIndex, extractObservationText(data)),
+              tagGenerator.generateStep(
+                'observation',
+                toolStepIndex,
+                extractObservationText(data),
+                {
+                  toolName: toolMeta?.toolName,
+                  startedAt: toolMeta?.startedAt,
+                  endedAt,
+                  durationMs,
+                },
+              ),
             );
           }
         }
@@ -281,7 +326,10 @@ export const chatAgentStream = async (
 
         const errorMsg = error instanceof Error ? error.message : '未知错误';
         controller.enqueue(tagGenerator.generateThink(`处理出错：${errorMsg}`));
-        controller.error(error);
+        controller.enqueue(tagGenerator.startContent());
+        controller.enqueue(encoder.encode(`抱歉，这次处理没有完成：${errorMsg}`));
+        controller.enqueue(tagGenerator.endContent());
+        controller.close();
       }
     },
   });
