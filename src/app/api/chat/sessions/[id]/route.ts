@@ -47,7 +47,12 @@ export async function GET(
       return NextResponse.json(errorResponse('会话不存在或无权访问'), { status: 404 });
     }
 
-    return NextResponse.json(successResponse(session));
+    return NextResponse.json(successResponse(session), {
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('Get chat session detail error:', error);
     return NextResponse.json(

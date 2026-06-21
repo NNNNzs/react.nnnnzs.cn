@@ -9,6 +9,7 @@ import { createOpenAIModel } from '@/lib/ai';
 const TITLE_TIMEOUT_MS = 8_000;
 const MAX_SOURCE_LENGTH = 1_800;
 const MAX_TITLE_LENGTH = 24;
+const TITLE_MAX_TOKENS = 32;
 
 function truncateText(text: string, maxLength: number): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
@@ -65,7 +66,10 @@ export async function generateChatSessionTitle(params: {
   const model = await createOpenAIModel({
     scenario: 'chat',
     temperature: 0.2,
-    maxTokens: 32,
+    maxTokens: TITLE_MAX_TOKENS,
+    modelKwargs: {
+      thinking: { type: 'disabled' },
+    },
   });
 
   const response = await withTimeout(

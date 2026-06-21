@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
 
     // 无用户信息也无设备ID，返回空列表
     if (!user && !deviceId) {
-      return NextResponse.json(successResponse({ record: [], total: 0 }));
+      return NextResponse.json(successResponse({ record: [], total: 0 }), {
+        headers: {
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+        },
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -42,7 +47,12 @@ export async function GET(request: NextRequest) {
       pageSize: Math.min(pageSize, 50),
     });
 
-    return NextResponse.json(successResponse(result));
+    return NextResponse.json(successResponse(result), {
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('Get chat sessions error:', error);
     return NextResponse.json(

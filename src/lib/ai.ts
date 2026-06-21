@@ -25,6 +25,8 @@ export interface AIModelConfig {
   temperature?: number;
   /** 最大 token 数 */
   maxTokens?: number;
+  /** 透传给 OpenAI 兼容接口的额外模型参数 */
+  modelKwargs?: Record<string, unknown>;
   /** 配置场景（用于从数据库读取配置） */
   scenario?: AIConfigScenario;
 }
@@ -58,6 +60,7 @@ export async function createOpenAIModel(
     model: mergedConfig.model!,
     temperature: mergedConfig.temperature,
     maxTokens: mergedConfig.maxTokens,
+    modelKwargs: config.modelKwargs,
   });
 }
 

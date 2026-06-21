@@ -117,6 +117,32 @@ export async function POST(request: NextRequest) {
 - **429**: 请求过于频繁（防刷限制）
 - **500**: 服务器错误
 
+### CDN 缓存与用户态 API
+
+部署在 CDN 或反向代理之后时，用户态、权限态、管理后台、聊天记录、Token/OAuth、实时状态等接口必须显式禁止缓存。
+
+**后端响应要求：**
+- 返回用户私有数据、权限过滤数据、会随操作立即变化的数据时，响应头必须包含 `Cache-Control: no-store`。
+- 兼容旧代理时同时加 `Pragma: no-cache`。
+- 不要依赖“接口需要 Cookie/Authorization 就不会被缓存”的假设，CDN 配置或中间层规则可能仍然缓存 GET 响应。
+
+```typescript
+return NextResponse.json(successResponse(data), {
+  headers: {
+    'Cache-Control': 'no-store',
+    Pragma: 'no-cache',
+  },
+})
+```
+
+**适用场景示例：**
+- 管理后台列表和详情接口
+- 聊天会话、聊天记录、消息详情
+- 登录态用户信息、权限菜单、个人配置
+- 删除、更新后需要立即刷新验证的数据
+
+公共内容接口（文章详情、标签、合集、站点元数据等）只有在明确可公开缓存并具备 revalidate/清理机制时，才允许设置 `public`、`s-maxage` 或 `force-cache`。
+
 ## 服务层规范
 
 ### 服务层组织

@@ -31,7 +31,12 @@ export async function GET(request: NextRequest) {
       endDate: searchParams.get('endDate') || undefined,
     });
 
-    return NextResponse.json(successResponse(result));
+    return NextResponse.json(successResponse(result), {
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('Get admin chat logs error:', error);
     return NextResponse.json(

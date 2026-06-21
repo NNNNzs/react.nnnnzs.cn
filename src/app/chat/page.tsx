@@ -483,7 +483,10 @@ export default function ChatPage() {
         headers["X-Device-Id"] = deviceId;
       }
 
-      const response = await fetch("/api/chat/sessions", { headers });
+      const response = await fetch("/api/chat/sessions", {
+        headers,
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.status) {
@@ -511,7 +514,10 @@ export default function ChatPage() {
         headers["X-Device-Id"] = deviceId;
       }
 
-      const response = await fetch(`/api/chat/sessions/${sessionId}`, { headers });
+      const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+        headers,
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.status && data.data) {
@@ -601,6 +607,15 @@ export default function ChatPage() {
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  /**
+   * 每次打开会话记录弹窗都重新请求，确保异步生成的标题能及时显示。
+   */
+  useEffect(() => {
+    if (sessionPaletteOpen) {
+      loadSessions();
+    }
+  }, [sessionPaletteOpen, loadSessions]);
 
   /**
    * 使用常见命令面板快捷键打开会话记录。

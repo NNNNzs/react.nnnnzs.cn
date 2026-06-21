@@ -43,6 +43,20 @@ export function serializePost(post: TbPost): SerializedPost {
 }
 
 /**
+ * 获取公开且未删除的文章总数
+ */
+export async function getPublicPostCount(): Promise<number> {
+  const prisma = await getPrisma();
+
+  return prisma.tbPost.count({
+    where: {
+      hide: '0',
+      is_delete: 0,
+    },
+  });
+}
+
+/**
  * 生成 URL 安全的 slug
  *
  * 参考 RFC3986:

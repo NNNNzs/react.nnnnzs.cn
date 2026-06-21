@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { getAllCollectionsSummary } from '@/services/collection';
+import { getPublicPostCount } from '@/services/post';
 import { getAllTags } from '@/services/tag';
 
 const CHAT_AGENT_PROMPT_PATH = path.join(
@@ -18,27 +19,56 @@ export interface ChatAgentPromptParams {
   baseUrl: string;
 }
 
+type PromptContext = {
+  articleTags: Array<[string, number]>;
+  articleCount: number;
+  collections: Awaited<ReturnType<typeof getAllCollectionsSummary>>;
+};
+
+const PROMPT_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
+let promptContextCache: { value: PromptContext; expiresAt: number } | null = null;
+
 async function loadPromptTemplate(): Promise<PromptTemplate> {
   const template = await readFile(CHAT_AGENT_PROMPT_PATH, 'utf8');
   return PromptTemplate.fromTemplate(template);
 }
 
-function formatKnowledgeBaseSummary(tags: Array<[string, number]>): string {
-  if (tags.length === 0) return '暂无标签';
+async function getPromptContext(): Promise<PromptContext> {
+  if (promptContextCache && promptContextCache.expiresAt > Date.now()) {
+    return promptContextCache.value;
+  }
+
+  const [articleTags, articleCount, collections] = await Promise.all([
+    getAllTags(),
+    getPublicPostCount(),
+    getAllCollectionsSummary(),
+  ]);
+
+  const value = { articleTags, articleCount, collections };
+  promptContextCache = {
+    value,
+    expiresAt: Date.now() + PROMPT_CONTEXT_CACHE_TTL_MS,
+  };
+
+  return value;
+}
+
+function formatKnowledgeBaseSummary(tags: Array<[string, number]>, articleCount: number): string {
+  if (articleCount === 0) return '暂无公开文章';
+  if (tags.length === 0) return `共 ${articleCount} 篇公开文章，暂无标签`;
 
   const sortedTags = [...tags].sort((a, b) => b[1] - a[1]);
   const tagCount = tags.length;
-  const totalArticles = tags.reduce((sum, [, count]) => sum + count, 0);
   const topTags = sortedTags
     .slice(0, 5)
     .map(([tag, count]) => `${tag}（${count}篇）`)
     .join('、');
 
   if (sortedTags.length > 5) {
-    return `${topTags}等 ${tagCount} 个标签（共 ${totalArticles} 篇文章）`;
+    return `共 ${articleCount} 篇公开文章，${tagCount} 个标签；热门标签：${topTags}等`;
   }
 
-  return `${topTags}（共 ${totalArticles} 篇文章）`;
+  return `共 ${articleCount} 篇公开文章，${tagCount} 个标签；标签：${topTags}`;
 }
 
 function formatCollectionsSummary(
@@ -64,10 +94,9 @@ function formatCollectionsSummary(
 export async function buildChatAgentSystemPrompt(
   params: ChatAgentPromptParams,
 ): Promise<string> {
-  const [template, articleTags, collections] = await Promise.all([
+  const [template, context] = await Promise.all([
     loadPromptTemplate(),
-    getAllTags(),
-    getAllCollectionsSummary(),
+    getPromptContext(),
   ]);
 
   return template.format({
@@ -75,7 +104,7 @@ export async function buildChatAgentSystemPrompt(
     baseUrl: params.baseUrl,
     currentTime: params.currentTime,
     userInfo: params.userInfo,
-    knowledgeBaseSummary: formatKnowledgeBaseSummary(articleTags),
-    collectionsSummary: formatCollectionsSummary(collections),
+    knowledgeBaseSummary: formatKnowledgeBaseSummary(context.articleTags, context.articleCount),
+    collectionsSummary: formatCollectionsSummary(context.collections),
   });
 }

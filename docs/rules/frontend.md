@@ -141,6 +141,25 @@ export function LikeButton({ initialLikes, postId }) {
 3. 将交互逻辑封装到独立的小组件中
 4. 通过 props 传递数据给客户端组件
 
+### 用户态数据与 CDN 缓存
+
+管理后台、聊天记录、弹窗详情、个人中心、权限菜单等用户态数据不要放在可被 CDN 缓存的 SSR HTML 中作为唯一数据来源。
+
+**客户端获取要求：**
+- 弹窗详情、实时状态、删除后刷新列表等交互数据，应在客户端组件中打开时通过 API 获取。
+- 对用户态 GET 请求使用 `fetch(url, { cache: 'no-store' })`，避免浏览器、Next.js fetch cache 或中间层复用旧响应。
+- 删除、更新成功后重新请求接口，不要只依赖本地列表状态推断服务端结果。
+
+```typescript
+const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+  cache: 'no-store',
+})
+```
+
+**排查提示：**
+- 如果接口返回成功但刷新页面仍显示旧数据，优先检查接口响应头、客户端 fetch cache、CDN 规则和是否实际请求了 JSON API。
+- 服务端也必须配套返回 `Cache-Control: no-store`，前端 `cache: 'no-store'` 不能替代后端响应头。
+
 ## UI 组件库使用
 
 ### Ant Design 规范

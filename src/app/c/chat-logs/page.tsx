@@ -160,7 +160,9 @@ const SessionDetailModal: React.FC<{
     async (targetSessionId: number) => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/chat/sessions/${targetSessionId}`);
+        const res = await fetch(`/api/chat/sessions/${targetSessionId}`, {
+          cache: "no-store",
+        });
         const data = await res.json();
         if (data.status && data.data) {
           setMessages(data.data.messages || []);
@@ -288,7 +290,9 @@ function PageContent() {
           params.set("endDate", urlState.dateRange[1]);
         }
 
-        const response = await fetch(`/api/admin/chat-logs?${params}`);
+        const response = await fetch(`/api/admin/chat-logs?${params}`, {
+          cache: "no-store",
+        });
         if (response.ok) {
           const result = await response.json();
           if (result.status) {
