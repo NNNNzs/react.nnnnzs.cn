@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getTokenFromRequest,
+  setAuthCookie,
   validateToken,
 } from '@/lib/auth';
 import { updateUser } from '@/services/user';
@@ -35,7 +36,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(successResponse(user));
+    const response = NextResponse.json(successResponse(user));
+    setAuthCookie(response, token);
+    return response;
   } catch (error) {
     console.error('获取用户信息失败:', error);
     return NextResponse.json(
@@ -95,4 +98,3 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(errorResponse(errorMessage), { status: 500 });
   }
 }
-

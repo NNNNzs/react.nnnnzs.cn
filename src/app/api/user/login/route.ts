@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { login } from '@/services/auth';
 import {
-  TOKEN_KEY,
+  setAuthCookie,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 export async function POST(request: NextRequest) {
@@ -35,13 +35,7 @@ export async function POST(request: NextRequest) {
     );
 
     // 设置Cookie
-    response.cookies.set(TOKEN_KEY, token, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7天
-      path: '/',
-    });
+    setAuthCookie(response, token);
 
     return response;
   } catch (error) {

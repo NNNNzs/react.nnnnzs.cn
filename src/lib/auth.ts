@@ -4,7 +4,7 @@
 
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import type { NextRequest } from 'next/server';
+import type { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@/types';
 import type { AuthUser } from '@/types/auth';
 import { resolveUserPermissions } from '@/services/permission';
@@ -19,6 +19,19 @@ export const TOKEN_KEY = 'blog-token';
  * Token过期时间（7天，单位：秒）
  */
 export const TOKEN_EXPIRE = 7 * 24 * 60 * 60;
+
+/**
+ * 写入登录 Cookie
+ */
+export function setAuthCookie(response: NextResponse, token: string): void {
+  response.cookies.set(TOKEN_KEY, token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: TOKEN_EXPIRE,
+    path: '/',
+  });
+}
 
 /**
  * 生成Token
@@ -289,4 +302,3 @@ export function getBaseUrl(request: NextRequest): string {
 
   return `${protocol}://${host}`;
 }
-

@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateToken, storeToken, TOKEN_KEY } from '@/lib/auth';
+import { generateToken, storeToken, setAuthCookie } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getPrisma } from '@/lib/prisma';
 import { searchFaces, fromPersonId } from '@/services/face';
@@ -49,13 +49,7 @@ export async function POST(request: NextRequest) {
       successResponse({ token, userInfo }, '人脸登录成功'),
     );
 
-    response.cookies.set(TOKEN_KEY, token, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60,
-      path: '/',
-    });
+    setAuthCookie(response, token);
 
     return response;
   } catch (error) {
