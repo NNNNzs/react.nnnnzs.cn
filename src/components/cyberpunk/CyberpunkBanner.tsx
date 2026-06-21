@@ -70,7 +70,7 @@ const CAMERA_FOCUS_PRESETS: Record<CameraFocusKey, CameraFocusPreset> = {
   },
   living: {
     key: 'living',
-    label: '全息桌',
+    label: '文章终端',
     position: [2.0, 2.0, 2.45],
     target: [-0.08, 0.86, 0.72],
     marker: [-0.08, 1.4, 0.72],
@@ -605,6 +605,7 @@ function Scene({
   onHotspotActivate,
   onFpsUpdate,
   collections,
+  posts,
   screenData,
   deployHistory,
   isDefaultMode,
@@ -619,6 +620,7 @@ function Scene({
   onHotspotActivate: (key: CameraFocusKey) => void;
   onFpsUpdate: (fps: number) => void;
   collections?: BookshelfCollection[];
+  posts?: Post[];
   screenData?: [ScreenTextureData, ScreenTextureData, ScreenTextureData];
   deployHistory?: DeployRecord[];
   isDefaultMode: boolean;
@@ -713,7 +715,7 @@ function Scene({
         />
       )}
       {pShowRoom && <Room variant={variant} />}
-      {pShowFurniture && <Furniture variant={variant} collections={collections} screenData={screenData} deployHistory={deployHistory} />}
+      {pShowFurniture && <Furniture variant={variant} posts={posts} collections={collections} screenData={screenData} deployHistory={deployHistory} />}
       {editable && <SceneEditorTransformControls enabled={editable} />}
       {pShowFurniture && (
         <SceneHotspots
@@ -1111,6 +1113,7 @@ export default function CyberpunkBanner({
               onHotspotActivate={handleHotspotActivate}
               onFpsUpdate={onFpsUpdate}
               collections={collections}
+              posts={posts}
               screenData={screenData}
               deployHistory={deployHistory}
               isDefaultMode={isDefaultMode}

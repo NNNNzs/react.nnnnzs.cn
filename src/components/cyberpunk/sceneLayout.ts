@@ -111,7 +111,7 @@ export const FURNITURE_LAYOUT = {
   serverRack: { position: [3.4, 0, -1.42] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 0.58, height: 1.85, depth: 0.46 }, style: 'east wall server rack' },
 
   // 中央客厅核心区。
-  coffeeTable: { position: [-0.08, 0, 0.72] as Vec3, bounds: { width: 1.42, height: 0.4, depth: 0.74 }, style: 'hologram coffee table' },
+  coffeeTable: { position: [-0.08, 0, 0.72] as Vec3, bounds: { width: 1.42, height: 0.4, depth: 0.74 }, style: 'article terminal pedestal coffee table' },
   sofa: { position: [-0.1, 0, 2.42] as Vec3, rotation: [0, Math.PI, 0] as Euler3, bounds: { width: 2.3, height: 0.86, depth: 0.68 }, style: 'foreground leather sofa' },
   wardrobe: { position: [3.4, 0, 1.72] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.1, height: 2.25, depth: 0.48 }, style: 'east wall open neon wardrobe' },
 
@@ -119,8 +119,8 @@ export const FURNITURE_LAYOUT = {
   coffeeMug: { position: [-1.18, 0.84, -1.96] as Vec3, bounds: { width: 0.08, height: 0.08, depth: 0.08 } },
   glowPlant: { position: [-3.32, 0, -1.34] as Vec3, bounds: { width: 0.42, height: 0.72, depth: 0.42 } },
   robotPet: { position: [-2.28, 0, 2.62] as Vec3, rotation: [0, -0.2, 0] as Euler3, bounds: { width: 0.3, height: 0.2, depth: 0.34 } },
-  // 悬浮内容终端：动画只在 Y 轴围绕 position[1] 轻微浮动。
-  hologramPanels: { position: [-0.08, 1.0, 0.72] as Vec3, rotation: [0, -0.08, 0] as Euler3, bounds: { width: 0.95, height: 1.0, depth: 0.08 } },
+  // 文章终端投影面：动画只在 Y 轴围绕 position[1] 轻微浮动。
+  articleTerminal: { position: [-0.08, 1.0, 0.72] as Vec3, rotation: [0, -0.08, 0] as Euler3, bounds: { width: 0.95, height: 1.0, depth: 0.08 } },
   // 窗口上方招牌：整体包含背板、文字、边框和光晕。
   neonSign: { position: [-3.56, 2.45, -1.75] as Vec3, rotation: [0, Math.PI / 2, 0] as Euler3, bounds: { width: 1.7, height: 0.68, depth: 0.04 }, style: 'west wall neon sign' },
 } as const;
