@@ -30,8 +30,8 @@ export default function Furniture({
       <WorkstationZone variant={variant} screenData={screenData} />
       <StorageWallZone collections={collections} deployHistory={deployHistory} variant={variant} />
       <LivingCoreZone variant={variant} posts={posts} />
-      <SleepZone />
-      <WardrobeZone />
+      <SleepZone variant={variant} />
+      <WardrobeZone variant={variant} />
       <CeilingAndFloorDetails variant={variant} />
       <NeonSign variant={variant} />
     </group>

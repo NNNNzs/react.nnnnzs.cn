@@ -47,7 +47,7 @@ NNNNzs = Neon Nomad Navigating Night Zones
 - 2026-05-20 方向调整：不再让日间模式使用赛博朋克视觉，后续应改成同一 3D 房间的日间温暖文艺主题。
 - 2026-05-20 已开始昼夜双主题实现：新增 `HomepageSceneVariant` 与 theme preset，首页日间/夜间都走同一个 3D Banner，日间关闭雨滴并降低 Bloom。
 - 2026-05-24 新增活动数据家具原型方向：保留服务器机柜部署状态灯、三联显示器活动纹理、书架合集入口三个概念，用于把 Git commit、GitHub Actions 部署记录和文章发表历史接入同一 3D 房间。
-- 2026-05-24 已把参考图方向落成第一版紧凑单间：北墙收窄，窗子改为三块玻璃，书架/服务器/衣柜集中在东墙，默认镜头从西南室内角落看向东北，探索模式改为双击进入、右键或再次双击退出。
+- 2026-05-24 已把参考图方向落成第一版紧凑单间：北墙收窄，窗子改为三块玻璃，书架/服务器/衣柜集中在东墙，默认镜头从西南室内角落看向东北，探索模式改为双击进入、右键或再次双击退出。该版布局已被 2026-06-24 的三视图布局基准取代。
 - 2026-05-31 **活动数据家具化已完成**：真实博客数据已接入 3D 房间家具。
   - **书架合集书本**：`CollectionBookUnit` 组件，合集数据来自服务端 `unstable_cache`（1h revalidation），携带 cover/background/color，hover 抽出书本，click 展开封面卡片。
   - **三联显示器纹理**：`createDataScreenTexture()` 数据驱动纹理，左屏 commit-log（GitHub API + Redis 缓存 10min）、中屏 deploy-status（Redis `deploy:history`）、右屏 post-feed（首页文章 props）。
@@ -79,7 +79,7 @@ NNNNzs = Neon Nomad Navigating Night Zones
 
 - 默认视角改为室内西南角广角斜视，不再从房间外看完整盒子。
 - 北墙只保留三块玻璃窗，避免整面玻璃墙把空间横向拉得过宽。
-- 画面左侧是三块窗和工作区，中间是茶几、沙发和文章终端，右侧/东墙是睡眠区、衣柜/衣架、书架、服务器和设备面板。
+- 西北侧是三块窗、工作区和服务器，中部是茶几、沙发和文章终端，东北是书柜内容墙，东侧是床和衣柜/衣架。
 - 退出探索模式必须恢复该默认视角。
 - 热点聚焦仍保留丝滑过渡，但聚焦完成后释放 OrbitControls，避免探索模式无法自由旋转。
 
@@ -91,25 +91,39 @@ lookAt: [0.25, 1.02, -1.35]
 fov: 68
 ```
 
+### 方向与坐标约定
+
+后续讨论房间布局时统一使用东南西北和上下，不再使用“前景”“左侧”“右侧”“右后”等依赖相机角度的描述。
+
+| 方向 | Three.js 坐标 | 说明 |
+|------|---------------|------|
+| 东 | `+X` | 东墙，书柜、床和衣柜所在方向 |
+| 西 | `-X` | 西墙，默认相机偏西南，工作区偏西北 |
+| 南 | `+Z` | 房间入口/默认相机所在方向，沙发当前靠南 |
+| 北 | `-Z` | 北墙与窗景所在方向 |
+| 上 | `+Y` | 天花板方向 |
+| 下 | `-Y` | 地面方向 |
+
+当前布局基准见 [赛博朋克首页房间布局规范](../designs/cyberpunk-homepage-room-layout.md)，原型参考图为 `docs/plans/images/cyberpunk-homepage-layout/room-layout-three-views.png`。
+
 ### 空间分区
 
 | 区域 | 位置 | 第一阶段 primitive 元素 | 后续模型替换 |
 |------|------|-------------------------|--------------|
 | 三块玻璃窗/城市 | 北墙偏左 | 三块窗面、窗框、程序化霓虹城市贴图、广告灯牌 | 城市 HDR/贴图、窗框细节 |
-| 工作区 | 左侧窗前 | 长桌、三联屏、键盘、主机柜、电竞椅、桌灯、植物、线缆 | 桌椅、键盘、显示器 GLB |
-| 东墙存储 | 右后 | 高书架、设备架、抽屉柜、头像霓虹屏、墙面数据屏 | 书架、设备柜、墙面装饰模型 |
+| 工作技术区 | 西北窗前 | 长桌、三联屏、键盘、主机柜、服务器、电竞椅、桌灯、植物、线缆 | 桌椅、键盘、显示器、服务器 GLB |
+| 内容书柜区 | 东北至东中 | 高书架、合集书本、旧书、数据核心、头像霓虹屏 | 书架、内容装饰模型 |
 | 中央客厅 | 中部 | 地毯、茶几、文章终端、杯瓶杂物 | 茶几、文章终端投影器、杂物模型 |
-| 前景沙发 | 前景 | L/长条皮质沙发、底部粉色灯带 | 沙发模型 |
-| 右侧睡眠区 | 右侧 | 低床、床底灯带、床头柜、圆镜/灯、设备箱 | 床、床头柜模型 |
-| 衣柜区 | 右后 | 开放衣架、悬挂衣物、柜体、紫色灯带 | 衣架、衣服 GLB |
-| 天花工业层 | 顶部 | 管线、桥架、蓝紫灯带、吊灯 | 管线/灯具模型 |
+| 南侧沙发 | 南中偏西 | L/长条皮质沙发、底部粉色灯带 | 沙发模型 |
+| 东侧生活区 | 东中至东南 | 低床、床底灯带、床头柜、圆镜/灯、衣柜、开放衣架、悬挂衣物 | 床、床头柜、衣架、衣服 GLB |
+| 天花工业层 | 上方 | 管线、桥架、蓝紫灯带、吊灯 | 管线/灯具模型 |
 | 地面氛围 | 全局 | 金属/石材地砖、湿润反光光斑、线缆、扫地机器人 | 地面材质、机器人模型 |
 
 ### 当前进度
 
 - 已完成紧凑单间方向的第一轮落地：房间宽度收敛到 7.2，深度收敛到 7.3，高度 4.85。
 - 已将北墙窗户从宽幅落地窗改成三块玻璃面板，减少横向拉伸和“全览房间盒子”的感觉。
-- 已把书架、服务器、衣柜和设备面板收回东墙，工作区靠左窗，沙发/茶几/文章终端在中部，床在右侧。
+- 2026-06-24 已确定新布局基准：服务器归入西北工作技术区，书柜独立在东北作为内容墙，床和衣柜沿东侧组成生活区，沙发/茶几/文章终端保持中部与南中偏西关系。
 - 已保留热点区和场景内标识：工作区、文章终端、书架、服务器、睡眠区。
 - 已实现双击进入探索模式，右键或再次双击退出，并恢复默认视角。
 - 本阶段仍是 primitive 占位模型，下一步重点从“调布局”转向关键家具建模和数据绑定。
@@ -128,7 +142,7 @@ fov: 68
 
 - 默认相机从房间外推入西南角内部，FOV 保持 70 的沉浸广角，避免“看房间立方体”的展示盒感。
 - 地板改为向镜头方向延伸的更大平面，弱化房间边界线。
-- 北墙只保留大窗；书架、服务器、衣柜均贴东墙，并把服务器南侧的床、床头柜、衣柜错开，避免堆叠穿模。
+- 早期布局曾将书架、服务器、衣柜集中在东墙；该布局已被 2026-06-24 三视图基准取代，后续按“服务器归西北工作技术区、书柜归东北内容墙、床和衣柜归东侧生活区”调整。
 - 2026-05-24 根据紧凑公寓方向，把房间宽度从 11.2 收回到 8.4、深度收回到 7.6，默认镜头同步推进到室内，家具整体压缩到一个单间内。
 - 2026-05-24 继续把北墙宽度收窄到 7.2，窗子改为三块玻璃面板，默认镜头推进到 `[-2.85, 2.2, 2.9]`，进一步削弱宽幅玻璃墙带来的全览感。
 - 2026-06-02 修正工作区长桌、三联屏间距、桌下主机和热点视角；建立“真实发光物体和实际光源同组件维护”的光源治理原则，并把显示器、服务器机柜、霓虹招牌补光迁回各自组件。
@@ -157,12 +171,21 @@ fov: 68
 
 ### 下一步优先级
 
-1. **关键模型替换**：优先替换电竞椅、沙发、床、服务器柜、书架，减少 primitive 方块感。
+1. **按三视图基准调整现有 primitive 布局**：先复用现有家具，把服务器迁到西北工作技术区，床和衣柜收拢到东侧生活区，书柜保持东北内容墙。
 2. **日间主题打磨**：同一紧凑单间结构下切换暖光、蓝天/窗景、低 Bloom、温暖材质、轻 HUD。
 3. **夜间主题打磨**：保留霓虹、雨夜、Bloom、终端、HUD，但控制性能和滚动体验。
-4. **移动端交互验证**：书架/服务器 click 展开卡片、外部点击关闭、显示器点击等数据家具交互在移动端需要验证和降级处理。
-5. **组件重命名/抽象**：把 `CyberpunkBanner` 逐步抽象为 `Homepage3DBanner`，保留 `variant="day" | "night"`。
-6. **静态 fallback**：生成一张高质量静态海报，用于低端设备和 reduced motion 降级。
+4. **关键模型补强**：减少 primitive 方块感，优先补交互和叙事最强的家具。
+5. **移动端交互验证**：书架/服务器 click 展开卡片、外部点击关闭、显示器点击等数据家具交互在移动端需要验证和降级处理。
+6. **组件重命名/抽象**：把 `CyberpunkBanner` 逐步抽象为 `Homepage3DBanner`，保留 `variant="day" | "night"`。
+7. **静态 fallback**：生成一张高质量静态海报，用于低端设备和 reduced motion 降级。
+
+### 家具补强优先级
+
+1. **沙发模型**：后续在线用户坐席会发生在沙发区域，沙发应优先从 primitive 占位升级为高质量模型。
+2. **开放衣柜/衣架模型**：床和衣柜已经成为东侧生活区的核心组合，需要更真实的挂衣杆、衣物和收纳层次。
+3. **服务器配套小件**：服务器已归入西北工作技术区，可补路由器、交换机、小型 NAS、线缆盒等，强化“设备靠近电脑”的合理性。
+4. **沙发边几/落地灯**：用于丰富南中偏西等待区，为在线用户坐席提供生活化边界。
+5. **书柜内容小物**：补档案盒、发光书签、便签、小屏幕等，让东北书柜更像博客合集内容墙。
 
 ---
 
@@ -262,39 +285,9 @@ interface HomepageThemePreset {
    - 地板、墙壁、桌子 → Three.js 基础几何体
    - 粒子系统 → 代码实现
 
-> **2026-05-20 更新**：素材已准备完成。14 个 GLB 模型 + 1 张 AI 生成城市天际线贴图，全部上传至 Cloudflare R2 `cyberpunk/` 目录。
-> 完整素材清单见 `docs/reference/3d-assets-manifest.json`，包含每个模型的 R2 下载地址、Sketchfab 来源、体积、场景位置等信息。
-> 本地备份位于 NAS `/root/home/3d-models/`。
-
-#### 已准备素材总览
-
-| 元素 | 文件 | 来源 | 体积 | 场景区位 |
-|------|------|------|------|----------|
-| 床 | `cyberpunk/床.glb` | Sketchfab (Neon Bedroom) | 6.3MB | 睡眠区 |
-| 桌子 | `cyberpunk/桌子.glb` | Sketchfab (Lumen hologram Table) | 1.7MB | 文章终端底座 / 工作区备选 |
-| 双显示器 | `cyberpunk/双显示器.glb` | Sketchfab (Gaming Desk) | 0.2MB | 工作区桌上 |
-| 书架 | `cyberpunk/书架.glb` | Sketchfab (Wooden Bookcases) | 3.0MB | 存储/服务器区 |
-| 服务器机架 | `cyberpunk/服务器机架.glb` | Sketchfab (Server Racking) | 13MB | 存储/服务器区 |
-| 赛博朋克键盘 | `cyberpunk/赛博朋克键盘.glb` | Sketchfab (NZXT miniTKL) | 18MB | 工作区桌上 |
-| 霓虹灯牌 | `cyberpunk/霓虹灯牌.glb` | Sketchfab (Japanese LED Neon Sign) | 8.0MB | 墙面装饰 |
-| 电竞椅 | `cyberpunk/电竞椅.glb` | Sketchfab (Cyberpunk Gaming Chair) | 3.8MB | 工作区 |
-| 咖啡杯 | `cyberpunk/咖啡杯.glb` | Sketchfab (Coffee Mug) | 8.6MB | 工作区桌上 |
-| 盆栽 | `cyberpunk/盆栽.glb` | Sketchfab (Potted Plant) | 38MB⚠️ | 生活细节 |
-| 机器猫 | `cyberpunk/机器猫.glb` | Sketchfab (Sox Lightyear) | 16MB | 生活细节 |
-| 复古电脑 | `cyberpunk/复古电脑.glb` | Sketchfab (Retro Computer) | 2.4MB | 工作区 |
-| 床头柜 | `cyberpunk/床头柜.glb` | Sketchfab (Dormitory Assets) | 11MB | 睡眠区 |
-| 外套 | `cyberpunk/外套.glb` | Sketchfab (Clothes) | 18MB⚠️ | 椅背上 |
-| 城市天际线贴图 | `cyberpunk/城市天际线.png` | GPT Image 2 生成 | 2.7MB | 落地窗背景 |
-
-⚠️ **体积警告**：盆栽(38MB)和外套(18MB)体积过大，集成前建议 Draco 压缩或寻找更轻量替代品。
+> **2026-06-24 更新**：后续不再维护集中 GLB 素材清单。模型来源、体积和可用性以实际代码接入、R2 管理页或模型检查台为准。
 
 **代码生成物件**（不需要下载模型）：地板、墙壁、天花板、落地窗窗框、天花板管道、散落线缆、NNNNzs 标识牌、全息时钟。
-
-**存储信息**：
-- R2 目录：`threejs/cyberpunk/`（Worker: `r2-file-manager.nnnnzs.workers.dev`）
-- 下载地址：`/api/download/cyberpunk/{文件名}`
-- 本地备份：NAS `/root/home/3d-models/`
-- 管理脚本：`threejs-learn/scripts/batch-download-upload.py`
 
 ### 性能策略
 
@@ -320,25 +313,25 @@ interface HomepageThemePreset {
 一个赛博朋克风格的**完整小公寓房间**，有人住着的生活感，不只是一个工位。广角展示整个空间。
 
 **提示词参考**（用于 AI 生成效果图）：
-> Interior of a small cyberpunk apartment room at night, wide shot showing the full space with depth and multiple areas. Left side: a bed pushed against the wall with a glowing neon poster above it, a small bedside table with a holographic clock. Center: a desk area with glowing keyboard and dual monitors, but not the main focus — just one part of the room. Right side: a tall bookshelf filled with glowing data cores and old books, a small server rack humming in the corner with blinking LED indicators. Back wall: a large window from floor to ceiling, rain streaking down the glass, revealing a sprawling neon-lit cyberpunk city skyline with flying vehicles. Floor: scattered cables, a robot pet sitting idle, a coffee mug on the desk, a jacket draped over a chair, a potted plant with bioluminescent leaves. Ceiling: exposed pipes and ducts with faintly glowing neon strips. A neon sign "NNNNzs" hangs above the window. Atmospheric fog near the floor, neon light bleeding through the window, bloom and glow on emissive surfaces. Color palette: deep navy, dark purple shadows, neon cyan #00f0ff and magenta #ff0066 accents throughout. Cozy but tech-heavy, lived-in feel, like someone actually inhabits this space. Photorealistic 3D render, Unreal Engine 5, 8K, cinematic, no people.
+> Interior of a small cyberpunk apartment room at night, wide shot showing the full space with depth and multiple areas. Northwest: a desk area near the window with glowing keyboard and dual monitors, with a small server rack or PC cabinet placed immediately beside the desk and connected by short cables. Northeast: a tall bookshelf content wall filled with glowing data cores and old books, separate from the server. East wall: a bed and wardrobe grouped together as the private living area, with a glowing neon poster above the bed and a small bedside table with a holographic clock. South center: a compact sofa and coffee table forming the living area, facing the article terminal. North wall: a large window from floor to ceiling, rain streaking down the glass, revealing a sprawling neon-lit cyberpunk city skyline with flying vehicles. Floor: scattered cables near the workstation, a robot pet sitting idle, a coffee mug on the desk, a jacket draped near the wardrobe, a potted plant with bioluminescent leaves. Ceiling: exposed pipes and ducts with faintly glowing neon strips. A neon sign "NNNNzs" hangs above the window. Atmospheric fog near the floor, neon light bleeding through the window, bloom and glow on emissive surfaces. Color palette: deep navy, dark purple shadows, neon cyan #00f0ff and magenta #ff0066 accents throughout. Cozy but tech-heavy, lived-in feel, like someone actually inhabits this space. Photorealistic 3D render, Unreal Engine 5, 8K, cinematic, no people.
 
 #### 日间场景描述（新增）
 
 一个温馨、明亮、文艺的个人数字房间。房间结构与夜间一致，但窗外是柔和天空和城市远景，雨滴关闭，Bloom 降低。书架、床、桌面、设备仍存在，只是材质从冷硬霓虹转为木质、布料、纸张、暖光与轻量屏幕。
 
 **提示词参考**：
-> Interior of a cozy creative developer apartment room during daytime, wide shot showing the full space with depth and multiple areas. Left side: a neatly used bed with soft linen, warm sunlight on the wall, framed prints and handwritten notes. Center: a desk area with a laptop, dual monitors, notebooks, coffee cup, small speakers, and a warm desk lamp. Right side: a tall bookshelf filled with books, journals, small archive boxes, and a few subtle glowing data objects. Back wall: a large floor-to-ceiling window with soft daylight, pale blue sky, distant city buildings, and light curtains. Floor: warm wood, a few tidy cables, a small robot pet resting near the desk, a jacket on the chair, potted green plants. Ceiling: quiet industrial pipes softened by daylight. A clean sign "NNNNzs" sits above the window. Calm, literary, thoughtful, warm, lived-in, no people.
+> Interior of a cozy creative developer apartment room during daytime, wide shot showing the full space with depth and multiple areas. Northwest: a desk area near the window with a laptop, dual monitors, notebooks, coffee cup, small speakers, a warm desk lamp, and a compact server or PC cabinet immediately beside the desk. Northeast: a tall bookshelf content wall filled with books, journals, small archive boxes, and a few subtle glowing data objects, separate from the server. East wall: a neatly used bed and wardrobe grouped together as the private living area, with soft linen, warm sunlight on the wall, framed prints and handwritten notes. South center: a compact sofa and coffee table forming the living area, facing the article terminal. North wall: a large floor-to-ceiling window with soft daylight, pale blue sky, distant city buildings, and light curtains. Floor: warm wood, a few tidy cables near the workstation, a small robot pet resting near the desk, a jacket near the wardrobe, potted green plants. Ceiling: quiet industrial pipes softened by daylight. A clean sign "NNNNzs" sits above the window. Calm, literary, thoughtful, warm, lived-in, no people.
 
 **房间分区与元素：**
 
 | 区域 | 位置 | 元素 |
 |------|------|------|
-| 睡眠区 | 左侧 | 床、墙上发光海报、床头柜+全息时钟 |
-| 工作区 | 中央偏右 | 桌子、发光键盘、双显示器 |
-| 存储/服务器区 | 右侧 | 书架（合集书本+旧书）、服务器机架+LED 指示灯 |
-| 窗户区 | 后墙 | 日间：柔光天空/城市远景；夜间：雨水、赛博朋克城市天际线 |
+| 工作技术区 | 西北窗前 | 桌子、发光键盘、双显示器、服务器/主机柜 |
+| 内容书柜区 | 东北至东中 | 书架（合集书本+旧书）、数据核心、阅读物 |
+| 睡眠生活区 | 东中至东南 | 床、墙上发光海报、床头柜+全息时钟、衣柜/衣架 |
+| 窗户区 | 北墙 | 日间：柔光天空/城市远景；夜间：雨水、赛博朋克城市天际线 |
 | 生活细节 | 地面/各处 | 散落线缆、机器人宠物、咖啡杯、外套搭椅上、生物发光盆栽 |
-| 天花板 | 顶部 | 暴露管道、微弱霓虹灯条 |
+| 天花板 | 上方 | 暴露管道、微弱霓虹灯条 |
 | 标识 | 窗户上方 | 标识牌/霓虹灯牌 `NNNNzs` |
 
 #### 需要的模型清单
@@ -380,7 +373,7 @@ interface HomepageThemePreset {
 - [ ] 生成日间/夜间静态 fallback 海报，用于低端设备和 WebGL 不可用场景
 - [ ] 移动端适配截图检查（375px / 390px / 430px）
 - [ ] 性能验证：首屏帧率、bundle 体积、低端设备降级阈值
-- [ ] 加载 GLB 模型替换焦点物件（键盘、椅子、服务器或机器人宠物）— ✅ 素材已就绪，见 `docs/reference/3d-assets-manifest.json`
+- [ ] 加载 GLB 模型替换焦点物件（键盘、椅子、服务器或机器人宠物），素材状态以实际模型管理入口和模型检查台为准
 
 ---
 
@@ -404,10 +397,11 @@ interface HomepageThemePreset {
 
 | 原型 | 用途 | 本地图片地址 |
 |------|------|--------------|
-| 参考效果图原图 | 当前紧凑赛博单间的视觉锚点：三块窗、工作区、东墙设备、沙发/床/生活杂物都应围绕这张图继续细化。 | `docs/plans/images/cyberpunk-homepage-activity/design.png` |
+| 房间三视图布局基准 | 当前布局主参考：服务器靠西北工作区，书柜在东北，床和衣柜在东侧，沙发/文章终端在中部与南侧。 | `docs/plans/images/cyberpunk-homepage-layout/room-layout-three-views.png` |
+| 参考效果图原图 | 早期紧凑赛博单间视觉锚点，仅保留氛围参考；布局以三视图布局基准为准。 | `docs/plans/images/cyberpunk-homepage-activity/design.png` |
 | 服务器机柜部署状态灯 | 映射 GitHub Actions 部署记录，成功/失败/运行中使用不同 LED 状态。 | `docs/plans/images/cyberpunk-homepage-activity/server-rack-deploy-status.png` |
 | 三联显示器活动纹理 | 映射 Git commit、部署状态、最近文章发表，作为工作区屏幕纹理。 | `docs/plans/images/cyberpunk-homepage-activity/triple-monitor-activity-texture.png` |
-| Activity Console 参考图 | 仅作为右侧 HUD/Recent Logs 的参考，不作为当前核心家具方向。 | `docs/plans/images/cyberpunk-homepage-activity/activity-console-reference.png` |
+| Activity Console 参考图 | 仅作为侧栏 HUD/Recent Logs 的参考，不作为当前核心家具方向。 | `docs/plans/images/cyberpunk-homepage-activity/activity-console-reference.png` |
 | 书架合集书本 | 映射合集、文章数、封面图和视频背景，合集以可抽拉书本形式展示。 | `docs/plans/images/cyberpunk-homepage-activity/bookshelf-data-cores.png` |
 
 ![参考效果图原图](images/cyberpunk-homepage-activity/design.png)

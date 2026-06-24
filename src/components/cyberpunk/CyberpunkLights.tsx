@@ -5,7 +5,7 @@
 
 'use client';
 
-import { forwardRef, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
@@ -206,14 +206,18 @@ export default function CyberpunkLights({
 
   const v = variant === 'day'
     ? {
-        ambientIntensity: 0.72, ambientColor: '#fff3df',
-        windowIntensity: 4.2, windowColor: '#ffd7a1', windowAngle: 0.75, windowPenumbra: 0.8, windowDecay: 1.2,
-        exteriorWindowIntensity: 0.35, exteriorWindowColor: '#fff0c4', exteriorWindowDistance: 7, exteriorWindowDecay: 1.4,
-        ceilingCyanIntensity: 0.08, ceilingCyanColor: '#bae6fd', ceilingCyanDistance: 4, ceilingCyanDecay: 2,
-        ceilingPurpleIntensity: 0.04, ceilingPurpleColor: '#fbcfe8', ceilingPurpleDistance: 3, ceilingPurpleDecay: 2,
+        ambientIntensity: 0.82, ambientColor: '#fff7ed',
+        windowIntensity: 4.8, windowColor: '#ffe0ad', windowAngle: 0.82, windowPenumbra: 0.86, windowDecay: 1.15,
+        exteriorWindowIntensity: 0.42, exteriorWindowColor: '#fff4cf', exteriorWindowDistance: 8, exteriorWindowDecay: 1.35,
+        ceilingCyanIntensity: 0.05, ceilingCyanColor: '#dbeafe', ceilingCyanDistance: 3.4, ceilingCyanDecay: 2,
+        ceilingPurpleIntensity: 0.025, ceilingPurpleColor: '#fde2e4', ceilingPurpleDistance: 2.8, ceilingPurpleDecay: 2,
       }
     : nightValues;
   const nightBoost = variant === 'night' ? 1 : 0;
+
+  useEffect(() => {
+    staticPropsApplied.current = false;
+  }, [variant]);
 
   useFrame(() => {
     // 静态属性只设置一次
@@ -255,7 +259,8 @@ export default function CyberpunkLights({
     }
 
     if (windowLight.current) {
-      windowLight.current.intensity = v.windowIntensity + Math.sin(t * 0.3) * 0.2 + Math.sin(t * 0.7) * 0.1;
+      const daylightPulse = variant === 'day' ? 0.06 : 0.2;
+      windowLight.current.intensity = v.windowIntensity + Math.sin(t * 0.3) * daylightPulse + Math.sin(t * 0.7) * daylightPulse * 0.5;
     }
 
     if (exteriorWindowLight.current) {
@@ -307,7 +312,7 @@ export default function CyberpunkLights({
       <PointFixture
         position={[-1, 2.5, -5]}
         color={variant === 'day' ? '#fff0c4' : '#334488'}
-        intensity={variant === 'day' ? 0.7 : 0.8}
+        intensity={variant === 'day' ? 0.9 : 0.8}
         distance={10}
         decay={2}
         bodyColor={variant === 'day' ? '#f8fafc' : '#0b1020'}
@@ -317,7 +322,7 @@ export default function CyberpunkLights({
       <PointFixture
         position={[1.5, 2, -5]}
         color={variant === 'day' ? '#dbeafe' : '#662244'}
-        intensity={variant === 'day' ? 0.22 : 0.4}
+        intensity={variant === 'day' ? 0.16 : 0.4}
         distance={8}
         decay={2}
         bodyColor={variant === 'day' ? '#f8fafc' : '#12081f'}
@@ -327,8 +332,8 @@ export default function CyberpunkLights({
       />
       <PointFixture
         position={[0, 3.3, -3.5]}
-        color={variant === 'day' ? '#38bdf8' : '#00aacc'}
-        intensity={variant === 'day' ? 0.18 : 2.2}
+        color={variant === 'day' ? '#bae6fd' : '#00aacc'}
+        intensity={variant === 'day' ? 0.12 : 2.2}
         distance={5.5}
         decay={2}
         bodyColor={variant === 'day' ? '#f8fafc' : '#061522'}
@@ -349,7 +354,7 @@ export default function CyberpunkLights({
                 ? (variant === 'day' ? '#fde68a' : '#ff0066')
                 : (variant === 'day' ? '#ffe8bf' : '#00f0ff')
           }
-          intensity={variant === 'day' ? 0.08 : 1.6}
+          intensity={variant === 'day' ? 0.045 : 1.6}
           distance={variant === 'day' ? 2.4 : 4.8}
           decay={1.7}
           variant={variant}

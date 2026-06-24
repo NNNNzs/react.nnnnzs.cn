@@ -7,6 +7,15 @@ export interface HomepageThemePreset {
   background: string;
   overlay: 'minimal' | 'hud';
   weather: 'clear' | 'rain';
+  scene: {
+    fogColor: string;
+    fogNear: number;
+    fogFar: number;
+    wallColor: string;
+    floorColor: string;
+    floorRoughness: number;
+    floorMetalness: number;
+  };
   postProcessing: {
     bloomThreshold: number;
     bloomSmoothing: number;
@@ -25,11 +34,20 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
     background: '#f8fafc',
     overlay: 'minimal',
     weather: 'clear',
+    scene: {
+      fogColor: '#f8fafc',
+      fogNear: 12,
+      fogFar: 28,
+      wallColor: '#f1f5f9',
+      floorColor: '#b58b5f',
+      floorRoughness: 0.82,
+      floorMetalness: 0.04,
+    },
     postProcessing: {
-      bloomThreshold: 0.55,
+      bloomThreshold: 0.62,
       bloomSmoothing: 0.8,
-      bloomIntensity: 0.18,
-      vignetteDarkness: 0.18,
+      bloomIntensity: 0.12,
+      vignetteDarkness: 0.12,
     },
     camera: {
       position: [-2.85, 2.2, 2.9],
@@ -41,6 +59,15 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
     background: '#050611',
     overlay: 'hud',
     weather: 'rain',
+    scene: {
+      fogColor: '#050611',
+      fogNear: 8,
+      fogFar: 19,
+      wallColor: '#0d0d1a',
+      floorColor: '#121218',
+      floorRoughness: 0.65,
+      floorMetalness: 0.35,
+    },
     postProcessing: {
       bloomThreshold: 0.06,
       bloomSmoothing: 0.85,

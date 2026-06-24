@@ -12,9 +12,9 @@ export function createCityTexture(variant: HomepageSceneVariant): THREE.CanvasTe
   // 白天和夜晚共用同一个生成入口，但内部画法分别对应完全不同的氛围
   if (variant === 'day') {
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 560);
-    skyGrad.addColorStop(0, '#c7e9ff');
-    skyGrad.addColorStop(0.45, '#e7f5ff');
-    skyGrad.addColorStop(1, '#fff7ed');
+    skyGrad.addColorStop(0, '#bfe8ff');
+    skyGrad.addColorStop(0.45, '#edf8ff');
+    skyGrad.addColorStop(1, '#fff3df');
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, 2048, 1024);
 
@@ -50,9 +50,9 @@ export function createCityTexture(variant: HomepageSceneVariant): THREE.CanvasTe
     ctx.globalAlpha = 1;
 
     const groundGrad = ctx.createLinearGradient(0, 560, 0, 1024);
-    groundGrad.addColorStop(0, '#dbeafe');
-    groundGrad.addColorStop(0.5, '#eff6ff');
-    groundGrad.addColorStop(1, '#f8fafc');
+    groundGrad.addColorStop(0, '#e0f2fe');
+    groundGrad.addColorStop(0.48, '#f8ead6');
+    groundGrad.addColorStop(1, '#fff8ef');
     ctx.fillStyle = groundGrad;
     ctx.fillRect(0, 560, 2048, 464);
 
@@ -276,8 +276,10 @@ export function createFloorTexture(variant: HomepageSceneVariant): THREE.CanvasT
     const y = Math.random() * 512;
     const r = 8 + Math.random() * 30;
     const radGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const color = Math.random() > 0.5 ? '0, 180, 255' : '100, 50, 150';
-    radGrad.addColorStop(0, `rgba(${color}, 0.04)`);
+    const color = variant === 'day'
+      ? (Math.random() > 0.5 ? '255, 229, 180' : '180, 132, 82')
+      : (Math.random() > 0.5 ? '0, 180, 255' : '100, 50, 150');
+    radGrad.addColorStop(0, `rgba(${color}, ${variant === 'day' ? 0.035 : 0.04})`);
     radGrad.addColorStop(1, `rgba(${color}, 0)`);
     ctx.fillStyle = radGrad;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -286,8 +288,8 @@ export function createFloorTexture(variant: HomepageSceneVariant): THREE.CanvasT
   for (let i = 0; i < 10; i++) {
     const x = Math.random() * 512;
     const y = Math.random() * 512;
-    ctx.strokeStyle = 'rgba(30, 25, 40, 0.2)';
-    ctx.lineWidth = 2 + Math.random() * 3;
+    ctx.strokeStyle = variant === 'day' ? 'rgba(112, 83, 52, 0.12)' : 'rgba(30, 25, 40, 0.2)';
+    ctx.lineWidth = variant === 'day' ? 1 + Math.random() * 1.5 : 2 + Math.random() * 3;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + 20 + Math.random() * 40, y + (Math.random() - 0.5) * 10);
@@ -352,7 +354,7 @@ function buildWallContexts(variant: HomepageSceneVariant): Record<string, WallCo
     right: {
       seed: WALL_SEEDS.right,
       neonLights: [
-        // 服务器 LED 映射（serverRack y≈0-1.85, 中心约 40%）
+        // 东北书柜和东侧生活区的弱霓虹映射
         { x: 700, y: 200, radius: 80, color: '0,200,255', alpha: 0.03 },
         // 霓虹灯牌映射（neonSign y≈2.45, 在墙面约50%处）
         { x: 500, y: 256, radius: 120, color: '255,0,102', alpha: 0.025 },

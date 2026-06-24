@@ -17,7 +17,7 @@ interface HomePageClientProps {
 // 滚动位置缓存键名
 const SCROLL_CACHE_KEY = 'home_scroll_position';
 
-function CyberpunkBannerFallback() {
+function Homepage3DBannerFallback() {
   return (
     <div className="relative h-screen overflow-hidden bg-[#f8fafc] dark:bg-[#050611]">
       <div className="cyberpunk-static-fallback" />
@@ -39,9 +39,9 @@ function CyberpunkBannerFallback() {
   );
 }
 
-const CyberpunkBanner = dynamic(() => import('@/components/cyberpunk/CyberpunkBanner'), {
+const Homepage3DBanner = dynamic(() => import('@/components/cyberpunk/Homepage3DBanner'), {
   ssr: false,
-  loading: () => <CyberpunkBannerFallback />,
+  loading: () => <Homepage3DBannerFallback />,
 });
 
 /**
@@ -142,7 +142,7 @@ export default function HomePageClient({
   return (
     <div className="bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
-      <CyberpunkBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} collections={collections} />
+      <Homepage3DBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} collections={collections} />
 
       {/* 文章列表 */}
       <div ref={postsAnchorRef} />

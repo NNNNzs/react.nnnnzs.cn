@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { HomepageSceneVariant } from '../theme';
+import { HOMEPAGE_THEME_PRESETS } from '../theme';
 import { ROOM, WALL_COLOR } from './shared';
 import { createWallTextures, type WallTexturesSet } from './textures';
 
@@ -11,13 +12,15 @@ function BackWall({ variant, textures, hh, hd }: {
   hh: number;
   hd: number;
 }) {
+  const scenePreset = HOMEPAGE_THEME_PRESETS[variant].scene;
+
   return (
     <mesh position={[0, hh / 2, -hd]}>
       <planeGeometry args={[ROOM.width, hh]} />
       <meshStandardMaterial
         map={textures.color}
         roughnessMap={textures.roughness}
-        color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
+        color={variant === 'day' ? scenePreset.wallColor : WALL_COLOR}
         roughness={0.88}
       />
     </mesh>
@@ -30,13 +33,15 @@ function LeftWall({ variant, textures, hh, hw }: {
   hh: number;
   hw: number;
 }) {
+  const scenePreset = HOMEPAGE_THEME_PRESETS[variant].scene;
+
   return (
     <mesh position={[-hw, hh / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
       <planeGeometry args={[ROOM.depth, hh]} />
       <meshStandardMaterial
         map={textures.color}
         roughnessMap={textures.roughness}
-        color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
+        color={variant === 'day' ? scenePreset.wallColor : WALL_COLOR}
         roughness={0.88}
       />
     </mesh>
@@ -49,13 +54,15 @@ function RightWall({ variant, textures, hh, hw }: {
   hh: number;
   hw: number;
 }) {
+  const scenePreset = HOMEPAGE_THEME_PRESETS[variant].scene;
+
   return (
     <mesh position={[hw, hh / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
       <planeGeometry args={[ROOM.depth, hh]} />
       <meshStandardMaterial
         map={textures.color}
         roughnessMap={textures.roughness}
-        color={variant === 'day' ? '#eef4f8' : WALL_COLOR}
+        color={variant === 'day' ? scenePreset.wallColor : WALL_COLOR}
         roughness={0.88}
       />
     </mesh>

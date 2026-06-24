@@ -85,11 +85,11 @@ export const ROOM_OBJECTS = {
 } as const;
 
 export const FURNITURE_LAYOUT = {
-  // 左侧窗前工作区：长桌、三联屏、电竞椅。
+  // 西北工作技术区：长桌、三联屏、电竞椅和服务器共同构成技术岛。
   desk: {
     position: [-2.16, 0, -2.08] as Vec3,
     bounds: { width: 2.78, height: 0.82, depth: 0.86 },
-    style: 'left window triple monitor workstation',
+    style: 'northwest triple monitor workstation',
   },
   // 三联显示器：朝向默认相机，略微弧形包围。
   monitors: [
@@ -101,26 +101,26 @@ export const FURNITURE_LAYOUT = {
   mouse: { position: [-1.54, 0.84, -1.73] as Vec3, bounds: { width: 0.08, height: 0.025, depth: 0.12 } },
   chair: { position: [-2.1, 0, -0.96] as Vec3, rotation: [0, Math.PI, 0] as Euler3, bounds: { width: 0.66, height: 1.22, depth: 0.8 }, style: 'gaming chair facing triple monitors' },
 
-  // 右侧睡眠区。
-  bed: { position: [2.35, 0, 0.22] as Vec3, bounds: { width: 1.85, height: 0.72, depth: 1.24 }, style: 'low neon platform bed' },
-  nightstand: { position: [3.02, 0, -0.48] as Vec3, bounds: { width: 0.42, height: 0.56, depth: 0.38 } },
-  neonPoster: { position: [3.57, 1.74, 0.35] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 0.82, height: 0.62, depth: 0.02 } },
+  // 东侧生活区：床、床头柜和衣柜靠近，和南侧沙发保持缓冲。
+  bed: { position: [2.56, 0, 0.66] as Vec3, bounds: { width: 1.85, height: 0.72, depth: 1.24 }, style: 'east wall low neon platform bed' },
+  nightstand: { position: [3.06, 0, -0.02] as Vec3, bounds: { width: 0.42, height: 0.56, depth: 0.38 } },
+  neonPoster: { position: [3.57, 1.74, 0.7] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 0.82, height: 0.62, depth: 0.02 } },
 
-  // 东墙存储与设备区。窗子所在北墙只保留窗景。
-  bookshelf: { position: [3.42, 0, -2.58] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.25, height: 2.55, depth: 0.4 }, style: 'east wall books and devices shelf' },
-  serverRack: { position: [3.4, 0, -1.42] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 0.58, height: 1.85, depth: 0.46 }, style: 'east wall server rack' },
+  // 东北内容墙与西北服务器分离，避免把书柜误当设备柜。
+  bookshelf: { position: [3.42, 0, -2.52] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.25, height: 2.55, depth: 0.4 }, style: 'northeast content bookshelf' },
+  serverRack: { position: [-0.42, 0, -2.04] as Vec3, rotation: [0, 0, 0] as Euler3, bounds: { width: 0.58, height: 1.85, depth: 0.46 }, style: 'northwest workstation server rack' },
 
   // 中央客厅核心区。
-  coffeeTable: { position: [-0.08, 0, 0.72] as Vec3, bounds: { width: 1.42, height: 0.4, depth: 0.74 }, style: 'article terminal pedestal coffee table' },
-  sofa: { position: [-0.1, 0, 2.42] as Vec3, rotation: [0, Math.PI, 0] as Euler3, bounds: { width: 2.3, height: 0.86, depth: 0.68 }, style: 'foreground leather sofa' },
-  wardrobe: { position: [3.4, 0, 1.72] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.1, height: 2.25, depth: 0.48 }, style: 'east wall open neon wardrobe' },
+  coffeeTable: { position: [-0.28, 0, 0.72] as Vec3, bounds: { width: 1.42, height: 0.4, depth: 0.74 }, style: 'article terminal pedestal coffee table' },
+  sofa: { position: [-0.48, 0, 2.35] as Vec3, rotation: [0, Math.PI, 0] as Euler3, bounds: { width: 2.3, height: 0.86, depth: 0.68 }, style: 'southwest leather sofa' },
+  wardrobe: { position: [3.38, 0, 1.86] as Vec3, rotation: [0, -Math.PI / 2, 0] as Euler3, bounds: { width: 1.1, height: 2.25, depth: 0.48 }, style: 'southeast open neon wardrobe' },
 
   // 小装饰物：作为整体摆件配置，内部发光/叶片/几何造型不在布局层展开。
   coffeeMug: { position: [-1.18, 0.84, -1.96] as Vec3, bounds: { width: 0.08, height: 0.08, depth: 0.08 } },
   glowPlant: { position: [-3.32, 0, -1.34] as Vec3, bounds: { width: 0.42, height: 0.72, depth: 0.42 } },
   robotPet: { position: [-2.28, 0, 2.62] as Vec3, rotation: [0, -0.2, 0] as Euler3, bounds: { width: 0.3, height: 0.2, depth: 0.34 } },
   // 文章终端投影面：动画只在 Y 轴围绕 position[1] 轻微浮动。
-  articleTerminal: { position: [-0.08, 1.0, 0.72] as Vec3, rotation: [0, -0.08, 0] as Euler3, bounds: { width: 0.95, height: 1.0, depth: 0.08 } },
+  articleTerminal: { position: [-0.28, 1.0, 0.72] as Vec3, rotation: [0, -0.08, 0] as Euler3, bounds: { width: 0.95, height: 1.0, depth: 0.08 } },
   // 窗口上方招牌：整体包含背板、文字、边框和光晕。
   neonSign: { position: [-3.56, 2.45, -1.75] as Vec3, rotation: [0, Math.PI / 2, 0] as Euler3, bounds: { width: 1.7, height: 0.68, depth: 0.04 }, style: 'west wall neon sign' },
 } as const;

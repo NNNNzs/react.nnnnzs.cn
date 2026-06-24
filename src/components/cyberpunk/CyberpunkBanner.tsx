@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import Room from './Room';
 import RainEffect from './RainEffect';
 import Furniture from './Furniture';
-import CyberpunkLights from './CyberpunkLights';
+import SceneLights from './SceneLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import { SceneEditorTransformControls, useSceneEditorStore } from './sceneEditor';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
@@ -72,32 +72,32 @@ const CAMERA_FOCUS_PRESETS: Record<CameraFocusKey, CameraFocusPreset> = {
     key: 'living',
     label: '文章终端',
     position: [2.0, 2.0, 2.45],
-    target: [-0.08, 0.86, 0.72],
-    marker: [-0.08, 1.4, 0.72],
+    target: [-0.28, 0.86, 0.72],
+    marker: [-0.28, 1.4, 0.72],
     fov: 42,
   },
   bookshelf: {
     key: 'bookshelf',
     label: '书架',
-    position: [0.95, 1.9, -0.7],
-    target: [3.3, 1.35, -2.58],
-    marker: [3.15, 2.22, -2.58],
+    position: [1.0, 1.9, -0.7],
+    target: [3.3, 1.35, -2.52],
+    marker: [3.15, 2.22, -2.52],
     fov: 42,
   },
   server: {
     key: 'server',
     label: '服务器',
-    position: [0.95, 1.8, 0.42],
-    target: [3.3, 1.02, -1.42],
-    marker: [3.15, 1.68, -1.42],
+    position: [-2.25, 1.62, -0.64],
+    target: [-0.42, 1.02, -2.04],
+    marker: [-0.42, 1.68, -2.04],
     fov: 40,
   },
   sleep: {
     key: 'sleep',
     label: '睡眠区',
-    position: [-0.75, 1.75, 2.5],
-    target: [2.35, 0.72, 0.22],
-    marker: [2.35, 1.05, 0.22],
+    position: [-0.55, 1.75, 2.65],
+    target: [2.56, 0.72, 0.66],
+    marker: [2.56, 1.05, 0.66],
     fov: 44,
   },
 };
@@ -647,7 +647,7 @@ function Scene({
   const pShowFurniture = editable ? showFurniture : true;
   const pShowRoom = editable ? showRoom : true;
   const pShowGrid = editable ? showGrid : false;
-  const fogColor = variant === 'day' ? '#f8fafc' : '#050611';
+  const scenePreset = HOMEPAGE_THEME_PRESETS[variant].scene;
 
   useEffect(() => {
     const syncWheelZoomEnabled = (event?: KeyboardEvent) => {
@@ -671,7 +671,7 @@ function Scene({
 
   return (
     <>
-      <fog attach="fog" args={[fogColor, variant === 'day' ? 11 : 8, variant === 'day' ? 23 : 19]} />
+      <fog attach="fog" args={[scenePreset.fogColor, scenePreset.fogNear, scenePreset.fogFar]} />
       {shouldUseParallax && <ParallaxCamera editable={editable || parallaxEnabled} variant={variant} />}
       {!shouldUseParallax && (
         <CameraFocusController
@@ -698,7 +698,7 @@ function Scene({
           target={focus.target}
         />
       )}
-      <CyberpunkLights variant={variant} />
+      <SceneLights variant={variant} />
       {pShowGrid && (
         <Grid
           args={[20, 20]}

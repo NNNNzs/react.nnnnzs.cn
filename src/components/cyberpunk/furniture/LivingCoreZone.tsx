@@ -413,14 +413,16 @@ function SofaCluster() {
 }
 
 export default function LivingCoreZone({ variant, posts = [] }: { variant: 'day' | 'night'; posts?: Post[] }) {
+  const [livingX, , livingZ] = FURNITURE_LAYOUT.coffeeTable.position;
+
   return (
     <EditableGroup id="living-core-zone">
-      <mesh position={[-0.08, 0.012, 0.72]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[livingX, 0.012, livingZ]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[2.6, 1.55]} />
         <meshStandardMaterial color="#111122" roughness={0.86} metalness={0.12} />
       </mesh>
-      <NeonStrip position={[-0.08, 0.03, -0.03]} scale={[2.6, 0.018, 0.018]} color="#00d8ff" intensity={0.42} />
-      <NeonStrip position={[-0.08, 0.03, 1.47]} scale={[2.6, 0.018, 0.018]} color="#ff2a9a" intensity={0.42} />
+      <NeonStrip position={[livingX, 0.03, livingZ - 0.75]} scale={[2.6, 0.018, 0.018]} color="#00d8ff" intensity={0.42} />
+      <NeonStrip position={[livingX, 0.03, livingZ + 0.75]} scale={[2.6, 0.018, 0.018]} color="#ff2a9a" intensity={0.42} />
       <CoffeeTableCluster variant={variant} posts={posts} />
       <SofaCluster />
     </EditableGroup>

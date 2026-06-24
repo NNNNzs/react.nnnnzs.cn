@@ -585,7 +585,7 @@ export default function StorageWallZone({ collections, deployHistory, variant }:
         </Text>
       </EditableGroup>
 
-      <EditableGroup id="kiroshi-index-sign" position={[3.55, 1.38, -0.48]} rotation={[0, -Math.PI / 2, 0]}>
+      <EditableGroup id="kiroshi-index-sign" position={[-3.55, 1.38, -0.72]} rotation={[0, Math.PI / 2, 0]}>
         <mesh>
           <planeGeometry args={[1.15, 0.72]} />
           <meshStandardMaterial color="#050712" emissive="#ff2a9a" emissiveIntensity={0.14} toneMapped={false} />

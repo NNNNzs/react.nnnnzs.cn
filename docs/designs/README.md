@@ -22,6 +22,7 @@ docs/designs/
 ├── comment-system-design.md         # 评论系统设计
 ├── entity-change-design.md          # 实体变更日志系统
 ├── homepage-3d-day-night.md         # 首页 3D 昼夜双主题
+├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
 ├── mcp-oauth-design.md              # MCP OAuth 2.0 认证
 ├── image-gen.md                     # AI 图片生成
 ├── rbac-config-design.md            # 配置化 RBAC 权限系统
@@ -60,6 +61,7 @@ docs/designs/
 | [TTS 语音合成](tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
 | [首页 3D 昼夜双主题](homepage-3d-day-night.md) | 同一 3D 房间的日间文艺与夜间赛博朋克主题 | 🔄 进行中 |
+| [首页 3D 房间布局规范](cyberpunk-homepage-room-layout.md) | 三视图原型与家具空间关系基准 | 🔄 进行中 |
 
 ### 基础设施
 
@@ -91,4 +93,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-06-15
+**最后更新**: 2026-06-24

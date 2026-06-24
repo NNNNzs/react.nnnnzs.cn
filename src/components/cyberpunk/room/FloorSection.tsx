@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { HomepageSceneVariant } from '../theme';
+import { HOMEPAGE_THEME_PRESETS } from '../theme';
 import { ROOM, FLOOR_COLOR } from './shared';
 import { createFloorTexture } from './textures';
 import * as THREE from 'three';
@@ -17,14 +18,16 @@ function FloorPlane({
   floorWidth: number;
   floorDepth: number;
 }) {
+  const scenePreset = HOMEPAGE_THEME_PRESETS[variant].scene;
+
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 1.15]} receiveShadow>
       <planeGeometry args={[floorWidth, floorDepth]} />
       <meshStandardMaterial
         map={floorTexture}
-        color={variant === 'day' ? '#a47c4f' : FLOOR_COLOR}
-        roughness={variant === 'day' ? 0.78 : 0.65}
-        metalness={variant === 'day' ? 0.08 : 0.35}
+        color={variant === 'day' ? scenePreset.floorColor : FLOOR_COLOR}
+        roughness={scenePreset.floorRoughness}
+        metalness={scenePreset.floorMetalness}
       />
     </mesh>
   );
@@ -32,7 +35,7 @@ function FloorPlane({
 
 export default function FloorSection({ variant }: { variant: HomepageSceneVariant }) {
   const floorTexture = useMemo(() => createFloorTexture(variant), [variant]);
-  // 姣旀埧闂村簳闈㈢暐澶т竴鐐癸紝鑳芥妸闀滃ご杈圭紭鐨勭┛甯鎺?
+  // 地面略大于房间底面，遮住默认镜头边缘可能露出的空隙。
   const floorWidth = ROOM.width + 1.0;
   const floorDepth = ROOM.depth + 3.0;
 
