@@ -1,6 +1,5 @@
 "use client";
 
-export const revalidate = 3600;
 
 /**
  * 聊天页面
