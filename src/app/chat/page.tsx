@@ -46,6 +46,7 @@ import type { StreamStepMeta, StepType } from "@/lib/stream-tags";
 import { getDeviceId } from "@/lib/device-id";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
+import { useDarkMode } from "@/hooks/useDarkMode";
 
 const { Title, Text } = Typography;
 
@@ -143,11 +144,11 @@ const ReactStepItem: React.FC<{ step: ReactStep }> = React.memo(({ step }) => {
   return (
     <div className="flex items-start gap-2 text-sm leading-relaxed">
       <span style={{ color: config.color, marginTop: 2 }}>{config.icon}</span>
-      <span className="font-medium text-gray-500 shrink-0">{config.label}</span>
-      <span className="text-gray-700">
+      <span className="font-medium text-gray-500 shrink-0 dark:text-slate-300">{config.label}</span>
+      <span className="text-gray-700 dark:text-slate-200">
         {displayContent}
         {step.isStreaming && (
-          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle" />
+          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle dark:bg-slate-300" />
         )}
       </span>
     </div>
@@ -204,6 +205,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
     reactTimeline = [],
     loading,
   }) => {
+    const { isDark } = useDarkMode();
     const [title, defaultExpanded] = useMemo(() => {
       if (loading) {
         return ["正在思考...", true];
@@ -252,7 +254,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
         {loading &&
         !content &&
         orderedTimeline.length === 0 ? (
-          <div className="text-gray-400 flex items-center gap-2">
+          <div className="text-gray-400 flex items-center gap-2 dark:text-slate-300">
             <RobotOutlined spin />
             <span>正在思考...</span>
           </div>
@@ -287,7 +289,11 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
             })}
 
             {/* 最终答案 */}
-            {content && <XMarkdown>{content}</XMarkdown>}
+            {content && (
+              <XMarkdown className={isDark ? "x-markdown-dark" : "x-markdown-light"}>
+                {content}
+              </XMarkdown>
+            )}
           </>
         )}
       </div>
@@ -349,7 +355,7 @@ const SessionCommandPalette: React.FC<{
         className="mb-4"
       />
 
-      <div className="mb-3 flex items-center justify-between text-xs text-gray-400">
+      <div className="mb-3 flex items-center justify-between text-xs text-gray-400 dark:text-slate-400">
         <span>最近会话</span>
         <span>Enter 打开首项 · Esc 关闭</span>
       </div>
@@ -371,10 +377,10 @@ const SessionCommandPalette: React.FC<{
             dataSource={filteredSessions}
             renderItem={(session) => (
               <List.Item
-                className={`mb-2 cursor-pointer rounded-xl border px-3 py-3 transition-all hover:border-blue-200 hover:bg-blue-50/60 dark:hover:bg-gray-700 ${
+                className={`mb-2 cursor-pointer rounded-xl border px-3 py-3 transition-all hover:border-blue-200 hover:bg-blue-50/60 dark:hover:border-slate-500 dark:hover:bg-slate-700/70 ${
                   activeSessionId === session.id
-                    ? "border-blue-300 bg-blue-50 shadow-sm dark:bg-blue-900/20"
-                    : "border-stone-100 bg-white/80 dark:border-gray-700 dark:bg-gray-800"
+                    ? "border-blue-300 bg-blue-50 shadow-sm dark:border-blue-500/60 dark:bg-blue-950/40"
+                    : "border-stone-100 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80"
                 }`}
                 onClick={() => onSelect(session.id)}
                 actions={[
@@ -398,8 +404,8 @@ const SessionCommandPalette: React.FC<{
                 ]}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{session.title || '新对话'}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">
+                  <div className="text-sm truncate text-slate-900 dark:text-slate-100">{session.title || '新对话'}</div>
+                  <div className="text-xs text-gray-400 mt-0.5 dark:text-slate-400">
                     {dayjs(session.updated_at).format('MM-DD HH:mm')} · {session.message_count}条消息
                   </div>
                 </div>
@@ -409,7 +415,7 @@ const SessionCommandPalette: React.FC<{
         )}
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-4">
+      <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
         <Button type="primary" icon={<PlusOutlined />} onClick={onNew} block>
           新建对话
         </Button>
@@ -997,10 +1003,18 @@ export default function ChatPage() {
       ai: {
         placement: "start" as const,
         avatar: () => <RobotOutlined />,
+        classNames: {
+          content: "chat-bubble-content chat-bubble-content-ai",
+          avatar: "chat-bubble-avatar",
+        },
       },
       user: {
         placement: "end" as const,
         avatar: () => <UserOutlined />,
+        classNames: {
+          content: "chat-bubble-content chat-bubble-content-user",
+          avatar: "chat-bubble-avatar",
+        },
       },
     }),
     [],
@@ -1096,7 +1110,7 @@ export default function ChatPage() {
   }, [activeSessionId, sessions]);
 
   return (
-    <div className="h-[calc(100vh-var(--header-height))] overflow-hidden bg-background-light px-3 py-4 dark:bg-background-dark sm:px-5">
+    <div className="chat-page-shell h-[calc(100vh-var(--header-height))] overflow-hidden bg-background-light px-3 py-4 dark:bg-background-dark sm:px-5">
       {messageContextHolder}
       <Modal
         title="对话记录"
@@ -1137,7 +1151,7 @@ export default function ChatPage() {
               <Title level={2} className="!mb-2 !text-text-main-light dark:!text-text-main-dark">
                 纸上余温
               </Title>
-              <Text type="secondary" className="block max-w-3xl leading-6">
+              <Text type="secondary" className="block max-w-3xl leading-6 dark:!text-text-muted-dark">
                 如果死后会幻化为书，这便是我提前整理出的草稿。它记录了代码的逻辑，也收纳了旅途的风尘。不必急于定义它是一本菜谱还是登记簿，只需开始对话，让故事发生。
               </Text>
             </div>
@@ -1179,7 +1193,7 @@ export default function ChatPage() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex h-full items-center justify-center">
-                <Text type="secondary" className="text-center">
+                <Text type="secondary" className="text-center dark:!text-text-muted-dark">
                   &quot;我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。&quot;
                 </Text>
               </div>
@@ -1196,6 +1210,7 @@ export default function ChatPage() {
               onChange={setContent}
               onSubmit={handleSubmit}
               placeholder="输入问题，按 Enter 发送。我会从知识库中检索相关内容并回答..."
+              rootClassName="chat-sender"
             />
           </div>
         </div>

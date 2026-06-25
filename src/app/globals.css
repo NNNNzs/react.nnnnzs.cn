@@ -457,3 +457,75 @@ body {
   color: var(--color-primary) !important;
   text-decoration: none !important;
 }
+
+/* Chat page dark-mode polish for Ant Design X internals. */
+.dark .chat-page-shell .chat-bubble-content-ai {
+  background: rgba(15, 23, 42, 0.86) !important;
+  border: 1px solid rgba(51, 65, 85, 0.92);
+  color: var(--color-text-main-dark) !important;
+}
+
+.dark .chat-page-shell .chat-bubble-content-user {
+  background: rgba(30, 64, 175, 0.88) !important;
+  color: #f8fafc !important;
+}
+
+.dark .chat-page-shell .chat-bubble-content,
+.dark .chat-page-shell .chat-bubble-content p,
+.dark .chat-page-shell .chat-bubble-content li,
+.dark .chat-page-shell .chat-bubble-content span {
+  color: inherit;
+}
+
+.dark .chat-page-shell .chat-bubble-avatar {
+  color: var(--color-text-main-dark);
+}
+
+.dark .chat-page-shell .ant-think-status-wrapper {
+  color: var(--color-text-muted-dark);
+}
+
+.dark .chat-page-shell .ant-think-content {
+  border-inline-start-color: var(--color-border-dark);
+  color: #cbd5e1;
+}
+
+.dark .chat-page-shell .ant-collapse {
+  background: rgba(15, 23, 42, 0.58);
+  border-color: var(--color-border-dark);
+}
+
+.dark .chat-page-shell .ant-collapse-item {
+  border-color: var(--color-border-dark);
+}
+
+.dark .chat-page-shell .ant-collapse-header,
+.dark .chat-page-shell .ant-collapse-content,
+.dark .chat-page-shell .ant-collapse-content-box {
+  color: var(--color-text-main-dark);
+}
+
+.dark .chat-page-shell .ant-collapse-content {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: var(--color-border-dark);
+}
+
+.dark .chat-page-shell .chat-sender {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: var(--color-border-dark);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.26);
+}
+
+.dark .chat-page-shell .chat-sender textarea,
+.dark .chat-page-shell .chat-sender .ant-input {
+  color: var(--color-text-main-dark);
+}
+
+.dark .chat-page-shell .chat-sender textarea::placeholder,
+.dark .chat-page-shell .chat-sender .ant-input::placeholder {
+  color: var(--color-text-muted-dark);
+}
+
+.dark .chat-page-shell .x-markdown-dark {
+  color: var(--color-text-main-dark);
+}
