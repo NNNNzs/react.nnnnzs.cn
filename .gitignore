@@ -62,3 +62,6 @@ logs/
 # 注意：Dockerfile 和 docker-compose.yml 应该提交到仓库
 
 .pnpm-store/
+
+# 部署临时文件
+.deploy_changed_files

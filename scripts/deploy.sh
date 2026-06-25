@@ -81,6 +81,26 @@ start_new() {
     docker-compose -f $COMPOSE_FILE up -d
 }
 
+# 刷新 CDN 缓存（根据变更范围）
+purge_cdn() {
+    print_info "刷新 CDN 缓存..."
+    local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local PURGE_SCRIPT="${SCRIPT_DIR}/purge_cdn.py"
+    if [ ! -f "$PURGE_SCRIPT" ]; then
+        print_warn "⚠️  未找到 purge_cdn.py，跳过 CDN 刷新"
+        return
+    fi
+
+    local CHANGED_FILE="/tmp/.deploy_changed_files"
+    if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
+        print_info "📋 检测到变更文件列表，按范围刷新..."
+        python3 "$PURGE_SCRIPT" --changed-file "$CHANGED_FILE"
+    else
+        print_info "📋 无变更文件信息，全站刷新..."
+        python3 "$PURGE_SCRIPT" /
+    fi
+}
+
 # 清理旧镜像
 cleanup() {
     print_info "清理未使用的镜像..."
@@ -192,6 +212,7 @@ main() {
             stop_old
             start_new
             check_status
+            purge_cdn
             cleanup
             print_info "🎉 部署完成！"
             print_info "运行 '$0 logs' 查看日志"

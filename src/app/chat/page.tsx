@@ -1,5 +1,7 @@
 "use client";
 
+export const revalidate = 3600;
+
 /**
  * 聊天页面
  * 使用 Ant Design X 组件实现知识库检索对话
