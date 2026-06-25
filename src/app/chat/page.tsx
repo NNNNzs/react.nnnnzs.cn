@@ -123,22 +123,14 @@ const STEP_CONFIG: Record<
 };
 
 /**
- * 兼容旧版历史记录：过滤旧手写 Agent 遗留的 JSON-RPC 代码块
- */
-function filterLegacyToolCallArtifacts(text: string): string {
-  return text.replace(/```json-rpc\s*[\s\S]*?```/g, "").trim();
-}
-
-/**
  * ReactStepItem 组件 - 展示单个 ReAct 步骤
  */
 const ReactStepItem: React.FC<{ step: ReactStep }> = React.memo(({ step }) => {
   const config = STEP_CONFIG[step.type];
 
   const displayContent = useMemo(() => {
-    if (step.type !== "thought") return step.content;
-    return step.isStreaming ? step.content : filterLegacyToolCallArtifacts(step.content);
-  }, [step.content, step.type, step.isStreaming]);
+    return step.content;
+  }, [step.content]);
 
   if (!displayContent) return null;
 

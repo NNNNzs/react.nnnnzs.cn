@@ -1,9 +1,9 @@
 /**
- * 文档资源动态读取工具
- * 用于 MCP 动态加载 docs/reference 目录下的文档
+ * 文档资源读取工具
+ * 用于读取 docs/reference 目录下的特定文档
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 interface DocResource {
@@ -13,47 +13,6 @@ interface DocResource {
 }
 
 const DOCS_REFERENCE_DIR = join(process.cwd(), 'docs/reference');
-
-/**
- * 获取 docs/reference 目录下的所有文档
- */
-export function getReferenceDocs(): DocResource[] {
-  if (!existsSync(DOCS_REFERENCE_DIR)) {
-    console.warn(`⚠️ [Docs] 目录不存在: ${DOCS_REFERENCE_DIR}`);
-    return [];
-  }
-
-  const docs: DocResource[] = [];
-
-  try {
-    const files = readdirSync(DOCS_REFERENCE_DIR);
-    const markdownFiles = files.filter(file => file.endsWith('.md'));
-
-    for (const file of markdownFiles) {
-      const filePath = join(DOCS_REFERENCE_DIR, file);
-      const stats = statSync(filePath);
-
-      if (stats.isFile()) {
-        try {
-          const content = readFileSync(filePath, 'utf-8');
-          docs.push({
-            name: file.replace('.md', ''),
-            path: `docs/reference/${file}`,
-            content
-          });
-        } catch (error) {
-          console.error(`❌ [Docs] 读取文件失败: ${file}`, error);
-        }
-      }
-    }
-
-    console.log(`✅ [Docs] 成功加载 ${docs.length} 个参考文档`);
-    return docs;
-  } catch (error) {
-    console.error('❌ [Docs] 读取目录失败:', error);
-    return [];
-  }
-}
 
 /**
  * 获取特定文档的内容

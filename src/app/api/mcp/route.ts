@@ -8,7 +8,7 @@ import { getMcpEnabledEntries } from '@/lib/api-registry';
 import { handleMcpToApi, jsonSchemaToZod } from '@/lib/mcp-adapter';
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
-import { getWritingStyleGuide, getReferenceDocs } from '@/lib/docs-resources';
+import { getWritingStyleGuide } from '@/lib/docs-resources';
 import { getPublicOrigin } from '@/lib/mcp-oauth-metadata';
 import type { AuthUser } from '@/types/auth';
 
@@ -213,42 +213,6 @@ async function createMcpServer(headers: Headers) {
       };
     }
   );
-
-  // 动态注册 docs/reference 目录下的所有文档作为 resources
-  try {
-    const refDocs = getReferenceDocs();
-
-    for (const doc of refDocs) {
-      // 跳过写作风格指南，因为已经单独注册了
-      if (doc.name === 'writing-style-guide') continue;
-
-      server.registerResource(
-        doc.name,
-        `blog://ref/${doc.name}`,
-        {
-          title: doc.name,
-          description: `Reference document: ${doc.name}`,
-          mimeType: "text/markdown"
-        },
-        async () => {
-          await ensureAuth();
-          return {
-            contents: [{
-              uri: `blog://ref/${doc.name}`,
-              mimeType: "text/markdown",
-              text: doc.content
-            }]
-          };
-        }
-      );
-    }
-
-    if (refDocs.length > 0) {
-      console.log(`✅ [MCP] 动态注册了 ${refDocs.length} 个参考文档作为 resources`);
-    }
-  } catch (error) {
-    console.warn('⚠️ [MCP] 动态注册参考文档失败:', error);
-  }
 
   return server;
 }

@@ -219,7 +219,6 @@ const createTextExtractor = () => {
  * 创建 OpenAI AI 处理链
  * 使用 LCEL 规范：prompt.pipe(model).pipe(textExtractor)
  * 注意：不使用 StringOutputParser，因为它无法处理包含元数据的流式响应
- * 注意：Anthropic 请使用 @/services/ai/anthropic（已废弃，逐步迁移）
  * @param prompt ChatPromptTemplate 提示词模板
  * @param config 模型配置（包含 scenario 用于指定配置场景）
  * @returns Promise<Runnable> 链（异步创建）

@@ -334,13 +334,3 @@ export const chatAgentStream = async (
     },
   });
 };
-
-/**
- * @deprecated 请使用 chatAgentStream。保留旧名称是为了兼容迁移期调用方。
- */
-export const chatRAGAgentStream = chatAgentStream;
-
-/**
- * @deprecated 请使用 ChatAgentParams。保留旧类型名是为了兼容迁移期调用方。
- */
-export type RAGAgentParams = ChatAgentParams;
