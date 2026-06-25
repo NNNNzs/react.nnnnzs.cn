@@ -75,6 +75,7 @@
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "tencentcloud-sdk-nodejs": "^4.1.256",
     "tencentcloud-sdk-nodejs-iai": "^4.1.223",
     "three": "^0.184.0",
     "undici": "^7.24.6",
