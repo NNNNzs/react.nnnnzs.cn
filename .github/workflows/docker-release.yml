@@ -168,7 +168,10 @@ jobs:
             # 拉取最新代码（deploy.sh、purge_cdn.py 等脚本依赖此步骤）
             if [ -d ".git" ]; then
               echo "📥 拉取最新代码..."
+              # 先 stash 本地修改，pull 后再恢复
+              git stash || true
               git pull origin main || echo "⚠️  git pull 失败，使用现有代码继续部署"
+              git stash pop || true
             fi
             # 写入变更文件列表（临时文件，deploy 后清理）
             echo "${changed_files}" > /tmp/.deploy_changed_files
