@@ -121,7 +121,7 @@ RUN mkdir -p logs .next/cache .next/server/app && \
     chown -R nextjs:nodejs logs .next
 
 # 安装 CDN 刷新所需的依赖（purge-cdn.mjs 需要，standalone 模式不包含）
-RUN npm install tencentcloud-sdk-nodejs --no-save && \
+RUN npm install tencentcloud-sdk-nodejs --no-save --legacy-peer-deps && \
     chown -R nextjs:nodejs node_modules
 
 # 复制启动脚本
