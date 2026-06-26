@@ -132,14 +132,14 @@ purge_cdn() {
         print_info "📋 检测到变更文件列表，按范围刷新..."
         # 复制变更文件到容器内
         docker cp "$CHANGED_FILE" $CONTAINER_NAME:/tmp/.deploy_changed_files
-        # 在容器内执行 CDN 刷新脚本
-        docker exec $CONTAINER_NAME node "$CONTAINER_SCRIPT" --changed-file /tmp/.deploy_changed_files
+        # 在容器内执行 CDN 刷新脚本（设置 NODE_PATH 指向 /app/node_modules）
+        docker exec -e NODE_PATH=/app/node_modules $CONTAINER_NAME node "$CONTAINER_SCRIPT" --changed-file /tmp/.deploy_changed_files
         # 清理容器内的临时文件
         docker exec $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
     else
         print_info "📋 无变更文件信息，全站刷新..."
-        # 在容器内执行全站刷新
-        docker exec $CONTAINER_NAME node "$CONTAINER_SCRIPT" /
+        # 在容器内执行全站刷新（设置 NODE_PATH 指向 /app/node_modules）
+        docker exec -e NODE_PATH=/app/node_modules $CONTAINER_NAME node "$CONTAINER_SCRIPT" /
     fi
 }
 
