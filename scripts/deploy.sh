@@ -113,7 +113,6 @@ purge_cdn() {
     print_info "刷新 CDN 缓存..."
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local PURGE_SCRIPT="${SCRIPT_DIR}/purge-cdn.mjs"
-    local CONTAINER_SCRIPT="/app/scripts/purge-cdn.mjs"
 
     # 检查宿主机上是否有脚本
     if [ ! -f "$PURGE_SCRIPT" ]; then
@@ -127,20 +126,26 @@ purge_cdn() {
         return
     fi
 
+    # 复制脚本到容器内的 /app 目录（这样能访问 node_modules）
+    docker cp "$PURGE_SCRIPT" $CONTAINER_NAME:/app/purge-cdn.mjs
+
     local CHANGED_FILE="/tmp/.deploy_changed_files"
     if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
         print_info "📋 检测到变更文件列表，按范围刷新..."
         # 复制变更文件到容器内
         docker cp "$CHANGED_FILE" $CONTAINER_NAME:/tmp/.deploy_changed_files
-        # 在容器内执行 CDN 刷新脚本（设置 NODE_PATH 指向 /app/node_modules）
-        docker exec -e NODE_PATH=/app/node_modules $CONTAINER_NAME node "$CONTAINER_SCRIPT" --changed-file /tmp/.deploy_changed_files
+        # 在容器内 /app 目录下执行 CDN 刷新脚本
+        docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs --changed-file /tmp/.deploy_changed_files
         # 清理容器内的临时文件
         docker exec $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
     else
         print_info "📋 无变更文件信息，全站刷新..."
-        # 在容器内执行全站刷新（设置 NODE_PATH 指向 /app/node_modules）
-        docker exec -e NODE_PATH=/app/node_modules $CONTAINER_NAME node "$CONTAINER_SCRIPT" /
+        # 在容器内 /app 目录下执行全站刷新
+        docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs /
     fi
+
+    # 清理复制的脚本
+    docker exec $CONTAINER_NAME rm -f /app/purge-cdn.mjs
 }
 
 # 清理旧镜像
