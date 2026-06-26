@@ -126,8 +126,16 @@ purge_cdn() {
         return
     fi
 
-    # 复制脚本到容器内的 /app 目录（这样能访问 node_modules）
+    # 复制脚本到容器内的 /app 目录
     docker cp "$PURGE_SCRIPT" $CONTAINER_NAME:/app/purge-cdn.mjs
+
+    # 安装 CDN 刷新所需的依赖（standalone 模式不包含所有依赖）
+    print_info "📦 安装 CDN 刷新依赖..."
+    docker exec -w /app $CONTAINER_NAME npm install tencentcloud-sdk-nodejs --no-save 2>&1 || {
+        print_warn "⚠️  依赖安装失败，跳过 CDN 刷新"
+        docker exec $CONTAINER_NAME rm -f /app/purge-cdn.mjs
+        return
+    }
 
     local CHANGED_FILE="/tmp/.deploy_changed_files"
     if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
@@ -144,8 +152,9 @@ purge_cdn() {
         docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs /
     fi
 
-    # 清理复制的脚本
+    # 清理复制的脚本和临时安装的依赖
     docker exec $CONTAINER_NAME rm -f /app/purge-cdn.mjs
+    # 不删除 node_modules，因为可能还有其他依赖需要
 }
 
 # 清理旧镜像
