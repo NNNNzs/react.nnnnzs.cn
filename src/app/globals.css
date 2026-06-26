@@ -227,17 +227,19 @@ body {
 }
 
 .cyberpunk-log-section {
+  isolation: isolate;
   position: relative;
   min-height: 100vh;
   overflow: hidden;
+  padding-bottom: 4rem;
   background: var(--color-background-light);
 }
 
 .dark .cyberpunk-log-section {
   background:
-    linear-gradient(180deg, #050611 0%, #080b17 42%, #050611 100%),
     radial-gradient(circle at 18% 20%, rgba(0, 240, 255, 0.08), transparent 28%),
-    radial-gradient(circle at 78% 34%, rgba(255, 0, 102, 0.07), transparent 32%);
+    radial-gradient(circle at 78% 34%, rgba(255, 0, 102, 0.07), transparent 32%),
+    linear-gradient(180deg, #050611 0%, #080b17 42%, #050611 100%);
 }
 
 .cyberpunk-log-section::before {
@@ -255,6 +257,81 @@ body {
     linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: linear-gradient(180deg, transparent, black 12%, black 86%, transparent);
+}
+
+.cyberpunk-log-section::after {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 220px;
+  pointer-events: none;
+  content: "";
+  display: none;
+}
+
+.dark .cyberpunk-log-section::after {
+  display: block;
+  background: linear-gradient(180deg, #050611 0%, rgba(5, 6, 17, 0.88) 32%, transparent 100%);
+}
+
+.cyberpunk-log-frame,
+.cyberpunk-log-feed {
+  position: relative;
+  z-index: 1;
+}
+
+.dark .cyberpunk-log-header {
+  position: relative;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.dark .cyberpunk-log-header::before,
+.dark .cyberpunk-log-header::after {
+  position: absolute;
+  width: 38px;
+  height: 28px;
+  pointer-events: none;
+  content: "";
+  border-color: rgba(103, 232, 249, 0.5);
+}
+
+.dark .cyberpunk-log-header::before {
+  top: 0;
+  left: -1px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.dark .cyberpunk-log-header::after {
+  right: 0;
+  bottom: 0;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+}
+
+.cyberpunk-log-feed {
+  list-style: none;
+}
+
+.dark .cyberpunk-log-feed--active::before {
+  position: absolute;
+  top: 0;
+  bottom: 3.5rem;
+  left: 50%;
+  width: 1px;
+  pointer-events: none;
+  content: "";
+  display: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(34, 211, 238, 0.72) 12%,
+    rgba(255, 77, 173, 0.82) 50%,
+    rgba(34, 211, 238, 0.72) 88%,
+    transparent
+  );
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25), 0 0 28px rgba(255, 77, 173, 0.18);
 }
 
 .cyberpunk-post-item {
@@ -298,6 +375,254 @@ body {
 .dark .cyberpunk-post-item::after {
   display: block;
   background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.72));
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log {
+  margin: 2rem auto 2.5rem;
+  overflow: visible;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log:hover {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log::after {
+  display: none;
+}
+
+.cyberpunk-log-node {
+  display: none;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-cover,
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-content {
+  isolation: isolate;
+  border: 1px solid rgba(34, 211, 238, 0.38);
+  border-radius: 0;
+  clip-path: polygon(0 18px, 18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px));
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.05), 0 20px 70px rgba(0, 0, 0, 0.32);
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-cover {
+  min-height: 260px;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-cover::before {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  content: "";
+  background:
+    repeating-linear-gradient(180deg, rgba(103, 232, 249, 0.12) 0 1px, transparent 1px 7px),
+    linear-gradient(135deg, rgba(0, 240, 255, 0.2), transparent 38%, rgba(255, 77, 173, 0.2));
+  mix-blend-mode: screen;
+  opacity: 0.34;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-content {
+  min-height: 300px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(34, 211, 238, 0.1), transparent 36%),
+    linear-gradient(135deg, rgba(8, 15, 30, 0.94), rgba(5, 8, 18, 0.98));
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-content::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    repeating-linear-gradient(180deg, rgba(103, 232, 249, 0.06) 0 1px, transparent 1px 9px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.08), transparent 32%, rgba(255, 77, 173, 0.06));
+  opacity: 0.34;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-log-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.32rem 0.78rem;
+  border: 1px solid rgba(34, 211, 238, 0.62);
+  background: rgba(34, 211, 238, 0.09);
+  color: rgba(207, 250, 254, 0.94);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-post-cover,
+.dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-post-content {
+  border-color: rgba(255, 77, 173, 0.42);
+  box-shadow: 0 0 0 1px rgba(255, 77, 173, 0.06), 0 20px 70px rgba(0, 0, 0, 0.34);
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-log-chip {
+  border-color: rgba(255, 77, 173, 0.68);
+  background: rgba(255, 77, 173, 0.1);
+  color: rgba(255, 183, 221, 0.96);
+  box-shadow: 0 0 18px rgba(255, 77, 173, 0.12);
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-log-tag {
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 2px;
+  background: rgba(34, 211, 238, 0.07);
+  color: rgba(207, 250, 254, 0.86);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.08em;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-log-tag {
+  border-color: rgba(255, 77, 173, 0.32);
+  background: rgba(255, 77, 173, 0.07);
+  color: rgba(255, 183, 221, 0.9);
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-stats {
+  gap: 1.4rem;
+  border-top-color: rgba(34, 211, 238, 0.16);
+  color: rgba(103, 232, 249, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.12em;
+}
+
+.dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-stat:last-child {
+  color: rgba(255, 77, 173, 0.86);
+}
+
+.dark .cyberpunk-log-button {
+  position: relative;
+  min-width: min(100%, 320px);
+  overflow: hidden;
+  clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 20px 100%, 0 50%);
+}
+
+.dark .cyberpunk-log-button::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.22), transparent);
+  transform: translateX(-120%);
+  transition: transform 360ms ease;
+}
+
+.dark .cyberpunk-log-button:hover::before {
+  transform: translateX(120%);
+}
+
+@media (min-width: 768px) {
+  .dark .cyberpunk-log-feed--active::before {
+    display: block;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--log {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 80px minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+    max-width: 72rem;
+    min-height: 310px;
+    margin: 3.75rem auto;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--log::before {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: block;
+    width: 42px;
+    height: 1px;
+    pointer-events: none;
+    content: "";
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.78), transparent);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--even::before {
+    left: calc(50% + 11px);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--odd::before {
+    right: calc(50% + 11px);
+    background: linear-gradient(270deg, rgba(255, 77, 173, 0.78), transparent);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-log-node {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 4;
+    display: flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.86);
+    border-radius: 999px;
+    background: #08101f;
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.42);
+    transform: translate(-50%, -50%);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-log-node span {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #67e8f9;
+    box-shadow: 0 0 18px rgba(103, 232, 249, 0.9);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-log-node {
+    border-color: rgba(255, 77, 173, 0.88);
+    box-shadow: 0 0 18px rgba(255, 77, 173, 0.42);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-log-node span {
+    background: #ff4dad;
+    box-shadow: 0 0 18px rgba(255, 77, 173, 0.9);
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--even .cyberpunk-post-cover {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--even .cyberpunk-post-content {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-post-cover {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--odd .cyberpunk-post-content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-cover,
+  .dark .cyberpunk-log-feed .cyberpunk-post-item--log .cyberpunk-post-content {
+    width: auto;
+    min-height: 310px;
+  }
 }
 
 @keyframes cyberpunk-scan {

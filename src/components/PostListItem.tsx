@@ -17,25 +17,39 @@ import { getTagClassName } from "@/lib/tagColors";
 interface PostListItemProps {
   post: Post;
   index?: number; // 用于判断奇偶行
+  variant?: "default" | "log";
 }
 
-function PostListItem({ post, index = 0 }: PostListItemProps) {
+function PostListItem({ post, index = 0, variant = "default" }: PostListItemProps) {
   // 判断是否为偶数行（从0开始，所以0,2,4...是偶数行）
   const isEven = index % 2 === 0;
+  const isLogVariant = variant === "log";
+  const logNumber = String(index + 1).padStart(2, "0");
+  let itemLayoutClass = "";
+
+  if (isLogVariant) {
+    itemLayoutClass = `cyberpunk-post-item--log ${isEven ? "cyberpunk-post-item--even" : "cyberpunk-post-item--odd"}`;
+  } else if (!isEven) {
+    itemLayoutClass = "md:flex-row-reverse";
+  }
 
   return (
     <li
-      className={`cyberpunk-post-item group relative m-auto my-8 flex w-full max-w-5xl flex-col overflow-hidden md:h-auto md:flex-row ${
-        isEven ? "" : "md:flex-row-reverse"
-      }`}
+      className={`cyberpunk-post-item group relative m-auto my-8 flex w-full max-w-5xl flex-col overflow-hidden md:h-auto md:flex-row ${itemLayoutClass}`}
       id={`post_${post.id}`}
     >
-      <div className="pointer-events-none absolute left-4 top-4 z-10 hidden font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-100/45 dark:block md:left-5 md:top-5">
-        LOG {String(index + 1).padStart(2, "0")}
-      </div>
+      {isLogVariant ? (
+        <div className="cyberpunk-log-node" aria-hidden="true">
+          <span />
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute left-4 top-4 z-10 hidden font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-100/45 dark:block md:left-5 md:top-5">
+          LOG {logNumber}
+        </div>
+      )}
 
       {/* 封面图片 - 2/5 */}
-      <div className="relative h-64 overflow-hidden md:h-auto md:w-2/5">
+      <div className="cyberpunk-post-cover relative h-64 overflow-hidden md:h-auto md:w-2/5">
         <Link href={post.path || "#"} prefetch={false}>
           <div className="relative w-full h-full">
             {post.cover ? (
@@ -46,7 +60,7 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
                 title={post.cover || ""}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105 dark:saturate-[0.85] dark:group-hover:saturate-110"
-                sizes="(max-width: 768px) 100vw, 40vw"
+                sizes={isLogVariant ? "(max-width: 768px) 100vw, 44vw" : "(max-width: 768px) 100vw, 40vw"}
               />
             ) : (
               <div className="flex h-full items-center justify-center bg-slate-100 dark:bg-[#080b17]">
@@ -60,8 +74,17 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
       </div>
 
       {/* 文章信息 - 3/5 */}
-      <div className="flex min-h-[320px] flex-col justify-between p-6 md:w-3/5 md:p-8">
+      <div className="cyberpunk-post-content relative flex min-h-[320px] flex-col justify-between overflow-hidden p-6 md:w-3/5 md:p-8">
         <div>
+          {isLogVariant && (
+            <div className="cyberpunk-post-command mb-5 flex items-center justify-between gap-3">
+              <span className="cyberpunk-log-chip">LOG {logNumber}</span>
+              <span className="hidden font-mono text-[13px] tracking-[0.3em] text-cyan-100/35 dark:block">
+                ...
+              </span>
+            </div>
+          )}
+
           {/* 时间 */}
           <div className="mb-3 flex items-center gap-3 text-xs font-medium text-text-muted-light dark:font-mono dark:uppercase dark:tracking-[0.18em] dark:text-cyan-100/45">
             <time dateTime={post.date ?? undefined}>
@@ -83,11 +106,11 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
 
           {/* 标签 */}
           {post.tags && Array.isArray(post.tags) && post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="cyberpunk-post-tags mb-4 flex flex-wrap gap-2">
               {post.tags.map((tag: string, tagIndex: number) => (
                 <span
                   key={tagIndex}
-                  className={getTagClassName(tag)}
+                  className={`${getTagClassName(tag)} cyberpunk-log-tag`}
                 >
                   {tag}
                 </span>
@@ -104,14 +127,16 @@ function PostListItem({ post, index = 0 }: PostListItemProps) {
         </div>
 
         {/* 底部元信息 */}
-        <div className="mt-auto flex items-center gap-4 border-t border-sky-500/12 pt-4 text-xs text-text-muted-light dark:border-cyan-300/12 dark:text-slate-500">
-          <span className="flex items-center gap-1">
+        <div className="cyberpunk-post-stats mt-auto flex items-center gap-4 border-t border-sky-500/12 pt-4 text-xs text-text-muted-light dark:border-cyan-300/12 dark:text-slate-500">
+          <span className="cyberpunk-post-stat flex items-center gap-1">
             <EyeOutlined className="text-sm" />
             {post.visitors || 0}
+            {isLogVariant && <span className="hidden dark:inline">READS</span>}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="cyberpunk-post-stat flex items-center gap-1">
             <HeartOutlined className="text-sm" />
             {post.likes || 0}
+            {isLogVariant && <span className="hidden dark:inline">LIKES</span>}
           </span>
         </div>
       </div>
