@@ -131,8 +131,9 @@ purge_cdn() {
 
     # 安装 CDN 刷新所需的依赖（standalone 模式不包含所有依赖）
     # 使用 root 用户执行，因为 nextjs 用户没有安装权限
+    # 使用 --legacy-peer-deps 避免依赖冲突
     print_info "📦 安装 CDN 刷新依赖..."
-    docker exec -u root -w /app $CONTAINER_NAME npm install tencentcloud-sdk-nodejs --no-save 2>&1 || {
+    docker exec -u root -w /app $CONTAINER_NAME npm install tencentcloud-sdk-nodejs --no-save --legacy-peer-deps 2>&1 || {
         print_warn "⚠️  依赖安装失败，跳过 CDN 刷新"
         docker exec -u root $CONTAINER_NAME rm -f /app/purge-cdn.mjs
         return
