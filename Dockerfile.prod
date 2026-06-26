@@ -120,6 +120,10 @@ COPY --from=builder /app/src/generated ./src/generated
 RUN mkdir -p logs .next/cache .next/server/app && \
     chown -R nextjs:nodejs logs .next
 
+# 安装 CDN 刷新所需的依赖（purge-cdn.mjs 需要，standalone 模式不包含）
+RUN npm install tencentcloud-sdk-nodejs --no-save && \
+    chown -R nextjs:nodejs node_modules
+
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh
 RUN chmod +x /app/docker-entrypoint-prod.sh && \

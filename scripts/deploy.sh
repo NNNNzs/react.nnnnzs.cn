@@ -126,41 +126,26 @@ purge_cdn() {
         return
     fi
 
-    # 使用 root 用户复制脚本到容器内的 /app 目录
+    # 复制脚本到容器内的 /app 目录
     docker cp "$PURGE_SCRIPT" $CONTAINER_NAME:/app/purge-cdn.mjs
-
-    # 安装 CDN 刷新所需的依赖（standalone 模式不包含所有依赖）
-    # 使用 root 用户执行，因为 nextjs 用户没有安装权限
-    # 使用 --legacy-peer-deps 避免依赖冲突
-    print_info "📦 安装 CDN 刷新依赖..."
-    docker exec -u root -w /app $CONTAINER_NAME npm install tencentcloud-sdk-nodejs --no-save --legacy-peer-deps 2>&1 || {
-        print_warn "⚠️  依赖安装失败，跳过 CDN 刷新"
-        docker exec -u root $CONTAINER_NAME rm -f /app/purge-cdn.mjs
-        return
-    }
-
-    # 修改脚本权限，让 nextjs 用户可以执行
-    docker exec -u root $CONTAINER_NAME chown nextjs:nodejs /app/purge-cdn.mjs
 
     local CHANGED_FILE="/tmp/.deploy_changed_files"
     if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
         print_info "📋 检测到变更文件列表，按范围刷新..."
         # 复制变更文件到容器内
         docker cp "$CHANGED_FILE" $CONTAINER_NAME:/tmp/.deploy_changed_files
-        # 使用 root 用户修改权限
-        docker exec -u root $CONTAINER_NAME chown nextjs:nodejs /tmp/.deploy_changed_files
-        # 在容器内 /app 目录下执行 CDN 刷新脚本（使用 nextjs 用户）
+        # 在容器内执行 CDN 刷新脚本
         docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs --changed-file /tmp/.deploy_changed_files
-        # 清理容器内的临时文件
-        docker exec -u root $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
+        # 清理
+        docker exec $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
     else
         print_info "📋 无变更文件信息，全站刷新..."
-        # 在容器内 /app 目录下执行全站刷新（使用 nextjs 用户）
+        # 在容器内执行全站刷新
         docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs /
     fi
 
-    # 清理复制的脚本（使用 root 用户）
-    docker exec -u root $CONTAINER_NAME rm -f /app/purge-cdn.mjs
+    # 清理复制的脚本
+    docker exec $CONTAINER_NAME rm -f /app/purge-cdn.mjs
 }
 
 # 清理旧镜像
