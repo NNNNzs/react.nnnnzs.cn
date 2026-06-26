@@ -58,13 +58,40 @@ login_registry() {
     fi
 }
 
+# 带重试的 docker pull
+docker_pull_with_retry() {
+    local image="$1"
+    local max_retries="${2:-3}"
+    local retry_delay="${3:-10}"
+    local attempt=1
+
+    while [ $attempt -le $max_retries ]; do
+        print_info "拉取镜像 (尝试 ${attempt}/${max_retries})..."
+        if docker pull "$image"; then
+            print_info "✅ 镜像拉取成功"
+            return 0
+        fi
+
+        if [ $attempt -lt $max_retries ]; then
+            print_warn "⚠️  拉取失败，${retry_delay}秒后重试..."
+            sleep $retry_delay
+            # 每次重试增加延迟（指数退避）
+            retry_delay=$((retry_delay * 2))
+        fi
+        attempt=$((attempt + 1))
+    done
+
+    print_error "❌ 镜像拉取失败，已重试 ${max_retries} 次"
+    return 1
+}
+
 # 拉取最新镜像
 pull_image() {
     print_info "正在拉取最新镜像..."
     login_registry
     # 使用 docker pull 而非 docker-compose pull，确保拿到真正的 latest
     # docker-compose pull 有时因为缓存认为镜像已是最新，不会实际拉取
-    docker pull ${IMAGE_NAME}:latest
+    docker_pull_with_retry "${IMAGE_NAME}:latest" 3 10
 }
 
 # 停止旧容器
@@ -86,18 +113,33 @@ purge_cdn() {
     print_info "刷新 CDN 缓存..."
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local PURGE_SCRIPT="${SCRIPT_DIR}/purge-cdn.mjs"
+    local CONTAINER_SCRIPT="/app/scripts/purge-cdn.mjs"
+
+    # 检查宿主机上是否有脚本
     if [ ! -f "$PURGE_SCRIPT" ]; then
         print_warn "⚠️  未找到 purge-cdn.mjs，跳过 CDN 刷新"
+        return
+    fi
+
+    # 确保容器正在运行
+    if ! docker ps | grep -q $CONTAINER_NAME; then
+        print_warn "⚠️  容器未运行，跳过 CDN 刷新"
         return
     fi
 
     local CHANGED_FILE="/tmp/.deploy_changed_files"
     if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
         print_info "📋 检测到变更文件列表，按范围刷新..."
-        node "$PURGE_SCRIPT" --changed-file "$CHANGED_FILE"
+        # 复制变更文件到容器内
+        docker cp "$CHANGED_FILE" $CONTAINER_NAME:/tmp/.deploy_changed_files
+        # 在容器内执行 CDN 刷新脚本
+        docker exec $CONTAINER_NAME node "$CONTAINER_SCRIPT" --changed-file /tmp/.deploy_changed_files
+        # 清理容器内的临时文件
+        docker exec $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
     else
         print_info "📋 无变更文件信息，全站刷新..."
-        node "$PURGE_SCRIPT" /
+        # 在容器内执行全站刷新
+        docker exec $CONTAINER_NAME node "$CONTAINER_SCRIPT" /
     fi
 }
 
