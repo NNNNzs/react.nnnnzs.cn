@@ -137,15 +137,15 @@ purge_cdn() {
         # 在容器内执行 CDN 刷新脚本
         docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs --changed-file /tmp/.deploy_changed_files
         # 清理
-        docker exec $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
+        docker exec -u root $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
     else
         print_info "📋 无变更文件信息，全站刷新..."
         # 在容器内执行全站刷新
         docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs /
     fi
 
-    # 清理复制的脚本
-    docker exec $CONTAINER_NAME rm -f /app/purge-cdn.mjs
+    # 清理复制的脚本（容器以 nextjs 用户运行，需要 root 权限删除）
+    docker exec -u root $CONTAINER_NAME rm -f /app/purge-cdn.mjs
 }
 
 # 清理旧镜像
