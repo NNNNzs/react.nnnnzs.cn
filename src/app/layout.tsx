@@ -19,6 +19,9 @@ import "@/lib/embedding-init";
 export const metadata: Metadata = {
   title: "NNNNzs",
   description: "Neon Nomad Navigating Night Zones",
+  icons: {
+    icon: "/favicon-light.png",
+  },
 };
 export const experimental = {
   scrollRestoration: true,
@@ -39,7 +42,7 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{
-          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark")}catch(e){}})();`,
+          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");document.querySelectorAll("link[rel~='icon']").forEach(function(l){l.parentNode&&l.parentNode.removeChild(l)});var l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");document.head.appendChild(l)}catch(e){}})();`,
         }} />
       </head>
       <AuthProvider>

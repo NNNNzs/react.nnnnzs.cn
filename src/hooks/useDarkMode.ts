@@ -16,6 +16,11 @@ interface UseDarkModeResult {
 const THEME_STORAGE_KEY = "theme";
 const THEME_CHANGE_EVENT = "themechange";
 const THEME_STORAGE_EVENT = "storage";
+const FAVICON_LINK_ID = "theme-favicon";
+const FAVICON_BY_THEME: Record<ThemeMode, string> = {
+  light: "/favicon-light.png?v=20260629-light",
+  dark: "/favicon-dark.png?v=20260629-dark",
+};
 
 let currentTheme: ThemeMode = "light";
 let initialized = false;
@@ -50,6 +55,18 @@ const applyThemeToDocument = (theme: ThemeMode): void => {
   if (typeof document === "undefined") return;
 
   document.documentElement.classList.toggle("dark", theme === "dark");
+
+  const faviconHref = FAVICON_BY_THEME[theme];
+  document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']").forEach((link) => {
+    link.remove();
+  });
+
+  const faviconLink = document.createElement("link");
+  faviconLink.id = FAVICON_LINK_ID;
+  faviconLink.rel = "icon";
+  faviconLink.type = "image/png";
+  faviconLink.href = faviconHref;
+  document.head.appendChild(faviconLink);
 };
 
 const setTheme = (theme: ThemeMode): void => {
