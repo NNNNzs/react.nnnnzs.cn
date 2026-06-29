@@ -1122,7 +1122,7 @@ export default function CyberpunkBanner({
         </Canvas>
       </div>
 
-      {sceneReady && !hasError && (
+      {sceneReady && !hasError && process.env.NODE_ENV === 'development' && (
         <div className="pointer-events-none absolute right-4 top-4 z-20 font-mono text-[11px] tabular-nums">
           <span className={`inline-block rounded border px-2 py-0.5 ${
             variant === 'day'

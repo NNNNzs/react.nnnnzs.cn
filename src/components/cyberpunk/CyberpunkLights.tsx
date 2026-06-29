@@ -279,6 +279,16 @@ export default function CyberpunkLights({
     <>
       <ambientLight ref={ambientLightRef} intensity={v.ambientIntensity} color={v.ambientColor} />
 
+      {/* 日间：从北窗斜射进来的暖色阳光，让白天“活”过来。夜间不渲染。 */}
+      {variant === 'day' && (
+        <directionalLight
+          position={[1.2, 4.6, -5.5]}
+          intensity={1.2}
+          color="#fff2d8"
+          target-position={[-0.2, 0.6, 0.8]}
+        />
+      )}
+
       <SpotFixture
         ref={windowLight}
         position={[0, 3.0, -6]}

@@ -1,5 +1,6 @@
 'use client';
 
+import { RoundedBox } from '@react-three/drei';
 import MonitorModel from './MonitorModel';
 import { BlinkingLED, NeonStrip, metalDark } from './shared';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
@@ -15,15 +16,14 @@ function WorkstationDesk({ variant }: { variant: HomepageSceneVariant }) {
 
   return (
     <group position={desk.position}>
-      <mesh position={[0, 0.78, 0]} castShadow>
-        <boxGeometry args={[desk.bounds.width, 0.08, desk.bounds.depth]} />
-        <meshStandardMaterial color={isDay ? '#8b6845' : '#181018'} metalness={isDay ? 0.08 : 0.28} roughness={isDay ? 0.78 : 0.72} />
-      </mesh>
+      <RoundedBox position={[0, 0.78, 0]} args={[desk.bounds.width, 0.08, desk.bounds.depth]} radius={0.02} smoothness={3} castShadow>
+        <meshStandardMaterial color={isDay ? '#c89b6a' : '#181018'} metalness={isDay ? 0.08 : 0.28} roughness={isDay ? 0.78 : 0.72} />
+      </RoundedBox>
       <NeonStrip
         position={[0, 0.74, desk.bounds.depth / 2 + 0.02]}
         scale={[desk.bounds.width, 0.018, 0.018]}
         color={isDay ? '#facc15' : '#00d8ff'}
-        intensity={isDay ? 0.18 : 1.1}
+        intensity={isDay ? 0.12 : 0.5}
       />
       {[
         [-legX, 0.38, -legZ],
@@ -38,7 +38,7 @@ function WorkstationDesk({ variant }: { variant: HomepageSceneVariant }) {
       ))}
       <mesh position={[-1.05, 0.34, 0.17]}>
         <boxGeometry args={[0.52, 0.56, 0.34]} />
-        <meshStandardMaterial color={isDay ? '#d1d5db' : '#090914'} metalness={isDay ? 0.35 : 0.72} roughness={isDay ? 0.48 : 0.26} />
+        <meshStandardMaterial color={isDay ? '#cdd3da' : '#090914'} metalness={isDay ? 0.35 : 0.72} roughness={isDay ? 0.48 : 0.26} />
       </mesh>
       {(isDay ? ['#38bdf8', '#f59e0b', '#22c55e'] : ['#00f0ff', '#ff2a9a', '#6dffb4']).map((color, index) => (
         <BlinkingLED key={color} position={[-1.16 + index * 0.13, 0.48, 0.36]} color={color} />
@@ -54,9 +54,8 @@ function WorkstationAccessories({ variant }: { variant: HomepageSceneVariant }) 
     <>
       <mesh position={FURNITURE_LAYOUT.keyboard.position} rotation={FURNITURE_LAYOUT.keyboard.rotation}>
         <boxGeometry args={[0.78, 0.035, 0.24]} />
-        <meshStandardMaterial color={isDay ? '#e5e7eb' : '#070711'} metalness={isDay ? 0.12 : 0.4} roughness={isDay ? 0.72 : 0.58} />
+        <meshStandardMaterial color={isDay ? '#e5e7eb' : '#070711'} metalness={isDay ? 0.12 : 0.4} roughness={isDay ? 0.72 : 0.58} emissive={isDay ? '#000000' : '#ff2a9a'} emissiveIntensity={isDay ? 0 : 0.22} />
       </mesh>
-      <NeonStrip position={[-2.16, 0.865, -1.66]} scale={[0.68, 0.008, 0.03]} color={isDay ? '#fbbf24' : '#ff2a9a'} intensity={isDay ? 0.12 : 0.8} />
       <mesh position={FURNITURE_LAYOUT.mouse.position}>
         <boxGeometry args={[0.08, 0.035, 0.13]} />
         <meshStandardMaterial color={isDay ? '#f8fafc' : '#080812'} emissive={isDay ? '#fde68a' : '#00f0ff'} emissiveIntensity={isDay ? 0.025 : 0.14} />

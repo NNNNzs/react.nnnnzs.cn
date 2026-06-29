@@ -2,6 +2,7 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { NeonStrip, metalDark } from './shared';
 import { FURNITURE_LAYOUT } from '../sceneLayout';
@@ -345,8 +346,7 @@ function ArticleTerminalCore({ variant, posts }: { variant: 'day' | 'night'; pos
           depthWrite={false}
         />
       </mesh>
-      <NeonStrip position={[0, 0.79, 0.04]} scale={[1.08, 0.01, 0.01]} color="#00f0ff" intensity={0.95} />
-      <NeonStrip position={[0, -0.45, 0.04]} scale={[1.08, 0.01, 0.01]} color={color} intensity={0.95} />
+      <NeonStrip position={[0, -0.45, 0.04]} scale={[1.08, 0.01, 0.01]} color={color} intensity={0.8} />
       <mesh position={[0, -0.34, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.34, 0.39, 36]} />
         <meshStandardMaterial color="#00f0ff" emissive="#00f0ff" emissiveIntensity={0.75} transparent opacity={0.45} toneMapped={false} />
@@ -360,10 +360,9 @@ function CoffeeTableCluster({ variant, posts }: { variant: 'day' | 'night'; post
 
   return (
     <group position={table.position}>
-      <mesh position={[0, 0.38, 0]}>
-        <boxGeometry args={[table.bounds.width, 0.08, table.bounds.depth]} />
-        <meshStandardMaterial color="#101018" metalness={0.5} roughness={0.28} transparent opacity={0.78} />
-      </mesh>
+      <RoundedBox position={[0, 0.38, 0]} args={[table.bounds.width, 0.08, table.bounds.depth]} radius={0.025} smoothness={3}>
+        <meshStandardMaterial color={variant === 'day' ? '#7a6450' : '#101018'} metalness={0.5} roughness={0.28} transparent opacity={variant === 'day' ? 0.95 : 0.78} />
+      </RoundedBox>
       {[
         [-0.75, 0.18, -0.32],
         [0.75, 0.18, -0.32],
@@ -388,26 +387,24 @@ function CoffeeTableCluster({ variant, posts }: { variant: 'day' | 'night'; post
   );
 }
 
-function SofaCluster() {
+function SofaCluster({ variant }: { variant: 'day' | 'night' }) {
   const sofa = FURNITURE_LAYOUT.sofa;
+  const isDay = variant === 'day';
 
   return (
     <group position={sofa.position} rotation={sofa.rotation}>
-      <mesh position={[0, 0.38, 0]}>
-        <boxGeometry args={[sofa.bounds.width, 0.46, sofa.bounds.depth]} />
-        <meshStandardMaterial color="#11111b" roughness={0.92} />
-      </mesh>
-      <mesh position={[0, 0.78, -0.28]}>
-        <boxGeometry args={[sofa.bounds.width, 0.7, 0.18]} />
-        <meshStandardMaterial color="#0d0d16" roughness={0.9} />
-      </mesh>
+      <RoundedBox position={[0, 0.38, 0]} args={[sofa.bounds.width, 0.46, sofa.bounds.depth]} radius={0.08} smoothness={3}>
+        <meshStandardMaterial color={isDay ? '#8a7d6b' : '#11111b'} roughness={0.92} />
+      </RoundedBox>
+      <RoundedBox position={[0, 0.78, -0.28]} args={[sofa.bounds.width, 0.7, 0.18]} radius={0.08} smoothness={3}>
+        <meshStandardMaterial color={isDay ? '#7a6d5c' : '#0d0d16'} roughness={0.9} />
+      </RoundedBox>
       {[-0.68, 0, 0.68].map((x) => (
-        <mesh key={x} position={[x, 0.65, 0.02]} rotation={[0.05, 0, 0]}>
-          <boxGeometry args={[0.55, 0.16, 0.45]} />
-          <meshStandardMaterial color="#151521" roughness={0.96} />
-        </mesh>
+        <RoundedBox key={x} position={[x, 0.65, 0.02]} rotation={[0.05, 0, 0]} args={[0.55, 0.16, 0.45]} radius={0.06} smoothness={3}>
+          <meshStandardMaterial color={isDay ? '#c9b89a' : '#151521'} roughness={0.96} />
+        </RoundedBox>
       ))}
-      <NeonStrip position={[0, 0.16, 0.37]} scale={[2.18, 0.035, 0.03]} color="#ff2a9a" intensity={1.2} />
+      <NeonStrip position={[0, 0.16, 0.37]} scale={[2.18, 0.035, 0.03]} color={isDay ? '#fbbf24' : '#ff2a9a'} intensity={isDay ? 0.08 : 0.85} />
     </group>
   );
 }
@@ -419,12 +416,10 @@ export default function LivingCoreZone({ variant, posts = [] }: { variant: 'day'
     <EditableGroup id="living-core-zone">
       <mesh position={[livingX, 0.012, livingZ]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[2.6, 1.55]} />
-        <meshStandardMaterial color="#111122" roughness={0.86} metalness={0.12} />
+        <meshStandardMaterial color={variant === 'day' ? '#cdbfa6' : '#111122'} roughness={0.86} metalness={0.12} />
       </mesh>
-      <NeonStrip position={[livingX, 0.03, livingZ - 0.75]} scale={[2.6, 0.018, 0.018]} color="#00d8ff" intensity={0.42} />
-      <NeonStrip position={[livingX, 0.03, livingZ + 0.75]} scale={[2.6, 0.018, 0.018]} color="#ff2a9a" intensity={0.42} />
       <CoffeeTableCluster variant={variant} posts={posts} />
-      <SofaCluster />
+      <SofaCluster variant={variant} />
     </EditableGroup>
   );
 }
