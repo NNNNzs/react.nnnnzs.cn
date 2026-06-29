@@ -4,6 +4,10 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { getAllCollectionsSummary } from '@/services/collection';
 import { getPublicPostCount } from '@/services/post';
 import { getAllTags } from '@/services/tag';
+import { chatStyleVoiceCopy } from '@/config/site-copy/chat';
+import { selectStyleText } from '@/lib/site-style/copy';
+import { parseSiteStyleVariant } from '@/lib/site-style/variant';
+import type { SiteStyleVariant } from '@/lib/site-style/variant';
 
 const CHAT_AGENT_PROMPT_PATH = path.join(
   process.cwd(),
@@ -17,6 +21,7 @@ export interface ChatAgentPromptParams {
   siteName: string;
   currentTime: string;
   baseUrl: string;
+  styleVariant?: SiteStyleVariant;
 }
 
 type PromptContext = {
@@ -99,11 +104,14 @@ export async function buildChatAgentSystemPrompt(
     getPromptContext(),
   ]);
 
+  const styleVariant = parseSiteStyleVariant(params.styleVariant);
+
   return template.format({
     siteName: params.siteName,
     baseUrl: params.baseUrl,
     currentTime: params.currentTime,
     userInfo: params.userInfo,
+    styleVoiceInstruction: selectStyleText(chatStyleVoiceCopy.systemInstruction, styleVariant),
     knowledgeBaseSummary: formatKnowledgeBaseSummary(context.articleTags, context.articleCount),
     collectionsSummary: formatCollectionsSummary(context.collections),
   });

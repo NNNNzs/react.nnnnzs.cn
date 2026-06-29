@@ -31,6 +31,8 @@ import { errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 import type { StepType } from '@/lib/stream-tags';
 import { generateChatSessionTitle } from '@/services/ai/chat-agent/title';
+import { parseSiteStyleVariant } from '@/lib/site-style/variant';
+import type { SiteStyleVariant } from '@/lib/site-style/variant';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -55,6 +57,10 @@ export const descriptor: ApiDescriptor = {
         },
       },
       sessionId: { type: 'number', description: '会话ID（可选，不传则自动创建）' },
+      styleVariant: {
+        type: 'string',
+        description: '站点风格语义：day（日间文艺）或 night（夜间赛博朋克）',
+      },
     },
     required: ['message'],
   },
@@ -70,6 +76,7 @@ interface ChatRequest {
     content: string;
   }>;
   sessionId?: number;
+  styleVariant?: SiteStyleVariant;
 }
 
 type StoredReactStep = {
@@ -101,6 +108,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { message, history, sessionId } = body as ChatRequest;
+    const styleVariant = parseSiteStyleVariant((body as ChatRequest).styleVariant);
 
     // 参数验证
     if (!message || message.trim().length === 0) {
@@ -166,6 +174,7 @@ export async function POST(request: NextRequest) {
       currentTime,
       baseUrl,
       history: history || [],
+      styleVariant,
     });
 
     // 用 TransformStream 包装，收集流式内容用于存储

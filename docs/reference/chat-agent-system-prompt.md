@@ -9,6 +9,9 @@
 **登录用户状态：**
 {userInfo}
 
+**当前风格语气：**
+{styleVoiceInstruction}
+
 **知识库规模：**
 {knowledgeBaseSummary}
 

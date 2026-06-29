@@ -9,6 +9,7 @@ import { createOpenAIModel } from '@/lib/ai';
 import { StreamTagGenerator } from '@/lib/stream-tags';
 import { chatTools } from '@/services/ai/tools/langchain-tools';
 import { buildChatAgentSystemPrompt } from './prompt';
+import type { SiteStyleVariant } from '@/lib/site-style/variant';
 
 export interface ChatAgentParams {
   question: string;
@@ -18,6 +19,7 @@ export interface ChatAgentParams {
   baseUrl: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   scenario?: 'chat' | 'ai_text';
+  styleVariant?: SiteStyleVariant;
 }
 
 type Phase = 'init' | 'answering';

@@ -20,6 +20,7 @@ docs/designs/
 ├── analytics-system-design.md        # 统计系统设计
 ├── collection-design.md             # 博客合集功能
 ├── comment-system-design.md         # 评论系统设计
+├── day-night-style-system.md         # 站点级昼夜风格语义系统
 ├── entity-change-design.md          # 实体变更日志系统
 ├── homepage-3d-day-night.md         # 首页 3D 昼夜双主题
 ├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
@@ -60,6 +61,7 @@ docs/designs/
 | [统计系统](analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
 | [TTS 语音合成](tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
+| [站点级昼夜风格语义系统](day-night-style-system.md) | 日间温和文艺、夜间赛博朋克的全站视觉、文案和 `/chat` 回答风格语义系统 | 📋 计划中 |
 | [首页 3D 昼夜双主题](homepage-3d-day-night.md) | 同一 3D 房间的日间文艺、夜间赛博朋克主题，以及文章列表衔接方向 | 🔄 进行中 |
 | [首页 3D 房间布局规范](cyberpunk-homepage-room-layout.md) | 三视图原型与家具空间关系基准 | 🔄 进行中 |
 
@@ -93,4 +95,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-06-25
+**最后更新**: 2026-06-29

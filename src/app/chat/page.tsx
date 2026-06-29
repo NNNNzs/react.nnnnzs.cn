@@ -47,7 +47,11 @@ import type { StreamStepMeta, StepType } from "@/lib/stream-tags";
 import { getDeviceId } from "@/lib/device-id";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
-import { useDarkMode } from "@/hooks/useDarkMode";
+import { chatStyleCopy } from "@/config/site-copy/chat";
+import { commonStyleCopy } from "@/config/site-copy/common";
+import { selectStyleText } from "@/lib/site-style/copy";
+import { useStyleVariant } from "@/lib/site-style/useStyleVariant";
+import type { SiteStyleVariant } from "@/lib/site-style/variant";
 
 const { Title, Text } = Typography;
 
@@ -198,13 +202,14 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
     reactTimeline = [],
     loading,
   }) => {
-    const { isDark } = useDarkMode();
+    const styleVariant = useStyleVariant();
+    const isNightStyle = styleVariant === "night";
     const [title, defaultExpanded] = useMemo(() => {
       if (loading) {
-        return ["正在思考...", true];
+        return [selectStyleText(chatStyleCopy.thinking, styleVariant), true];
       }
-      return ["思考完成", false];
-    }, [loading]);
+      return [selectStyleText(chatStyleCopy.thinkComplete, styleVariant), false];
+    }, [loading, styleVariant]);
 
     const orderedTimeline = useMemo(() => {
       if (reactTimeline.length > 0) return reactTimeline;
@@ -218,7 +223,11 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
         key: `loop-${loop.index}`,
         label: (
           <span className="flex items-center gap-2">
-            <span>第 {loop.index} 轮检索</span>
+            <span>
+              {selectStyleText(chatStyleCopy.retrievalRoundPrefix, styleVariant)}
+              {loop.index}
+              {selectStyleText(chatStyleCopy.retrievalRoundSuffix, styleVariant)}
+            </span>
             {loop.steps.some((s) => s.isStreaming) && <LoadingOutlined />}
           </span>
         ),
@@ -240,7 +249,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
           items={collapseItems}
         />
       );
-    }, []);
+    }, [styleVariant]);
 
     return (
       <div>
@@ -249,7 +258,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
         orderedTimeline.length === 0 ? (
           <div className="text-gray-400 flex items-center gap-2 dark:text-slate-300">
             <RobotOutlined spin />
-            <span>正在思考...</span>
+            <span>{selectStyleText(chatStyleCopy.thinking, styleVariant)}</span>
           </div>
         ) : (
           <>
@@ -263,7 +272,9 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
                 return (
                   <Think
                     key={`timeline-think-${index}`}
-                    title={loading && isLatestThink ? title : "思考片段"}
+                    title={loading && isLatestThink
+                      ? title
+                      : selectStyleText(chatStyleCopy.thinkSegment, styleVariant)}
                     loading={loading && isLatestThink}
                     expanded={isExpanded}
                     onClick={() => {
@@ -283,7 +294,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
 
             {/* 最终答案 */}
             {content && (
-              <XMarkdown className={isDark ? "x-markdown-dark" : "x-markdown-light"}>
+              <XMarkdown className={isNightStyle ? "x-markdown-dark" : "x-markdown-light"}>
                 {content}
               </XMarkdown>
             )}
@@ -302,32 +313,34 @@ MessageContent.displayName = "MessageContent";
 const SessionCommandPalette: React.FC<{
   sessions: SessionSummary[];
   activeSessionId: number | null;
-  loading: boolean;
-  searchText: string;
+	  loading: boolean;
+	  searchText: string;
   onSearchTextChange: (value: string) => void;
   onSelect: (id: number) => void;
   onNew: () => void;
   onDelete: (id: number) => void;
+  styleVariant: SiteStyleVariant;
 }> = React.memo(({
   sessions,
   activeSessionId,
-  loading,
-  searchText,
-  onSearchTextChange,
+	  loading,
+	  searchText,
+	  onSearchTextChange,
   onSelect,
   onNew,
   onDelete,
+  styleVariant,
 }) => {
   const filteredSessions = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
     if (!keyword) return sessions;
 
     return sessions.filter((session) => {
-      const title = session.title || "新对话";
+      const title = session.title || selectStyleText(chatStyleCopy.newSession, styleVariant);
       const time = dayjs(session.updated_at).format("YYYY-MM-DD HH:mm");
       return `${title} ${time}`.toLowerCase().includes(keyword);
     });
-  }, [searchText, sessions]);
+  }, [searchText, sessions, styleVariant]);
 
   return (
     <div className="flex max-h-[68vh] flex-col overflow-hidden">
@@ -343,14 +356,14 @@ const SessionCommandPalette: React.FC<{
             onSelect(firstSession.id);
           }
         }}
-        placeholder="搜索对话记录"
+        placeholder={selectStyleText(chatStyleCopy.sessionSearchPlaceholder, styleVariant)}
         size="large"
         className="mb-4"
       />
 
       <div className="mb-3 flex items-center justify-between text-xs text-gray-400 dark:text-slate-400">
-        <span>最近会话</span>
-        <span>Enter 打开首项 · Esc 关闭</span>
+        <span>{selectStyleText(chatStyleCopy.recentSessions, styleVariant)}</span>
+        <span>{selectStyleText(chatStyleCopy.commandHint, styleVariant)}</span>
       </div>
 
       {/* 会话列表 */}
@@ -362,8 +375,10 @@ const SessionCommandPalette: React.FC<{
         ) : filteredSessions.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={searchText ? "没有匹配的对话" : "暂无对话记录"}
-          />
+            description={searchText
+              ? selectStyleText(chatStyleCopy.noMatchedSession, styleVariant)
+              : selectStyleText(chatStyleCopy.noSessionHistory, styleVariant)}
+	          />
         ) : (
           <List
             size="small"
@@ -376,11 +391,11 @@ const SessionCommandPalette: React.FC<{
                     : "border-stone-100 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80"
                 }`}
                 onClick={() => onSelect(session.id)}
-                actions={[
-                  <Popconfirm
-                    key="delete"
-                    title="确定删除这个对话？"
-                    onConfirm={(e) => {
+	                actions={[
+	                  <Popconfirm
+	                    key="delete"
+	                    title={selectStyleText(chatStyleCopy.deleteSessionConfirm, styleVariant)}
+	                    onConfirm={(e) => {
                       e?.stopPropagation();
                       onDelete(session.id);
                     }}
@@ -395,11 +410,14 @@ const SessionCommandPalette: React.FC<{
                     />
                   </Popconfirm>,
                 ]}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate text-slate-900 dark:text-slate-100">{session.title || '新对话'}</div>
-                  <div className="text-xs text-gray-400 mt-0.5 dark:text-slate-400">
-                    {dayjs(session.updated_at).format('MM-DD HH:mm')} · {session.message_count}条消息
+	              >
+	                <div className="flex-1 min-w-0">
+	                  <div className="text-sm truncate text-slate-900 dark:text-slate-100">
+	                    {session.title || selectStyleText(chatStyleCopy.newSession, styleVariant)}
+	                  </div>
+	                  <div className="text-xs text-gray-400 mt-0.5 dark:text-slate-400">
+	                    {dayjs(session.updated_at).format('MM-DD HH:mm')} · {session.message_count}
+                    {selectStyleText(chatStyleCopy.messageCountUnit, styleVariant)}
                   </div>
                 </div>
               </List.Item>
@@ -410,7 +428,7 @@ const SessionCommandPalette: React.FC<{
 
       <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
         <Button type="primary" icon={<PlusOutlined />} onClick={onNew} block>
-          新建对话
+          {selectStyleText(chatStyleCopy.newSession, styleVariant)}
         </Button>
       </div>
     </div>
@@ -440,6 +458,7 @@ export default function ChatPage() {
 
   const { isMobile } = useBreakpoint();
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
+  const styleVariant = useStyleVariant();
 
   const isNearMessageBottom = useCallback((element: HTMLDivElement) => {
     const distanceToBottom =
@@ -594,11 +613,11 @@ export default function ChatPage() {
         }
       }
     } catch {
-      messageApi.error("加载对话记录失败");
+      messageApi.error(selectStyleText(chatStyleCopy.loadSessionFailed, styleVariant));
     } finally {
       setLoadingSession(false);
     }
-  }, [messageApi]);
+  }, [messageApi, styleVariant]);
 
   /**
    * 页面加载时获取会话列表
@@ -677,7 +696,7 @@ export default function ChatPage() {
       });
 
       if (response.ok) {
-        messageApi.success("删除成功");
+        messageApi.success(selectStyleText(chatStyleCopy.deleteSuccess, styleVariant));
         // 如果删除的是当前会话，清空消息
         if (id === activeSessionId) {
           setMessages([]);
@@ -686,9 +705,9 @@ export default function ChatPage() {
         loadSessions();
       }
     } catch {
-      messageApi.error("删除失败");
+      messageApi.error(selectStyleText(chatStyleCopy.deleteFailed, styleVariant));
     }
-  }, [activeSessionId, loadSessions, messageApi]);
+  }, [activeSessionId, loadSessions, messageApi, styleVariant]);
 
   /**
    * 处理提交
@@ -758,11 +777,12 @@ export default function ChatPage() {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            message: text,
-            history,
-            sessionId: activeSessionId || undefined,
-          }),
+	          body: JSON.stringify({
+	            message: text,
+	            history,
+	            sessionId: activeSessionId || undefined,
+	            styleVariant,
+	          }),
           signal: abortController.signal,
         });
 
@@ -985,7 +1005,7 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [isRequesting, messages, activeSessionId, loadSessions, messageApi],
+	    [isRequesting, messages, activeSessionId, loadSessions, messageApi, styleVariant],
   );
 
   /**
@@ -1106,7 +1126,7 @@ export default function ChatPage() {
     <div className="chat-page-shell h-[calc(100vh-var(--header-height))] overflow-hidden bg-background-light px-3 py-4 dark:bg-background-dark sm:px-5">
       {messageContextHolder}
       <Modal
-        title="对话记录"
+        title={selectStyleText(chatStyleCopy.sessionHistory, styleVariant)}
         open={sessionPaletteOpen}
         onCancel={() => setSessionPaletteOpen(false)}
         footer={null}
@@ -1121,9 +1141,10 @@ export default function ChatPage() {
           searchText={sessionSearchText}
           onSearchTextChange={setSessionSearchText}
           onSelect={handleSelectSession}
-          onNew={handleNewSession}
-          onDelete={handleDeleteSession}
-        />
+	          onNew={handleNewSession}
+	          onDelete={handleDeleteSession}
+	          styleVariant={styleVariant}
+	        />
       </Modal>
 
       {/* 主聊天区域 */}
@@ -1132,42 +1153,46 @@ export default function ChatPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                  纸上余温
-                </span>
-                <span className="text-xs text-text-muted-light dark:text-text-muted-dark">
-                  {activeSession
-                    ? `当前会话 · ${activeSession.message_count} 条消息`
-                    : "新会话"}
-                </span>
-              </div>
-              <Title level={2} className="!mb-2 !text-text-main-light dark:!text-text-main-dark">
-                纸上余温
-              </Title>
-              <Text type="secondary" className="block max-w-3xl leading-6 dark:!text-text-muted-dark">
-                如果死后会幻化为书，这便是我提前整理出的草稿。它记录了代码的逻辑，也收纳了旅途的风尘。不必急于定义它是一本菜谱还是登记簿，只需开始对话，让故事发生。
-              </Text>
+	                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+	                  {selectStyleText(chatStyleCopy.pageKicker, styleVariant)}
+	                </span>
+	                <span className="text-xs text-text-muted-light dark:text-text-muted-dark">
+	                  {activeSession
+	                    ? `${selectStyleText(chatStyleCopy.activeSessionPrefix, styleVariant)} · ${activeSession.message_count} ${selectStyleText(chatStyleCopy.messageCountUnit, styleVariant)}`
+	                    : selectStyleText(chatStyleCopy.newSessionMeta, styleVariant)}
+	                </span>
+	              </div>
+	              <Title level={2} className="!mb-2 !text-text-main-light dark:!text-text-main-dark">
+	                {selectStyleText(chatStyleCopy.pageTitle, styleVariant)}
+	              </Title>
+	              <Text type="secondary" className="block max-w-3xl leading-6 dark:!text-text-muted-dark">
+	                {selectStyleText(chatStyleCopy.pageDescription, styleVariant)}
+	              </Text>
             </div>
 
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button
                 icon={<ClockCircleOutlined />}
-                onClick={() => setSessionPaletteOpen(true)}
-              >
-                {isMobile ? "记录" : "对话记录"}
-              </Button>
-              <Button icon={<PlusOutlined />} onClick={handleNewSession}>
-                {isMobile ? "新建" : "新建对话"}
-              </Button>
+	                onClick={() => setSessionPaletteOpen(true)}
+	              >
+	                {isMobile
+	                  ? selectStyleText(chatStyleCopy.sessionHistoryShort, styleVariant)
+	                  : selectStyleText(chatStyleCopy.sessionHistory, styleVariant)}
+	              </Button>
+	              <Button icon={<PlusOutlined />} onClick={handleNewSession}>
+	                {isMobile
+	                  ? selectStyleText(chatStyleCopy.newSessionShort, styleVariant)
+	                  : selectStyleText(chatStyleCopy.newSession, styleVariant)}
+	              </Button>
               {messages.length > 0 && (
                 <Button
                   icon={<ClearOutlined />}
                   onClick={handleClear}
                   disabled={isRequesting}
-                  danger
-                >
-                  清空
-                </Button>
+	                  danger
+	                >
+	                  {selectStyleText(commonStyleCopy.clear, styleVariant)}
+	                </Button>
               )}
             </div>
           </div>
@@ -1182,12 +1207,12 @@ export default function ChatPage() {
           >
             {loadingSession ? (
               <div className="flex items-center justify-center h-full">
-                <Spin tip="加载对话记录..." />
+	                <Spin tip={selectStyleText(chatStyleCopy.loadingSession, styleVariant)} />
               </div>
             ) : messages.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <Text type="secondary" className="text-center dark:!text-text-muted-dark">
-                  &quot;我们读着别人，做着自己。很高兴在我的字里，遇见你的问题。&quot;
+	                  {selectStyleText(chatStyleCopy.emptyMessage, styleVariant)}
                 </Text>
               </div>
             ) : (
@@ -1202,7 +1227,7 @@ export default function ChatPage() {
               value={content}
               onChange={setContent}
               onSubmit={handleSubmit}
-              placeholder="输入问题，按 Enter 发送。我会从知识库中检索相关内容并回答..."
+	              placeholder={selectStyleText(chatStyleCopy.inputPlaceholder, styleVariant)}
               rootClassName="chat-sender"
             />
           </div>

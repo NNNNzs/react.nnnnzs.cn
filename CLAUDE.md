@@ -46,6 +46,11 @@
 #### AI 对话系统
 - **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
 
+#### 站点级体验
+- **[站点级昼夜风格语义系统](docs/designs/day-night-style-system.md)** - 日间温和文艺、夜间赛博朋克的站点级风格与文案语义系统
+- **[首页 3D 昼夜双主题](docs/designs/homepage-3d-day-night.md)** - 同一 3D 房间的日间文艺、夜间赛博朋克主题，以及文章列表衔接方向
+- **[赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)** - 夜间模式、`/chat` 风格和 UI 命名可借用的赛博朋克元素
+
 #### 权限与认证
 - **[权限系统设计](docs/designs/permission-design.md)** - 多层权限防护架构
 - **[MCP OAuth 2.0 认证设计](docs/designs/mcp-oauth-design.md)** - MCP 服务 OAuth 2.0 集成
@@ -65,7 +70,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充）
+- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充，昼夜双风格已提升为站点级语义系统）
 
 ### 已完成计划（已归档到 `docs/designs/archive/`）
 - **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph
@@ -126,6 +131,13 @@ fix(scope): 简短描述
 - 服务层过滤
 
 详见：[权限系统](docs/rules/permission.md)
+
+### 昼夜风格语义系统
+项目的日间/夜间不只是样式切换，而是站点级双重风格：
+- 日间：温和、明亮、文艺、适合阅读和创作
+- 夜间：赛博朋克、霓虹、雨夜、终端、记忆芯片和城市边缘感
+
+新增或修改前台文案、模块名称、空状态、按钮、`/chat` 回答风格时，应优先参考 [站点级昼夜风格语义系统](docs/designs/day-night-style-system.md)。夜间模式相关命名和视觉母题参考 [赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)。
 
 ### 管理后台布局
 管理后台页面使用 `overflow-hidden` 固定高度，需遵循特定的 flex 布局：

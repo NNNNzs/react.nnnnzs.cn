@@ -13,6 +13,7 @@ import { EditOutlined, CodeOutlined, BulbOutlined, MenuOutlined } from "@ant-des
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
+import { headerCopy } from "@/config/site-copy/header";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentPost } from "@/contexts/CurrentPostContext";
@@ -20,15 +21,17 @@ import { useRouteMatch } from "@/hooks/useRouteMatch";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useConfig } from "@/hooks/useConfig";
+import { selectStyleText } from "@/lib/site-style/copy";
+import { getStyleVariantFromThemeMode } from "@/lib/site-style/variant";
 import { buildEditPostPath } from "@/lib/routes";
 
 // 导航菜单配置
 const navItems = [
-  { href: "/", label: "首页", type: "link" as const },
-  { href: "/archives", label: "文章", type: "link" as const },
-  { href: "/collections", label: "合集", type: "link" as const },
-  { href: "/chat", label: "回想", type: "ai-badge" as const },
-];
+  { href: "/", labelKey: "navHome", type: "link" as const },
+  { href: "/archives", labelKey: "navArchives", type: "link" as const },
+  { href: "/collections", labelKey: "navCollections", type: "link" as const },
+  { href: "/chat", labelKey: "navChat", type: "ai-badge" as const },
+] as const;
 
 export default function Header() {
   const pathname = usePathname();
@@ -50,6 +53,7 @@ export default function Header() {
 
   // 暗色模式
   const { isDark, toggleDark } = useDarkMode();
+  const styleVariant = getStyleVariantFromThemeMode(isDark ? "dark" : "light");
 
   // 滚动进度与 Header 透明度
   const { scrollProgress, headerOpacity } = useScrollProgress(pathname);
@@ -115,11 +119,13 @@ export default function Header() {
               </Link>
 
               {/* 桌面端导航 */}
-              <nav className="hidden md:flex items-center gap-6">
-                {navItems.map((item) => {
-                  if (item.type === "ai-badge") {
-                    // AI Badge 特殊样式
-                    return (
+	              <nav className="hidden md:flex items-center gap-6">
+	                {navItems.map((item) => {
+                  const label = selectStyleText(headerCopy[item.labelKey], styleVariant);
+
+	                  if (item.type === "ai-badge") {
+	                    // AI Badge 特殊样式
+	                    return (
                       <Link
                         key={item.href}
                         href={item.href}
@@ -130,12 +136,12 @@ export default function Header() {
                           text-sm font-semibold
                           hover:bg-indigo-100 dark:hover:bg-indigo-900/40
                           transition-all border border-indigo-100 dark:border-indigo-800/50"
-                      >
-                        <BulbOutlined className="text-[18px] group-hover/ai:animate-pulse" />
-                        {item.label}
-                      </Link>
-                    );
-                  }
+	                      >
+	                        <BulbOutlined className="text-[18px] group-hover/ai:animate-pulse" />
+	                        {label}
+	                      </Link>
+	                    );
+	                  }
 
                   const isActive = pathname === item.href;
                   return (
@@ -147,22 +153,22 @@ export default function Header() {
                           ? "after:opacity-100 text-text-main-light dark:text-text-main-dark"
                           : "after:opacity-0 hover:after:opacity-50 text-text-muted-light dark:text-text-muted-dark hover:text-primary"
                       }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
+	                    >
+	                      {label}
+	                    </Link>
+	                  );
+	                })}
 
                 {/* 编辑按钮 - 仅在当前用户是文章创建人时显示 */}
                 {shouldShowEditButton && currentPost && (
                   <Link
                     href={buildEditPostPath(currentPost.id)}
                     className="flex items-center gap-1 text-sm font-medium text-text-muted-light dark:text-text-muted-dark hover:text-primary transition-colors"
-                  >
-                    <EditOutlined />
-                    编辑
-                  </Link>
-                )}
+	                  >
+	                    <EditOutlined />
+	                    {selectStyleText(headerCopy.editPost, styleVariant)}
+	                  </Link>
+	                )}
               </nav>
             </div>
 
@@ -175,13 +181,13 @@ export default function Header() {
                     appId={algoliaAppId}
                     apiKey={algoliaApiKey}
                     indexName={algoliaIndexName}
-                    translations={{
-                      button: {
-                        buttonText: "搜索文章 (Ctrl + K)",
-                        buttonAriaLabel: "搜索文章",
-                      },
-                    }}
-                  />
+	                    translations={{
+	                      button: {
+	                        buttonText: selectStyleText(headerCopy.searchButton, styleVariant),
+	                        buttonAriaLabel: selectStyleText(headerCopy.searchAriaLabel, styleVariant),
+	                      },
+	                    }}
+	                  />
                 </div>
               )}
 
@@ -199,11 +205,11 @@ export default function Header() {
               </a>
 
               {/* 暗色模式切换 - 赛博朋克风格 */}
-              <button
-                onClick={toggleDark}
-                className="relative p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main-light dark:hover:text-text-main-dark transition-colors focus:outline-none"
-                aria-label="切换暗色模式"
-              >
+	              <button
+	                onClick={toggleDark}
+	                className="relative p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main-light dark:hover:text-text-main-dark transition-colors focus:outline-none"
+	                aria-label={selectStyleText(headerCopy.themeToggleAriaLabel, styleVariant)}
+	              >
                 {/* 太阳 */}
                 <svg
                   viewBox="0 0 24 24"
@@ -265,27 +271,29 @@ export default function Header() {
       </header>
 
       {/* 移动端抽屉菜单 */}
-      <Drawer
-        title="菜单"
-        placement="right"
+	      <Drawer
+	        title={selectStyleText(headerCopy.drawerTitle, styleVariant)}
+	        placement="right"
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
         className="md:hidden"
       >
         <div className="flex flex-col space-y-4">
-          {/* 导航项 */}
-          {navItems.map((item) => {
-            return (
-              <Link
+	          {/* 导航项 */}
+	          {navItems.map((item) => {
+              const label = selectStyleText(headerCopy[item.labelKey], styleVariant);
+
+	            return (
+	              <Link
                 key={item.href}
                 href={item.href}
                 className="text-text-main-light dark:text-text-main-dark mb-2"
                 onClick={() => setDrawerOpen(false)}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+	              >
+	                {label}
+	              </Link>
+	            );
+	          })}
 
           {/* 编辑按钮 - 在移动端抽屉中显示 */}
           {shouldShowEditButton && currentPost && (
@@ -293,11 +301,11 @@ export default function Header() {
               href={buildEditPostPath(currentPost.id)}
               className="text-text-main-light dark:text-text-main-dark mb-2 flex items-center gap-2"
               onClick={() => setDrawerOpen(false)}
-            >
-              <EditOutlined />
-              编辑
-            </Link>
-          )}
+	            >
+	              <EditOutlined />
+	              {selectStyleText(headerCopy.editPost, styleVariant)}
+	            </Link>
+	          )}
 
           {/* 暗色模式切换 - 在抽屉中也添加 */}
           <button
@@ -312,8 +320,10 @@ export default function Header() {
             ) : (
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
             )}
-            {isDark ? "切换到亮色" : "切换到暗色"}
-          </button>
+	            {isDark
+	              ? selectStyleText(headerCopy.switchToDay, styleVariant)
+	              : selectStyleText(headerCopy.switchToNight, styleVariant)}
+	          </button>
         </div>
       </Drawer>
     </>

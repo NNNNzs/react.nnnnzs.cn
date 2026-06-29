@@ -1,8 +1,8 @@
 # 昼夜双主题 3D 首页改造计划
 
-> **状态**：🔄 进行中（阶段一：紧凑赛博单间 primitive 版已接入，继续打磨昼夜双主题与文章列表衔接）
+> **状态**：🔄 进行中（阶段一：紧凑赛博单间 primitive 版已接入；昼夜双风格已提升为站点级语义系统）
 > **创建时间**：2025-05-18
-> **最近更新**：2026-06-25
+> **最近更新**：2026-06-29
 > **合集**：小破站建设
 
 ---
@@ -12,6 +12,15 @@
 把 `NNNNzs` 首页改造成一个**同一空间、昼夜双主题的 3D 数字房间**。
 
 核心理念：**同一个私人数字空间，在日间呈现温暖、文艺、适合阅读的房间；在夜间切换为霓虹、雨夜、终端与边缘城市感的赛博朋克房间**。
+
+2026-06-29 调整：这个理念不再只属于首页 3D。它提升为 `NNNNzs` 的站点级双重风格：
+
+- 样式要切换：日间温和文艺，夜间赛博朋克。
+- 文案要切换：同一模块在日间和夜间可以有不同名称、描述和按钮语气。
+- `/chat` 要切换：回答风格也应根据当前日间/夜间模式注入不同语气。
+- 代码要抽象：后续使用类似 `i18n` 的文案工具维护 `day/night` 两套描述，而不是组件里散落三元表达式。
+
+站点级设计详见：[站点级昼夜风格语义系统](../designs/day-night-style-system.md)。赛博朋克元素资料库详见：[赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md)。
 
 品牌解释：
 
@@ -80,6 +89,13 @@ NNNNzs = Neon Nomad Navigating Night Zones
   - **文章项**：`PostListItem.tsx` 增加 `variant="log"`，首页夜间启用日志面板、中心节点、终端指标和标签芯片，其他列表调用方保持默认变体。
   - **样式**：`globals.css` 增加夜间纵向时间线、切角面板、扫描线、青粉交替边框和移动端单列收敛。
   - **验证**：已通过 `./node_modules/.bin/tsc --noEmit` 和针对变更 TSX 文件的 `./node_modules/.bin/eslint`；未启动本地服务，浏览器视觉检查待手动验证。
+- 2026-06-29 **昼夜双风格升级为站点级语义系统**：
+  - **权重提升**：日间/夜间不再只是首页视觉 preset，而是站点级的风格、文案和 `/chat` 回答语气切换规则。
+  - **文档新增**：`docs/designs/day-night-style-system.md` 定义类似 `i18n` 的 `day/night` 文案工具设计；`docs/reference/cyberpunk-style-elements.md` 整理夜间赛博朋克元素、命名候选和 `/chat` 夜间语气边界。
+  - **工具定义已落地**：新增 `src/lib/site-style/*` 与 `src/config/site-copy/*`，并把 `HomePageClient.tsx` 的文章列表标题、描述、加载按钮和完成状态迁入 `homeFeedCopy`。
+  - **Header 已接入**：`src/components/Header.tsx` 的导航、搜索、抽屉菜单、编辑按钮和主题切换文案已迁入 `headerCopy`，夜间 `/chat` 导航显示为 `Relic`。
+  - **`/chat` 基础链路已落地**：`src/app/chat/page.tsx` 已接入页面文案和请求体 `styleVariant`，`src/app/api/chat/route.ts` 校验并透传，`src/services/ai/chat-agent/prompt.ts` 注入日间/夜间语气。
+  - **下一步**：继续迁移更多前台模块文案，并做 `/chat` 夜间模式实机对话验证。
 
 ## 〇一、设计评审与重设计计划（2026-06-29）
 

@@ -4,8 +4,10 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import PostListItem from '@/components/PostListItem';
 import type { Post } from '@/types';
-import { useDarkMode } from '@/hooks/useDarkMode';
 import type { BookshelfCollection } from '@/components/cyberpunk/furniture/types';
+import { homeFeedCopy } from '@/config/site-copy/home';
+import { selectStyleText } from '@/lib/site-style/copy';
+import { useStyleVariant } from '@/lib/site-style/useStyleVariant';
 
 interface HomePageClientProps {
   posts: Post[];
@@ -56,7 +58,8 @@ export default function HomePageClient({
 }: HomePageClientProps) {
   const scrollRestoreRef = useRef(false); // 标记滚动是否已恢复
   const postsAnchorRef = useRef<HTMLDivElement>(null);
-  const { isDark: isDarkTheme } = useDarkMode();
+  const styleVariant = useStyleVariant();
+  const isNightStyle = styleVariant === 'night';
 
   /**
    * 保存滚动位置 - 实时监听
@@ -142,7 +145,7 @@ export default function HomePageClient({
   return (
     <div className="bg-background-light dark:bg-[#050611]">
       {/* 横幅 */}
-      <Homepage3DBanner variant={isDarkTheme ? 'night' : 'day'} posts={posts} collections={collections} />
+      <Homepage3DBanner variant={styleVariant} posts={posts} collections={collections} />
 
       {/* 文章列表 */}
       <div ref={postsAnchorRef} />
@@ -151,41 +154,43 @@ export default function HomePageClient({
           <div className="cyberpunk-log-header mb-8 flex flex-col gap-6 border-l border-border-light pl-5 dark:border-cyan-300/35 md:mb-14 md:flex-row md:items-end md:justify-between md:pl-7">
             <div className="flex flex-col gap-3">
               <span className="text-[11px] uppercase tracking-[0.34em] text-sky-700/70 dark:text-cyan-100/55">
-                Feed Overview
+                {selectStyleText(homeFeedCopy.kicker, styleVariant)}
               </span>
               <div className="flex flex-col gap-1">
                 <span className="hidden font-mono text-4xl font-semibold uppercase tracking-normal text-cyan-100 drop-shadow-[0_0_18px_rgba(34,211,238,0.38)] dark:block md:text-6xl">
-                  Recent Posts
+                  {selectStyleText(homeFeedCopy.accentTitle, styleVariant)}
                 </span>
                 <h2 className="text-2xl font-semibold tracking-normal text-text-main-light dark:text-[#ff4dad] md:text-4xl">
-                  最近文章
+                  {selectStyleText(homeFeedCopy.heading, styleVariant)}
                 </h2>
               </div>
               <p className="max-w-2xl text-sm leading-7 text-text-muted-light dark:text-slate-400">
-                Neon Nomad Navigating Night Zones. 记录技术、工具、运维、AI 与生活里的长期思考。
+                {selectStyleText(homeFeedCopy.description, styleVariant)}
               </p>
             </div>
 
             <div className="hidden min-w-48 border-t border-cyan-300/25 pt-4 font-mono text-[11px] uppercase tracking-[0.24em] text-cyan-100/55 dark:block">
               <div className="flex items-center justify-between gap-5">
-                <span>Access Feed</span>
+                <span>{selectStyleText(homeFeedCopy.metricLabel, styleVariant)}</span>
                 <span className="text-[#ff4dad]">{String(posts.length).padStart(3, '0')}</span>
               </div>
               <div className="mt-2 flex items-center justify-between gap-5">
-                <span>Status</span>
-                <span className="text-cyan-200">Streaming</span>
+                <span>{selectStyleText(homeFeedCopy.statusLabel, styleVariant)}</span>
+                <span className="text-cyan-200">
+                  {selectStyleText(homeFeedCopy.statusValue, styleVariant)}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <ul className={`cyberpunk-log-feed relative mx-auto max-w-6xl px-4 md:px-6 ${isDarkTheme ? 'cyberpunk-log-feed--active' : ''}`}>
+        <ul className={`cyberpunk-log-feed relative mx-auto max-w-6xl px-4 md:px-6 ${isNightStyle ? 'cyberpunk-log-feed--active' : ''}`}>
           {posts.map((post, index) => (
             <PostListItem
               key={post.id}
               post={post}
               index={index}
-              variant={isDarkTheme ? 'log' : 'default'}
+              variant={isNightStyle ? 'log' : 'default'}
             />
           ))}
         </ul>
@@ -196,10 +201,9 @@ export default function HomePageClient({
             <button
               className="cyberpunk-log-button cursor-pointer rounded-full border border-border-light bg-card-light px-8 py-3 text-sm font-medium text-text-muted-light shadow-sm transition-all hover:border-primary hover:text-primary hover:shadow-md dark:rounded-none dark:border-cyan-300/45 dark:bg-cyan-300/[0.08] dark:px-10 dark:py-4 dark:font-mono dark:text-xs dark:font-semibold dark:uppercase dark:tracking-[0.34em] dark:text-cyan-100/80 dark:shadow-[0_0_28px_rgba(34,211,238,0.08)] dark:hover:border-cyan-200/70 dark:hover:bg-cyan-200/[0.12] dark:hover:text-cyan-50"
               onClick={onLoadMore}
-              aria-label="加载更多文章"
+              aria-label={selectStyleText(homeFeedCopy.loadMoreAriaLabel, styleVariant)}
             >
-              <span className="dark:hidden">加载更多文章</span>
-              <span className="hidden dark:inline">SYNC MORE LOGS</span>
+              {selectStyleText(homeFeedCopy.loadMore, styleVariant)}
             </button>
           </div>
         )}
@@ -207,8 +211,7 @@ export default function HomePageClient({
         {/* 已加载全部 */}
         {!hasMore && posts.length > 0 && (
           <div className="py-8 text-center text-xs uppercase tracking-[0.24em] text-text-muted-light dark:font-mono dark:text-cyan-100/35">
-            <span className="dark:hidden">已加载全部文章</span>
-            <span className="hidden dark:inline">LOG STREAM COMPLETE</span>
+            {selectStyleText(homeFeedCopy.complete, styleVariant)}
           </div>
         )}
       </section>

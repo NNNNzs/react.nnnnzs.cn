@@ -40,6 +40,17 @@
 
 ### 技术说明
 
+#### 赛博朋克风格元素资料库
+**文档**: [cyberpunk-style-elements.md](./cyberpunk-style-elements.md)
+**描述**: 夜间模式、`/chat` 夜间回答风格、首页 3D 房间和文章日志流的赛博朋克风格词库与设计母题
+**内容**:
+- 通用赛博朋克范式
+- `Cyberpunk 2077` 可借用母题
+- 夜间模式词库与模块命名候选
+- `/chat` 夜间回答风格边界
+
+---
+
 #### Prisma 版本说明
 **文档**: [PRISMA_VERSION_NOTE.md](./PRISMA_VERSION_NOTE.md)
 **描述**: Prisma ORM 相关技术说明

@@ -2,8 +2,8 @@
 
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
-> **最后更新**: 2026-06-15
-> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [LangChain 迁移计划](../../plans/chat-langchain-migration.md)
+> **最后更新**: 2026-06-29
+> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [站点级昼夜风格语义系统](../day-night-style-system.md) | [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)
 
 ## 概述
 
@@ -21,6 +21,27 @@
 - **对话历史**：支持多轮对话上下文管理
 - **聊天记录**：支持登录用户和游客会话持久化、历史恢复和后台查看
 - **标题总结**：第一轮对话结束后异步总结会话标题，不再直接使用用户首问作为标题
+- **昼夜风格语义**：日间保持温和文艺，夜间注入赛博朋克、终端、记忆芯片和城市边缘感的回答语气
+
+## 昼夜风格与回答语气
+
+`/chat` 是站点双重风格最重要的文本出口。日间/夜间不应只改变页面外壳颜色，也要改变系统提示词里的回答语气。
+
+现状：
+
+- 当前运行时提示词模板位于 `docs/reference/chat-agent-system-prompt.md`。
+- `src/services/ai/chat-agent/prompt.ts` 读取该模板，并注入站点、用户、知识库和合集变量。
+- 当前模板默认是第一人称、文艺、哲学感的日间主语气。
+
+当前实现：
+
+1. 前端 `/chat` 请求携带 `styleVariant: 'day' | 'night'`。
+2. `ChatAgentPromptParams` 增加 `styleVariant`。
+3. 后端根据 `styleVariant` 注入 `styleVoiceInstruction`。
+4. 日间语气继续是“人生之书”的温和回答。
+5. 夜间语气转为“雨夜终端、记忆芯片、人格回声、档案扫描”的赛博朋克回答。
+
+夜间模式必须保留现有约束：基于检索结果、引用文章链接、准确简洁、中文回答。赛博朋克风格只能增强表达质感，不能替代事实和来源。
 
 ## 架构设计
 
