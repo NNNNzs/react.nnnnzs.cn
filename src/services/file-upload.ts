@@ -3,38 +3,17 @@
  * 将文件 Buffer 上传到腾讯云 COS，返回 CDN URL。
  */
 
-import { createHash } from 'crypto';
-import { extname } from 'path';
-import COS from 'cos-nodejs-sdk-v5';
+import { getCosClient, getCosBucketConfig } from './cos-client';
 
-function getCosClient() {
-  const SecretId = process.env.SecretId || process.env.COS_SECRET_ID;
-  const SecretKey = process.env.SecretKey || process.env.COS_SECRET_KEY;
-
-  if (!SecretId || !SecretKey) {
-    throw new Error('COS 配置缺失：SecretId 或 SecretKey');
-  }
-
-  return new COS({
-    SecretId,
-    SecretKey,
-  });
-}
-
-function getCosBucketConfig() {
-  const Bucket = process.env.Bucket || process.env.COS_BUCKET;
-  const Region = process.env.Region || process.env.COS_REGION;
-  const CDN_URL = process.env.CDN_URL || process.env.COS_CDN_URL;
-
-  if (!Bucket || !Region || !CDN_URL) {
-    throw new Error('COS 配置缺失：Bucket、Region 或 CDN_URL');
-  }
-
-  return { Bucket, Region, CDN_URL };
+function getExtname(filename: string) {
+  const cleanName = filename.split(/[?#]/, 1)[0] || '';
+  const basename = cleanName.split('/').filter(Boolean).pop() || cleanName;
+  const dotIndex = basename.lastIndexOf('.');
+  return dotIndex > 0 ? basename.slice(dotIndex) : '';
 }
 
 function normalizeExt(filename: string, ext?: string) {
-  const rawExt = ext || extname(filename) || '.bin';
+  const rawExt = ext || getExtname(filename) || '.bin';
   return rawExt.startsWith('.') ? rawExt : `.${rawExt}`;
 }
 
@@ -67,7 +46,6 @@ export function normalizeCosKey(key: string): string {
 
   const normalizedKey = `/${segments.join('/')}`;
 
-  // 长度限制（cos_key 字段 VarChar(255)）
   if (normalizedKey.length > 250) {
     throw new Error(`COS Key 长度不能超过 250 字符（当前 ${normalizedKey.length}）`);
   }
@@ -93,7 +71,9 @@ export interface UploadFileInput {
  */
 export async function uploadFileToCOS(file: UploadFileInput): Promise<string> {
   const { Bucket, Region, CDN_URL } = getCosBucketConfig();
-  const cos = getCosClient();
+  const cos = await getCosClient();
+  const cryptoModuleName = 'crypto';
+  const { createHash } = await import(cryptoModuleName) as typeof import('crypto');
 
   const ext = normalizeExt(file.filename, file.ext);
   const md5Name = createHash('md5')

@@ -468,3 +468,10 @@ if (!post) {
 - 文章列表项：`src/components/PostListItem.tsx`
 - 管理后台：`src/app/c/page.tsx`
 - 编辑页面：`src/app/c/edit/[id]/page.tsx`
+
+### 图片生成队列监控补充
+
+| 权限 | 路由 | 说明 |
+| --- | --- | --- |
+| `queue:view` | `/api/image-gen/queue` | 图片生成队列监控快照：状态汇总、等待/处理中任务、最近失败任务、stale 恢复结果 |
+| `image:view` | `/api/image-gen/jobs/[jobId]/retry` | 手动重试失败的图片生成任务，复用原 `jobId` 重新入队 |

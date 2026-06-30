@@ -1,23 +1,36 @@
 /**
- * 向量化队列监控页面
+ * 后台任务队列监控页面
  * 路由: /c/queue
- * 仅管理员可访问
  */
 
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Tag, Space, Statistic, Row, Col, Alert, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  message,
+  Popconfirm,
+  Row,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import type { TableColumnsType } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { QUEUE_VIEW } from '@/constants/permissions';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text } = Typography;
 
-interface QueueStatus {
+interface EmbeddingQueueStatus {
   queueLength: number;
   processingCount: number;
   queueTasks: Array<{ postId: number; title: string; priority: number }>;
@@ -32,105 +45,172 @@ interface EmbedStatus {
   ragUpdatedAt?: string | null;
 }
 
+interface ImageQueueTask {
+  id: number;
+  jobId: string;
+  prompt: string;
+  source: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+interface ImageQueueMonitor {
+  queue: {
+    queueLength: number;
+    processingCount: number;
+    queueTasks: Array<{ id: string; type: string; title?: string; priority: number; addTime: number }>;
+    processingTasks: string[];
+    isRunning: boolean;
+  };
+  counts: Record<'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED', number>;
+  queueTasks: ImageQueueTask[];
+  processingTasks: ImageQueueTask[];
+  recentFailedTasks: ImageQueueTask[];
+  staleRecovery: {
+    recoveredAt: string;
+    staleProcessingCount: number;
+    requeuedPendingCount: number;
+  } | null;
+}
+
+const EMBED_STATUS_MAP: Record<string, { color: string; text: string }> = {
+  pending: { color: 'default', text: '待处理' },
+  processing: { color: 'processing', text: '处理中' },
+  completed: { color: 'success', text: '已完成' },
+  failed: { color: 'error', text: '失败' },
+};
+
+const IMAGE_STATUS_MAP: Record<ImageQueueTask['status'], { color: string; text: string }> = {
+  PENDING: { color: 'default', text: '待处理' },
+  PROCESSING: { color: 'processing', text: '处理中' },
+  SUCCESS: { color: 'success', text: '成功' },
+  FAILED: { color: 'error', text: '失败' },
+};
+
+const PRIORITY_MAP: Record<number, { color: string; text: string }> = {
+  1: { color: 'error', text: '高' },
+  5: { color: 'warning', text: '中' },
+  10: { color: 'default', text: '低' },
+};
+
+function formatTime(value: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('zh-CN', { hour12: false });
+}
+
+function ellipsis(value: string, max = 36) {
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
 export default function QueueMonitorPage() {
   const { user, hasPermission } = useAuth();
   const { isMobile } = useBreakpoint();
   const [loading, setLoading] = useState(false);
-  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
+  const [embeddingQueue, setEmbeddingQueue] = useState<EmbeddingQueueStatus | null>(null);
+  const [imageMonitor, setImageMonitor] = useState<ImageQueueMonitor | null>(null);
   const [taskStatuses, setTaskStatuses] = useState<Map<number, EmbedStatus>>(new Map());
   const [error, setError] = useState<string | null>(null);
+  const hasAccess = Boolean(user && hasPermission(QUEUE_VIEW));
 
-  // 权限检查
-  const hasAccess = user && hasPermission(QUEUE_VIEW);
+  const loadEmbeddingTaskStatuses = useCallback(async (taskIds: number[]) => {
+    if (taskIds.length === 0 || !hasAccess) {
+      setTaskStatuses(new Map());
+      return;
+    }
 
-  /**
-   * 加载队列状态
-   */
-  const loadQueueStatus = useCallback(async () => {
+    try {
+      const results = await Promise.all(
+        taskIds.map((id) => axios.get(`/api/post/${id}/embed`).catch(() => null)),
+      );
+
+      const statusMap = new Map<number, EmbedStatus>();
+      results.forEach((res, index) => {
+        if (res?.data?.status) {
+          statusMap.set(taskIds[index], res.data.data as EmbedStatus);
+        }
+      });
+      setTaskStatuses(statusMap);
+    } catch (requestError) {
+      console.error('加载向量任务状态失败:', requestError);
+    }
+  }, [hasAccess]);
+
+  const loadDashboard = useCallback(async () => {
     if (!hasAccess) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get('/api/post/embed/queue');
-      if (response.data.status) {
-        setQueueStatus(response.data.data);
-      } else {
-        setError(response.data.message || '加载失败');
+      const [embeddingRes, imageRes] = await Promise.all([
+        axios.get('/api/post/embed/queue'),
+        axios.get('/api/image-gen/queue'),
+      ]);
+
+      if (!embeddingRes.data?.status) {
+        throw new Error(embeddingRes.data?.message || '加载向量队列失败');
       }
-    } catch (err) {
-      console.error('加载队列状态失败:', err);
-      setError('加载队列状态失败');
+      if (!imageRes.data?.status) {
+        throw new Error(imageRes.data?.message || '加载图片生成队列失败');
+      }
+
+      const embeddingData = embeddingRes.data.data as EmbeddingQueueStatus;
+      const imageData = imageRes.data.data as ImageQueueMonitor;
+
+      setEmbeddingQueue(embeddingData);
+      setImageMonitor(imageData);
+
+      const allTaskIds = [
+        ...embeddingData.queueTasks.map((task) => task.postId),
+        ...embeddingData.processingTasks,
+      ];
+      void loadEmbeddingTaskStatuses(allTaskIds);
+    } catch (requestError) {
+      console.error('加载队列监控失败:', requestError);
+      setError(
+        requestError instanceof Error ? requestError.message : '加载队列监控失败',
+      );
     } finally {
       setLoading(false);
     }
-  }, [hasAccess]);
+  }, [hasAccess, loadEmbeddingTaskStatuses]);
 
-  /**
-   * 加载任务状态
-   */
-  const loadTaskStatuses = useCallback(async (taskIds: number[]) => {
-    if (taskIds.length === 0 || !hasAccess) return;
+  useEffect(() => {
+    if (!hasAccess) return;
+    void loadDashboard();
+    const timer = setInterval(() => {
+      void loadDashboard();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [hasAccess, loadDashboard]);
 
+  const handleRetryImageJob = useCallback(async (jobId: string) => {
     try {
-      const promises = taskIds.map(id =>
-        axios.get(`/api/post/${id}/embed`).catch(() => null)
+      const response = await axios.post(`/api/image-gen/jobs/${jobId}/retry`);
+      if (!response.data?.status) {
+        throw new Error(response.data?.message || '重试失败');
+      }
+      message.success('任务已重新入队');
+      await loadDashboard();
+    } catch (requestError) {
+      console.error('重试图片生成任务失败:', requestError);
+      message.error(
+        (requestError as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (requestError instanceof Error ? requestError.message : '重试失败'),
       );
-
-      const results = await Promise.all(promises);
-      const statusMap = new Map<number, EmbedStatus>();
-
-      results.forEach((res, index) => {
-        if (res?.data?.status) {
-          statusMap.set(taskIds[index], res.data.data);
-        }
-      });
-
-      setTaskStatuses(statusMap);
-    } catch (err) {
-      console.error('加载任务状态失败:', err);
     }
-  }, [hasAccess]);
+  }, [loadDashboard]);
 
-  /**
-   * 刷新所有数据
-   */
-  const handleRefresh = () => {
-    loadQueueStatus();
-  };
-
-  /**
-   * 自动刷新
-   */
-  useEffect(() => {
-    if (!hasAccess) return;
-    loadQueueStatus();
-    const interval = setInterval(loadQueueStatus, 5000); // 每5秒刷新
-    return () => clearInterval(interval);
-  }, [loadQueueStatus, hasAccess]);
-
-  /**
-   * 加载任务详情
-   */
-  useEffect(() => {
-    if (!hasAccess) return;
-    if (queueStatus) {
-      const allTaskIds = [
-        ...queueStatus.queueTasks.map(t => t.postId),
-        ...queueStatus.processingTasks,
-      ];
-      loadTaskStatuses(allTaskIds);
-    }
-  }, [queueStatus, loadTaskStatuses, hasAccess]);
-
-  // 权限检查
   if (!hasAccess) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Alert
           message="权限不足"
-          description="您没有权限访问此页面，仅管理员可访问。"
+          description="您没有权限访问此页面。"
           type="error"
           showIcon
         />
@@ -138,12 +218,9 @@ export default function QueueMonitorPage() {
     );
   }
 
-  /**
-   * 队列任务表格列定义
-   */
-  const queueColumns: TableColumnsType<{ postId: number; title: string; priority: number }> = [
+  const embeddingQueueColumns: TableColumnsType<{ postId: number; title: string; priority: number }> = [
     {
-      title: '文章ID',
+      title: '文章 ID',
       dataIndex: 'postId',
       key: 'postId',
       width: 100,
@@ -160,12 +237,7 @@ export default function QueueMonitorPage() {
       key: 'priority',
       width: 100,
       render: (priority: number) => {
-        const priorityConfig: Record<number, { color: string; text: string }> = {
-          1: { color: 'error', text: '高' },
-          5: { color: 'warning', text: '中' },
-          10: { color: 'default', text: '低' },
-        };
-        const config = priorityConfig[priority] || priorityConfig[10];
+        const config = PRIORITY_MAP[priority] || PRIORITY_MAP[10];
         return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
@@ -174,185 +246,283 @@ export default function QueueMonitorPage() {
       key: 'status',
       width: 120,
       render: (_, record) => {
-        const status = taskStatuses.get(record.postId);
-        const ragStatus = status?.ragStatus || 'pending';
-        const statusConfig: Record<string, { color: string; text: string }> = {
-          pending: { color: 'default', text: '待处理' },
-          processing: { color: 'processing', text: '处理中' },
-          completed: { color: 'success', text: '已完成' },
-          failed: { color: 'error', text: '失败' },
-        };
-        const config = statusConfig[ragStatus] || statusConfig.pending;
+        const ragStatus = taskStatuses.get(record.postId)?.ragStatus || 'pending';
+        const config = EMBED_STATUS_MAP[ragStatus] || EMBED_STATUS_MAP.pending;
         return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
   ];
 
-  /**
-   * 处理中任务表格列定义
-   */
-  const processingColumns: TableColumnsType<{ postId: number }> = [
+  const embeddingProcessingColumns: TableColumnsType<{ postId: number }> = [
     {
-      title: '文章ID',
+      title: '文章 ID',
       dataIndex: 'postId',
       key: 'postId',
+      width: 100,
     },
     {
       title: '状态',
       key: 'status',
       render: (_, record) => {
         const status = taskStatuses.get(record.postId);
-        const ragError = status?.ragError;
-
         return (
           <Space direction="vertical" size="small">
-            <Tag color="processing" icon={<span className="loading-dots">●</span>}>
-              处理中
-            </Tag>
-            {ragError && <Text type="danger" style={{ fontSize: 12 }}>{ragError}</Text>}
+            <Tag color="processing">处理中</Tag>
+            {status?.ragError ? <Text type="danger">{status.ragError}</Text> : null}
           </Space>
         );
       },
     },
   ];
 
-  if (!queueStatus) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div>加载中...</div>
-      </div>
-    );
-  }
+  const imageQueueColumns: TableColumnsType<ImageQueueTask> = [
+    {
+      title: '任务 ID',
+      dataIndex: 'jobId',
+      key: 'jobId',
+      width: 220,
+      render: (value: string) => <Text code>{value}</Text>,
+    },
+    {
+      title: 'Prompt',
+      dataIndex: 'prompt',
+      key: 'prompt',
+      ellipsis: true,
+      render: (value: string) => <span title={value}>{ellipsis(value, 48)}</span>,
+    },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+      width: 100,
+      render: (value: string) => <Tag color={value === 'MCP' ? 'purple' : 'blue'}>{value}</Tag>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: ImageQueueTask['status']) => {
+        const config = IMAGE_STATUS_MAP[status];
+        return <Tag color={config.color}>{config.text}</Tag>;
+      },
+    },
+    {
+      title: '时间',
+      key: 'time',
+      width: 180,
+      render: (_, record) => formatTime(record.startedAt || record.createdAt),
+    },
+  ];
 
-  const completedCount = Array.from(taskStatuses.values()).filter(
-    s => s.ragStatus === 'completed'
+  const imageFailedColumns: TableColumnsType<ImageQueueTask> = [
+    {
+      title: '任务 ID',
+      dataIndex: 'jobId',
+      key: 'jobId',
+      width: 220,
+      render: (value: string) => <Text code>{value}</Text>,
+    },
+    {
+      title: 'Prompt',
+      dataIndex: 'prompt',
+      key: 'prompt',
+      ellipsis: true,
+      render: (value: string) => <span title={value}>{ellipsis(value, 42)}</span>,
+    },
+    {
+      title: '失败原因',
+      dataIndex: 'errorMessage',
+      key: 'errorMessage',
+      ellipsis: true,
+      render: (value: string | null) => value || '-',
+    },
+    {
+      title: '失败时间',
+      key: 'finishedAt',
+      width: 180,
+      render: (_, record) => formatTime(record.finishedAt || record.updatedAt || record.createdAt),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_, record) => (
+        <Popconfirm
+          title="重新入队该任务？"
+          onConfirm={() => void handleRetryImageJob(record.jobId)}
+          okText="重试"
+          cancelText="取消"
+        >
+          <Button size="small" type="link">重试</Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const embedCompletedCount = Array.from(taskStatuses.values()).filter(
+    (status) => status.ragStatus === 'completed',
   ).length;
-  const failedCount = Array.from(taskStatuses.values()).filter(
-    s => s.ragStatus === 'failed'
+  const embedFailedCount = Array.from(taskStatuses.values()).filter(
+    (status) => status.ragStatus === 'failed',
   ).length;
 
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        {/* 页面标题 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
           <div>
-            <Title level={isMobile ? 4 : 2} className="mb-0">向量化队列监控</Title>
-            <Text type="secondary">实时监控文章向量化处理进度</Text>
+            <Title level={isMobile ? 4 : 2} className="mb-0">后台任务监控</Title>
+            <Text type="secondary">统一查看 embedding 队列和 image-gen 异步任务。</Text>
           </div>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            loading={loading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => void loadDashboard()} loading={loading}>
             刷新
           </Button>
         </div>
 
-        {/* 错误提示 */}
-        {error && (
+        {error ? (
           <Alert
-            message="错误"
+            message="加载失败"
             description={error}
             type="error"
             closable
             className="mb-4 shrink-0"
             onClose={() => setError(null)}
           />
-        )}
+        ) : null}
 
-        {/* 统计卡片 */}
-        <Row gutter={16} className="mb-6 shrink-0">
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="队列中"
-                value={queueStatus.queueLength}
-                valueStyle={{ color: '#1677ff' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="处理中"
-                value={queueStatus.processingCount}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="已完成"
-                value={completedCount}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="失败"
-                value={failedCount}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+          <Card title="向量队列总览">
+            <Row gutter={16}>
+              <Col xs={12} sm={6}>
+                <Statistic title="排队中" value={embeddingQueue?.queueLength ?? 0} valueStyle={{ color: '#1677ff' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="处理中" value={embeddingQueue?.processingCount ?? 0} valueStyle={{ color: '#faad14' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="已完成" value={embedCompletedCount} valueStyle={{ color: '#52c41a' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="失败" value={embedFailedCount} valueStyle={{ color: '#ff4d4f' }} />
+              </Col>
+            </Row>
+          </Card>
 
-        {/* 滚动内容区 */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* 队列状态 */}
           <Card
-            title="等待队列"
-            className="mb-6"
+            title="向量队列详情"
             extra={
-              <Tag color={queueStatus.isRunning ? 'success' : 'default'}>
-                {queueStatus.isRunning ? '运行中' : '已停止'}
+              <Tag color={embeddingQueue?.isRunning ? 'success' : 'default'}>
+                {embeddingQueue?.isRunning ? '运行中' : '已停止'}
               </Tag>
             }
           >
-            {queueStatus.queueTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">队列为空</div>
-            ) : (
-              <Table
-                columns={queueColumns}
-                dataSource={queueStatus.queueTasks}
-                rowKey="postId"
-                pagination={false}
-                size="small"
-                scroll={{ y: 300 }}
-              />
-            )}
-          </Card>
-
-          {/* 处理中任务 */}
-          <Card
-            title="处理中任务"
-            className="mb-6"
-          >
-            {queueStatus.processingTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">没有正在处理的任务</div>
-            ) : (
-              <Table
-                columns={processingColumns}
-                dataSource={queueStatus.processingTasks.map(id => ({ postId: id }))}
-                rowKey="postId"
-                pagination={false}
-                size="small"
-              />
-            )}
-          </Card>
-
-          {/* 提示信息 */}
-          <Card type="inner" title="说明">
-            <Space direction="vertical" className="w-full">
-              <Text>• 队列每 5 秒自动刷新一次</Text>
-              <Text>• 点击&ldquo;刷新&rdquo;按钮可立即刷新状态</Text>
-              <Text>• 优先级：手动触发（高） &gt; 新建/更新（中） &gt; 批量更新（低）</Text>
-              <Text>• 失败的任务会自动重试，最多 2 次</Text>
+            <Space direction="vertical" className="w-full" size="large">
+              <div>
+                <Title level={5}>等待队列</Title>
+                <Table
+                  columns={embeddingQueueColumns}
+                  dataSource={embeddingQueue?.queueTasks || []}
+                  rowKey="postId"
+                  pagination={false}
+                  size="small"
+                  locale={{ emptyText: '当前没有等待中的向量任务' }}
+                />
+              </div>
+              <div>
+                <Title level={5}>处理中任务</Title>
+                <Table
+                  columns={embeddingProcessingColumns}
+                  dataSource={(embeddingQueue?.processingTasks || []).map((postId) => ({ postId }))}
+                  rowKey="postId"
+                  pagination={false}
+                  size="small"
+                  locale={{ emptyText: '当前没有处理中任务' }}
+                />
+              </div>
             </Space>
+          </Card>
+
+          <Card title="图片生成队列总览">
+            <Row gutter={[16, 16]}>
+              <Col xs={12} sm={6}>
+                <Statistic title="PENDING" value={imageMonitor?.counts.PENDING ?? 0} valueStyle={{ color: '#1677ff' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="PROCESSING" value={imageMonitor?.counts.PROCESSING ?? 0} valueStyle={{ color: '#faad14' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="SUCCESS" value={imageMonitor?.counts.SUCCESS ?? 0} valueStyle={{ color: '#52c41a' }} />
+              </Col>
+              <Col xs={12} sm={6}>
+                <Statistic title="FAILED" value={imageMonitor?.counts.FAILED ?? 0} valueStyle={{ color: '#ff4d4f' }} />
+              </Col>
+            </Row>
+            <div className="mt-4">
+              <Descriptions size="small" column={isMobile ? 1 : 3} bordered>
+                <Descriptions.Item label="内存队列长度">{imageMonitor?.queue.queueLength ?? 0}</Descriptions.Item>
+                <Descriptions.Item label="内存处理中">{imageMonitor?.queue.processingCount ?? 0}</Descriptions.Item>
+                <Descriptions.Item label="队列状态">
+                  <Tag color={imageMonitor?.queue.isRunning ? 'success' : 'default'}>
+                    {imageMonitor?.queue.isRunning ? '运行中' : '已停止'}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            </div>
+          </Card>
+
+          <Card title="图片生成队列详情">
+            <Space direction="vertical" className="w-full" size="large">
+              <div>
+                <Title level={5}>等待队列</Title>
+                <Table
+                  columns={imageQueueColumns}
+                  dataSource={imageMonitor?.queueTasks || []}
+                  rowKey="jobId"
+                  pagination={false}
+                  size="small"
+                  locale={{ emptyText: '当前没有等待中的图片生成任务' }}
+                />
+              </div>
+              <div>
+                <Title level={5}>处理中任务</Title>
+                <Table
+                  columns={imageQueueColumns}
+                  dataSource={imageMonitor?.processingTasks || []}
+                  rowKey="jobId"
+                  pagination={false}
+                  size="small"
+                  locale={{ emptyText: '当前没有处理中图片任务' }}
+                />
+              </div>
+            </Space>
+          </Card>
+
+          <Card title="最近失败任务">
+            <Table
+              columns={imageFailedColumns}
+              dataSource={imageMonitor?.recentFailedTasks || []}
+              rowKey="jobId"
+              pagination={false}
+              size="small"
+              locale={{ emptyText: '最近没有失败任务' }}
+            />
+          </Card>
+
+          <Card title="Stale 恢复结果">
+            {imageMonitor?.staleRecovery ? (
+              <Descriptions size="small" column={isMobile ? 1 : 3} bordered>
+                <Descriptions.Item label="恢复时间">{formatTime(imageMonitor.staleRecovery.recoveredAt)}</Descriptions.Item>
+                <Descriptions.Item label="残留 PROCESSING -> FAILED">
+                  {imageMonitor.staleRecovery.staleProcessingCount}
+                </Descriptions.Item>
+                <Descriptions.Item label="重新入队的 PENDING">
+                  {imageMonitor.staleRecovery.requeuedPendingCount}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Text type="secondary">当前进程尚未记录恢复快照。</Text>
+            )}
           </Card>
         </div>
       </div>

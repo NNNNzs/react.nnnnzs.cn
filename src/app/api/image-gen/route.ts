@@ -11,9 +11,11 @@ import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { IMAGE_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+
 import type { ImageGenOptions } from '@/services/image-gen';
 import { createImageGenerationJob } from '@/services/image-gen-job';
 
+export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 /** 接口自描述信息 */

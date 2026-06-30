@@ -14,6 +14,7 @@ import { uploadFileToCOS, normalizeCosKey } from '@/services/file-upload';
 import { FILE_UPLOAD } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
+export const runtime = 'nodejs';
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
   code: 'upload_file',

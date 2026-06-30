@@ -3,6 +3,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@/generated/prisma-client';
 
 export type ImageGenSource = 'ADMIN' | 'MCP';
 export type ImageGenStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
@@ -71,7 +72,7 @@ export async function getImageGenLogs(query: ImageGenLogQuery) {
   const pageNum = query.pageNum ?? 1;
   const pageSize = query.pageSize ?? 20;
 
-  const where: Record<string, unknown> = {};
+  const where: Prisma.TbImageGenLogWhereInput = {};
   if (query.source) where.source = query.source;
   if (query.status) where.status = query.status;
   if (query.userId) where.user_id = query.userId;
@@ -98,9 +99,7 @@ export async function getImageGenLogs(query: ImageGenLogQuery) {
  * 根据 ID 获取图片生成日志
  */
 export async function getImageGenLogById(id: number) {
-  return prisma.tbImageGenLog.findUnique({
-    where: { id },
-  });
+  return prisma.tbImageGenLog.findUnique({ where: { id } });
 }
 
 /**
@@ -138,9 +137,7 @@ export async function deleteImageGenLog(
     }
   }
 
-  await prisma.tbImageGenLog.delete({
-    where: { id },
-  });
+  await prisma.tbImageGenLog.delete({ where: { id } });
 
   return {
     log,
@@ -167,8 +164,8 @@ export async function batchDeleteImageGenLogs(
     const { deleteCdnImage } = await import('./image-proxy');
     const urls = logs.flatMap((log) =>
       [log.cdn_url, log.reserved_cdn_url, log.original_url].filter(
-        (url): url is string => Boolean(url && url.startsWith('http'))
-      )
+        (url): url is string => Boolean(url && url.startsWith('http')),
+      ),
     );
 
     for (const url of Array.from(new Set(urls))) {

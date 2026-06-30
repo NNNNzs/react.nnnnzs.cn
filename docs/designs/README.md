@@ -26,6 +26,7 @@ docs/designs/
 ├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
 ├── mcp-oauth-design.md              # MCP OAuth 2.0 认证
 ├── image-gen.md                     # AI 图片生成
+├── task-queue.md                   # 后台任务队列系统
 ├── rbac-config-design.md            # 配置化 RBAC 权限系统
 ├── rbac-migration-inventory.md      # RBAC 迁移清单（现有权限盘点）
 ├── performance-optimization-plan.md # 性能优化计划
@@ -73,6 +74,7 @@ docs/designs/
 | [配置化 RBAC](rbac-config-design.md) | 角色权限配置化 + 统一接口注册表 + MCP 自动注册 | ✅ 已实施 |
 | [RBAC 迁移清单](rbac-migration-inventory.md) | 现有权限和 MCP 接口盘点，迁移对照表 | 📦 已归档 |
 | [MCP OAuth 2.0](mcp-oauth-design.md) | MCP 服务认证 | ✅ 已实施 |
+| [后台任务队列系统](task-queue.md) | 通用 TaskQueue、业务适配器、图片生成队列监控与重试 | ✅ 已实施 |
 | [性能优化计划](performance-optimization-plan.md) | 性能优化实施记录 | ✅ 已完成 |
 
 ## 📋 归档文档
@@ -95,4 +97,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-06-29
+**最后更新**: 2026-06-30

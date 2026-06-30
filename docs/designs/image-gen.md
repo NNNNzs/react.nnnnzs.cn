@@ -69,12 +69,16 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 src/services/
 ├── image-gen.ts                # 图片生成 service（核心逻辑）
 ├── image-gen-job.ts            # 图片生成异步任务（UUID jobId + 队列）
+├── cos-client.ts               # COS 共享客户端（getCosClient / getCosBucketConfig）
 └── queue/task-queue.ts         # 通用后台任务队列
 src/app/api/image-gen/
 ├── route.ts                    # POST: 创建图片生成任务
-└── jobs/[jobId]/route.ts       # GET: 查询图片生成任务状态
+├── jobs/[jobId]/route.ts       # GET: 查询图片生成任务状态
+├── jobs/[jobId]/retry/route.ts # POST: 重试失败任务
+└── queue/route.ts              # GET: 队列监控快照
 src/lib/
-└── api-registry.ts             # MCP 工具注册（handler 引用任务 service）
+├── api-registry.ts             # MCP 工具注册（handler 引用任务 service）
+└── uuid.ts                     # UUID 校验工具（UUID_REGEX / isUuid）
 src/app/c/image-gen/
 └── page.tsx                    # 图片生成页面
 src/components/ImageGen/
@@ -141,3 +145,46 @@ interface ImageGenRequest {
 | `FAILED` | 生成或上传失败，`errorMessage` 包含失败原因 |
 
 响应头必须包含 `Cache-Control: no-store`，避免 CDN 或代理缓存实时任务状态。
+
+## 后台队列监控与重试
+
+> 通用队列设计详见：[后台任务队列系统](task-queue.md)
+
+> 更新日期：2026-07-01
+
+图片生成已经接入通用后台任务监控 `/c/queue`。该页面展示 `PENDING`、`PROCESSING`、`SUCCESS`、`FAILED` 汇总，当前内存等待队列、处理中任务、最近失败任务，以及启动时 stale 任务恢复结果。
+
+### UUID 来源
+
+`tb_image_gen_log.job_id` 是对外任务 ID，用于 API 查询、MCP resource URI 和队列去重。由业务服务在创建任务前用 `crypto.randomUUID()` 显式生成，连同 `cos_key`、`reserved_cdn_url` 在**单次 `create`** 中一起写入（保证原子性，避免崩溃留下 `cos_key` 为空的 PENDING 行）。schema 的 `@default(uuid())` 仅作为 DB 层兜底。基于该 ID 预分配：
+
+```text
+COS Key: /upload/image-gen/{jobId}.png
+Resource: blog://image-generation-jobs/{jobId}
+Status: /api/image-gen/jobs/{jobId}
+```
+
+### 新增接口
+
+#### GET /api/image-gen/queue
+
+权限：`queue:view`
+
+返回图片生成队列监控快照：
+
+- `counts`: `PENDING` / `PROCESSING` / `SUCCESS` / `FAILED` 数量。
+- `queue`: 当前进程内 `TaskQueue` 快照。
+- `queueTasks`: 等待中的图片生成任务。
+- `processingTasks`: 正在处理的图片生成任务。
+- `recentFailedTasks`: 最近失败任务，供后台手动重试。
+- `staleRecovery`: 当前进程启动时的恢复摘要。
+
+#### POST /api/image-gen/jobs/[jobId]/retry
+
+权限：`image:view`
+
+仅支持重试 `FAILED` 任务。接口先以同一个 `jobId` 重新加入图片生成队列（幂等去重，若已在队列或处理中则拒绝），入队成功后再清理错误信息、重置耗时和时间字段、将状态改回 `PENDING`，避免遗留无人处理的 PENDING 任务。
+
+### 运行时边界
+
+图片生成、文件上传、COS 删除等能力依赖 Node.js、`Buffer`、COS SDK 和 Prisma。相关 API route 显式声明 `runtime = 'nodejs'`。`instrumentation.ts` 也改为在 `NEXT_RUNTIME=nodejs` 分支内动态加载图片生成队列，避免 Edge instrumentation 静态分析时误触 Node-only 模块。

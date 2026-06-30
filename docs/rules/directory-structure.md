@@ -42,7 +42,7 @@ src/
 │   ├── c/                        # 管理后台
 │   │   ├── comments/             # 评论管理
 │   │   ├── vector-search/        # 向量搜索管理
-│   │   ├── queue/                # 向量化队列管理
+│   │   ├── queue/                # 后台任务队列监控
 │   │   ├── collections/          # 合集管理
 │   │   ├── edit/[id]/            # 文章编辑器
 │   │   ├── post/                 # 文章管理
@@ -104,6 +104,7 @@ src/
 │   ├── ip.ts                     # 客户端 IP 获取
 │   ├── image.ts                  # 腾讯云 CDN 图片压缩
 │   ├── cos.ts                    # 腾讯云 COS 上传
+│   ├── uuid.ts                   # UUID 校验工具（UUID_REGEX / isUuid）
 │   └── (其他工具函数)
 │
 ├── services/                     # 业务逻辑层
@@ -141,8 +142,9 @@ src/
 │   ├── entity-change-detector.ts # 变更检测服务
 │   ├── entity-change-log.ts      # 变更日志服务
 │   ├── face.ts                   # 腾讯云人脸识别（IAI）服务
+│   ├── cos-client.ts             # 腾讯云 COS 共享客户端（getCosClient / getCosBucketConfig）
 │   ├── image-gen.ts              # AI 图片生成 service（GPT Image 2）
-│   ├── image-gen-job.ts          # AI 图片生成异步任务（UUID jobId + 队列）
+│   ├── image-gen-job.ts          # AI 图片生成异步任务（应用层 UUID jobId + 通用队列）
 │   ├── chat-log.ts               # 聊天会话和消息记录服务
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务
@@ -234,3 +236,4 @@ src/components/cyberpunk/
 - 不可见补光必须明确命名或注释为 fill/bounce/window light，并保持 `visibleFixture={false}` 或直接使用不可见 light primitive，避免被误认为房间里的物件。
 - 纯装饰 emissive 片、HUD 光点、状态点可以 mesh-only；一旦承担照明语义，就要和 `pointLight` / `spotLight` 封装到同一个物件组件中。
 - 灯具组件优先按 `*Fixture` / `*Light` / `*Lamp` 这类语义命名，组件内部统一负责位置、模型、发光材质和实际光源。
+

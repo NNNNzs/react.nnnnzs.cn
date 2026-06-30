@@ -8,8 +8,10 @@ import { requirePermission } from '@/lib/permission';
 import { IMAGE_VIEW } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { getImageGenerationJob } from '@/services/image-gen-job';
+import { isUuid } from '@/lib/uuid';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
+export const runtime = 'nodejs';
 interface RouteContext {
   params: Promise<{ jobId: string }>;
 }
@@ -30,8 +32,6 @@ export const descriptor: ApiDescriptor = {
   },
 };
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const check = await requirePermission(request, IMAGE_VIEW);
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const { jobId } = await context.params;
-    if (!UUID_REGEX.test(jobId)) {
+    if (!isUuid(jobId)) {
       return NextResponse.json(errorResponse('无效的任务 ID'), { status: 400 });
     }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     console.error('查询图片生成任务失败:', error);
     return NextResponse.json(
       errorResponse(error instanceof Error ? error.message : '查询图片生成任务失败'),
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

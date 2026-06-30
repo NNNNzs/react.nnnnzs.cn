@@ -1,28 +1,24 @@
 /**
  * 图片转存服务
- * 将远程图片下载后上传到腾讯云 COS，返回 CDN URL
+ * 将远程图片下载后上传到腾讯云 COS，返回 CDN URL。
  */
 
-import COS from 'cos-nodejs-sdk-v5';
-import { extname } from 'path';
+import { getCosClient, getCosBucketConfig } from './cos-client';
 import { uploadFileToCOS } from './file-upload';
 
-/**
- * 初始化 COS 客户端
- */
-function getCosClient() {
-  const SecretId = process.env.SecretId || process.env.COS_SECRET_ID;
-  const SecretKey = process.env.SecretKey || process.env.COS_SECRET_KEY;
-
-  if (!SecretId || !SecretKey) {
-    throw new Error('COS 配置缺失：SecretId 或 SecretKey');
+function getExtnameFromUrl(url: string) {
+  try {
+    const pathname = new URL(url).pathname;
+    const filename = pathname.split('/').filter(Boolean).pop() || '';
+    const dotIndex = filename.lastIndexOf('.');
+    return dotIndex > 0 ? filename.slice(dotIndex).toLowerCase() : '';
+  } catch {
+    return '';
   }
-
-  return new COS({ SecretId, SecretKey });
 }
 
 /**
- * 从 URL 下载图片，返回 Buffer
+ * 从 URL 下载图片，返回 Buffer。
  */
 async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string; mimetype?: string }> {
   const response = await fetch(url, {
@@ -36,8 +32,6 @@ async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-
-  // 从 content-type 或 URL 推断扩展名
   const contentType = response.headers.get('content-type') || '';
   let ext = '.png';
 
@@ -48,8 +42,7 @@ async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string
   } else if (contentType.includes('gif')) {
     ext = '.gif';
   } else {
-    // 尝试从 URL 提取
-    const urlExt = extname(url).toLowerCase();
+    const urlExt = getExtnameFromUrl(url);
     if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(urlExt)) {
       ext = urlExt;
     }
@@ -63,15 +56,14 @@ async function downloadImage(url: string): Promise<{ buffer: Buffer; ext: string
 }
 
 /**
- * 上传 Buffer 到 COS，返回 CDN URL
- * 注意: filename 仅用于 uploadFileToCOS 接口兼容，实际 COS Key 由 options.key 决定
+ * 上传 Buffer 到 COS，返回 CDN URL。
+ * 注意: filename 仅用于 uploadFileToCOS 接口兼容，实际 COS Key 由 options.key 决定。
  */
 async function uploadBufferToCOS(
   buffer: Buffer,
   ext: string,
   options: { key?: string; mimetype?: string } = {},
 ): Promise<string> {
-  // 当指定了 key 时，COS Key 由 normalizeCosKey(key) 决定，filename 不影响存储路径
   return uploadFileToCOS({
     buffer,
     filename: options.key?.split('/').filter(Boolean).pop() || `image${ext}`,
@@ -81,20 +73,8 @@ async function uploadBufferToCOS(
   });
 }
 
-function getCosBucketConfig() {
-  const Bucket = process.env.Bucket || process.env.COS_BUCKET;
-  const Region = process.env.Region || process.env.COS_REGION;
-  const CDN_URL = process.env.CDN_URL || process.env.COS_CDN_URL;
-
-  if (!Bucket || !Region || !CDN_URL) {
-    throw new Error('COS 配置缺失：Bucket、Region 或 CDN_URL');
-  }
-
-  return { Bucket, Region, CDN_URL };
-}
-
 /**
- * 转存远程图片到 CDN
+ * 转存远程图片到 CDN。
  * @param imageUrl 远程图片 URL
  * @returns CDN URL
  */
@@ -103,15 +83,14 @@ export async function proxyImageToCDN(
   options: { key?: string } = {},
 ): Promise<string> {
   const { buffer, ext, mimetype } = await downloadImage(imageUrl);
-  const cdnUrl = await uploadBufferToCOS(buffer, ext, {
+  return uploadBufferToCOS(buffer, ext, {
     key: options.key,
     mimetype,
   });
-  return cdnUrl;
 }
 
 /**
- * 转存 base64 图片到 CDN
+ * 转存 base64 图片到 CDN。
  * @param base64Image 不带 data URL 前缀的 base64 图片数据
  * @param ext 图片扩展名，默认 .png
  * @returns CDN URL
@@ -129,7 +108,7 @@ export async function proxyBase64ImageToCDN(
 }
 
 /**
- * 删除 CDN URL 对应的 COS 对象
+ * 删除 CDN URL 对应的 COS 对象。
  * 仅删除当前 COS_CDN_URL 域名下的文件，避免误删第三方 URL。
  */
 export async function deleteCdnImage(url: string): Promise<boolean> {
@@ -151,7 +130,7 @@ export async function deleteCdnImage(url: string): Promise<boolean> {
     return false;
   }
 
-  const cos = getCosClient();
+  const cos = await getCosClient();
   const result = await cos.deleteObject({
     Bucket,
     Region,

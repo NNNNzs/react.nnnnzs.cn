@@ -330,7 +330,7 @@ model TbApiRegistry {
 // 记录用户通过后台页面和 MCP 生成的图片日志
 model TbImageGenLog {
   id            Int       @id @default(autoincrement())
-  job_id        String?   @unique @db.VarChar(36)          // 对外任务ID（UUID），用于异步查询，避免枚举自增ID
+  job_id        String?   @unique @default(uuid()) @db.VarChar(36)          // 对外任务ID（UUID），用于异步查询，避免枚举自增ID
   user_id       Int                                         // 操作用户ID
   source        String    @db.VarChar(20)                   // 来源：ADMIN / MCP
   prompt        String    @db.Text                          // 用户输入的提示词
