@@ -28,6 +28,23 @@ interface ResultMeta {
   size?: string;
   quality?: string;
   prompt?: string;
+  jobId?: string;
+  status?: string;
+  resourceUri?: string;
+  errorMessage?: string | null;
+}
+
+interface ImageGenerationJob {
+  jobId: string;
+  status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED";
+  ready: boolean;
+  imageUrl: string | null;
+  errorMessage: string | null;
+  elapsed: string | null;
+  model: string | null;
+  size: string | null;
+  quality: string | null;
+  resourceUri: string;
 }
 
 export default function ImageGenPage() {
@@ -39,6 +56,15 @@ export default function ImageGenPage() {
   const [meta, setMeta] = useState<ResultMeta | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const generatingRef = useRef(false);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollCountRef = useRef(0);
+
+  const clearPollTimer = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user && !hasPermission(IMAGE_VIEW)) {
@@ -47,35 +73,122 @@ export default function ImageGenPage() {
     }
   }, [user, authLoading, router, hasPermission]);
 
+  const MAX_POLL_COUNT = 60; // 最大轮询次数（60 次 × 3 秒 ≈ 3 分钟）
+
+  const stopPoll = useCallback(() => {
+    clearPollTimer();
+    pollCountRef.current = 0;
+    generatingRef.current = false;
+    setGenerating(false);
+  }, [clearPollTimer]);
+
+  const pollJob = useCallback(
+    async (
+      jobId: string,
+      params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams
+    ) => {
+      pollCountRef.current += 1;
+
+      if (pollCountRef.current > MAX_POLL_COUNT) {
+        message.warning("任务查询超时，请稍后在历史记录中查看");
+        stopPoll();
+        setRefreshTrigger((t) => t + 1);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`/api/image-gen/jobs/${jobId}`, {
+          headers: { "Cache-Control": "no-store" },
+        });
+        const job = res.data?.data as ImageGenerationJob | undefined;
+
+        if (!res.data?.status || !job) {
+          throw new Error(res.data?.message || "查询任务状态失败");
+        }
+
+        setImageUrl(job.imageUrl);
+        setMeta({
+          elapsed: job.elapsed || undefined,
+          model: job.model || undefined,
+          prompt: params.prompt,
+          size: job.size || params.size,
+          quality: job.quality || params.quality,
+          jobId: job.jobId,
+          status: job.status,
+          resourceUri: job.resourceUri,
+          errorMessage: job.errorMessage,
+        });
+
+        if (job.status === "SUCCESS" && job.imageUrl) {
+          generatingRef.current = false;
+          setGenerating(false);
+          message.success("图片生成成功");
+          setRefreshTrigger((t) => t + 1);
+          return;
+        }
+
+        if (job.status === "FAILED") {
+          setImageUrl(null);
+          generatingRef.current = false;
+          setGenerating(false);
+          message.error(job.errorMessage || "图片生成失败");
+          setRefreshTrigger((t) => t + 1);
+          return;
+        }
+
+        pollTimerRef.current = setTimeout(() => {
+          void pollJob(jobId, params);
+        }, 3000);
+      } catch (error: unknown) {
+        console.error("Poll image gen job error:", error);
+        if (pollCountRef.current > MAX_POLL_COUNT) {
+          message.warning("任务查询超时，请稍后在历史记录中查看");
+          stopPoll();
+          setRefreshTrigger((t) => t + 1);
+          return;
+        }
+        pollTimerRef.current = setTimeout(() => {
+          void pollJob(jobId, params);
+        }, 5000);
+      }
+    },
+    [stopPoll]
+  );
+
   const handleGenerate = useCallback(
     async (params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams) => {
       if (generatingRef.current) return;
+      clearPollTimer();
+      pollCountRef.current = 0;
       generatingRef.current = true;
       setGenerating(true);
       setImageUrl(null);
       setMeta(null);
 
       try {
-        const startTime = Date.now();
         const res = await axios.post("/api/image-gen", params, {
-          timeout: 120000,
+          timeout: 15000,
         });
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-        if (res.data?.status && res.data?.data?.imageUrl) {
-          const { imageUrl: url } = res.data.data;
-          setImageUrl(url);
+        if (res.data?.status && res.data?.data?.jobId) {
+          const job = res.data.data as ImageGenerationJob;
+          setImageUrl(job.imageUrl);
           setMeta({
-            elapsed: res.data.data.elapsed || `${elapsed}s`,
-            model: res.data.data.model,
+            elapsed: job.elapsed || undefined,
+            model: job.model || undefined,
             prompt: params.prompt,
-            size: params.size,
-            quality: params.quality,
+            size: job.size || params.size,
+            quality: job.quality || params.quality,
+            jobId: job.jobId,
+            status: job.status,
+            resourceUri: job.resourceUri,
           });
-          message.success("图片生成成功");
-          setRefreshTrigger((t) => t + 1);
+          message.success("图片生成任务已提交");
+          void pollJob(job.jobId, params);
         } else {
           message.error(res.data?.message || "图片生成失败");
+          generatingRef.current = false;
+          setGenerating(false);
         }
       } catch (error: unknown) {
         console.error("Image gen error:", error);
@@ -83,12 +196,11 @@ export default function ImageGenPage() {
           (error as { response?: { data?: { message?: string } } })?.response?.data
             ?.message || "图片生成失败，请检查网络或配置";
         message.error(msg);
-      } finally {
         generatingRef.current = false;
         setGenerating(false);
       }
     },
-    []
+    [clearPollTimer, pollJob]
   );
 
   const debouncedGenerate = useMemo(
@@ -105,8 +217,9 @@ export default function ImageGenPage() {
   useEffect(() => {
     return () => {
       debouncedGenerate.cancel();
+      clearPollTimer();
     };
-  }, [debouncedGenerate]);
+  }, [debouncedGenerate, clearPollTimer]);
 
   const handleHistorySelect = useCallback(
     (url: string, prompt: string) => {

@@ -199,7 +199,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
-    description: '使用 AI 生成图片(文生图)。图片生成通常需要 30-90 秒，请耐心等待，不要重试。无异步通知机制，超时(180s)将报错。',
+    description: '创建 AI 图片生成异步任务(文生图)，立即返回 jobId、预分配 CDN URL 和 MCP resourceUri；通过 resourceUri 查询任务状态。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -210,13 +210,17 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       required: ['prompt'],
     },
     handler: async (args, user) => {
-      const { generateImageWithLog } = await import('@/services/image-gen');
-      return generateImageWithLog({
-        mode: 'generate',
-        prompt: args.prompt as string,
-        size: args.size as string | undefined,
-        quality: args.quality as string | undefined,
-      }, user.id, 'MCP');
+      const { createImageGenerationJob } = await import('@/services/image-gen-job');
+      return createImageGenerationJob({
+        options: {
+          mode: 'generate',
+          prompt: args.prompt as string,
+          size: args.size as string | undefined,
+          quality: args.quality as string | undefined,
+        },
+        userId: user.id,
+        source: 'MCP',
+      });
     },
   },
   // ---- 图片上传模块（MCP 可用）----
@@ -227,16 +231,18 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'upload_file',
     permissionCode: FILE_UPLOAD,
     handler: async (args) => {
-      const { base64ToBuffer, downloadFileFromUrl, uploadFileToCOS } = await import('@/services/file-upload');
+      const { base64ToBuffer, downloadFileFromUrl, normalizeCosKey, uploadFileToCOS } = await import('@/services/file-upload');
       const filename = (args.filename as string | undefined) || 'attachment.bin';
+      const key = (args.key || args.cosKey) as string | undefined;
 
       if (args.url) {
         const downloadedFile = await downloadFileFromUrl(args.url as string, args.filename as string | undefined);
         const url = await uploadFileToCOS({
           ...downloadedFile,
           ext: args.ext as string | undefined,
+          key,
         });
-        return { url };
+        return { url, ...(key ? { key: normalizeCosKey(key) } : {}) };
       }
 
       if (!args.base64) {
@@ -248,8 +254,9 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         filename,
         mimetype: args.mimeType as string | undefined,
         ext: args.ext as string | undefined,
+        key,
       });
-      return { url };
+      return { url, ...(key ? { key: normalizeCosKey(key) } : {}) };
     },
   },
   // ---- 合集模块（仅 API，不暴露 MCP）----

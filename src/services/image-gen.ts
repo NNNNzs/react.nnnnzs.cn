@@ -21,7 +21,7 @@ export interface ImageGenResult {
   b64Json?: string;
 }
 
-function validateOptions(options: ImageGenOptions): void {
+export function validateImageGenOptions(options: ImageGenOptions): void {
   if (!VALID_MODES.includes(options.mode)) {
     throw new Error('无效的模式，仅支持 generate 或 edit');
   }
@@ -203,7 +203,7 @@ async function requestImagesGenerations(params: {
  * 调用 AI 生成图片（核心逻辑，不含转存和日志）
  */
 export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
-  validateOptions(options);
+  validateImageGenOptions(options);
 
   const configs = await getAIConfigValues([
     'image_gen.api_key',
@@ -225,6 +225,16 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   }
 
   return requestChatCompletions({ apiKey, baseUrl, model, options });
+}
+
+export async function uploadGeneratedImageToCDN(
+  result: ImageGenResult,
+  options: { key?: string } = {},
+): Promise<string> {
+  const { proxyBase64ImageToCDN, proxyImageToCDN } = await import('./image-proxy');
+  return result.b64Json
+    ? proxyBase64ImageToCDN(result.b64Json, '.png', { key: options.key })
+    : proxyImageToCDN(result.imageUrl, { key: options.key });
 }
 
 /**
@@ -251,10 +261,7 @@ export async function generateImageWithLog(
     // 2. 转存到 CDN
     let cdnUrl: string | undefined;
     try {
-      const { proxyBase64ImageToCDN, proxyImageToCDN } = await import('./image-proxy');
-      cdnUrl = result.b64Json
-        ? await proxyBase64ImageToCDN(result.b64Json)
-        : await proxyImageToCDN(result.imageUrl);
+      cdnUrl = await uploadGeneratedImageToCDN(result);
     } catch (proxyError) {
       console.error('图片转存失败，使用原始URL:', proxyError);
       // 转存失败不影响主流程，使用原始 URL
@@ -267,6 +274,8 @@ export async function generateImageWithLog(
       prompt: options.prompt,
       editPrompt: options.mode === 'edit' ? options.prompt : undefined,
       editImageUrl: options.mode === 'edit' ? options.image : undefined,
+      size: options.size,
+      quality: options.quality,
       model: result.model,
       originalUrl: result.b64Json ? 'b64_json' : result.imageUrl,
       cdnUrl,

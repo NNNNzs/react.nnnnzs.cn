@@ -9,6 +9,7 @@ import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { IMAGE_VIEW, USER_MANAGE } from '@/constants/permissions';
 import { getImageGenLogs, batchDeleteImageGenLogs } from '@/services/image-gen-log';
+import type { ImageGenStatus } from '@/services/image-gen-log';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     const pageNum = parseInt(searchParams.get('pageNum') || '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
     const source = searchParams.get('source') as 'ADMIN' | 'MCP' | null;
-    const status = searchParams.get('status') as 'SUCCESS' | 'FAILED' | null;
+    const status = searchParams.get('status') as ImageGenStatus | null;
 
     // 管理员可查所有用户，普通用户只能查自己的
     const isAdmin = check.user.permissions.includes(USER_MANAGE);
@@ -34,7 +35,12 @@ export async function GET(request: NextRequest) {
       userId: isAdmin ? undefined : check.user.id,
     });
 
-    return NextResponse.json(successResponse(result));
+    return NextResponse.json(successResponse(result), {
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('Query image gen logs error:', error);
     return NextResponse.json(

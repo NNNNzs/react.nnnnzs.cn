@@ -330,18 +330,26 @@ model TbApiRegistry {
 // 记录用户通过后台页面和 MCP 生成的图片日志
 model TbImageGenLog {
   id            Int       @id @default(autoincrement())
+  job_id        String?   @unique @db.VarChar(36)          // 对外任务ID（UUID），用于异步查询，避免枚举自增ID
   user_id       Int                                         // 操作用户ID
   source        String    @db.VarChar(20)                   // 来源：ADMIN / MCP
   prompt        String    @db.Text                          // 用户输入的提示词
   edit_prompt   String?   @db.Text                          // 编辑模式下的编辑指令
   edit_image_url String?  @db.Text                          // 编辑模式下的原始图片URL
-  model         String    @db.VarChar(100)                  // 使用的模型
-  original_url  String    @db.Text                          // 生成接口返回的原始图片URL
+  size          String?   @db.VarChar(50)                   // 图片尺寸，如 1024x1024
+  quality       String?   @db.VarChar(20)                   // 图片质量，如 high / medium
+  model         String?   @db.VarChar(100)                  // 使用的模型（PENDING 时为 null）
+  original_url  String?   @db.Text                          // 生成接口返回的原始图片URL（PENDING 时为 null）
   cdn_url       String?   @db.Text                          // 转存后的CDN地址
-  status        String    @default("SUCCESS") @db.VarChar(20) // SUCCESS / FAILED
+  reserved_cdn_url String? @db.Text                         // 异步任务预分配的CDN地址
+  cos_key       String?   @db.VarChar(255)                  // 异步任务预分配的COS Key
+  status        String    @default("PENDING") @db.VarChar(20) // PENDING / PROCESSING / SUCCESS / FAILED
   error_message String?   @db.Text                          // 失败时的错误信息
   duration_ms   Int                                         // 生成耗时（毫秒）
+  started_at    DateTime?                                  // 开始处理时间
+  finished_at   DateTime?                                  // 完成或失败时间
   created_at    DateTime  @default(now())
+  updated_at    DateTime? @updatedAt
 
   @@index([user_id, created_at], name: "idx_user_time")
   @@index([source], name: "idx_source")

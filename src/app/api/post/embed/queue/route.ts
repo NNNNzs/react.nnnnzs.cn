@@ -26,10 +26,7 @@ export async function GET(request: NextRequest) {
     const queueStatus = getQueueStatus();
 
     return NextResponse.json(
-      successResponse({
-        ...queueStatus,
-        isRunning: true, // 队列应该在应用启动时自动启动
-      })
+      successResponse(queueStatus)
     );
   } catch (error) {
     console.error('查询队列状态失败:', error);

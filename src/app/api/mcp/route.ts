@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateMcpRequestEnhanced } from '@/services/mcpAuth';
 import { validateTokenWithPermissions } from '@/lib/auth';
@@ -209,6 +209,40 @@ async function createMcpServer(headers: Headers) {
           uri: "blog://writing_style",
           mimeType: "text/markdown",
           text: writingStyleGuide
+        }]
+      };
+    }
+  );
+
+  server.registerResource(
+    "image_generation_job",
+    new ResourceTemplate("blog://image-generation-jobs/{jobId}", { list: undefined }),
+    {
+      title: "Image Generation Job Status",
+      description: "Read the status of an async image generation job by jobId. The generate_image tool returns the matching resourceUri.",
+      mimeType: "application/json"
+    },
+    async (uri, variables) => {
+      const authedUser = await ensureAuth();
+      const rawJobId = variables.jobId;
+      const jobId = Array.isArray(rawJobId) ? rawJobId[0] : rawJobId;
+
+      if (!jobId) {
+        throw new Error("Missing image generation jobId");
+      }
+
+      const { getImageGenerationJob } = await import('@/services/image-gen-job');
+      const job = await getImageGenerationJob(jobId, authedUser);
+
+      if (!job) {
+        throw new Error("Image generation job not found or not accessible");
+      }
+
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(job, null, 2)
         }]
       };
     }

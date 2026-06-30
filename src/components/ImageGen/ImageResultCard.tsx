@@ -34,10 +34,21 @@ interface ImageResultCardProps {
     size?: string;
     quality?: string;
     prompt?: string;
+    jobId?: string;
+    status?: string;
+    resourceUri?: string;
+    errorMessage?: string | null;
   } | null;
   history: ImageResultItem[];
   onHistoryClick?: (item: ImageResultItem) => void;
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "排队中",
+  PROCESSING: "处理中",
+  SUCCESS: "成功",
+  FAILED: "失败",
+};
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -93,11 +104,22 @@ export default function ImageResultCard({
           {loading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Spin size="large" />
-              <p className="mt-4 text-gray-500">正在生成图片，请稍候...</p>
+              <p className="mt-4 text-gray-500">图片任务处理中，请稍候...</p>
+              {meta?.jobId && (
+                <p className="mt-2 max-w-full truncate text-xs text-gray-400">
+                  Job: {meta.jobId}
+                </p>
+              )}
             </div>
           )}
 
-          {!loading && !imageUrl && (
+          {!loading && !imageUrl && meta?.status === "FAILED" && (
+            <div className="rounded-md border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+              {meta.errorMessage || "图片生成失败"}
+            </div>
+          )}
+
+          {!loading && !imageUrl && meta?.status !== "FAILED" && (
             <Empty
               image={<ExperimentOutlined className="text-4xl text-gray-300" />}
               description="输入提示词并点击「生成图片」"
@@ -143,12 +165,28 @@ export default function ImageResultCard({
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2">
+                    {meta.status && <Tag>{STATUS_LABEL[meta.status] || meta.status}</Tag>}
                     {meta.size && <Tag>{meta.size}</Tag>}
                     {meta.quality && <Tag>{meta.quality}</Tag>}
                     {meta.elapsed && (
                       <Tag icon={<ClockCircleOutlined />}>{meta.elapsed}</Tag>
                     )}
                   </div>
+                  {meta.jobId && (
+                    <p className="truncate" title={meta.jobId}>
+                      Job: {meta.jobId}
+                    </p>
+                  )}
+                  {meta.resourceUri && (
+                    <p className="truncate" title={meta.resourceUri}>
+                      Resource: {meta.resourceUri}
+                    </p>
+                  )}
+                  {meta.errorMessage && (
+                    <p className="text-red-500" title={meta.errorMessage}>
+                      {meta.errorMessage}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

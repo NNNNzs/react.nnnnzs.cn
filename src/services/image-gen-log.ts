@@ -5,20 +5,27 @@
 import { prisma } from '@/lib/prisma';
 
 export type ImageGenSource = 'ADMIN' | 'MCP';
-export type ImageGenStatus = 'SUCCESS' | 'FAILED';
+export type ImageGenStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
 
 export interface CreateImageGenLogParams {
   userId: number;
+  jobId?: string;
   source: ImageGenSource;
   prompt: string;
   editPrompt?: string;
   editImageUrl?: string;
-  model: string;
-  originalUrl: string;
+  size?: string;
+  quality?: string;
+  model?: string | null;
+  originalUrl?: string | null;
   cdnUrl?: string;
+  reservedCdnUrl?: string;
+  cosKey?: string;
   status: ImageGenStatus;
   errorMessage?: string;
   durationMs: number;
+  startedAt?: Date;
+  finishedAt?: Date;
 }
 
 export interface ImageGenLogQuery {
@@ -35,17 +42,24 @@ export interface ImageGenLogQuery {
 export async function createImageGenLog(params: CreateImageGenLogParams) {
   return prisma.tbImageGenLog.create({
     data: {
+      job_id: params.jobId,
       user_id: params.userId,
       source: params.source,
       prompt: params.prompt,
       edit_prompt: params.editPrompt,
       edit_image_url: params.editImageUrl,
+      size: params.size,
+      quality: params.quality,
       model: params.model,
       original_url: params.originalUrl,
       cdn_url: params.cdnUrl,
+      reserved_cdn_url: params.reservedCdnUrl,
+      cos_key: params.cosKey,
       status: params.status,
       error_message: params.errorMessage,
       duration_ms: params.durationMs,
+      started_at: params.startedAt,
+      finished_at: params.finishedAt,
     },
   });
 }
@@ -106,7 +120,7 @@ export async function deleteImageGenLog(
 
   if (options.deleteCos) {
     const { deleteCdnImage } = await import('./image-proxy');
-    const urls = [log.cdn_url, log.original_url]
+    const urls = [log.cdn_url, log.reserved_cdn_url, log.original_url]
       .filter((url): url is string => Boolean(url && url.startsWith('http')));
 
     for (const url of Array.from(new Set(urls))) {
@@ -152,7 +166,7 @@ export async function batchDeleteImageGenLogs(
   if (options.deleteCos) {
     const { deleteCdnImage } = await import('./image-proxy');
     const urls = logs.flatMap((log) =>
-      [log.cdn_url, log.original_url].filter(
+      [log.cdn_url, log.reserved_cdn_url, log.original_url].filter(
         (url): url is string => Boolean(url && url.startsWith('http'))
       )
     );

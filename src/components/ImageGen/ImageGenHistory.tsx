@@ -35,6 +35,7 @@ import {
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
+import type { ImageGenStatus } from "@/services/image-gen-log";
 
 interface LogRecord {
   id: number;
@@ -43,10 +44,15 @@ interface LogRecord {
   prompt: string;
   edit_prompt: string | null;
   edit_image_url: string | null;
-  model: string;
-  original_url: string;
+  job_id: string | null;
+  size: string | null;
+  quality: string | null;
+  model: string | null;
+  original_url: string | null;
   cdn_url: string | null;
-  status: string;
+  reserved_cdn_url: string | null;
+  cos_key: string | null;
+  status: ImageGenStatus;
   error_message: string | null;
   duration_ms: number;
   created_at: string;
@@ -62,6 +68,13 @@ interface ImageGenHistoryProps {
 const SOURCE_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   MCP: { label: "MCP", color: "purple", icon: <RobotOutlined /> },
   ADMIN: { label: "后台", color: "blue", icon: <DesktopOutlined /> },
+};
+
+const STATUS_MAP: Record<ImageGenStatus, { label: string; color: string }> = {
+  PENDING: { label: "排队中", color: "default" },
+  PROCESSING: { label: "处理中", color: "processing" },
+  SUCCESS: { label: "成功", color: "success" },
+  FAILED: { label: "失败", color: "error" },
 };
 
 function formatDuration(ms: number): string {
@@ -357,6 +370,8 @@ export default function ImageGenHistory({
                       setPageNum(1);
                     }}
                     options={[
+                      { label: "排队中", value: "PENDING" },
+                      { label: "处理中", value: "PROCESSING" },
                       { label: "成功", value: "SUCCESS" },
                       { label: "失败", value: "FAILED" },
                     ]}
@@ -416,6 +431,7 @@ export default function ImageGenHistory({
             {records.map((record) => {
               const url = displayUrl(record);
               const sourceInfo = SOURCE_MAP[record.source];
+              const statusInfo = STATUS_MAP[record.status] || { label: record.status, color: 'default' };
               const isSelected = selectedIds.has(record.id);
 
               return (
@@ -456,6 +472,13 @@ export default function ImageGenHistory({
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
+                    ) : record.status === "PENDING" || record.status === "PROCESSING" ? (
+                      <div className="text-center p-2">
+                        <Spin size="small" />
+                        <p className="text-xs text-gray-400 mt-2">
+                          {statusInfo.label}
+                        </p>
+                      </div>
                     ) : (
                       <div className="text-center p-2">
                         <CloseCircleOutlined className="text-2xl text-red-300" />
@@ -482,6 +505,12 @@ export default function ImageGenHistory({
                             {sourceInfo.label}
                           </Tag>
                         )}
+                        <Tag
+                          color={statusInfo.color}
+                          className="text-xs m-0 scale-90 origin-left"
+                        >
+                          {statusInfo.label}
+                        </Tag>
                         <span className="text-xs text-gray-400 flex items-center gap-0.5">
                           <ClockCircleOutlined className="text-[10px]" />
                           {formatDuration(record.duration_ms)}

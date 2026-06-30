@@ -38,11 +38,54 @@ function normalizeExt(filename: string, ext?: string) {
   return rawExt.startsWith('.') ? rawExt : `.${rawExt}`;
 }
 
+export function normalizeCosKey(key: string): string {
+  const rawKey = key.trim();
+  if (!rawKey) {
+    throw new Error('COS Key 不能为空');
+  }
+
+  if (rawKey.includes('\\') || rawKey.includes('\0')) {
+    throw new Error('COS Key 包含非法字符');
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(rawKey)) {
+    throw new Error('COS Key 应为对象路径，不能是完整 URL');
+  }
+
+  const segments = rawKey
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    throw new Error('COS Key 不能为空');
+  }
+
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    throw new Error('COS Key 不能包含相对路径');
+  }
+
+  const normalizedKey = `/${segments.join('/')}`;
+
+  // 长度限制（cos_key 字段 VarChar(255)）
+  if (normalizedKey.length > 250) {
+    throw new Error(`COS Key 长度不能超过 250 字符（当前 ${normalizedKey.length}）`);
+  }
+
+  return normalizedKey;
+}
+
+export function getCdnUrlForCosKey(key: string): string {
+  const { CDN_URL } = getCosBucketConfig();
+  return `${CDN_URL.replace(/\/+$/, '')}${normalizeCosKey(key)}`;
+}
+
 export interface UploadFileInput {
   buffer: Buffer;
   filename: string;
   mimetype?: string;
   ext?: string;
+  key?: string;
 }
 
 /**
@@ -56,7 +99,7 @@ export async function uploadFileToCOS(file: UploadFileInput): Promise<string> {
   const md5Name = createHash('md5')
     .update(file.buffer)
     .digest('hex');
-  const Key = `/upload/${md5Name}${ext}`;
+  const Key = file.key ? normalizeCosKey(file.key) : `/upload/${md5Name}${ext}`;
 
   const result = await cos.putObject({
     Bucket,
@@ -68,7 +111,7 @@ export async function uploadFileToCOS(file: UploadFileInput): Promise<string> {
   });
 
   if (result.statusCode === 200) {
-    return `${CDN_URL}${Key}`;
+    return `${CDN_URL.replace(/\/+$/, '')}${Key}`;
   }
 
   throw new Error(`上传失败: ${result.statusCode}`);

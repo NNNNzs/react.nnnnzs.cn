@@ -129,6 +129,8 @@ src/
 │   │   ├── simple-embedder.ts    # 全量向量化编排
 │   │   ├── vector-store.ts       # Qdrant 向量 CRUD
 │   │   └── text-splitter.ts      # Markdown 文本分块
+│   ├── queue/                    # 通用后台任务队列
+│   │   └── task-queue.ts         # 并发、去重、重试、状态快照
 │   ├── post.ts                   # 文章 CRUD 操作
 │   ├── collection.ts             # 合集 CRUD 操作
 │   ├── user.ts                   # 用户操作
@@ -140,6 +142,7 @@ src/
 │   ├── entity-change-log.ts      # 变更日志服务
 │   ├── face.ts                   # 腾讯云人脸识别（IAI）服务
 │   ├── image-gen.ts              # AI 图片生成 service（GPT Image 2）
+│   ├── image-gen-job.ts          # AI 图片生成异步任务（UUID jobId + 队列）
 │   ├── chat-log.ts               # 聊天会话和消息记录服务
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务

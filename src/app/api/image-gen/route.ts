@@ -1,9 +1,9 @@
 /**
  * AI 图片生成 API
  * POST /api/image-gen
- * 根据 image_gen.api_mode 配置调用 /v1/chat/completions 或 /v1/images/generations
+ * 创建图片生成异步任务
  * 支持文生图、图文编辑
- * 自动转存到 CDN 并记录日志
+ * 后台队列自动生成、转存到 CDN 并记录日志
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,16 +11,16 @@ import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { IMAGE_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
-import { generateImageWithLog } from '@/services/image-gen';
 import type { ImageGenOptions } from '@/services/image-gen';
+import { createImageGenerationJob } from '@/services/image-gen-job';
 
-export const maxDuration = 300;
+export const maxDuration = 30;
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
   code: 'image_gen',
   name: 'AI图片生成',
-  description: '使用 AI 生成图片，支持 chat_completions 和 images_generations 两种接口模式',
+  description: '创建 AI 图片生成异步任务，立即返回 jobId 和预分配 CDN URL，后台队列完成生成和转存',
   module: 'image',
   method: 'POST',
   permissionCode: IMAGE_VIEW,
@@ -46,18 +46,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ImageGenOptions = await request.json();
-    const startTime = Date.now();
 
-    // 使用完整流程：生成 + 转存 + 日志
-    const result = await generateImageWithLog(body, check.user.id, 'ADMIN');
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    const job = await createImageGenerationJob({
+      options: body,
+      userId: check.user.id,
+      source: 'ADMIN',
+    });
 
     return NextResponse.json(
-      successResponse({
-        imageUrl: result.imageUrl,
-        model: result.model,
-        elapsed: `${elapsed}s`,
-      })
+      successResponse(job, '图片生成任务已提交'),
+      {
+        status: 202,
+        headers: {
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+        },
+      }
     );
   } catch (error) {
     console.error('Image generation error:', error);

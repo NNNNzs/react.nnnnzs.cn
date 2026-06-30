@@ -237,6 +237,8 @@ const seedApiRegistry: ApiRegistrySeed[] = [
         filename: { type: 'string', description: '文件名，例如 image.png、report.pdf' },
         mimeType: { type: 'string', description: '文件 MIME 类型，例如 image/png、application/pdf' },
         ext: { type: 'string', description: '可选文件扩展名，例如 png、pdf；未传时从 filename 推断' },
+        key: { type: 'string', description: '可选 COS Key，例如 /upload/custom/image.png；不传时按内容 MD5 自动生成' },
+        cosKey: { type: 'string', description: 'key 的别名，可选 COS Key' },
       },
     },
   },
@@ -244,7 +246,7 @@ const seedApiRegistry: ApiRegistrySeed[] = [
   {
     code: 'image_gen',
     name: 'AI图片生成',
-    description: '使用 AI 生成图片，支持 chat_completions 和 images_generations 两种接口模式',
+    description: '创建 AI 图片生成异步任务，立即返回 jobId 和预分配 CDN URL，后台队列完成生成和转存',
     module: 'image',
     api_path: '/api/image-gen',
     api_method: 'POST',

@@ -5,6 +5,7 @@
 
 import { getPrisma } from '@/lib/prisma';
 import { simpleEmbedPost, type SimpleEmbedParams } from './simple-embedder';
+import { TaskQueue, type QueueTask } from '@/services/queue/task-queue';
 
 /**
  * 向量化状态枚举
@@ -45,72 +46,59 @@ const QUEUE_CONFIG = {
 /**
  * 向量化队列类
  */
+type EmbeddingQueueTask = QueueTask<'embedding', EmbedTask>;
+
 class EmbeddingQueue {
-  private queue: EmbedTask[] = [];
-  private processing = new Set<number>();
-  private isRunning = false;
-  private timer: NodeJS.Timeout | null = null;
+  private readonly queue = new TaskQueue<EmbeddingQueueTask>(
+    {
+      name: 'embedding',
+      concurrency: QUEUE_CONFIG.concurrency,
+      maxRetries: QUEUE_CONFIG.maxRetries,
+      retryDelay: QUEUE_CONFIG.retryDelay,
+      checkInterval: QUEUE_CONFIG.checkInterval,
+    },
+    {
+      process: async (task) => {
+        await this.processTask(task.payload);
+      },
+      onRetry: (task, _error, nextAttempt) => {
+        console.log(`重试文章 ${task.payload.postId} 的向量化 (${nextAttempt}/${QUEUE_CONFIG.maxRetries})...`);
+      },
+      onFailure: async (task, error) => {
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        await this.updatePostStatus(task.payload.postId, EmbedStatus.FAILED, {
+          ragError: errorMessage,
+        });
+      },
+    },
+  );
 
   /**
    * 启动队列
    */
   start() {
-    if (this.isRunning) {
-      console.log('⚠️ 向量化队列已在运行');
-      return;
-    }
-
-    console.log('🚀 启动向量化队列');
-    console.log(`📊 配置: 并发=${QUEUE_CONFIG.concurrency}, 最大重试=${QUEUE_CONFIG.maxRetries}`);
-    this.isRunning = true;
-    this.schedule();
+    this.queue.start();
   }
 
   /**
    * 停止队列
    */
   stop() {
-    console.log('⏸️ 停止向量化队列');
-    this.isRunning = false;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
+    this.queue.stop();
   }
 
   /**
    * 添加任务到队列
    */
   add(task: EmbedTask): void {
-    // 检查是否已在队列中
-    const exists = this.queue.some(t => t.postId === task.postId);
-    if (exists) {
-      console.log(`⚠️ 文章 ${task.postId} 已在队列中`);
-      return;
-    }
-
-    // 检查是否正在处理
-    if (this.processing.has(task.postId)) {
-      console.log(`⚠️ 文章 ${task.postId} 正在处理中`);
-      return;
-    }
-
-    // 添加到队列并排序（按优先级和时间）
-    this.queue.push(task);
-    this.queue.sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return a.priority - b.priority;
-      }
-      return a.addTime - b.addTime;
+    this.queue.add({
+      id: String(task.postId),
+      type: 'embedding',
+      payload: task,
+      title: task.title,
+      priority: task.priority,
+      addTime: task.addTime,
     });
-
-    console.log(`📥 文章 ${task.postId} 已添加到队列，当前队列长度: ${this.queue.length}`);
-
-    // 如果队列未运行，自动启动
-    if (!this.isRunning) {
-      console.log('⚠️ 队列未运行，自动启动');
-      this.start();
-    }
   }
 
   /**
@@ -130,132 +118,44 @@ class EmbeddingQueue {
     processingCount: number;
     queueTasks: Array<{ postId: number; title: string; priority: number }>;
     processingTasks: number[];
+    isRunning: boolean;
   } {
+    const status = this.queue.getStatus();
     return {
-      queueLength: this.queue.length,
-      processingCount: this.processing.size,
-      queueTasks: this.queue.map(t => ({
-        postId: t.postId,
-        title: t.title,
+      queueLength: status.queueLength,
+      processingCount: status.processingCount,
+      queueTasks: status.queueTasks.map(t => ({
+        postId: Number(t.id),
+        title: t.title || '',
         priority: t.priority,
       })),
-      processingTasks: Array.from(this.processing),
+      processingTasks: status.processingTasks.map(Number),
+      isRunning: status.isRunning,
     };
   }
 
   /**
-   * 调度下一个任务
+   * 处理单个任务
    */
-  private schedule() {
-    if (!this.isRunning) {
-      return;
-    }
-
-    this.timer = setTimeout(() => {
-      this.process();
-    }, QUEUE_CONFIG.checkInterval);
-  }
-
-  /**
-   * 处理队列中的任务
-   */
-  private async process() {
-    // console.log(`🔄 检查队列: 队列长度=${this.queue.length}, 处理中=${this.processing.size}, 并发限制=${QUEUE_CONFIG.concurrency}`);
-
-    // 检查是否达到并发限制
-    if (this.processing.size >= QUEUE_CONFIG.concurrency) {
-      // console.log(`⏸️ 已达到并发限制 ${QUEUE_CONFIG.concurrency}，等待任务完成`);
-      this.schedule();
-      return;
-    }
-
-    // 检查队列是否为空
-    if (this.queue.length === 0) {
-      // console.log(`📭 队列为空，等待新任务`);
-      this.schedule();
-      return;
-    }
-
-    // 取出下一个任务
-    const task = this.queue.shift();
-    if (!task) {
-      this.schedule();
-      return;
-    }
-
-    console.log(`🎯 取出任务: 文章 ${task.postId} (${task.title})`);
-
-    // 标记为处理中
-    this.processing.add(task.postId);
-
-    // 处理任务
-    this.processTask(task)
-      .catch((error) => {
-        console.error(`❌ 处理任务 ${task.postId} 时出错:`, error);
-      })
-      .finally(() => {
-        // 移除处理标记
-        this.processing.delete(task.postId);
-        console.log(`✅ 文章 ${task.postId} 处理完成，剩余队列: ${this.queue.length}`);
-        // 继续调度
-        this.schedule();
-      });
-
-    // 立即检查是否可以处理更多任务
-    if (this.queue.length > 0 && this.processing.size < QUEUE_CONFIG.concurrency) {
-      console.log(`🚀 继续处理下一个任务...`);
-      setImmediate(() => this.process());
-    }
-  }
-
-  /**
-   * 处理单个任务（带重试机制）
-   */
-  private async processTask(task: EmbedTask, retryCount = 0): Promise<void> {
+  private async processTask(task: EmbedTask): Promise<void> {
     const { postId } = task;
 
     console.log(`🔄 开始处理文章 ${postId} 的向量化...`);
 
-    try {
-      // 1. 更新数据库状态为 processing
-      await this.updatePostStatus(postId, EmbedStatus.PROCESSING);
+    await this.updatePostStatus(postId, EmbedStatus.PROCESSING);
 
-      // 2. 执行向量化
-      await simpleEmbedPost({
-        postId: task.postId,
-        title: task.title,
-        content: task.content,
-        hide: task.hide,
-      });
+    await simpleEmbedPost({
+      postId: task.postId,
+      title: task.title,
+      content: task.content,
+      hide: task.hide,
+    });
 
-      // 3. 更新数据库状态为 completed
-      await this.updatePostStatus(postId, EmbedStatus.COMPLETED, {
-        ragUpdatedAt: new Date(),
-      });
+    await this.updatePostStatus(postId, EmbedStatus.COMPLETED, {
+      ragUpdatedAt: new Date(),
+    });
 
-      console.log(`✅ 文章 ${postId} 向量化完成`);
-    } catch (error) {
-      console.error(`❌ 文章 ${postId} 向量化失败:`, error);
-
-      // 检查是否需要重试
-      if (retryCount < QUEUE_CONFIG.maxRetries) {
-        console.log(`🔄 重试文章 ${postId} 的向量化 (${retryCount + 1}/${QUEUE_CONFIG.maxRetries})...`);
-
-        // 延迟后重试
-        await new Promise((resolve) => setTimeout(resolve, QUEUE_CONFIG.retryDelay));
-
-        // 递归重试
-        return this.processTask(task, retryCount + 1);
-      }
-
-      // 重试次数用尽，标记为失败
-      const errorMessage = error instanceof Error ? error.message : '未知错误';
-      await this.updatePostStatus(postId, EmbedStatus.FAILED, {
-        ragError: errorMessage,
-      });
-
-      console.error(`❌ 文章 ${postId} 向量化最终失败，已重试 ${retryCount} 次`);
-    }
+    console.log(`✅ 文章 ${postId} 向量化完成`);
   }
 
   /**

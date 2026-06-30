@@ -10,7 +10,7 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { uploadFileToCOS } from '@/services/file-upload';
+import { uploadFileToCOS, normalizeCosKey } from '@/services/file-upload';
 import { FILE_UPLOAD } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
@@ -30,6 +30,8 @@ export const descriptor: ApiDescriptor = {
       filename: { type: 'string', description: '文件名，例如 image.png、report.pdf' },
       mimeType: { type: 'string', description: '文件 MIME 类型，例如 image/png、application/pdf' },
       ext: { type: 'string', description: '可选文件扩展名，例如 png、pdf；未传时从 filename 推断' },
+      key: { type: 'string', description: '可选 COS Key，例如 /upload/custom/image.png；不传时按内容 MD5 自动生成' },
+      cosKey: { type: 'string', description: 'key 的别名，可选 COS Key' },
     },
   },
 };
@@ -57,7 +59,20 @@ export async function POST(request: NextRequest) {
       buffer,
       filename: file.name,
       mimetype: file.type,
+      key: (formData.get('key') || formData.get('cosKey')) as string | undefined,
     };
+
+    // 提前校验 COS Key 格式，避免上传到 COS 才报错
+    if (fileData.key) {
+      try {
+        normalizeCosKey(fileData.key);
+      } catch (error) {
+        return NextResponse.json(
+          errorResponse(error instanceof Error ? error.message : '无效的文件路径'),
+          { status: 400 }
+        );
+      }
+    }
 
     // 上传到 COS
     const url = await uploadFileToCOS(fileData);
