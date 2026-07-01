@@ -21,6 +21,13 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
 
+  // 校验 buildDate 是否为合法日期，避免渲染出 "Invalid Date"
+  const formattedBuildDate = (() => {
+    if (!buildInfo?.buildDate) return null;
+    const d = new Date(buildInfo.buildDate);
+    return Number.isNaN(d.getTime()) ? null : d;
+  })();
+
   useEffect(() => {
     // 读取构建信息（加时间戳参数避免 CDN 缓存）
     fetch(`/version.json?t=${Date.now()}`)
@@ -141,12 +148,12 @@ export default function Footer() {
             >
               皖ICP备16025009号-1
             </a>
-            {buildInfo && buildInfo.buildDate && (
+            {formattedBuildDate && (
               <>
                 <br className="md:hidden" />
                 <span className="hidden md:inline"> | </span>
                 <span className="font-mono">
-                  构建于 {new Date(buildInfo.buildDate).toLocaleString("zh-CN", {
+                  构建于 {formattedBuildDate.toLocaleString("zh-CN", {
                     timeZone: "Asia/Shanghai",
                     year: "numeric",
                     month: "2-digit",
