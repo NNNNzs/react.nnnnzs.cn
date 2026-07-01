@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
@@ -17,6 +17,14 @@ export default function HeaderUserMenu() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, logout, hasPermission } = useAuth();
+
+  // 防止 hydration mismatch：登录态由客户端异步获取（useEffect），
+  // SSR 时 user 恒为 null。在 mount 完成前渲染稳定占位，
+  // 保证服务端与客户端首屏 DOM 一致。
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 构建当前完整 URL 用于登录后返回
   const currentUrl = useMemo(() => {
@@ -62,7 +70,10 @@ export default function HeaderUserMenu() {
 
   return (
     <div className="h-full flex items-center">
-      {user ? (
+      {!mounted ? (
+        // 占位：宽度与登录按钮/头像区接近，避免首屏跳动；与服务端输出一致
+        <span className="block h-8 w-24" aria-hidden />
+      ) : user ? (
         <Dropdown menu={{ items: menuItems }} placement="bottomRight">
           <Space className="cursor-pointer">
             <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />
