@@ -23,6 +23,7 @@ import {
   Form,
   Select,
   Card,
+  Tabs,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -40,6 +41,7 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import type { QueryConfigCondition } from "@/dto/config.dto";
 import type { TbConfig } from "@/generated/prisma-client";
+import AIProfilePanel from "./AIProfilePanel";
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -499,61 +501,80 @@ function ConfigPageContent() {
           </Button>
         </div>
 
-        {/* 搜索和筛选 */}
-        <div
-          className={`mb-4 shrink-0 ${
-            isMobile ? "flex flex-col gap-2" : "flex gap-4"
-          }`}
-        >
-          <Search
-            placeholder="搜索标题或Key"
-            allowClear
-            enterButton={<SearchOutlined />}
-            size={isMobile ? "middle" : "large"}
-            value={searchInputValue}
-            onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
-            onChange={(e) => setSearchInputValue(e.target.value)}
-            style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
-          />
-          <Select
-            placeholder="状态筛选"
-            allowClear
-            size={isMobile ? "middle" : "large"}
-            style={isMobile ? { width: "100%" } : { width: 120 }}
-            value={statusFilter === "all" ? undefined : statusFilter}
-            onChange={(value) =>
-              updateQueryParams({ status: value || "all", page: 1 })
-            }
-            options={[
-              { label: "全部", value: "all" },
-              { label: "启用", value: "1" },
-              { label: "禁用", value: "0" },
-            ]}
-          />
-        </div>
+        <Tabs
+          className="flex min-h-0 flex-1 flex-col overflow-visible [&_.ant-tabs-content-holder]:min-h-0 [&_.ant-tabs-content-holder]:overflow-visible [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full"
+          destroyOnHidden={false}
+          items={[
+            {
+              key: "ai-profiles",
+              label: "AI 配置组",
+              children: <AIProfilePanel />,
+            },
+            {
+              key: "raw-configs",
+              label: "单项配置",
+              children: (
+                <div className="flex h-full min-h-0 flex-col">
+                  {/* 搜索和筛选 */}
+                  <div
+                    className={`mb-4 shrink-0 ${
+                      isMobile ? "flex flex-col gap-2" : "flex gap-4"
+                    }`}
+                  >
+                    <Search
+                      placeholder="搜索标题或Key"
+                      allowClear
+                      enterButton={<SearchOutlined />}
+                      size={isMobile ? "middle" : "large"}
+                      value={searchInputValue}
+                      onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
+                      onChange={(e) => setSearchInputValue(e.target.value)}
+                      style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
+                    />
+                    <Select
+                      placeholder="状态筛选"
+                      allowClear
+                      size={isMobile ? "middle" : "large"}
+                      style={isMobile ? { width: "100%" } : { width: 120 }}
+                      value={statusFilter === "all" ? undefined : statusFilter}
+                      onChange={(value) =>
+                        updateQueryParams({ status: value || "all", page: 1 })
+                      }
+                      options={[
+                        { label: "全部", value: "all" },
+                        { label: "启用", value: "1" },
+                        { label: "禁用", value: "0" },
+                      ]}
+                    />
+                  </div>
 
-        {/* 配置列表 */}
-        <ResponsiveTable
-          columns={columns}
-          dataSource={configs}
-          rowKey="id"
-          loading={loading}
-          renderMobileCard={renderMobileCard}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
-            showTotal: (total) => `共 ${total} 条配置`,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
-          }}
-          onChange={(paginationConfig) => {
-            updateQueryParams({
-              page: paginationConfig.current || 1,
-              pageSize: paginationConfig.pageSize || 20,
-            });
-          }}
+                  {/* 配置列表 */}
+                  <ResponsiveTable
+                    columns={columns}
+                    dataSource={configs}
+                    rowKey="id"
+                    loading={loading}
+                    renderMobileCard={renderMobileCard}
+                    pagination={{
+                      current: pagination.current,
+                      pageSize: pagination.pageSize,
+                      total: pagination.total,
+                      showTotal: (total) => `共 ${total} 条配置`,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      pageSizeOptions: ["10", "20", "50", "100"],
+                    }}
+                    onChange={(paginationConfig) => {
+                      updateQueryParams({
+                        page: paginationConfig.current || 1,
+                        pageSize: paginationConfig.pageSize || 20,
+                      });
+                    }}
+                  />
+                </div>
+              ),
+            },
+          ]}
         />
       </div>
 

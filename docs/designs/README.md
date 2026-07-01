@@ -25,6 +25,7 @@ docs/designs/
 ├── homepage-3d-day-night.md         # 首页 3D 昼夜双主题
 ├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
 ├── mcp-oauth-design.md              # MCP OAuth 2.0 认证
+├── ai-config-profiles.md            # AI 配置组管理
 ├── image-gen.md                     # AI 图片生成
 ├── task-queue.md                   # 后台任务队列系统
 ├── rbac-config-design.md            # 配置化 RBAC 权限系统
@@ -51,6 +52,7 @@ docs/designs/
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [Agent 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + RAG 检索工具 + 聊天记录持久化 | ✅ 已实施 |
+| [AI 配置组管理](ai-config-profiles.md) | 多套模型地址、模型和密钥配置组切换 | ✅ 已实施 |
 
 ### 业务功能
 

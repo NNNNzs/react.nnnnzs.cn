@@ -4,11 +4,17 @@
  */
 
 import { configByKeys } from '@/services/config';
+import { getAIProfileState } from '@/services/ai-config-profiles';
+import {
+  getActiveProfileValues,
+  getProfileConfigCandidates,
+  type AIProfileScenarioConfig,
+} from '@/lib/ai-config-profiles';
 
 /**
  * AI 配置场景类型
  */
-export type AIConfigScenario = 'ai_text' | 'description' | 'chat' | 'embedding' | 'image_gen';
+export type AIConfigScenario = string;
 
 /**
  * AI 配置接口
@@ -20,6 +26,52 @@ export interface AIConfig {
   temperature?: number;
   max_tokens?: number;
   dimensions?: number; // 仅用于 embedding
+  api_mode?: string; // 仅用于 image_gen
+  voice?: string; // 仅用于 tts
+}
+
+function parseAIConfigValues(
+  scenario: AIConfigScenario,
+  values: AIProfileScenarioConfig | null,
+): AIConfig {
+  if (!values) {
+    throw new Error(`AI 配置组缺失场景: ${scenario}`);
+  }
+
+  const apiKey = values.api_key;
+  const model = values.model;
+  const baseUrl = values.base_url;
+
+  if (!apiKey) {
+    throw new Error(`AI 配置组字段缺失: ${scenario}.api_key`);
+  }
+  if (!model) {
+    throw new Error(`AI 配置组字段缺失: ${scenario}.model`);
+  }
+  if (!baseUrl) {
+    throw new Error(`AI 配置组字段缺失: ${scenario}.base_url`);
+  }
+
+  const temperature = values.temperature
+    ? parseFloat(values.temperature)
+    : undefined;
+  const maxTokens = values.max_tokens
+    ? parseInt(values.max_tokens, 10)
+    : undefined;
+  const dimensions = values.dimensions
+    ? parseInt(values.dimensions, 10)
+    : undefined;
+
+  return {
+    api_key: apiKey,
+    model,
+    base_url: baseUrl,
+    temperature,
+    max_tokens: maxTokens,
+    ...(dimensions !== undefined && { dimensions }),
+    ...(values.api_mode !== undefined && { api_mode: values.api_mode }),
+    ...(values.voice !== undefined && { voice: values.voice }),
+  };
 }
 
 /**
@@ -126,55 +178,25 @@ export async function getAIConfigValues(
  * @returns AI 配置对象
  */
 export async function getAIConfig(scenario: AIConfigScenario): Promise<AIConfig> {
-  const keys = [
-    `${scenario}.api_key`,
-    `${scenario}.model`,
-    `${scenario}.base_url`,
-    `${scenario}.temperature`,
-    `${scenario}.max_tokens`,
-  ];
+  const profileState = await getAIProfileState();
+  const values = getActiveProfileValues(profileState, scenario);
 
-  // embedding 场景需要 dimensions
-  if (scenario === 'embedding') {
-    keys.push(`${scenario}.dimensions`);
+  if (!profileState.activeProfileIds[scenario]) {
+    throw new Error(`AI 配置组未激活，请在配置管理中选择 ${scenario} 的当前配置组`);
   }
 
-  const values = await getAIConfigValues(keys);
+  return parseAIConfigValues(scenario, values);
+}
 
-  // 验证必需配置
-  const apiKey = values[`${scenario}.api_key`];
-  const model = values[`${scenario}.model`];
-  const baseUrl = values[`${scenario}.base_url`];
+export async function getAIConfigCandidates(scenario: AIConfigScenario): Promise<AIConfig[]> {
+  const profileState = await getAIProfileState();
+  const candidates = getProfileConfigCandidates(profileState, scenario);
 
-  if (!apiKey) {
-    throw new Error(`配置缺失: ${scenario}.api_key`);
-  }
-  if (!model) {
-    throw new Error(`配置缺失: ${scenario}.model`);
-  }
-  if (!baseUrl) {
-    throw new Error(`配置缺失: ${scenario}.base_url`);
+  if (!profileState.activeProfileIds[scenario]) {
+    throw new Error(`AI 配置组未激活，请在配置管理中选择 ${scenario} 的当前配置组`);
   }
 
-  // 解析可选配置
-  const temperature = values[`${scenario}.temperature`]
-    ? parseFloat(values[`${scenario}.temperature`]!)
-    : undefined;
-  const maxTokens = values[`${scenario}.max_tokens`]
-    ? parseInt(values[`${scenario}.max_tokens`]!, 10)
-    : undefined;
-  const dimensions = values[`${scenario}.dimensions`]
-    ? parseInt(values[`${scenario}.dimensions`]!, 10)
-    : undefined;
-
-  return {
-    api_key: apiKey,
-    model,
-    base_url: baseUrl,
-    temperature,
-    max_tokens: maxTokens,
-    ...(dimensions !== undefined && { dimensions }),
-  };
+  return candidates.map((candidate) => parseAIConfigValues(scenario, candidate));
 }
 
 /**

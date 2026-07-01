@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/permission';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { getAIConfigValue } from '@/lib/ai-config';
+import { getAIConfig } from '@/lib/ai-config';
 import { TTS_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
@@ -72,20 +72,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse('合成文本不能为空'), { status: 400 });
     }
 
-    // 从数据库读取 TTS 配置
-    const [apiKey, baseUrl, defaultModel, defaultVoice] = await Promise.all([
-      getAIConfigValue('tts.api_key'),
-      getAIConfigValue('tts.base_url'),
-      getAIConfigValue('tts.default_model', 'mimo-v2.5-tts'),
-      getAIConfigValue('tts.default_voice', '冰糖'),
-    ]);
-
-    if (!apiKey) {
-      return NextResponse.json(errorResponse('TTS API 密钥未配置，请在配置管理中设置 tts.api_key'), { status: 500 });
-    }
-
-    const model = requestedModel || defaultModel || 'mimo-v2.5-tts';
-    const voice = requestedVoice || defaultVoice || '冰糖';
+    const config = await getAIConfig('tts');
+    const apiKey = config.api_key;
+    const baseUrl = config.base_url;
+    const model = requestedModel || config.model || 'mimo-v2.5-tts';
+    const voice = requestedVoice || config.voice || '冰糖';
 
     // 验证模型
     if (!SUPPORTED_MODELS.includes(model)) {

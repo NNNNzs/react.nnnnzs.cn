@@ -59,6 +59,7 @@
 - **[博客合集功能设计](docs/designs/collection-design.md)** - 文章合集管理功能
 
 #### AI 工具
+- **[AI 配置组管理](docs/designs/ai-config-profiles.md)** - 多套模型地址、模型和密钥配置组切换
 - **[语音合成](docs/designs/tts-page.md)** - MiMo TTS 语音合成
 - **[AI 图片生成](docs/designs/image-gen.md)** - GPT Image 2 文生图/图文编辑
 

@@ -1,4 +1,4 @@
-import { getAIConfigValues } from '@/lib/ai-config';
+import { getAIConfigCandidates, type AIConfig } from '@/lib/ai-config';
 
 const VALID_MODES = ['generate', 'edit'] as const;
 const VALID_QUALITIES = ['high', 'medium'] as const;
@@ -205,26 +205,39 @@ async function requestImagesGenerations(params: {
 export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
   validateImageGenOptions(options);
 
-  const configs = await getAIConfigValues([
-    'image_gen.api_key',
-    'image_gen.base_url',
-    'image_gen.model',
-    'image_gen.api_mode',
-  ]);
+  const configs = await getAIConfigCandidates('image_gen');
+  let lastError: unknown = null;
 
-  const apiKey = configs['image_gen.api_key'];
-  const baseUrl = configs['image_gen.base_url'];
-  const model = configs['image_gen.model'] || 'gpt-image-2';
-  const apiMode = resolveApiMode(configs['image_gen.api_mode']);
+  for (const [index, config] of configs.entries()) {
+    const apiKey = config.api_key;
+    const baseUrl = config.base_url;
+    const model = config.model || 'gpt-image-2';
+    const apiMode = resolveApiMode(config.api_mode ?? null);
 
-  if (!apiKey) throw new Error('图片生成 API 密钥未配置，请在配置管理中设置 image_gen.api_key');
-  if (!baseUrl) throw new Error('图片生成 API 地址未配置，请在配置管理中设置 image_gen.base_url');
+    try {
+      if (apiMode === 'images_generations') {
+        return await requestImagesGenerations({ apiKey, baseUrl, model, options });
+      }
 
-  if (apiMode === 'images_generations') {
-    return requestImagesGenerations({ apiKey, baseUrl, model, options });
+      return await requestChatCompletions({ apiKey, baseUrl, model, options });
+    } catch (error) {
+      lastError = error;
+      const hasFallback = index < configs.length - 1;
+      const logPayload: Pick<AIConfig, 'base_url' | 'model' | 'api_mode'> = {
+        base_url: baseUrl,
+        model,
+        api_mode: apiMode,
+      };
+
+      if (hasFallback) {
+        console.warn('图片生成配置调用失败，尝试降级配置:', logPayload, error);
+      } else {
+        console.error('图片生成所有配置均调用失败:', logPayload, error);
+      }
+    }
   }
 
-  return requestChatCompletions({ apiKey, baseUrl, model, options });
+  throw lastError instanceof Error ? lastError : new Error('图片生成失败');
 }
 
 export async function uploadGeneratedImageToCDN(
