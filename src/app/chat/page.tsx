@@ -139,10 +139,10 @@ const ReactStepItem: React.FC<{ step: ReactStep }> = React.memo(({ step }) => {
   if (!displayContent) return null;
 
   return (
-    <div className="flex items-start gap-2 text-sm leading-relaxed">
-      <span style={{ color: config.color, marginTop: 2 }}>{config.icon}</span>
-      <span className="font-medium text-gray-500 shrink-0 dark:text-slate-300">{config.label}</span>
-      <span className="text-gray-700 dark:text-slate-200">
+    <div className="chat-react-step flex items-start gap-2 text-sm leading-relaxed">
+      <span className="chat-react-step-icon" style={{ color: config.color, marginTop: 2 }}>{config.icon}</span>
+      <span className="chat-react-step-label font-medium text-gray-500 shrink-0 dark:text-slate-300">{config.label}</span>
+      <span className="chat-react-step-content text-gray-700 dark:text-slate-200">
         {displayContent}
         {step.isStreaming && (
           <span className="inline-block w-1.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle dark:bg-slate-300" />
@@ -222,8 +222,8 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
       const collapseItems = [{
         key: `loop-${loop.index}`,
         label: (
-          <span className="flex items-center gap-2">
-            <span>
+          <span className="chat-react-loop-title flex items-center gap-2">
+            <span className="chat-react-loop-title-text">
               {selectStyleText(chatStyleCopy.retrievalRoundPrefix, styleVariant)}
               {loop.index}
               {selectStyleText(chatStyleCopy.retrievalRoundSuffix, styleVariant)}
@@ -232,7 +232,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
           </span>
         ),
         children: (
-          <div className="space-y-2">
+          <div className="chat-react-loop-steps space-y-2">
             {loop.steps.map((step, stepIdx) => (
               <ReactStepItem key={`${loop.index}-${stepIdx}`} step={step} />
             ))}
@@ -245,7 +245,7 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
           key={`timeline-loop-${loop.index}`}
           size="small"
           defaultActiveKey={[`loop-${loop.index}`]}
-          className="mb-3"
+          className="chat-react-loop mb-3"
           items={collapseItems}
         />
       );
@@ -272,6 +272,11 @@ const MessageContent: React.FC<MessageContentProps> = React.memo(
                 return (
                   <Think
                     key={`timeline-think-${index}`}
+                    rootClassName="chat-think"
+                    classNames={{
+                      status: "chat-think-status",
+                      content: "chat-think-content",
+                    }}
                     title={loading && isLatestThink
                       ? title
                       : selectStyleText(chatStyleCopy.thinkSegment, styleVariant)}
@@ -343,7 +348,7 @@ const SessionCommandPalette: React.FC<{
   }, [searchText, sessions, styleVariant]);
 
   return (
-    <div className="flex max-h-[68vh] flex-col overflow-hidden">
+    <div className="chat-session-palette flex max-h-[68vh] flex-col overflow-hidden">
       <Input
         allowClear
         autoFocus
@@ -358,16 +363,16 @@ const SessionCommandPalette: React.FC<{
         }}
         placeholder={selectStyleText(chatStyleCopy.sessionSearchPlaceholder, styleVariant)}
         size="large"
-        className="mb-4"
+        className="chat-session-search mb-4"
       />
 
-      <div className="mb-3 flex items-center justify-between text-xs text-gray-400 dark:text-slate-400">
+      <div className="chat-session-meta mb-3 flex items-center justify-between text-xs text-gray-400 dark:text-slate-400">
         <span>{selectStyleText(chatStyleCopy.recentSessions, styleVariant)}</span>
         <span>{selectStyleText(chatStyleCopy.commandHint, styleVariant)}</span>
       </div>
 
       {/* 会话列表 */}
-      <div className="min-h-0 flex-1 overflow-auto pr-1">
+      <div className="chat-session-list-wrap min-h-0 flex-1 overflow-auto pr-1">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Spin />
@@ -382,12 +387,13 @@ const SessionCommandPalette: React.FC<{
         ) : (
           <List
             size="small"
+            className="chat-session-list"
             dataSource={filteredSessions}
             renderItem={(session) => (
               <List.Item
-                className={`mb-2 cursor-pointer rounded-xl border px-3 py-3 transition-all hover:border-blue-200 hover:bg-blue-50/60 dark:hover:border-slate-500 dark:hover:bg-slate-700/70 ${
+                className={`chat-session-item mb-2 cursor-pointer rounded-xl border px-3 py-3 transition-all hover:border-blue-200 hover:bg-blue-50/60 dark:hover:border-slate-500 dark:hover:bg-slate-700/70 ${
                   activeSessionId === session.id
-                    ? "border-blue-300 bg-blue-50 shadow-sm dark:border-blue-500/60 dark:bg-blue-950/40"
+                    ? "chat-session-item-active border-blue-300 bg-blue-50 shadow-sm dark:border-blue-500/60 dark:bg-blue-950/40"
                     : "border-stone-100 bg-white/80 dark:border-slate-700 dark:bg-slate-900/80"
                 }`}
                 onClick={() => onSelect(session.id)}
@@ -426,7 +432,7 @@ const SessionCommandPalette: React.FC<{
         )}
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
+      <div className="chat-session-footer mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
         <Button type="primary" icon={<PlusOutlined />} onClick={onNew} block>
           {selectStyleText(chatStyleCopy.newSession, styleVariant)}
         </Button>
@@ -1131,6 +1137,15 @@ export default function ChatPage() {
         onCancel={() => setSessionPaletteOpen(false)}
         footer={null}
         width={isMobile ? "calc(100vw - 32px)" : 640}
+        rootClassName="chat-session-modal-root"
+        className="chat-session-modal"
+        classNames={{
+          header: "chat-session-modal-header",
+          body: "chat-session-modal-body",
+          title: "chat-session-modal-title",
+          wrapper: "chat-session-modal-wrapper",
+          mask: "chat-session-modal-mask",
+        }}
         destroyOnHidden
         afterClose={() => setSessionSearchText("")}
       >
@@ -1229,6 +1244,11 @@ export default function ChatPage() {
               onSubmit={handleSubmit}
 	              placeholder={selectStyleText(chatStyleCopy.inputPlaceholder, styleVariant)}
               rootClassName="chat-sender"
+              classNames={{
+                content: "chat-sender-content",
+                input: "chat-sender-input",
+                suffix: "chat-sender-suffix",
+              }}
             />
           </div>
         </div>

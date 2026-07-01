@@ -45,6 +45,10 @@ function normalizeTitle(title: string): string {
     .slice(0, MAX_TITLE_LENGTH);
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : '未知错误';
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
     promise,
@@ -63,35 +67,41 @@ export async function generateChatSessionTitle(params: {
 
   if (!userMessage || !assistantMessage) return null;
 
-  const model = await createOpenAIModel({
-    scenario: 'chat',
-    temperature: 0.2,
-    maxTokens: TITLE_MAX_TOKENS,
-    modelKwargs: {
-      thinking: { type: 'disabled' },
-    },
-  });
+  try {
+    const model = await createOpenAIModel({
+      scenario: 'chat',
+      temperature: 0.2,
+      maxTokens: TITLE_MAX_TOKENS,
+      streaming: false,
+      modelKwargs: {
+        thinking: { type: 'disabled' },
+      },
+    });
 
-  const response = await withTimeout(
-    model.invoke([
-      new SystemMessage(
-        [
-          '你是会话标题生成器。',
-          '根据首轮用户问题和 assistant 回复，总结一个中文会话标题。',
-          `要求：${MAX_TITLE_LENGTH} 字以内，不要引号，不要句号，不要解释，只输出标题。`,
-        ].join('\n'),
-      ),
-      new HumanMessage(
-        [
-          `用户问题：${userMessage}`,
-          '',
-          `assistant 回复：${assistantMessage}`,
-        ].join('\n'),
-      ),
-    ]),
-    TITLE_TIMEOUT_MS,
-  );
+    const response = await withTimeout(
+      model.invoke([
+        new SystemMessage(
+          [
+            '你是会话标题生成器。',
+            '根据首轮用户问题和 assistant 回复，总结一个中文会话标题。',
+            `要求：${MAX_TITLE_LENGTH} 字以内，不要引号，不要句号，不要解释，只输出标题。`,
+          ].join('\n'),
+        ),
+        new HumanMessage(
+          [
+            `用户问题：${userMessage}`,
+            '',
+            `assistant 回复：${assistantMessage}`,
+          ].join('\n'),
+        ),
+      ]),
+      TITLE_TIMEOUT_MS,
+    );
 
-  const title = normalizeTitle(extractMessageContent(response));
-  return title || null;
+    const title = normalizeTitle(extractMessageContent(response));
+    return title || null;
+  } catch (error) {
+    console.warn('生成会话标题失败，已跳过:', getErrorMessage(error));
+    return null;
+  }
 }

@@ -25,6 +25,8 @@ export interface AIModelConfig {
   temperature?: number;
   /** 最大 token 数 */
   maxTokens?: number;
+  /** 是否启用流式响应 */
+  streaming?: boolean;
   /** 透传给 OpenAI 兼容接口的额外模型参数 */
   modelKwargs?: Record<string, unknown>;
   /** 配置场景（用于从数据库读取配置） */
@@ -56,7 +58,7 @@ export async function createOpenAIModel(
     configuration: {
       baseURL: dbConfig.base_url,
     },
-    streaming: true,
+    streaming: config.streaming ?? true,
     model: mergedConfig.model!,
     temperature: mergedConfig.temperature,
     maxTokens: mergedConfig.maxTokens,
