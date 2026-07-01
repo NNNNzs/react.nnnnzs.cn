@@ -19,6 +19,9 @@ import "@/lib/embedding-init";
 export const metadata: Metadata = {
   title: "NNNNzs",
   description: "Neon Nomad Navigating Night Zones",
+  // favicon 由 Next metadata 渲染，保证 SSR HTML 里有原生 <link rel="icon">，
+  // 便于爬虫直接收录。内联脚本与 useDarkMode 只更新其 href，绝不删除节点，
+  // 避免 React reconciliation 时触发 "Cannot read properties of null (reading 'removeChild')"
   icons: {
     icon: "/favicon-light.png",
   },
@@ -42,7 +45,7 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{
-          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");document.querySelectorAll("link[rel~='icon']").forEach(function(l){l.parentNode&&l.parentNode.removeChild(l)});var l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");document.head.appendChild(l)}catch(e){}})();`,
+          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");var h=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");var l=document.querySelector("link[rel~='icon']")||document.getElementById("theme-favicon");if(l){l.id="theme-favicon";l.href=h;}else{l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=h;document.head.appendChild(l);}}catch(e){}})();`,
         }} />
       </head>
       <AuthProvider>
