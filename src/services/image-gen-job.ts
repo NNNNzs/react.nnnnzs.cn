@@ -2,9 +2,8 @@
  * 图片生成异步任务服务
  */
 
-import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { isUuid } from '@/lib/uuid';
+import { isUuid, generateUuid } from '@/lib/uuid';
 import { USER_MANAGE } from '@/constants/permissions';
 import type { ImageGenOptions } from '@/services/image-gen';
 import { TaskQueue, type QueueTask } from '@/services/queue/task-queue';
@@ -281,7 +280,7 @@ export async function createImageGenerationJob(params: CreateImageGenerationJobP
   const { validateImageGenOptions } = await import('@/services/image-gen');
   validateImageGenOptions(params.options);
 
-  const jobId = randomUUID();
+  const jobId = generateUuid();
   const cosKey = normalizeImageGenerationCosKey(jobId);
   const reservedCdnUrl = getReservedCdnUrlForCosKey(cosKey);
 
