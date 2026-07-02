@@ -942,7 +942,9 @@ body {
 }
 
 .dark .chat-session-modal-root .ant-modal-content,
-.dark .chat-session-modal .ant-modal-content {
+.dark .chat-session-modal-root .ant-modal-container,
+.dark .chat-session-modal .ant-modal-content,
+.dark .chat-session-modal .ant-modal-container {
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96)),
     #0f172a !important;
