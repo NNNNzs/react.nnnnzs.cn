@@ -26,7 +26,8 @@ import SceneLights from './SceneLights';
 import { useSceneStore, PRODUCTION_DEFAULTS } from './useSceneStore';
 import { SceneEditorTransformControls, useSceneEditorStore } from './sceneEditor';
 import { HOMEPAGE_THEME_PRESETS, type HomepageSceneVariant } from './theme';
-import { getBannerSubtitle } from '@/lib/content';
+import { bannerCopy } from '@/config/site-copy/home';
+import { selectStyleText } from '@/lib/site-style/copy';
 import type { Post } from '@/types';
 import type { BookshelfCollection, CommitEntry, DeployRecord, ScreenTextureData } from './furniture/types';
 
@@ -511,7 +512,7 @@ function HeroInterfaceOverlay({
           </h1>
 
           <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
-            {getBannerSubtitle(variant)}
+            {selectStyleText(bannerCopy.subtitle, variant)}
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">

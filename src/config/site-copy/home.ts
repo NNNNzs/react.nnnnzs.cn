@@ -1,5 +1,12 @@
 import { defineStyleCopy } from '@/lib/site-style/copy';
 
+export const bannerCopy = defineStyleCopy({
+  subtitle: {
+    day: 'Neon Nomad Navigating Night Zones. 白天的房间留给阅读、整理和创作，代码、运维、AI 与生活切片在阳光里排成索引。',
+    night: 'Neon Nomad Navigating Night Zones. 代码、运维、AI、生活切片都收纳在这里，像深夜窗边一排还没有关掉的终端。',
+  },
+});
+
 export const homeFeedCopy = defineStyleCopy({
   kicker: {
     day: 'Reading Archive',
