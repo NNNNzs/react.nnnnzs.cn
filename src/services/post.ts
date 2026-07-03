@@ -186,38 +186,37 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
 }
 
 /**
+ * 判断路径是否为 URL 编码格式
+ * 包含 % 且后面跟两位十六进制字符的视为编码格式
+ */
+function isEncodedPath(path: string): boolean {
+  return /%[0-9A-Fa-f]{2}/.test(path);
+}
+
+/**
  * 根据路径获取文章
+ * 兼容处理编码和未编码的路径（SEO 收录可能是任一格式）
  */
 export async function getPostByPath(path: string): Promise<SerializedPost | null> {
-  console.log('🔍 获取文章详情 - 路径:', path);
+  // 统一解码：如果是编码格式则解码，否则直接使用
+  const normalizedPath = isEncodedPath(path) ? decodeURIComponent(path) : path;
+
+  if (normalizedPath !== path) {
+    console.log('🔍 获取文章详情 - 解码路径:', path, '->', normalizedPath);
+  } else {
+    console.log('🔍 获取文章详情 - 路径:', normalizedPath);
+  }
 
   const prisma = await getPrisma();
   const post = await prisma.tbPost.findFirst({
     where: {
-      path: path,
+      path: normalizedPath,
       is_delete: 0,
       hide: '0', // 只查询显示的文章
     },
   });
 
-  if (!post) {
-    // 如果直接查询失败，尝试解码路径后再次查询
-    // 这是因为 Next.js 传递的 URL 参数可能是编码的
-    const decodedPath = decodeURI(path);
-    console.log('🔍 第一次查询失败，尝试解码后的路径:', decodedPath);
-
-    const decodedPost = await prisma.tbPost.findFirst({
-      where: {
-        path: decodedPath,
-        is_delete: 0,
-        hide: '0', // 只查询显示的文章
-      },
-    });
-
-    return decodedPost ? serializePost(decodedPost) : null;
-  }
-
-  return serializePost(post);
+  return post ? serializePost(post) : null;
 }
 
 /**
