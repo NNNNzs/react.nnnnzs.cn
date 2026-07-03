@@ -46,6 +46,7 @@ import {
 const { Sider, Content } = Layout;
 
 const MOBILE_BREAKPOINT = 768;
+const ADMIN_LAYOUT_HEIGHT = "h-[calc(100vh-var(--header-height))]";
 
 /**
  * 管理后台布局组件
@@ -282,12 +283,14 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
    * - 始终不透明，保证后台页面观感一致
    */
   useEffect(() => {
+    document.body.classList.add("admin-light-page");
     setHeaderStyle({
       static: true,
       alwaysVisible: true,
     });
 
     return () => {
+      document.body.classList.remove("admin-light-page");
       resetHeaderStyle();
     };
   }, [setHeaderStyle, resetHeaderStyle]);
@@ -306,7 +309,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 如果正在加载或未登录，显示加载状态
   if (loading || !user) {
     return (
-      <div className="flex h-[calc(100vh-var(--header-height))] items-center justify-center">
+      <div className={`admin-light-shell flex ${ADMIN_LAYOUT_HEIGHT} items-center justify-center bg-slate-50 text-slate-950`}>
         <div>加载中...</div>
       </div>
     );
@@ -315,25 +318,25 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 移动端：隐藏 Sider，使用 Drawer + 全宽内容区
   if (isMobile) {
     return (
-      <Layout className="h-[calc(100vh-var(--header-height))]">
+      <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
         {/* 移动端顶部菜单切换按钮 */}
         <div
-          className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0"
+          className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 shrink-0"
         >
           <button
             onClick={() => setDrawerOpen(true)}
-            className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-gray-100 transition-colors"
             aria-label="打开菜单"
           >
             <MenuOutlined className="text-lg" />
           </button>
-          <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
+          <span className="font-medium text-gray-700 truncate">
             管理后台
           </span>
         </div>
 
         {/* 主内容区占满全宽 */}
-        <Content className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 px-3 py-4">
+        <Content className="flex-1 overflow-auto bg-slate-50 px-3 py-4">
           {children}
         </Content>
 
@@ -344,6 +347,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           onClose={() => setDrawerOpen(false)}
           open={drawerOpen}
           width={260}
+          rootClassName="admin-light-drawer"
           styles={{
             body: { padding: 0 },
           }}
@@ -362,10 +366,10 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
 
   // 桌面端：保持原有布局不变
   return (
-    <Layout className="h-[calc(100vh-var(--header-height))]">
+    <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
       <Sider
         width={200}
-        className="bg-white "
+        className="admin-light-sider bg-white"
         theme="light"
         style={{
           overflow: "auto",
@@ -376,8 +380,8 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           bottom: 0,
         }}
       >
-        <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+        <div className="h-16 flex items-center justify-center border-b border-gray-200">
+          <h2 className="text-lg font-bold text-gray-800">
             管理后台
           </h2>
         </div>
@@ -386,11 +390,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           selectedKeys={[pathname]}
           items={menuItems}
           onClick={handleMenuClick}
-          className="h-[calc(100vh-var(--header-height)-64px)] border-r-0"
+          className="admin-light-menu h-[calc(100vh-var(--header-height)-64px)] border-r-0"
         />
       </Sider>
-      <Layout className="ml-[200px] h-full">
-        <Content className="h-full overflow-hidden bg-slate-50 dark:bg-slate-900 container mx-auto px-4 py-8">
+      <Layout className="ml-[200px] h-full bg-slate-50">
+        <Content className="h-full overflow-hidden bg-slate-50 container mx-auto px-4 py-8">
           {children}
         </Content>
       </Layout>

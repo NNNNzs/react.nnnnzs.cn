@@ -38,6 +38,7 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   // 获取暗色模式状态
   const { isDark } = useDarkMode();
+  const wrapperClassName = ['h-full custom-md-editor', className].filter(Boolean).join(' ');
 
   /**
    * 处理图片上传
@@ -96,7 +97,7 @@ export default function MarkdownEditor({
   }, [onChange]);
 
   return (
-    <div className={`h-full custom-md-editor ${className}`}>
+    <div className={wrapperClassName}>
       <MdEditor
         modelValue={value}
         onChange={handleChange}

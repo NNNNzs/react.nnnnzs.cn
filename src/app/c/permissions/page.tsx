@@ -176,7 +176,7 @@ function PermissionsPageContent() {
                     {filteredGrouped[module].map(perm => (
                       <div
                         key={perm.id}
-                        className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Tag className="font-mono text-xs shrink-0">

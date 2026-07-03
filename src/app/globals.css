@@ -769,6 +769,85 @@ body {
   box-shadow: unset;
 }
 
+/* Admin pages keep the global header light too, so the console reads as one UI. */
+body.admin-light-page .header {
+  color-scheme: light;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+body.admin-light-page .header [class*="dark:bg-card"],
+body.admin-light-page .header [class*="dark:bg-slate-"],
+body.admin-light-page .header [class*="dark:hover:bg-slate-"]:hover {
+  background-color: transparent !important;
+}
+
+body.admin-light-page .header [class*="dark:text-text-main"],
+body.admin-light-page .header [class*="text-text-main-light"] {
+  color: #1e293b !important;
+}
+
+body.admin-light-page .header [class*="dark:text-text-muted"],
+body.admin-light-page .header [class*="text-text-muted-light"] {
+  color: #64748b !important;
+}
+
+body.admin-light-page .header [class*="dark:after:bg-text-main"]::after {
+  background-color: #1e293b !important;
+}
+
+body.admin-light-page .header [class*="dark:border-indigo-"] {
+  border-color: #c7d2fe !important;
+}
+
+body.admin-light-page .header [class*="dark:bg-indigo-"] {
+  background-color: #eef2ff !important;
+}
+
+body.admin-light-page .header [class*="dark:text-indigo-"] {
+  color: #4f46e5 !important;
+}
+
+body.admin-light-page .header a[href="/"],
+body.admin-light-page .header a[href="/"] * {
+  color: var(--color-primary) !important;
+}
+
+body.admin-light-page .header a[href="/chat"],
+body.admin-light-page .header a[href="/chat"] * {
+  color: #4f46e5 !important;
+}
+
+body.admin-light-page .header a[href="/chat"] {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+body.admin-light-page .header .DocSearch {
+  --docsearch-text-color: #1e293b;
+  --docsearch-searchbox-background: #ffffff;
+  --docsearch-searchbox-focus-background: #ffffff;
+  --docsearch-muted-color: #64748b;
+  --docsearch-key-gradient: linear-gradient(-225deg, #d5dbe4, #f8f8f8);
+  --docsearch-key-shadow:
+    inset 0 -2px 0 0 #cdcde6,
+    inset 0 0 1px 1px #ffffff,
+    0 1px 2px 1px rgb(30 35 90 / 40%);
+}
+
+body.admin-light-page .header .DocSearch-Button {
+  background-color: #ffffff !important;
+  border: 1px solid #d9e2ef;
+  color: #1e293b;
+}
+
+body.admin-light-page .header .DocSearch-Button-Placeholder,
+body.admin-light-page .header .DocSearch-Button-Key {
+  color: #64748b !important;
+}
+
 .md-editor-preview .md-editor-code .md-editor-code-head {
   z-index: 20 !important;
   top: var(--header-height) !important;
@@ -781,6 +860,198 @@ body {
 .x-markdown a{
   color: var(--color-primary) !important;
   text-decoration: none !important;
+}
+
+/* Admin pages intentionally stay light even when the public site is in night mode. */
+.admin-light-shell,
+.admin-light-drawer {
+  color-scheme: light;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.dark .admin-light-shell,
+.dark .admin-light-drawer {
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  --color-background-dark: #f8fafc;
+  --color-card-dark: #ffffff;
+  --color-text-main-dark: #1e293b;
+  --color-text-muted-dark: #64748b;
+  --color-border-dark: #e2e8f0;
+}
+
+.dark .admin-light-shell :where(
+  .ant-layout,
+  .ant-layout-content,
+  .ant-layout-sider,
+  .ant-menu,
+  .ant-table,
+  .ant-table-container,
+  .ant-table-content,
+  .ant-table-body,
+  .ant-list,
+  .ant-card,
+  .ant-card-body,
+  .ant-tabs-content-holder
+),
+.dark .admin-light-drawer :where(
+  .ant-drawer-content,
+  .ant-drawer-header,
+  .ant-drawer-body,
+  .ant-menu
+) {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-layout,
+  .ant-layout-content
+) {
+  background-color: #f8fafc !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td,
+  .ant-table-summary,
+  .ant-card-head,
+  .ant-list-item,
+  .ant-drawer-header
+),
+.dark .admin-light-drawer :where(
+  .ant-drawer-header,
+  .ant-list-item
+) {
+  border-color: #e2e8f0 !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-table-thead > tr > th,
+  .ant-table-cell-scrollbar
+) {
+  background-color: #f8fafc !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-menu-item,
+  .ant-menu-title-content,
+  .ant-menu-item-icon,
+  .ant-typography,
+  .ant-card-head-title,
+  .ant-form-item-label > label,
+  .ant-tabs-tab,
+  .ant-tabs-tab-btn
+),
+.dark .admin-light-drawer :where(
+  .ant-menu-item,
+  .ant-menu-title-content,
+  .ant-menu-item-icon,
+  .ant-drawer-title
+) {
+  color: #1e293b !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-typography-secondary,
+  .ant-table-column-sorter,
+  .ant-empty-description,
+  .ant-pagination-total-text,
+  .ant-form-item-extra
+) {
+  color: #64748b !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-select-selector,
+  .ant-picker,
+  .ant-input-number,
+  .ant-btn-default,
+  .ant-pagination-item,
+  .ant-pagination-options .ant-select-selector
+) {
+  border-color: #d9e2ef !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-input::placeholder,
+  .ant-input-affix-wrapper input::placeholder,
+  .ant-select-selection-placeholder
+) {
+  color: #94a3b8 !important;
+}
+
+.dark .admin-light-shell :where(.ant-menu-item-selected) {
+  background-color: #e6f4ff !important;
+  color: #1677ff !important;
+}
+
+.dark .admin-light-shell :where(
+  .ant-menu-item-selected .ant-menu-title-content,
+  .ant-menu-item-selected .ant-menu-item-icon
+),
+.dark .admin-light-drawer :where(
+  .ant-menu-item-selected,
+  .ant-menu-item-selected .ant-menu-title-content,
+  .ant-menu-item-selected .ant-menu-item-icon
+) {
+  color: #1677ff !important;
+}
+
+.dark .admin-light-shell :where(.ant-menu-item:hover),
+.dark .admin-light-drawer :where(.ant-menu-item:hover) {
+  background-color: #f1f5f9 !important;
+  color: #1677ff !important;
+}
+
+.dark .admin-light-shell [class*="dark:bg-slate-"],
+.dark .admin-light-shell [class*="dark:bg-gray-"] {
+  background-color: #ffffff !important;
+}
+
+.dark .admin-light-shell [class*="dark:hover:bg-slate-"]:hover,
+.dark .admin-light-shell [class*="dark:hover:bg-gray-"]:hover {
+  background-color: #f8fafc !important;
+}
+
+.dark .admin-light-shell [class*="dark:bg-blue-"],
+.dark .admin-light-shell [class*="dark:bg-indigo-"] {
+  background-color: #eff6ff !important;
+}
+
+.dark .admin-light-shell [class*="dark:hover:bg-blue-"]:hover,
+.dark .admin-light-shell [class*="dark:hover:bg-indigo-"]:hover {
+  background-color: #eff6ff !important;
+}
+
+.dark .admin-light-shell [class*="dark:border-slate-"],
+.dark .admin-light-shell [class*="dark:border-gray-"],
+.dark .admin-light-shell [class*="dark:border-blue-"] {
+  border-color: #e2e8f0 !important;
+}
+
+.dark .admin-light-shell [class*="dark:hover:border-slate-"]:hover,
+.dark .admin-light-shell [class*="dark:hover:border-gray-"]:hover,
+.dark .admin-light-shell [class*="dark:hover:border-blue-"]:hover {
+  border-color: #cbd5e1 !important;
+}
+
+.dark .admin-light-shell [class*="dark:text-slate-"],
+.dark .admin-light-shell [class*="dark:text-gray-"],
+.dark .admin-light-shell [class*="dark:text-white"] {
+  color: #1e293b !important;
+}
+
+.dark .admin-light-shell [class*="dark:text-blue-"],
+.dark .admin-light-shell [class*="dark:text-indigo-"] {
+  color: #1677ff !important;
 }
 
 /* Chat page dark-mode polish for Ant Design X internals. */

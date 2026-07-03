@@ -166,59 +166,174 @@
   border-color: #3b82f6 !important;
 }
 
-/* 评论区域 Card 暗色模式样式 */
-.dark .ant-card {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
+/* 评论区暗色模式样式 */
+.dark .comment-section-shell {
+  --comment-panel-bg: rgba(15, 23, 42, 0.82);
+  --comment-panel-bg-strong: rgba(8, 18, 33, 0.94);
+  --comment-panel-bg-soft: rgba(30, 41, 59, 0.52);
+  --comment-panel-border: rgba(96, 165, 250, 0.28);
+  --comment-panel-border-strong: rgba(103, 232, 249, 0.42);
+  --comment-text: #e5eefb;
+  --comment-text-strong: #f8fbff;
+  --comment-muted: #94a3b8;
+  --comment-accent: #67e8f9;
+  --comment-accent-blue: #60a5fa;
 }
 
-.dark .ant-card-head {
-  border-color: #334155 !important;
+.dark .comment-section-shell .comment-section-card.ant-card {
+  border-color: var(--comment-panel-border) !important;
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.76), rgba(15, 23, 42, 0.9)),
+    repeating-linear-gradient(0deg, rgba(103, 232, 249, 0.025) 0 1px, transparent 1px 8px) !important;
+  box-shadow:
+    0 20px 70px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(148, 163, 184, 0.1);
 }
 
-.dark .ant-card-head-title {
-  color: #f1f5f9 !important;
+.dark .comment-section-shell .ant-card-body {
+  color: var(--comment-text);
 }
 
-.dark .ant-collapse {
+.dark .comment-section-shell .comment-section-title.ant-typography {
+  color: var(--comment-text-strong) !important;
+  text-shadow: 0 0 18px rgba(103, 232, 249, 0.18);
+}
+
+.dark .comment-section-shell .ant-typography {
+  color: var(--comment-text);
+}
+
+.dark .comment-section-shell .ant-typography-secondary {
+  color: var(--comment-muted) !important;
+}
+
+.dark .comment-section-shell .comment-section-collapse.ant-collapse {
+  border-color: transparent !important;
   background-color: transparent !important;
-  border-color: #334155 !important;
 }
 
-.dark .ant-collapse-item {
-  border-color: #334155 !important;
+.dark .comment-section-shell .comment-section-collapse .ant-collapse-item {
+  border-color: rgba(148, 163, 184, 0.16) !important;
 }
 
-.dark .ant-collapse-header {
-  color: #e2e8f0 !important;
+.dark .comment-section-shell .comment-section-collapse .ant-collapse-header {
+  border-radius: 6px !important;
+  color: var(--comment-text) !important;
 }
 
-.dark .ant-collapse-content-box {
+.dark .comment-section-shell .comment-section-collapse .ant-collapse-header:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.dark .comment-section-shell .comment-section-collapse .ant-collapse-content,
+.dark .comment-section-shell .comment-section-collapse .ant-collapse-content-box {
+  border-color: transparent !important;
   background-color: transparent !important;
-  color: #cbd5e1 !important;
+  color: var(--comment-text) !important;
 }
 
-.dark .ant-tabs-tab {
-  color: #94a3b8 !important;
+.dark .comment-section-shell .comment-editor-tabs .ant-tabs-nav::before {
+  border-bottom-color: rgba(148, 163, 184, 0.38) !important;
 }
 
-.dark .ant-tabs-tab-active {
-  color: #3b82f6 !important;
+.dark .comment-section-shell .comment-editor-tabs .ant-tabs-tab {
+  color: var(--comment-muted) !important;
 }
 
-.dark .ant-tabs-ink-bar {
-  background-color: #3b82f6 !important;
+.dark .comment-section-shell .comment-editor-tabs .ant-tabs-tab:hover,
+.dark .comment-section-shell .comment-editor-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--comment-accent) !important;
 }
 
-.dark .ant-btn-text {
-  color: #94a3b8 !important;
+.dark .comment-section-shell .comment-editor-tabs .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, var(--comment-accent-blue), var(--comment-accent)) !important;
+  box-shadow: 0 0 14px rgba(103, 232, 249, 0.42);
 }
 
-.dark .ant-btn-text:hover {
-  color: #3b82f6 !important;
-  background-color: rgba(59, 130, 246, 0.1) !important;
+.dark .comment-section-shell .ant-btn-text {
+  color: var(--comment-muted) !important;
 }
 
-.dark .ant-empty-description {
-  color: #94a3b8 !important;
+.dark .comment-section-shell .ant-btn-text:hover {
+  background-color: rgba(96, 165, 250, 0.1) !important;
+  color: var(--comment-accent) !important;
+}
+
+.dark .comment-section-shell .ant-btn-primary {
+  border-color: rgba(103, 232, 249, 0.45) !important;
+  background: linear-gradient(135deg, #2563eb, #0891b2) !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.22);
+}
+
+.dark .comment-section-shell .ant-btn-primary:disabled,
+.dark .comment-section-shell .ant-btn-primary.ant-btn-disabled {
+  border-color: rgba(148, 163, 184, 0.46) !important;
+  background: rgba(15, 23, 42, 0.68) !important;
+  color: rgba(148, 163, 184, 0.56) !important;
+  box-shadow: none;
+}
+
+.dark .comment-section-shell .ant-empty-description {
+  color: var(--comment-muted) !important;
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark {
+  --md-color: var(--comment-text);
+  --md-hover-color: var(--comment-text-strong);
+  --md-bk-color: var(--comment-panel-bg-strong);
+  --md-bk-color-outstand: rgba(18, 36, 60, 0.94);
+  --md-bk-hover-color: rgba(37, 63, 96, 0.72);
+  --md-border-color: rgba(96, 165, 250, 0.3);
+  --md-border-hover-color: rgba(103, 232, 249, 0.52);
+  --md-border-active-color: rgba(103, 232, 249, 0.72);
+  --md-modal-shadow: 0 18px 54px rgba(0, 0, 0, 0.42);
+  --md-scrollbar-bg-color: rgba(8, 18, 33, 0.78);
+  --md-scrollbar-thumb-color: rgba(96, 165, 250, 0.48);
+  --md-scrollbar-thumb-hover-color: rgba(103, 232, 249, 0.6);
+  --md-scrollbar-thumb-active-color: rgba(103, 232, 249, 0.72);
+  border-color: var(--md-border-color) !important;
+  border-radius: 6px;
+  background: var(--md-bk-color);
+  box-shadow:
+    inset 0 0 0 1px rgba(103, 232, 249, 0.04),
+    inset 0 0 32px rgba(14, 165, 233, 0.05);
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .md-editor-toolbar,
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .md-editor-footer {
+  border-color: rgba(96, 165, 250, 0.24) !important;
+  background: var(--md-bk-color-outstand);
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .cm-editor,
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .cm-scroller,
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark textarea,
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .md-editor-textarea {
+  background: transparent !important;
+  color: var(--comment-text) !important;
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark textarea::placeholder {
+  color: rgba(148, 163, 184, 0.78) !important;
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .md-editor-icon {
+  color: var(--comment-muted);
+}
+
+.dark .comment-section-shell .comment-markdown-editor .md-editor-dark .md-editor-icon:hover {
+  color: var(--comment-accent);
+}
+
+.dark .comment-section-shell .md-dark-preview .md-editor-preview,
+.dark .comment-section-shell .md-dark-preview .md-editor-preview-wrapper {
+  --md-bk-color: var(--comment-panel-bg-strong) !important;
+  --md-color: var(--comment-text) !important;
+  --md-theme-bg-color: transparent !important;
+  --md-theme-bg-color-inset: rgba(18, 36, 60, 0.72) !important;
+  --md-theme-border-color: rgba(96, 165, 250, 0.3) !important;
+  --md-theme-link-color: var(--comment-accent-blue) !important;
+  --md-theme-link-hover-color: var(--comment-accent) !important;
+  --md-theme-code-block-bg-color: rgba(8, 18, 33, 0.86) !important;
+  --md-theme-code-before-bg-color: rgba(18, 36, 60, 0.9) !important;
 }

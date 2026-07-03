@@ -391,6 +391,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         )}
 
         <Tabs
+          className="comment-editor-tabs"
           activeKey={editorMode}
           onChange={(key) => setEditorMode(key as 'edit' | 'preview')}
           tabBarExtraContent={
@@ -418,6 +419,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 value={content}
                 onChange={(val) => setContent(val || '')}
                 placeholder={replyTo ? `回复 @${replyTo.user.nickname}...` : '支持 Markdown 格式，分享你的想法...'}
+                className="comment-markdown-editor"
                 preview={false}
               />
             </div>
@@ -456,9 +458,9 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   }, [comments]);
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <Card>
-        <Title level={3} className="mb-6">
+    <div className="comment-section-shell mx-auto max-w-4xl">
+      <Card className="comment-section-card">
+        <Title level={3} className="comment-section-title mb-6">
           评论 {totalComments > 0 && `(${totalComments})`}
         </Title>
 
@@ -468,7 +470,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
             setEditorOpen(keys.includes('comment-editor'));
           }}
           bordered={false}
-          className="mb-6"
+          className="comment-section-collapse mb-6"
           items={[
             {
               key: 'comment-editor',
