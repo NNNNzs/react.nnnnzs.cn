@@ -51,13 +51,6 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 GITHUB_REDIRECT_URI=http://localhost:3000/api/github/callback
 ```
 
-### 微信登录
-```bash
-WECHAT_CORP_ID=
-WECHAT_AGENT_ID=
-WECHAT_SECRET=
-```
-
 ### 微信小程序
 ```bash
 WX_APP_ID=your-wechat-app-id
