@@ -149,6 +149,9 @@ jobs:
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
             COMMIT_SHA=${{ steps.version.outputs.SHORT_SHA }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            REDIS_DB=${{ secrets.REDIS_DB }}
 
       - name: 服务器部署
         uses: appleboy/ssh-action@v1.0.3
