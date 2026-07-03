@@ -163,8 +163,7 @@ const FloatingMenu: React.FC<FloatingMenuProps> = ({
           const config = actionButtons[action];
           return (
             <Tooltip key={action} title={config.tooltip} placement="top">
-              <Button
-                type="text"
+              <Button variant="text"
                 size="small"
                 icon={config.icon}
                 onClick={(e) => {
@@ -197,8 +196,7 @@ const FloatingMenu: React.FC<FloatingMenuProps> = ({
 
         {/* 取消按钮 */}
         <Tooltip title="取消" placement="top">
-          <Button
-            type="text"
+          <Button variant="text"
             size="small"
             icon={<CloseOutlined />}
             onClick={(e) => {

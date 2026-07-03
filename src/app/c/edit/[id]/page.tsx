@@ -439,13 +439,14 @@ export default function EditPostPage() {
                       mode="tags"
                       maxTagCount={3}
                       placeholder="+ 标签"
-                      bordered={false}
+                      variant="borderless"
                       suffixIcon={<TagsOutlined className="text-neutral-400" />}
-                      filterOption={(input, option) =>
-                        (option?.label ?? "")
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
-                      }
+                      showSearch={{
+                        filterOption: (input, option) =>
+                          (option?.label ?? "")
+                            .toLowerCase()
+                            .includes(input.toLowerCase()),
+                      }}
                       options={tags.map((tag) => ({
                         value: tag[0],
                         label: tag[0],
@@ -455,14 +456,14 @@ export default function EditPostPage() {
                     />
                   </Form.Item>
 
-                  <Divider type="vertical" className="h-6 mx-1" />
+                  <Divider orientation="vertical" className="h-6 mx-1" />
                 </>
               )}
 
               <Form.Item className="mb-0" noStyle>
                 <Tooltip title="预览 (Cmd+P)">
                   <Button
-                    type="text"
+                    variant="text"
                     icon={<EyeOutlined />}
                     onClick={() => setPreviewDrawerOpen(true)}
                   />
@@ -472,7 +473,7 @@ export default function EditPostPage() {
               <Form.Item className="mb-0" noStyle>
                 <Tooltip title="设置 (Cmd+,)">
                   <Button
-                    type="text"
+                    variant="text"
                     icon={<SettingOutlined />}
                     onClick={() => setSettingsDrawerOpen(true)}
                   />
@@ -482,7 +483,8 @@ export default function EditPostPage() {
               <Form.Item className="mb-0" noStyle>
                 <Tooltip title="保存 (Cmd+S)">
                   <Button
-                    type="primary"
+                    color="primary"
+                    variant="solid"
                     onClick={handleSubmit}
                     loading={loading.submit}
                     icon={isMobile ? <SaveOutlined /> : undefined}
@@ -572,11 +574,12 @@ export default function EditPostPage() {
                 <Select
                   mode="multiple"
                   placeholder="选择标签"
-                  filterOption={(input, option) =>
-                    (option?.label ?? "")
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
+                  showSearch={{
+                    filterOption: (input, option) =>
+                      (option?.label ?? "")
+                        .toLowerCase()
+                        .includes(input.toLowerCase()),
+                  }}
                   options={tags.map((tag) => ({
                     value: tag[0],
                     label: tag[0],
@@ -628,7 +631,7 @@ export default function EditPostPage() {
               <h4 className="text-sm font-semibold text-neutral-500 mb-3 uppercase tracking-wide">
                 AI 辅助
               </h4>
-              <Space direction="vertical" className="w-full">
+              <Space orientation="vertical" className="w-full">
                 <Button
                   block
                   icon={<TagsOutlined />}
@@ -722,7 +725,7 @@ export default function EditPostPage() {
         {/* 快捷键提示 - 仅桌面端显示 */}
         {!isMobile && (
           <div className="fixed bottom-4 right-4 text-xs text-neutral-300 pointer-events-none">
-            <Space split={<span>·</span>}>
+            <Space separator={<span>·</span>}>
               <span>Cmd+S 保存</span>
               <span>Cmd+, 设置</span>
               <span>Cmd+P 预览</span>

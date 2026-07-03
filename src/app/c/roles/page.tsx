@@ -451,24 +451,20 @@ function RolesPageContent() {
       fixed: "right" as const,
       render: (_: unknown, record: RoleItem) => (
         <Space>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<SettingOutlined />}
             onClick={() => handleManagePermissions(record)}
             disabled={!hasPermission(USER_ROLE_ASSIGN)}
           >
             权限
           </Button>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={["admin", "user"].includes(record.code)}
@@ -502,8 +498,7 @@ function RolesPageContent() {
           {record.created_at ? dayjs(record.created_at).format("YYYY-MM-DD") : "-"}
         </span>
         <Space size="small">
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<SettingOutlined />}
             onClick={() => handleManagePermissions(record)}
@@ -511,18 +506,15 @@ function RolesPageContent() {
           >
             权限
           </Button>
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
+          <Button variant="link" color="danger"
             size="small"
-            danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={["admin", "user"].includes(record.code)}
@@ -542,8 +534,7 @@ function RolesPageContent() {
           <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
             角色管理
           </h1>
-          <Button
-            type="primary"
+          <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
             size={isMobile ? "middle" : "large"}
@@ -609,6 +600,7 @@ function RolesPageContent() {
         cancelText="取消"
         width={500}
         destroyOnHidden
+        forceRender
       >
         <Form form={form} layout="vertical">
           <Form.Item

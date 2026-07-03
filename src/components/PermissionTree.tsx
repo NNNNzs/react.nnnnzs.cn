@@ -82,7 +82,7 @@ export default function PermissionTree({
             }
             style={{ width: 72 }}
             onClick={(e) => e.stopPropagation()}
-            onDropdownVisibleChange={(visible) => {
+            onOpenChange={(visible) => {
               if (visible) {
                 setTimeout(() => {
                   const dropdown = document.querySelector(

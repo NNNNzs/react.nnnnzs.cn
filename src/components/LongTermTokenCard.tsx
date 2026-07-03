@@ -217,14 +217,14 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
         </Space>
       }
       extra={
-        <Button type="primary" onClick={toggleForm} size="small">
+        <Button color="primary" variant="solid" onClick={toggleForm} size="small">
           {showForm ? "收起" : "申请新Token"}
         </Button>
       }
     >
       {/* 说明提示 */}
       <Alert
-        message="长期Token说明"
+        title="长期Token说明"
         description="长期Token可用于API调用或第三方应用集成。请妥善保管生成的Token，不要泄露给他人。"
         type="info"
         showIcon
@@ -238,7 +238,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
             申请新Token
           </Title>
 
-          <Space direction="vertical" className="w-full" size="middle">
+          <Space orientation="vertical" className="w-full" size="middle">
             <div>
               <Text strong className="block mb-2">
                 有效期选择
@@ -272,8 +272,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                type="primary"
+              <Button variant="solid" color="primary"
                 onClick={handleGenerateToken}
                 loading={loading}
                 icon={<KeyOutlined />}
@@ -307,7 +306,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
                   {generatedToken}
                 </Paragraph>
                 <Alert
-                  message="Token已生成"
+                  title="Token已生成"
                   description="请复制并保存此Token。您也可以在下方的Token列表中查看所有已生成的Token。"
                   type="success"
                   showIcon
@@ -334,7 +333,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
             <div className="text-sm mt-2">点击&quot;申请新Token&quot;按钮开始创建</div>
           </div>
         ) : (
-          <Space direction="vertical" className="w-full" size="middle">
+          <Space orientation="vertical" className="w-full" size="middle">
             {tokens.map((token) => {
               const isVisible = visibleTokens.has(token.id);
               return (
@@ -361,9 +360,8 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
                         <div className="mt-2 p-2 bg-gray-100 rounded font-mono text-xs break-all">
                           <div className="flex items-center justify-between mb-1">
                             <Text strong>Token:</Text>
-                            <Button
+                            <Button variant="solid" color="primary"
                               size="small"
-                              type="primary"
                               onClick={() => handleCopyTokenFromList(token.token)}
                               icon={<CopyOutlined />}
                             >
@@ -383,8 +381,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
                       >
                         {isVisible ? "隐藏" : "查看"}
                       </Button>
-                      <Button
-                        danger
+                      <Button color="danger"
                         size="small"
                         onClick={() => handleDelete(token.id)}
                       >

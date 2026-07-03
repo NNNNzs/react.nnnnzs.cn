@@ -174,8 +174,7 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
 
           <div className="flex justify-end">
             {isBound ? (
-              <Button
-                danger
+              <Button color="danger"
                 icon={<DisconnectOutlined />}
                 onClick={handleUnbind}
                 loading={unbindLoading}
@@ -183,8 +182,7 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
                 解绑微信
               </Button>
             ) : (
-              <Button
-                type="primary"
+              <Button variant="solid" color="primary"
                 icon={<LinkOutlined />}
                 onClick={showBindModal}
               >

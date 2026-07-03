@@ -181,7 +181,7 @@ function AuthorizePageContent() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-4">
         <div className="bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 rounded-2xl p-6 max-w-md backdrop-blur-xl">
           <Alert
-            message="无效的授权请求"
+            title="无效的授权请求"
             description="缺少必需的 OAuth 参数（client_id, redirect_uri, response_type）"
             type="error"
             showIcon
@@ -309,10 +309,9 @@ function AuthorizePageContent() {
                       className="mb-4"
                     >
                       <Alert
-                        message={error}
+                        title={error}
                         type="error"
-                        closable
-                        onClose={() => setError('')}
+                        closable={{ onClose: () => setError('') }}
                         className="bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
                       />
                     </motion.div>
@@ -354,8 +353,7 @@ function AuthorizePageContent() {
                   </Form.Item>
 
                   <Form.Item className="mb-0">
-                    <Button
-                      type="primary"
+                    <Button variant="solid" color="primary"
                       htmlType="submit"
                       block
                       loading={loading}
@@ -484,10 +482,9 @@ function AuthorizePageContent() {
                       className="mb-4"
                     >
                       <Alert
-                        message={error}
+                        title={error}
                         type="error"
-                        closable
-                        onClose={() => setError('')}
+                        closable={{ onClose: () => setError('') }}
                         className="bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
                       />
                     </motion.div>
@@ -496,8 +493,7 @@ function AuthorizePageContent() {
 
                 {/* 操作按钮 */}
                 <div className="space-y-3">
-                  <Button
-                    type="primary"
+                  <Button variant="solid" color="primary"
                     block
                     size="large"
                     loading={loading}

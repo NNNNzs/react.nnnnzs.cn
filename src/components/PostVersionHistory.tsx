@@ -214,7 +214,7 @@ export default function PostVersionHistory({ postId }: PostVersionHistoryProps) 
                   style={{ width: 220 }}
                   placeholder="选择新版本"
                 />
-                <Button type="primary" onClick={handleCompare} loading={isDiffLoading}>
+                <Button color="primary" variant="solid" onClick={handleCompare} loading={isDiffLoading}>
                   对比
                 </Button>
               </div>
@@ -277,9 +277,10 @@ export default function PostVersionHistory({ postId }: PostVersionHistoryProps) 
                   style={{ width: 220 }}
                   placeholder="选择新版本"
                 />
-                <Button 
-                  type="primary" 
-                  onClick={handleCompare} 
+                <Button
+                  variant="solid"
+                  color="primary"
+                  onClick={handleCompare}
                   loading={isDiffLoading}
                   disabled={selectedFromVersion === null || selectedToVersion === null}
                 >
@@ -294,9 +295,8 @@ export default function PostVersionHistory({ postId }: PostVersionHistoryProps) 
                 <List.Item
                   className="hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   actions={[
-                    <Button
+                    <Button variant="link"
                       key="compare"
-                      type="link"
                       size="small"
                       onClick={() => {
                         // 选择当前版本与上一个版本对比

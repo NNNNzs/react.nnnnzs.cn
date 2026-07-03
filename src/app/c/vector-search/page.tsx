@@ -38,7 +38,7 @@ export default function VectorSearchPage() {
     return (
       <div className="flex h-screen items-center justify-center p-8">
         <Alert
-          message="权限不足"
+          title="权限不足"
           description="您没有权限访问此页面，仅管理员可访问。"
           type="error"
           showIcon
@@ -107,7 +107,7 @@ export default function VectorSearchPage() {
 
         {/* 搜索区域 */}
         <Card className="mb-6">
-          <Space direction="vertical" className="w-full" size="large">
+          <Space orientation="vertical" className="w-full" size="large">
             <div>
               <Text strong className="mb-2 block">搜索内容</Text>
               <TextArea
@@ -124,8 +124,7 @@ export default function VectorSearchPage() {
             </div>
 
             <Space>
-              <Button
-                type="primary"
+              <Button variant="solid" color="primary"
                 icon={<SearchOutlined />}
                 onClick={handleSearch}
                 loading={loading}
@@ -163,12 +162,11 @@ export default function VectorSearchPage() {
         {/* 错误提示 */}
         {error && (
           <Alert
-            message="错误"
+            title="错误"
             description={error}
             type="error"
-            closable
+            closable={{ onClose: () => setError(null) }}
             className="mb-6"
-            onClose={() => setError(null)}
           />
         )}
 
@@ -218,8 +216,7 @@ export default function VectorSearchPage() {
                         <Tag color="green">
                           相关度: {Math.round(item.score * 100)}%
                         </Tag>
-                        <Button
-                          type="link"
+                        <Button variant="link"
                           size="small"
                           onClick={() => handleViewPost(item.postId)}
                         >
@@ -258,7 +255,7 @@ export default function VectorSearchPage() {
 
         {/* 使用说明 */}
         <Card type="inner" title="使用说明" className="mt-6">
-          <Space direction="vertical" className="w-full">
+          <Space orientation="vertical" className="w-full">
             <Text>• 向量检索基于语义相似度，而非关键词匹配</Text>
             <Text>• 搜索结果包含最相关的文章片段，按相似度排序</Text>
             <Text>• 相关度越高表示内容越相关（0-100%）</Text>

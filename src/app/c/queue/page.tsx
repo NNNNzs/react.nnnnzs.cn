@@ -209,7 +209,7 @@ export default function QueueMonitorPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <Alert
-          message="权限不足"
+          title="权限不足"
           description="您没有权限访问此页面。"
           type="error"
           showIcon
@@ -266,7 +266,7 @@ export default function QueueMonitorPage() {
       render: (_, record) => {
         const status = taskStatuses.get(record.postId);
         return (
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <Tag color="processing">处理中</Tag>
             {status?.ragError ? <Text type="danger">{status.ragError}</Text> : null}
           </Space>
@@ -354,7 +354,7 @@ export default function QueueMonitorPage() {
           okText="重试"
           cancelText="取消"
         >
-          <Button size="small" type="link">重试</Button>
+          <Button size="small" variant="link">重试</Button>
         </Popconfirm>
       ),
     },
@@ -382,12 +382,11 @@ export default function QueueMonitorPage() {
 
         {error ? (
           <Alert
-            message="加载失败"
+            title="加载失败"
             description={error}
             type="error"
-            closable
+            closable={{ onClose: () => setError(null) }}
             className="mb-4 shrink-0"
-            onClose={() => setError(null)}
           />
         ) : null}
 
@@ -395,16 +394,16 @@ export default function QueueMonitorPage() {
           <Card title="向量队列总览">
             <Row gutter={16}>
               <Col xs={12} sm={6}>
-                <Statistic title="排队中" value={embeddingQueue?.queueLength ?? 0} valueStyle={{ color: '#1677ff' }} />
+                <Statistic title="排队中" value={embeddingQueue?.queueLength ?? 0} styles={{ content: { color: '#1677ff' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="处理中" value={embeddingQueue?.processingCount ?? 0} valueStyle={{ color: '#faad14' }} />
+                <Statistic title="处理中" value={embeddingQueue?.processingCount ?? 0} styles={{ content: { color: '#faad14' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="已完成" value={embedCompletedCount} valueStyle={{ color: '#52c41a' }} />
+                <Statistic title="已完成" value={embedCompletedCount} styles={{ content: { color: '#52c41a' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="失败" value={embedFailedCount} valueStyle={{ color: '#ff4d4f' }} />
+                <Statistic title="失败" value={embedFailedCount} styles={{ content: { color: '#ff4d4f' } }} />
               </Col>
             </Row>
           </Card>
@@ -417,7 +416,7 @@ export default function QueueMonitorPage() {
               </Tag>
             }
           >
-            <Space direction="vertical" className="w-full" size="large">
+            <Space orientation="vertical" className="w-full" size="large">
               <div>
                 <Title level={5}>等待队列</Title>
                 <Table
@@ -446,16 +445,16 @@ export default function QueueMonitorPage() {
           <Card title="图片生成队列总览">
             <Row gutter={[16, 16]}>
               <Col xs={12} sm={6}>
-                <Statistic title="PENDING" value={imageMonitor?.counts.PENDING ?? 0} valueStyle={{ color: '#1677ff' }} />
+                <Statistic title="PENDING" value={imageMonitor?.counts.PENDING ?? 0} styles={{ content: { color: '#1677ff' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="PROCESSING" value={imageMonitor?.counts.PROCESSING ?? 0} valueStyle={{ color: '#faad14' }} />
+                <Statistic title="PROCESSING" value={imageMonitor?.counts.PROCESSING ?? 0} styles={{ content: { color: '#faad14' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="SUCCESS" value={imageMonitor?.counts.SUCCESS ?? 0} valueStyle={{ color: '#52c41a' }} />
+                <Statistic title="SUCCESS" value={imageMonitor?.counts.SUCCESS ?? 0} styles={{ content: { color: '#52c41a' } }} />
               </Col>
               <Col xs={12} sm={6}>
-                <Statistic title="FAILED" value={imageMonitor?.counts.FAILED ?? 0} valueStyle={{ color: '#ff4d4f' }} />
+                <Statistic title="FAILED" value={imageMonitor?.counts.FAILED ?? 0} styles={{ content: { color: '#ff4d4f' } }} />
               </Col>
             </Row>
             <div className="mt-4">
@@ -472,7 +471,7 @@ export default function QueueMonitorPage() {
           </Card>
 
           <Card title="图片生成队列详情">
-            <Space direction="vertical" className="w-full" size="large">
+            <Space orientation="vertical" className="w-full" size="large">
               <div>
                 <Title level={5}>等待队列</Title>
                 <Table

@@ -291,26 +291,22 @@ function CollectionsManagePageContent() {
           </div>
           {/* 操作行 */}
           <div className="mt-2 flex items-center gap-1">
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<EditOutlined />}
               onClick={() => router.push(`/c/collections/${record.id}`)}
             >
               编辑
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
             </Button>
-            <Button
-              type="link"
+            <Button variant="link" color="danger"
               size="small"
-              danger
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id, record.title)}
             >
@@ -414,23 +410,19 @@ function CollectionsManagePageContent() {
       width: 240,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<EditOutlined />}
             onClick={() => router.push(`/c/collections/${record.id}`)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<HistoryOutlined />}
             onClick={() => handleViewChangeHistory(record)}
           >
             变更历史
           </Button>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id, record.title)}
           >
@@ -448,8 +440,7 @@ function CollectionsManagePageContent() {
         {/* 头部操作栏 - 响应式 */}
         <div className="mb-6 flex items-center justify-between shrink-0">
           <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>合集管理</h1>
-          <Button
-            type="primary"
+          <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={() => router.push('/c/collections/new')}
             size={isMobile ? 'middle' : 'large'}

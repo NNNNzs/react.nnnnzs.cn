@@ -183,8 +183,7 @@ export default function ImageGenPanel({ loading, onGenerate }: ImageGenPanelProp
         </div>
       </div>
 
-      <Button
-        type="primary"
+      <Button variant="solid" color="primary"
         icon={<SendOutlined />}
         loading={loading}
         disabled={!prompt.trim() || (mode === "edit" && !image.trim())}

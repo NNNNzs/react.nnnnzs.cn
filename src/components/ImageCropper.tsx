@@ -229,7 +229,7 @@ export default function ImageCropper({
           <Button onClick={onClose} disabled={loading}>
             取消
           </Button>
-          <Button type="primary" onClick={handleConfirm} loading={loading}>
+          <Button color="primary" variant="solid" onClick={handleConfirm} loading={loading}>
             确认裁剪
           </Button>
         </Space>
@@ -292,8 +292,8 @@ export default function ImageCropper({
             {/* 分辨率信息 */}
             {cropSize && (
               <Alert
-                message={
-                  <Space direction="vertical" size={0}>
+                title={
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary">
                       裁剪后分辨率：
                       <Text strong className="ml-1">

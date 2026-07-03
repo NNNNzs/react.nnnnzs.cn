@@ -364,8 +364,7 @@ function ApiRegistryPageContent() {
       width: 80,
       fixed: "right" as const,
       render: (_: unknown, record: ApiRegistryItem) => (
-        <Button
-          type="link"
+        <Button variant="link"
           size="small"
           icon={<EditOutlined />}
           onClick={() => handleEdit(record)}
@@ -409,7 +408,7 @@ function ApiRegistryPageContent() {
           disabled={record.mcp_available === 0}
           onChange={(checked) => handleToggleMcp(record, checked)}
         />
-        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+        <Button variant="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
           配置
         </Button>
       </div>
@@ -580,10 +579,11 @@ function ApiRegistryPageContent() {
         cancelText="取消"
         width={500}
         destroyOnHidden
+        forceRender
         confirmLoading={editLoading}
       >
-        {editingApi && (
-          <div>
+        <div>
+          {editingApi && (
             <div className="text-gray-400 text-xs mb-4 space-y-1">
               <div>
                 <span className="font-mono">{editingApi.api_method}</span>{" "}
@@ -593,37 +593,36 @@ function ApiRegistryPageContent() {
                 <div>{editingApi.description}</div>
               )}
             </div>
+          )}
 
-            <Form form={editForm} layout="vertical">
-              <Form.Item
-                label="MCP 工具暴露"
-                name="mcp_enabled"
-                valuePropName="checked"
-                getValueFromEvent={(checked) => (checked ? true : false)}
-                getValueProps={(value) => ({ checked: value })}
-              >
-                <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-              </Form.Item>
+          <Form form={editForm} layout="vertical">
+            <Form.Item
+              label="MCP 工具暴露"
+              name="mcp_enabled"
+              valuePropName="checked"
+              getValueFromEvent={(checked) => (checked ? true : false)}
+              getValueProps={(value) => ({ checked: value })}
+            >
+              <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            </Form.Item>
 
-              <Form.Item label="MCP 工具名" name="mcp_tool_name">
-                <Input placeholder="MCP 工具名称（如 create_article）" />
-              </Form.Item>
+            <Form.Item label="MCP 工具名" name="mcp_tool_name">
+              <Input placeholder="MCP 工具名称（如 create_article）" />
+            </Form.Item>
 
-              <Form.Item label="关联权限码" name="permission_code">
-                <Select
-                  allowClear
-                  placeholder="选择关联的权限码"
-                  showSearch
-                  optionFilterProp="label"
-                  options={allPermissions.map((p) => ({
-                    label: `${p.name} (${p.code})`,
-                    value: p.code,
-                  }))}
-                />
-              </Form.Item>
-            </Form>
-          </div>
-        )}
+            <Form.Item label="关联权限码" name="permission_code">
+              <Select
+                allowClear
+                placeholder="选择关联的权限码"
+                showSearch={{ optionFilterProp: "label" }}
+                options={allPermissions.map((p) => ({
+                  label: `${p.name} (${p.code})`,
+                  value: p.code,
+                }))}
+              />
+            </Form.Item>
+          </Form>
+        </div>
       </Modal>
     </>
   );

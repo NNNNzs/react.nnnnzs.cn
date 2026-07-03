@@ -175,22 +175,10 @@ const response = await fetch(`/api/chat/sessions/${sessionId}`, {
 
 **⚠️ 重要：Ant Design 6.x 有 API 变更，必须使用新 API**
 
-1. **Space 组件**：
-   - ❌ **已废弃**：`direction="vertical"` 或 `direction="horizontal"`
-   - ✅ **正确**：`orientation="vertical"` 或 `orientation="horizontal"`
-   ```typescript
-   // ❌ 错误 - 旧 API
-   <Space direction="vertical">...</Space>
-   
-   // ✅ 正确 - 新 API
-   <Space orientation="vertical">...</Space>
-   ```
-
-2. **其他常见 API 变更**：
-   - 使用组件前请查阅 [Ant Design 6.x 迁移指南](https://ant.design/docs/react/migration-v6-cn)
-   - 遇到警告时，优先检查是否为 API 变更导致
-3. **更新规范**:
-   -  如果遇到使用了错误的api，并且修正的情况，更新这份说明文档的示例
+1. **必读手册**：使用或修改 Ant Design 组件前，先查阅 [Ant Design v6 迁移手册](antd-v6-migration.md)。
+2. **官方参考**：本文未覆盖的组件 API，继续查阅 [Ant Design 6.x 迁移指南](https://ant.design/docs/react/migration-v6-cn) 和组件官方文档。
+3. **扫描命令**：迁移后运行 `pnpm dlx @ant-design/cli --version 6.1.1 --lang zh --format markdown lint --only deprecated src`，确保没有 deprecated warning。
+4. **更新规范**：如果遇到新的错误 API 并完成修正，必须把新旧写法补充到 [Ant Design v6 迁移手册](antd-v6-migration.md)。
 
 
 #### 基础使用规范
@@ -220,7 +208,7 @@ const LoginForm = () => {
         <Input placeholder="请输入账号" />
       </Form.Item>
       <Form.Item>
-        <Button type="primary" htmlType="submit">登录</Button>
+        <Button color="primary" variant="solid" htmlType="submit">登录</Button>
       </Form.Item>
     </Form>
   )
@@ -713,7 +701,7 @@ export default function AdminPage() {
       <div className="flex-1 flex flex-col min-h-0">        {/* 中间层：flex-1 占据剩余空间，min-h-0 允许收缩 */}
         <div className="mb-6 flex items-center justify-between shrink-0">  {/* 顶部操作栏：固定高度 */}
           <h1 className="text-2xl font-bold">页面标题</h1>
-          <Button type="primary">操作按钮</Button>
+          <Button color="primary" variant="solid">操作按钮</Button>
         </div>
 
         {/* 可滚动内容区：flex-1 占据剩余空间 */}
@@ -838,7 +826,8 @@ const { isMobile } = useBreakpoint();
 <div className={`mb-6 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
   <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>页面标题</h1>
   <Button
-    type="primary"
+    color="primary"
+    variant="solid"
     size={isMobile ? 'middle' : 'large'}
   >
     {isMobile ? '新建' : '创建新标题'}

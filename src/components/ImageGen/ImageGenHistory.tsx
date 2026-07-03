@@ -299,8 +299,7 @@ export default function ImageGenHistory({
         <Space size={4}>
           {canDelete && !selectMode && (
             <Tooltip title="多选删除">
-              <Button
-                type="text"
+              <Button variant="text"
                 size="small"
                 icon={<CheckSquareOutlined />}
                 onClick={() => setSelectMode(true)}
@@ -309,8 +308,7 @@ export default function ImageGenHistory({
           )}
           {selectMode && (
             <>
-              <Button
-                type="text"
+              <Button variant="text"
                 size="small"
                 onClick={exitSelectMode}
               >
@@ -318,17 +316,14 @@ export default function ImageGenHistory({
               </Button>
               {selectedIds.size > 0 && (
                 <>
-                  <Button
-                    type="text"
+                  <Button variant="text"
                     size="small"
                     icon={<BorderOutlined />}
                     onClick={toggleSelectAll}
                   >
                     {selectedIds.size === records.length ? "取消全选" : "全选"}
                   </Button>
-                  <Button
-                    type="primary"
-                    danger
+                  <Button variant="solid" color="danger"
                     size="small"
                     loading={batchDeleting}
                     onClick={handleBatchDelete}
@@ -378,8 +373,7 @@ export default function ImageGenHistory({
                   />
                 </div>
                 {(sourceFilter || statusFilter) && (
-                  <Button
-                    type="link"
+                  <Button variant="link"
                     size="small"
                     onClick={() => {
                       setSourceFilter(undefined);
@@ -394,8 +388,7 @@ export default function ImageGenHistory({
             }
           >
             <Tooltip title="筛选">
-              <Button
-                type="text"
+              <Button variant="text"
                 size="small"
                 icon={<FilterOutlined />}
                 className={sourceFilter || statusFilter ? "text-blue-500" : ""}
@@ -403,8 +396,7 @@ export default function ImageGenHistory({
             </Tooltip>
           </Popover>
           <Tooltip title="刷新">
-            <Button
-              type="text"
+            <Button variant="text"
               size="small"
               icon={<ReloadOutlined />}
               onClick={fetchLogs}
@@ -520,8 +512,7 @@ export default function ImageGenHistory({
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {url && (
                             <Tooltip title="复制图片链接">
-                              <Button
-                                type="text"
+                              <Button variant="text"
                                 size="small"
                                 icon={<CopyOutlined />}
                                 className="text-xs"
@@ -530,8 +521,7 @@ export default function ImageGenHistory({
                             </Tooltip>
                           )}
                           <Tooltip title="复制提示词">
-                            <Button
-                              type="text"
+                            <Button variant="text"
                               size="small"
                               icon={
                                 <span className="text-[10px]">T</span>
@@ -544,9 +534,7 @@ export default function ImageGenHistory({
                           </Tooltip>
                           {canDelete && (
                             <Tooltip title="删除记录">
-                              <Button
-                                type="text"
-                                danger
+                              <Button variant="text" color="danger"
                                 size="small"
                                 icon={<DeleteOutlined />}
                                 className="text-xs"
@@ -571,8 +559,7 @@ export default function ImageGenHistory({
       {/* 分页 */}
       {total > pageSize && (
         <div className="shrink-0 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-center">
-          <Button
-            type="text"
+          <Button variant="text"
             size="small"
             disabled={pageNum * pageSize >= total}
             onClick={() => setPageNum((p) => p + 1)}

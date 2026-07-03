@@ -407,10 +407,8 @@ const SessionCommandPalette: React.FC<{
                     }}
                     onCancel={(e) => e?.stopPropagation()}
                   >
-                    <Button
-                      type="text"
+                    <Button variant="text" color="danger"
                       size="small"
-                      danger
                       icon={<DeleteOutlined />}
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -433,7 +431,7 @@ const SessionCommandPalette: React.FC<{
       </div>
 
       <div className="chat-session-footer mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
-        <Button type="primary" icon={<PlusOutlined />} onClick={onNew} block>
+        <Button color="primary" variant="solid" icon={<PlusOutlined />} onClick={onNew} block>
           {selectStyleText(chatStyleCopy.newSession, styleVariant)}
         </Button>
       </div>

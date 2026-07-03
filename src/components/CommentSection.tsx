@@ -121,8 +121,7 @@ function CommentItem({ comment, currentUser, onReply, onDelete, onLike, depth = 
 
           {/* 操作按钮 */}
           <div className="mt-2 flex items-center gap-4">
-            <Button
-              type="text"
+            <Button variant="text"
               size="small"
               icon={<LikeOutlined />}
               onClick={handleLike}
@@ -130,18 +129,15 @@ function CommentItem({ comment, currentUser, onReply, onDelete, onLike, depth = 
             >
               {comment.like_count > 0 && comment.like_count}
             </Button>
-            <Button
-              type="text"
+            <Button variant="text"
               size="small"
               onClick={() => onReply(comment)}
             >
               回复
             </Button>
             {currentUser?.id === comment.user_id && (
-              <Button
-                type="text"
+              <Button variant="text" color="danger"
                 size="small"
-                danger
                 icon={<DeleteOutlined />}
                 onClick={handleDelete}
               >
@@ -343,7 +339,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         <div className="mb-6 rounded-lg bg-blue-50 p-6 text-center dark:bg-blue-900/20">
           <Text className="mb-4 block">请先登录后发表评论</Text>
           <Link href={`/login?redirect=${encodeURIComponent(redirectUrl)}`}>
-            <Button type="primary" icon={<LoginOutlined />}>
+            <Button color="primary" variant="solid" icon={<LoginOutlined />}>
               前往登录
             </Button>
           </Link>
@@ -354,10 +350,10 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     if (!canComment) {
       return (
         <div className="mb-6 rounded-lg bg-orange-50 p-6 text-center dark:bg-orange-900/20">
-          <Space direction="vertical" size="middle" className="w-full">
+          <Space orientation="vertical" size="middle" className="w-full">
             <Text>需要绑定以下任一方式才能评论：{missingBindings.join('、')}</Text>
             <Link href="/c/user/info">
-              <Button type="primary">前往绑定</Button>
+              <Button color="primary" variant="solid">前往绑定</Button>
             </Link>
           </Space>
         </div>
@@ -378,7 +374,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                   回复 @{replyTo.user.nickname}
                 </Text>
               </div>
-              <Button type="link" size="small" onClick={handleCancelReply}>
+              <Button variant="link" size="small" onClick={handleCancelReply}>
                 取消回复
               </Button>
             </div>
@@ -395,8 +391,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           activeKey={editorMode}
           onChange={(key) => setEditorMode(key as 'edit' | 'preview')}
           tabBarExtraContent={
-            <Button
-              type="primary"
+            <Button variant="solid" color="primary"
               icon={<SendOutlined />}
               onClick={handleSubmit}
               loading={submitting}

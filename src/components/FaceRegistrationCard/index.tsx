@@ -109,7 +109,7 @@ export default function FaceRegistrationCard({
   return (
     <>
       <Card>
-        <Space direction="vertical" size="middle" className="w-full">
+        <Space orientation="vertical" size="middle" className="w-full">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
               <ScanOutlined className="text-xl text-blue-600 dark:text-blue-400" />
@@ -124,7 +124,7 @@ export default function FaceRegistrationCard({
 
           {registered ? (
             <div className="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
-              <Space direction="vertical" size="small" className="w-full">
+              <Space orientation="vertical" size="small" className="w-full">
                 <div className="flex items-center gap-2">
                   <SafetyCertificateOutlined className="text-green-600" />
                   <Text strong>人脸识别登录已开启</Text>
@@ -134,7 +134,7 @@ export default function FaceRegistrationCard({
                   <Button icon={<ScanOutlined />} onClick={handleOpenModal}>
                     更新人脸照片
                   </Button>
-                  <Button danger icon={<DeleteOutlined />} onClick={handleDelete} loading={loading}>
+                  <Button color="danger" icon={<DeleteOutlined />} onClick={handleDelete} loading={loading}>
                     关闭人脸登录
                   </Button>
                 </div>
@@ -142,7 +142,7 @@ export default function FaceRegistrationCard({
             </div>
           ) : (
             <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-              <Space direction="vertical" size="small" className="w-full">
+              <Space orientation="vertical" size="small" className="w-full">
                 <Text>开启人脸识别登录后可以：</Text>
                 <ul className="ml-4 space-y-1">
                   <li>
@@ -152,8 +152,7 @@ export default function FaceRegistrationCard({
                     <Text type="secondary">• 无需输入账号密码</Text>
                   </li>
                 </ul>
-                <Button
-                  type="primary"
+                <Button variant="solid" color="primary"
                   icon={<ScanOutlined />}
                   onClick={handleOpenModal}
                   className="mt-2"
@@ -173,8 +172,7 @@ export default function FaceRegistrationCard({
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>
-            <Button
-              type="primary"
+            <Button variant="solid" color="primary"
               onClick={handleConfirmRegister}
               loading={loading}
               disabled={!captured}

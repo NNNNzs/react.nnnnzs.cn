@@ -95,8 +95,7 @@ export default function GithubBindCard({
                 <GithubOutlined />
                 <Text>{githubUsername}</Text>
               </div>
-              <Button
-                danger
+              <Button color="danger"
                 icon={<DisconnectOutlined />}
                 onClick={handleUnbind}
                 loading={loading}
@@ -118,8 +117,7 @@ export default function GithubBindCard({
                   <Text type="secondary">• 参与互动讨论</Text>
                 </li>
               </ul>
-              <Button
-                type="primary"
+              <Button variant="solid" color="primary"
                 icon={<LinkOutlined />}
                 onClick={handleBind}
                 className="mt-2"

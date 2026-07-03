@@ -528,30 +528,25 @@ function UserPageContent() {
       fixed: "right" as const,
       render: (_: unknown, record: UserInfo) => (
         <Space>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<SafetyOutlined />}
             onClick={() => handleAssignRoles(record)}
           >
             角色
           </Button>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<LockOutlined />}
             onClick={() => handleResetPassword(record)}
           >
             重置密码
           </Button>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={record.role === UserRole.ADMIN}
@@ -607,34 +602,29 @@ function UserPageContent() {
               : "-"}
           </span>
           <Space size="small">
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<SafetyOutlined />}
               onClick={() => handleAssignRoles(record)}
             >
               角色
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<LockOutlined />}
               onClick={() => handleResetPassword(record)}
             >
               重置密码
             </Button>
-            <Button
-              type="link"
+            <Button variant="link" color="danger"
               size="small"
-              danger
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
               disabled={record.role === UserRole.ADMIN}
@@ -656,8 +646,7 @@ function UserPageContent() {
           <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
             用户管理
           </h1>
-          <Button
-            type="primary"
+          <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
             size={isMobile ? "middle" : "large"}
@@ -755,6 +744,7 @@ function UserPageContent() {
           body: { zIndex: 1000 }
         }}
         destroyOnHidden
+        forceRender
       >
         <Form
           form={form}

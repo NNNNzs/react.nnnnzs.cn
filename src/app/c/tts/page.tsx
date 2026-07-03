@@ -366,8 +366,7 @@ export default function TTSPage() {
               </div>
 
               {/* 生成按钮 */}
-              <Button
-                type="primary"
+              <Button variant="solid" color="primary"
                 icon={<SoundOutlined />}
                 loading={generating}
                 disabled={!text.trim()}

@@ -505,44 +505,38 @@ function AdminPageContent() {
               }}
               trigger={['click']}
             >
-              <Button type="text" icon={<MoreOutlined />} />
+              <Button variant="text" icon={<MoreOutlined />} />
             </Dropdown>
           );
         }
         // 桌面端：保持原有按钮组
         return (
           <Space wrap>
-            <Button
-              type="link"
+            <Button variant="link"
               icon={<EyeOutlined />}
               onClick={() => handleView(record)}
             >
               查看
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
             </Button>
-            <Button
-              type="link"
+            <Button variant="link"
               icon={<ReloadOutlined />}
               onClick={() => handleUpdateEmbedding(record)}
             >
               更新向量
             </Button>
-            <Button
-              type="link"
-              danger
+            <Button variant="link" color="danger"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
             >
@@ -588,7 +582,7 @@ function AdminPageContent() {
               }}
               trigger={['click']}
             >
-              <Button type="text" size="small" icon={<MoreOutlined />} />
+              <Button variant="text" size="small" icon={<MoreOutlined />} />
             </Dropdown>
           </div>
         }
@@ -644,8 +638,7 @@ function AdminPageContent() {
                 </Button>
               </Dropdown>
             )}
-            <Button
-              type="primary"
+            <Button variant="solid" color="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
               size={isMobile ? 'middle' : 'large'}

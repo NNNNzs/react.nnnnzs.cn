@@ -403,8 +403,7 @@ function PageContent() {
         width: 120,
         render: (_, record) => (
           <Space size="small">
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<EyeOutlined />}
               onClick={() => {
@@ -426,7 +425,7 @@ function PageContent() {
                   if (res.ok) loadData();
                 }}
               >
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                <Button variant="link" color="danger" size="small" icon={<DeleteOutlined />} />
               </Popconfirm>
             )}
           </Space>
@@ -460,8 +459,7 @@ function PageContent() {
           {dayjs(record.updated_at).format("YYYY-MM-DD HH:mm")}
         </Text>
         <Space size="small">
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<EyeOutlined />}
             onClick={() => {
@@ -481,7 +479,7 @@ function PageContent() {
                 if (res.ok) loadData();
               }}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button variant="link" color="danger" size="small" icon={<DeleteOutlined />} />
             </Popconfirm>
           )}
         </Space>
@@ -553,7 +551,7 @@ function PageContent() {
               title={`确定删除选中的 ${selectedRowKeys.length} 条记录？`}
               onConfirm={handleBatchDelete}
             >
-              <Button danger icon={<DeleteOutlined />}>
+              <Button color="danger" icon={<DeleteOutlined />}>
                 删除选中 ({selectedRowKeys.length})
               </Button>
             </Popconfirm>

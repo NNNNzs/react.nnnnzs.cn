@@ -211,7 +211,7 @@ export default function EntityChangeHistoryModal({
       key: 'change',
       render: (_: unknown, record: ChangeLog) => (
         <div style={{ minWidth: 300 }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <div>
               <div style={{ color: '#999', fontSize: '12px', marginBottom: 4 }}>
                 旧值：
@@ -250,7 +250,7 @@ export default function EntityChangeHistoryModal({
             </span>
           </Space>
         </div>
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <div>
             <span style={{ color: '#999', fontSize: '12px' }}>旧值： </span>
             {formatValue(log.oldValue, log.valueType)}

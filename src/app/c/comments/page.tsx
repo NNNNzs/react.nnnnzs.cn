@@ -278,8 +278,7 @@ function CommentsPageContent() {
       width: 150,
       render: (_: unknown, record: Comment) => (
         <div className="flex items-center gap-2">
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<UserOutlined />}
             onClick={() => handleViewUser(record)}
@@ -298,8 +297,7 @@ function CommentsPageContent() {
         const title = record.post.title || `文章 #${record.post.id}`;
         return (
           <Tooltip title={title}>
-            <Button
-              type="link"
+            <Button variant="link"
               size="small"
               icon={<FileTextOutlined />}
               onClick={() => handleViewPost(record)}
@@ -363,9 +361,7 @@ function CommentsPageContent() {
       width: 120,
       render: (_: unknown, record: Comment) => (
         <Space wrap>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
@@ -384,8 +380,7 @@ function CommentsPageContent() {
       {/* 顶部：评论者 + 状态 + 删除按钮 */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<UserOutlined />}
             onClick={() => handleViewUser(record)}
@@ -397,9 +392,7 @@ function CommentsPageContent() {
             {record.status === 1 ? '正常' : '隐藏'}
           </Tag>
         </div>
-        <Button
-          type="link"
-          danger
+        <Button variant="link" color="danger"
           size="small"
           icon={<DeleteOutlined />}
           onClick={() => handleDelete(record)}
@@ -415,8 +408,7 @@ function CommentsPageContent() {
 
       {/* 底部：所属文章 + 评论时间 */}
       <div className="flex items-center justify-between text-xs text-gray-400">
-        <Button
-          type="link"
+        <Button variant="link"
           size="small"
           icon={<FileTextOutlined />}
           onClick={() => handleViewPost(record)}

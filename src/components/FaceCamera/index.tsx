@@ -447,8 +447,7 @@ export default function FaceCamera({
           </Button>
         ) : (
           <>
-            <Button
-              type="primary"
+            <Button variant="solid" color="primary"
               shape="circle"
               size="large"
               icon={<CameraOutlined />}

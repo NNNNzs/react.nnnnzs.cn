@@ -250,7 +250,7 @@ export default function UserInfoPage() {
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={handleGoBack}
-            type="text"
+            variant="text"
           >
             返回
           </Button>
@@ -276,8 +276,7 @@ export default function UserInfoPage() {
                 accept="image/*"
                 disabled={uploading}
               >
-                <Button
-                  type="primary"
+                <Button variant="solid" color="primary"
                   shape="circle"
                   icon={<EditOutlined />}
                   size="small"
@@ -299,7 +298,7 @@ export default function UserInfoPage() {
 
           {/* 角色显示和权限说明 */}
           <div className="mb-6">
-            <Space direction="vertical" size="middle" className="w-full">
+            <Space orientation="vertical" size="middle" className="w-full">
               <div>
                 <Text type="secondary">账户角色：</Text>
                 <Tag
@@ -312,14 +311,14 @@ export default function UserInfoPage() {
               </div>
               {isAdmin(userInfo?.role) ? (
                 <Alert
-                  message="管理员权限"
+                  title="管理员权限"
                   description="您可以管理所有文章、合集、配置和用户"
                   type="success"
                   showIcon
                 />
               ) : (
                 <Alert
-                  message="普通用户权限"
+                  title="普通用户权限"
                   description="您可以创建和编辑自己的文章"
                   type="info"
                   showIcon
@@ -388,8 +387,7 @@ export default function UserInfoPage() {
 
             <Form.Item>
               <Space>
-                <Button
-                  type="primary"
+                <Button variant="solid" color="primary"
                   htmlType="submit"
                   icon={<SaveOutlined />}
                   loading={loading}
@@ -472,6 +470,7 @@ export default function UserInfoPage() {
         cancelText="取消"
         confirmLoading={passwordLoading}
         destroyOnHidden
+        forceRender
       >
         <Form form={passwordForm} layout="vertical" className="mt-4">
           <Form.Item

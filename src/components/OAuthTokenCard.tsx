@@ -170,7 +170,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
     >
       {/* 说明提示 */}
       <Alert
-        message="OAuth Token说明"
+        title="OAuth Token说明"
         description="OAuth Token是您授权给第三方应用访问您账户的凭证。您可以查看所有已授权的Token，并在需要时撤销授权。"
         type="info"
         showIcon
@@ -190,7 +190,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
             <div className="text-sm mt-2">当您授权第三方应用时，授权信息将显示在这里</div>
           </div>
         ) : (
-          <Space direction="vertical" className="w-full" size="middle">
+          <Space orientation="vertical" className="w-full" size="middle">
             {tokens.map((tokenItem) => {
               const isVisible = visibleTokens.has(tokenItem.token);
               return (
@@ -223,9 +223,8 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
                         <div className="mt-2 p-2 bg-gray-100 rounded font-mono text-xs break-all">
                           <div className="flex items-center justify-between mb-1">
                             <Text strong>Token:</Text>
-                            <Button
+                            <Button variant="solid" color="primary"
                               size="small"
-                              type="primary"
                               onClick={() => handleCopyToken(tokenItem.token)}
                               icon={<CopyOutlined />}
                             >
@@ -248,8 +247,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
                         </Button>
                       </Tooltip>
                       <Tooltip title="撤销授权">
-                        <Button
-                          danger
+                        <Button color="danger"
                           size="small"
                           onClick={() => handleDelete(tokenItem.token)}
                           icon={<DeleteOutlined />}

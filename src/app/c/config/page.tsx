@@ -408,16 +408,13 @@ function ConfigPageContent() {
       fixed: "right" as const,
       render: (_: unknown, record: Config) => (
         <Space>
-          <Button
-            type="link"
+          <Button variant="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
@@ -461,17 +458,14 @@ function ConfigPageContent() {
             : "-"}
         </span>
         <Space>
-          <Button
-            type="link"
+          <Button variant="link"
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
-          <Button
-            type="link"
-            danger
+          <Button variant="link" color="danger"
             size="small"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
@@ -491,8 +485,7 @@ function ConfigPageContent() {
           <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
             配置管理
           </h1>
-          <Button
-            type="primary"
+          <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
             size={isMobile ? "middle" : "large"}
@@ -596,6 +589,7 @@ function ConfigPageContent() {
           body: { zIndex: 1000 },
         }}
         destroyOnHidden
+        forceRender
       >
         <Form
           form={form}

@@ -20,7 +20,7 @@ export default function NotFound() {
           抱歉，您访问的文章不存在或已被删除
         </p>
         <Link href="/">
-          <Button type="primary" size="large">
+          <Button color="primary" variant="solid" size="large">
             返回首页
           </Button>
         </Link>
@@ -28,4 +28,3 @@ export default function NotFound() {
     </div>
   );
 }
-

@@ -225,6 +225,8 @@ function LoginPage() {
   if (checkingConfig) {
     return (
       <div className="flex min-h-screen items-center justify-center">
+        <Form form={loginForm} component={false} />
+        <Form form={registerForm} component={false} />
         <div>加载中...</div>
       </div>
     );
@@ -239,6 +241,7 @@ function LoginPage() {
           账号登录
         </span>
       ),
+      forceRender: true,
       children: (
         <Form
           form={loginForm}
@@ -269,8 +272,7 @@ function LoginPage() {
           </Form.Item>
 
           <Form.Item>
-            <Button
-              type="primary"
+            <Button variant="solid" color="primary"
               htmlType="submit"
               className="w-full"
               loading={loading}
@@ -316,8 +318,7 @@ function LoginPage() {
               使用 GitHub 账号登录
             </p>
           </div>
-          <Button
-            type="primary"
+          <Button variant="solid" color="primary"
             size="large"
             icon={<GithubOutlined />}
             onClick={handleGithubLogin}
@@ -368,6 +369,7 @@ function LoginPage() {
                 注册
               </span>
             ),
+            forceRender: true,
             children: (
               <Form
                 form={registerForm}
@@ -477,8 +479,7 @@ function LoginPage() {
                 </Form.Item>
 
                 <Form.Item>
-                  <Button
-                    type="primary"
+                  <Button variant="solid" color="primary"
                     htmlType="submit"
                     className="w-full"
                     loading={loading}
@@ -514,6 +515,7 @@ function LoginPage() {
           centered
           items={items}
         />
+        {!allowRegister && <Form form={registerForm} component={false} />}
       </Card>
     </div>
   );

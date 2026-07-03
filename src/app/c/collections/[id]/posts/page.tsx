@@ -221,8 +221,7 @@ export default function CollectionPostsPage() {
           <Card
             title={
               <Space>
-                <Button
-                  type="text"
+                <Button variant="text"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push('/c/collections')}
                 >
@@ -235,8 +234,7 @@ export default function CollectionPostsPage() {
             }
             extra={
               <Space>
-                <Button
-                  type="primary"
+                <Button variant="solid" color="primary"
                   icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
@@ -247,7 +245,7 @@ export default function CollectionPostsPage() {
             }
           >
             <Alert
-              message="操作说明"
+              title="操作说明"
               description={
                 <div>
                   <p>1. 在下方搜索并选择文章添加到合集</p>
@@ -372,9 +370,8 @@ export default function CollectionPostsPage() {
                         >
                           下移
                         </Button>
-                        <Button
+                        <Button color="danger"
                           size="small"
-                          danger
                           onClick={() => handleRemove(article.id)}
                         >
                           移除
@@ -388,7 +385,7 @@ export default function CollectionPostsPage() {
 
             {selectedArticles.length > 1 && (
               <div className="mt-6 text-center">
-                <Button type="primary" onClick={handleSaveOrder} loading={saving}>
+                <Button color="primary" variant="solid" onClick={handleSaveOrder} loading={saving}>
                   保存排序
                 </Button>
               </div>

@@ -429,6 +429,8 @@ export default function AIProfilePanel() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
+        <Form form={form} component={false} />
+        <Form form={scenarioForm} component={false} />
         <Spin />
       </div>
     );
@@ -554,8 +556,7 @@ export default function AIProfilePanel() {
                     <p className="mt-1 text-sm text-slate-500">{meta.description}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="primary"
+                    <Button variant="solid" color="primary"
                       icon={<SaveOutlined />}
                       loading={saving}
                       onClick={handleSaveSelected}
@@ -577,7 +578,7 @@ export default function AIProfilePanel() {
                       cancelText="取消"
                       onConfirm={() => handleDelete(selectedProfile.id)}
                     >
-                      <Button danger disabled={saving}>
+                      <Button color="danger" disabled={saving}>
                         删除
                       </Button>
                     </Popconfirm>
@@ -645,6 +646,7 @@ export default function AIProfilePanel() {
         okText="创建"
         cancelText="取消"
         destroyOnHidden
+        forceRender
       >
         <Form form={scenarioForm} layout="vertical">
           <Form.Item

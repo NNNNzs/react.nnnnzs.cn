@@ -14,6 +14,7 @@
 
 ### 开发规范
 - **[前端开发](frontend.md)** - Next.js App Router、React 19、Ant Design 6.x
+- **[Ant Design v6 迁移手册](antd-v6-migration.md)** - v6 组件 API 新旧写法、扫描命令、迁移验收
 - **[后端开发](backend.md)** - API 路由、服务层、AI 工具选择
 - **[数据库开发](database.md)** - Prisma Schema、迁移、查询优化
 - **[权限系统](permission.md)** - RBAC 权限码、requirePermission、数据权限、角色管理
@@ -158,4 +159,3 @@ pnpm analyze:bundle   # 包大小分析
 - [设计文档](../designs/README.md) - 功能设计文档
 - [技术参考](../reference/) - 技术文档索引
 - [开发计划](../plans/README.md) - 开发计划
-

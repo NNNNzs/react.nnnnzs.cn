@@ -170,9 +170,8 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({
         >
           重试
         </Button>,
-        <Button
+        <Button variant="solid" color="primary"
           key="confirm"
-          type="primary"
           onClick={handleConfirm}
           disabled={isLoading || !displayText.trim()}
           icon={<CheckOutlined />}
@@ -182,7 +181,7 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({
       ]}
       maskClosable={!isLoading}
       confirmLoading={isLoading}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', gap: '16px', height: '400px' }}>
         {/* 左侧：原始文本 */}
@@ -240,7 +239,7 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({
 
             {error && (
               <Alert
-                message="处理失败"
+                title="处理失败"
                 description={error}
                 type="error"
                 showIcon
@@ -263,7 +262,7 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({
 
       {/* 提示信息 */}
       <div style={{ marginTop: '12px', fontSize: '12px', color: 'rgba(0,0,0,0.45)' }}>
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           <div>• 支持实时流式返回，结果会逐步显示</div>
           <div>• 点击“确认使用”将替换编辑器中的选中文本</div>
           <div>• 处理过程中可以点击“取消”终止请求</div>

@@ -118,6 +118,7 @@ export default function CollectionEditPage() {
   if (fetching) {
     return (
       <div className="flex justify-center items-center min-h-screen">
+        <Form form={form} component={false} />
         <Spin size="large" />
       </div>
     );
@@ -130,8 +131,7 @@ export default function CollectionEditPage() {
           <Card
             title={
               <Space>
-                <Button
-                  type="text"
+                <Button variant="text"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push('/c/collections')}
                 >
@@ -143,7 +143,7 @@ export default function CollectionEditPage() {
           >
             {isEdit && (
               <Alert
-                message="提示"
+                title="提示"
                 description={
                   <div>
                     合集创建成功后，您可以点击右侧的&ldquo;管理文章&rdquo;按钮来添加或移除文章。
@@ -232,8 +232,7 @@ export default function CollectionEditPage() {
 
               <Form.Item>
                 <Space>
-                  <Button
-                    type="primary"
+                  <Button variant="solid" color="primary"
                     htmlType="submit"
                     icon={<SaveOutlined />}
                     loading={loading}
