@@ -5,7 +5,7 @@
 ## 📋 当前计划
 
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充；昼夜双风格已提升为站点级语义系统，下一步家具模型补强 + 文案工具落地）
-- [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 📝 计划中（把现有 LangGraph/RAG 聊天能力升级为 Run 观测、检索实验、Golden Dataset、Prompt Replay 与 LangSmith 集成的学习实验系统）
+- [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成后台信息架构拆分与 Run 观测表/接口/页面，下一步从 Run 转 Eval Case 并推进 Golden Dataset）
 
 ---
 

@@ -58,6 +58,7 @@ pnpm dlx @ant-design/cli --version 6.1.1 --lang zh --format markdown migrate 5 6
 | `Image` | `toolbarRender` | `actionsRender` |
 | `Tabs` | `Tabs.TabPane` | `items` |
 | `Timeline` | `Timeline.Item` | `items` |
+| `List` | `<List>` / `<List.Item>` | 原生列表结构 + `Pagination` / `Spin` / `Empty` |
 
 ## Form 实例连接警告
 
@@ -166,6 +167,23 @@ if (loading) {
       (option?.label ?? "").toLowerCase().includes(input.toLowerCase()),
   }}
 />
+```
+
+### List
+
+```tsx
+// 不要继续使用
+<List
+  dataSource={records}
+  renderItem={(record) => <List.Item>{record.title}</List.Item>}
+/>
+
+// 推荐：按业务场景使用原生结构，分页和状态组件单独组合
+<div className="space-y-3">
+  {records.map((record) => (
+    <div key={record.id}>{record.title}</div>
+  ))}
+</div>
 ```
 
 ## 迁移后验收

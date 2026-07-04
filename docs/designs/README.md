@@ -54,7 +54,7 @@ docs/designs/
 |------|------|------|
 | [Agent 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + RAG 检索工具 + 聊天记录持久化 | ✅ 已实施 |
 | [AI 配置组管理](ai-config-profiles.md) | 多套模型地址、模型和密钥配置组切换 | ✅ 已实施 |
-| [AI Lab / LLM 学习实验台](ai-lab.md) | Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计 | 📋 计划中 |
+| [AI Lab / LLM 学习实验台](ai-lab.md) | Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计 | 🚧 执行中 |
 
 ### 业务功能
 

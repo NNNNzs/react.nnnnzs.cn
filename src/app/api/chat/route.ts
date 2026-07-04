@@ -33,6 +33,7 @@ import type { StepType } from '@/lib/stream-tags';
 import { generateChatSessionTitle } from '@/services/ai/chat-agent/title';
 import { parseSiteStyleVariant } from '@/lib/site-style/variant';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
+import { createAiLabRunFromChat } from '@/services/ai-lab-run';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
     await touchSession(activeSessionId, { increment: 1 });
 
     // 调用 Chat Agent 服务（流式响应，ReAct 范式）
+    const runStartedAt = Date.now();
     const originalStream = await chatAgentStream({
       question: message,
       userInfo,
@@ -299,17 +301,35 @@ export async function POST(request: NextRequest) {
             steps,
           }));
 
+          const assistantMetadata = {
+            thoughts: collectedThoughts.length > 0 ? collectedThoughts : undefined,
+            reactLoops: reactLoops.length > 0 ? reactLoops : undefined,
+            reactTimeline: collectedTimeline.length > 0 ? collectedTimeline : undefined,
+          };
+
           createMessage({
             sessionId: activeSessionId!,
             role: 'assistant',
             content: collectedContent,
-            metadata: {
-              thoughts: collectedThoughts.length > 0 ? collectedThoughts : undefined,
-              reactLoops: reactLoops.length > 0 ? reactLoops : undefined,
-              reactTimeline: collectedTimeline.length > 0 ? collectedTimeline : undefined,
-            },
+            metadata: assistantMetadata,
           })
-            .then(async () => {
+            .then(async (assistantMessage) => {
+              try {
+                await createAiLabRunFromChat({
+                  sessionId: activeSessionId!,
+                  messageId: assistantMessage.id,
+                  userId: user?.id,
+                  deviceId,
+                  question: message,
+                  answer: collectedContent,
+                  metadata: assistantMetadata,
+                  latencyMs: Date.now() - runStartedAt,
+                  styleVariant,
+                });
+              } catch (runError) {
+                console.error('写入 AI Lab Run 失败:', runError);
+              }
+
               await touchSession(activeSessionId!, { increment: 1 });
 
               if (!shouldGenerateSessionTitle) return;

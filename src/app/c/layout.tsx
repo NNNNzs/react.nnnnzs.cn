@@ -17,14 +17,12 @@ import {
   UserOutlined,
   BookOutlined,
   ClusterOutlined,
-  SearchOutlined,
   MessageOutlined,
-  SoundOutlined,
-  PictureOutlined,
   MenuOutlined,
   SafetyOutlined,
   KeyOutlined,
   ApiOutlined,
+  ExperimentOutlined,
   DeploymentUnitOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +45,16 @@ const { Sider, Content } = Layout;
 
 const MOBILE_BREAKPOINT = 768;
 const ADMIN_LAYOUT_HEIGHT = "h-[calc(100vh-var(--header-height))]";
+const AI_LAB_ROUTE = "/c/ai-lab";
+const AI_LAB_PERMISSIONS = [
+  CHAT_LOG_VIEW,
+  VECTOR_VIEW,
+  TTS_VIEW,
+  IMAGE_VIEW,
+  CONFIG_VIEW,
+];
+
+type RoutePermission = string | string[];
 
 /**
  * 管理后台布局组件
@@ -58,6 +66,26 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
   const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const selectedMenuKeys = useMemo(
+    () => [pathname.startsWith(AI_LAB_ROUTE) ? AI_LAB_ROUTE : pathname],
+    [pathname]
+  );
+  const sectionTitle = pathname.startsWith(AI_LAB_ROUTE) ? "AI Lab" : "管理后台";
+
+  const hasAnyPermission = useCallback(
+    (permissions: string[]) => permissions.some((permission) => hasPermission(permission)),
+    [hasPermission]
+  );
+
+  const hasRoutePermission = useCallback(
+    (permission: RoutePermission) => {
+      if (Array.isArray(permission)) {
+        return hasAnyPermission(permission);
+      }
+      return hasPermission(permission);
+    },
+    [hasAnyPermission, hasPermission]
+  );
 
   /**
    * 动态生成菜单项
@@ -97,35 +125,11 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       });
     }
 
-    if (hasPermission(VECTOR_VIEW)) {
+    if (hasAnyPermission(AI_LAB_PERMISSIONS)) {
       items.push({
-        key: "/c/vector-search",
-        icon: <SearchOutlined />,
-        label: "向量检索",
-      });
-    }
-
-    if (hasPermission(TTS_VIEW)) {
-      items.push({
-        key: "/c/tts",
-        icon: <SoundOutlined />,
-        label: "语音合成",
-      });
-    }
-
-    if (hasPermission(IMAGE_VIEW)) {
-      items.push({
-        key: "/c/image-gen",
-        icon: <PictureOutlined />,
-        label: "AI 图片生成",
-      });
-    }
-
-    if (hasPermission(CHAT_LOG_VIEW)) {
-      items.push({
-        key: "/c/chat-logs",
-        icon: <MessageOutlined />,
-        label: "聊天记录",
+        key: AI_LAB_ROUTE,
+        icon: <ExperimentOutlined />,
+        label: "AI Lab",
       });
     }
 
@@ -172,7 +176,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
     }
 
     return items;
-  }, [hasPermission]);
+  }, [hasAnyPermission, hasPermission]);
 
   /**
    * 检查登录状态
@@ -192,30 +196,39 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && user) {
       // 定义路径对应的权限码
-      const pathPermissions: Record<string, string> = {
-        '/c/comments': COMMENT_MANAGE,
-        '/c/collections': COLLECTION_VIEW,
-        '/c/config': CONFIG_VIEW,
-        '/c/user': USER_VIEW,
-        '/c/glb-model-inspector': USER_MANAGE,
-        '/c/roles': USER_MANAGE,
-        '/c/api-registry': USER_MANAGE,
-        '/c/permissions': USER_VIEW,
-        '/c/queue': QUEUE_VIEW,
-        '/c/vector-search': VECTOR_VIEW,
-        '/c/tts': TTS_VIEW,
-        '/c/image-gen': IMAGE_VIEW,
-        '/c/chat-logs': CHAT_LOG_VIEW,
-      };
+      const pathPermissions: Array<[string, RoutePermission]> = [
+        ['/c/ai-lab/runs', CHAT_LOG_VIEW],
+        ['/c/ai-lab/retrieval-playground', VECTOR_VIEW],
+        ['/c/ai-lab/config', CONFIG_VIEW],
+        ['/c/ai-lab/image-gen', IMAGE_VIEW],
+        ['/c/ai-lab/tts', TTS_VIEW],
+        ['/c/ai-lab/eval-cases', [CHAT_LOG_VIEW, VECTOR_VIEW]],
+        ['/c/ai-lab/eval-runs', [CHAT_LOG_VIEW, VECTOR_VIEW]],
+        ['/c/ai-lab/prompts', CONFIG_VIEW],
+        ['/c/ai-lab', AI_LAB_PERMISSIONS],
+        ['/c/comments', COMMENT_MANAGE],
+        ['/c/collections', COLLECTION_VIEW],
+        ['/c/config', CONFIG_VIEW],
+        ['/c/user', USER_VIEW],
+        ['/c/glb-model-inspector', USER_MANAGE],
+        ['/c/roles', USER_MANAGE],
+        ['/c/api-registry', USER_MANAGE],
+        ['/c/permissions', USER_VIEW],
+        ['/c/queue', QUEUE_VIEW],
+        ['/c/vector-search', VECTOR_VIEW],
+        ['/c/tts', TTS_VIEW],
+        ['/c/image-gen', IMAGE_VIEW],
+        ['/c/chat-logs', CHAT_LOG_VIEW],
+      ];
 
       // 个人中心页面例外处理
       const isPersonalCenter = pathname.startsWith('/c/user/info');
 
       if (!isPersonalCenter) {
         // 检查路径权限
-        for (const [path, permission] of Object.entries(pathPermissions)) {
+        for (const [path, permission] of pathPermissions) {
           if (pathname === path || pathname.startsWith(path + '/')) {
-            if (!hasPermission(permission)) {
+            if (!hasRoutePermission(permission)) {
               message.warning('您没有权限访问此页面');
               router.push('/c/post');
               return;
@@ -224,7 +237,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [user, loading, pathname, router, hasPermission]);
+  }, [user, loading, pathname, router, hasRoutePermission]);
 
   /**
    * 预加载所有管理路由
@@ -239,11 +252,20 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/config',
       '/c/user',
       '/c/user/info',
-      '/c/glb-model-inspector',
       '/c/roles',
       '/c/api-registry',
       '/c/permissions',
       '/c/queue',
+      '/c/ai-lab',
+      '/c/ai-lab/runs',
+      '/c/ai-lab/retrieval-playground',
+      '/c/ai-lab/config',
+      '/c/ai-lab/image-gen',
+      '/c/ai-lab/tts',
+      '/c/ai-lab/eval-cases',
+      '/c/ai-lab/eval-runs',
+      '/c/ai-lab/prompts',
+      '/c/glb-model-inspector',
       '/c/vector-search',
       '/c/tts',
       '/c/image-gen',
@@ -331,7 +353,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
             <MenuOutlined className="text-lg" />
           </button>
           <span className="font-medium text-gray-700 truncate">
-            管理后台
+            {sectionTitle}
           </span>
         </div>
 
@@ -346,7 +368,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           placement="left"
           onClose={() => setDrawerOpen(false)}
           open={drawerOpen}
-          width={260}
+          size={260}
           rootClassName="admin-light-drawer"
           styles={{
             body: { padding: 0 },
@@ -354,7 +376,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         >
           <Menu
             mode="inline"
-            selectedKeys={[pathname]}
+            selectedKeys={selectedMenuKeys}
             items={menuItems}
             onClick={handleMenuClick}
             className="border-r-0"
@@ -387,7 +409,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[pathname]}
+          selectedKeys={selectedMenuKeys}
           items={menuItems}
           onClick={handleMenuClick}
           className="admin-light-menu h-[calc(100vh-var(--header-height)-64px)] border-r-0"

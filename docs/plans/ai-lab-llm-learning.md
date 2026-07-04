@@ -1,6 +1,6 @@
 # AI Lab / LLM 学习实验台建设计划
 
-> **状态**：📝 计划中
+> **状态**：🚧 执行中
 > **创建时间**：2026-07-04
 > **最近更新**：2026-07-04
 > **合集**：大模型学习
@@ -78,6 +78,8 @@ flowchart TB
 | 评测集 | `/c/ai-lab/eval-cases` | Golden Dataset、失败样本沉淀 | 手工维护 + 从聊天记录转入 |
 | 评测运行 | `/c/ai-lab/eval-runs` | Hit@K、MRR、Recall、延迟趋势 | 同一批 case 批量跑配置 |
 | Prompt 实验 | `/c/ai-lab/prompts` | prompt diff、replay、rollback | 先登记版本和当前模板快照 |
+| AI 配置组 | `/c/ai-lab/config` | 多场景模型 profile、fallback、运行配置 | 复用现有 AI 配置组页面，保留 `/c/config` 单项配置入口 |
+| 生成实验 | `/c/ai-lab/image-gen`、`/c/ai-lab/tts` | 多模态生成、TTS、实验资产 | 先迁移入口，后续纳入 Run 和 Eval |
 | LangSmith | 配置与外链 | trace、dataset、online/offline eval | 先写 trace id / run url 字段，后续接入 |
 
 ## 四、实施步骤
@@ -87,14 +89,24 @@ flowchart TB
 1. [x] 新增计划文档 `docs/plans/ai-lab-llm-learning.md`。
 2. [x] 新增长期设计文档 `docs/designs/ai-lab.md`。
 3. [x] 更新 `docs/plans/README.md`、`docs/designs/README.md`、`CLAUDE.md` 索引。
-4. [ ] 根据设计文档确认第一阶段只做 AI Lab MVP，不引入复杂 rerank / hybrid / 多模态。
+4. [x] 根据设计文档确认第一阶段只做 AI Lab MVP，不引入复杂 rerank / hybrid / 多模态。
+
+### 阶段 0.5：后台信息架构拆分
+
+1. [x] 主后台 `/c` 侧栏收敛为内容、队列、AI Lab、单项配置、用户/RBAC、接口等一级入口。
+2. [x] 从主侧栏移除 AI 分散入口：聊天记录、向量检索、图片生成、语音合成。
+3. [x] 新增 `/c/ai-lab` 总览页和二级导航。
+4. [x] 为已存在页面建立 AI Lab 过渡路由：`retrieval-playground`、`config`、`image-gen`、`tts`。
+5. [x] 为 `eval-cases`、`eval-runs`、`prompts` 建立规划占位页，避免设计入口落到 404。
+6. [x] 将模型检查台还原到主后台侧栏，归入 Three.js / 3D 资产检查方向，不放入 AI Lab。
+7. [ ] 后续把过渡路由逐步改造成真正的 Eval / Prompt 页面。
 
 ### 阶段 1：Run 观测最小闭环
 
-1. [ ] 扩展聊天消息 metadata 或新增 Run 索引表，记录 `scenario`、`model`、`promptVersion`、`retrieverVersion`、`latencyMs`、`toolCalls`。
-2. [ ] 在 `/api/chat` 的异步落库链路中写入 Run 记录或 Run 快照。
-3. [ ] 新增 `/api/admin/ai-lab/runs` 查询接口。
-4. [ ] 新增 `/c/ai-lab/runs` 页面，展示最近运行、工具时间线、错误和慢查询。
+1. [x] 新增 `TbAiLabRun` Run 索引表，记录 `scenario`、`model`、`promptVersion`、`retrieverVersion`、`latencyMs`、`toolCalls`。
+2. [x] 在 `/api/chat` 的异步落库链路中写入 Run 记录或 Run 快照。
+3. [x] 新增 `/api/admin/ai-lab/runs` 查询接口和详情接口。
+4. [x] 新增 `/c/ai-lab/runs` 页面，展示最近运行、工具时间线、错误和慢查询。
 5. [ ] 从 `/c/chat-logs` 或 Run 详情入口支持“转为评测用例”。
 
 ### 阶段 2：评测集和基础指标
@@ -215,14 +227,16 @@ flowchart TB
 | `ai_lab:manage` | 管理评测用例、Prompt 版本 |
 | `ai_lab:run` | 执行检索实验和批量评测 |
 
-后台菜单建议放在现有 AI 相关功能附近：
+后台入口拆分：
 
-- AI Lab
-  - Runs
-  - Retrieval Playground
-  - Eval Cases
-  - Eval Runs
-  - Prompts
+| 主后台保留 | AI Lab 拆入 |
+|------------|-------------|
+| 文章管理、评论管理、合集管理 | `/c/ai-lab/runs`：Run 观测 |
+| 队列监控 | `/c/ai-lab/retrieval-playground`：原向量检索能力 |
+| `/c/config` 单项配置 | `/c/ai-lab/config`：AI 配置组入口 |
+| 用户、角色、权限、接口管理 | `/c/ai-lab/image-gen`：AI 图片生成 |
+| 模型检查台（Three.js / 3D 方向） | `/c/ai-lab/tts`：语音合成 |
+| 个人中心 | `/c/ai-lab/eval-cases`、`/eval-runs`、`/prompts`：规划入口 |
 
 ## 七、风险评估
 

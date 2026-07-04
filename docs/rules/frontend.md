@@ -789,7 +789,7 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 
 **组件特性：**
 - 桌面端：渲染 Ant Design `<Table>`，内置 ResizeObserver 自动计算滚动高度
-- 移动端：渲染 Ant Design `<List>` + 自定义卡片，分页自动简化为 `size: 'small'`
+- 移动端：渲染原生卡片列表，使用 Ant Design `Pagination` / `Spin` / `Empty` 处理分页、加载和空状态；不要使用已废弃的 Ant Design `<List>`
 - 无需手动管理 `tableContainerRef`、`tableScrollHeight` 和 ResizeObserver
 
 **移动端卡片设计规范：**

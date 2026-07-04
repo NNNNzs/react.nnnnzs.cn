@@ -1,6 +1,6 @@
 # AI Lab / LLM 学习实验台设计
 
-> **状态**：📋 计划中
+> **状态**：🚧 执行中
 > **创建日期**：2026-07-04
 > **最后更新**：2026-07-04
 > **相关计划**：[AI Lab / LLM 学习实验台建设计划](../plans/ai-lab-llm-learning.md)
@@ -98,6 +98,44 @@ flowchart TB
 | Chat 配置 | `getAIConfig('chat')` | 记录 model、baseUrl profile、scenario |
 | 聊天日志后台 | `/c/chat-logs` | 失败样本入口，可转 Eval Case |
 | 向量运维后台 | `/c/vector-search` | 与检索实验台互补 |
+
+## 后台信息架构
+
+AI Lab 不作为文章后台里的一个普通工具页，而是后台里的独立实验空间。主后台保留站点内容、单项配置、权限治理和 3D / Three.js 资产检查入口，AI 运行、检索、生成、AI 配置组和评测相关能力进入 `/c/ai-lab`。
+
+### 主后台 `/c`
+
+主侧栏保留：
+
+- 文章管理
+- 评论管理
+- 合集管理
+- 队列监控
+- AI Lab
+- 单项配置
+- 模型检查台
+- 用户管理
+- 角色管理
+- 接口管理
+- 权限管理
+
+### AI Lab `/c/ai-lab`
+
+二级导航承接：
+
+| 入口 | 路由 | 当前实现 |
+|------|------|----------|
+| 总览 | `/c/ai-lab` | AI Lab 板块入口、迁移边界和阶段状态 |
+| Runs | `/c/ai-lab/runs` | 使用 `TbAiLabRun`、`/api/admin/ai-lab/runs` 和聊天异步写入链路 |
+| 检索实验台 | `/c/ai-lab/retrieval-playground` | 过渡复用 `/c/vector-search` |
+| AI 配置组 | `/c/ai-lab/config` | 独立承载 AI Profile 管理；`/c/config` 只保留单项配置 |
+| 图片生成 | `/c/ai-lab/image-gen` | 过渡复用 `/c/image-gen` |
+| 语音合成 | `/c/ai-lab/tts` | 过渡复用 `/c/tts` |
+| Eval Cases | `/c/ai-lab/eval-cases` | 规划占位，后续接入 Golden Dataset |
+| Eval Runs | `/c/ai-lab/eval-runs` | 规划占位，后续接入评测运行 |
+| Prompts | `/c/ai-lab/prompts` | 规划占位，后续接入 Prompt 版本 |
+
+过渡路由保留旧页面能力，避免一次性搬动业务逻辑。Runs 已进入结构化 Run 表和接口，后续继续把 Eval、Prompt 和检索实验改造成真正的实验台视图。
 
 ## 数据模型
 
@@ -332,7 +370,7 @@ Hybrid、sparse、rerank 和 query rewrite 作为后续策略扩展。
 
 ## 页面设计
 
-后台页面沿用管理后台固定高度和内层滚动规范。
+后台页面沿用管理后台固定高度和内层滚动规范。`/c/ai-lab` 使用独立二级导航，不继续把 AI 子功能堆到主后台侧栏。
 
 ### `/c/ai-lab`
 
@@ -340,6 +378,9 @@ AI Lab 总览页。
 
 展示：
 
+- 已接入入口数量
+- 规划模块数量
+- 主后台与 AI Lab 拆分边界
 - 最近 24 小时 Run 数量
 - 平均延迟和 P95 延迟
 - 工具调用次数排行
@@ -623,6 +664,10 @@ sequenceDiagram
 
 第一阶段完成标准：
 
+- 主后台菜单收敛，AI 相关入口进入 `/c/ai-lab` 二级导航。
+- `/c/ai-lab` 总览页能展示已迁移入口和规划模块。
+- `/api/chat` 能在 assistant 消息落库后写入 `TbAiLabRun`。
+- `/api/admin/ai-lab/runs` 能返回 Run 列表、统计摘要和单条详情。
 - `/c/ai-lab/runs` 能展示真实聊天 Run、工具耗时和 ReAct timeline。
 - 能从失败 Run 创建 Eval Case。
 - 能维护至少 30 条 Golden Case。

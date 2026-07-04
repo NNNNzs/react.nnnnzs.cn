@@ -73,6 +73,7 @@ model TbUser {
   comments           TbComment[]         // 用户发表的评论
   createdChangeLogs  TbEntityChangeLog[] @relation("EntityChangeLogCreator") // 创建的变更日志
   chatSessions       TbChatSession[]     // 聊天会话
+  aiLabRuns          TbAiLabRun[]        // AI Lab Run 记录
   userRoles          TbUserRole[]        // 用户角色关联（RBAC）
 
   @@map("tb_user")
@@ -374,6 +375,7 @@ model TbChatSession {
   // 关联关系
   user     TbUser?        @relation(fields: [user_id], references: [id])
   messages TbChatMessage[]
+  aiLabRuns TbAiLabRun[]
 
   @@index([user_id, created_at], name: "idx_session_user_time")
   @@index([device_id, created_at], name: "idx_session_device_time")
@@ -392,7 +394,57 @@ model TbChatMessage {
 
   // 关联关系
   session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  aiLabRuns TbAiLabRun[]
 
   @@index([session_id, created_at], name: "idx_msg_session_time")
   @@map("tb_chat_message")
+}
+
+// AI Lab Run 观测表
+model TbAiLabRun {
+  id                   Int       @id @default(autoincrement())
+  source               String    @db.VarChar(50)   // chat / eval / retrieval_playground / prompt_replay
+  session_id            Int?
+  message_id            Int?
+  user_id               Int?
+  device_id             String?   @db.VarChar(36)
+  question              String    @db.Text
+  answer                String?   @db.Text
+  scenario              String?   @db.VarChar(50)
+  style_variant          String?   @db.VarChar(20)
+  model                 String?   @db.VarChar(100)
+  embedding_model        String?   @db.VarChar(100)
+  prompt_version         String?   @db.VarChar(120)
+  retriever_version      String?   @db.VarChar(120)
+  commit_sha            String?   @db.VarChar(80)
+  latency_ms            Int?
+  input_tokens          Int?
+  output_tokens         Int?
+  cost                  Decimal?  @db.Decimal(12, 6)
+  tool_call_count        Int       @default(0)
+  tool_error_count       Int       @default(0)
+  max_tool_duration_ms   Int?
+  first_tool_name        String?   @db.VarChar(100)
+  tool_calls            Json?
+  retrieval_results      Json?
+  metadata              Json?
+  langsmith_trace_id     String?   @db.VarChar(120)
+  langsmith_run_url      String?   @db.Text
+  feedback              String?   @db.VarChar(50)
+  feedback_note          String?   @db.Text
+  error                 String?   @db.Text
+  created_at            DateTime  @default(now())
+  updated_at            DateTime? @updatedAt
+
+  user    TbUser?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  session TbChatSession? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+  message TbChatMessage? @relation(fields: [message_id], references: [id], onDelete: SetNull)
+
+  @@index([source, created_at], name: "idx_ai_run_source_time")
+  @@index([session_id, message_id], name: "idx_ai_run_chat_message")
+  @@index([user_id, created_at], name: "idx_ai_run_user_time")
+  @@index([model], name: "idx_ai_run_model")
+  @@index([prompt_version], name: "idx_ai_run_prompt")
+  @@index([first_tool_name], name: "idx_ai_run_first_tool")
+  @@map("tb_ai_lab_run")
 }
