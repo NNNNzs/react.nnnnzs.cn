@@ -26,6 +26,7 @@ docs/designs/
 ├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
 ├── mcp-oauth-design.md              # MCP OAuth 2.0 认证
 ├── ai-config-profiles.md            # AI 配置组管理
+├── ai-lab.md                        # AI Lab / LLM 学习实验台
 ├── image-gen.md                     # AI 图片生成
 ├── task-queue.md                   # 后台任务队列系统
 ├── rbac-config-design.md            # 配置化 RBAC 权限系统
@@ -53,6 +54,7 @@ docs/designs/
 |------|------|------|
 | [Agent 聊天系统](chat/rag-chat.md) | LangGraph ReAct Agent 聊天机器人 + RAG 检索工具 + 聊天记录持久化 | ✅ 已实施 |
 | [AI 配置组管理](ai-config-profiles.md) | 多套模型地址、模型和密钥配置组切换 | ✅ 已实施 |
+| [AI Lab / LLM 学习实验台](ai-lab.md) | Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计 | 📋 计划中 |
 
 ### 业务功能
 
@@ -99,4 +101,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-06-30
+**最后更新**: 2026-07-04

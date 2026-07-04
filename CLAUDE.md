@@ -46,6 +46,7 @@
 
 #### AI 对话系统
 - **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
+- **[AI Lab / LLM 学习实验台](docs/designs/ai-lab.md)** - Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计
 
 #### 站点级体验
 - **[站点级昼夜风格语义系统](docs/designs/day-night-style-system.md)** - 日间温和文艺、夜间赛博朋克的站点级风格与文案语义系统
@@ -73,6 +74,7 @@
 
 ### 当前计划
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充，昼夜双风格已提升为站点级语义系统）
+- **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 📝 计划中（Run 观测、检索实验、Golden Dataset、Prompt Replay 与 LangSmith 集成）
 
 ### 已完成计划（已归档到 `docs/designs/archive/`）
 - **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph
