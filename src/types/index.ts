@@ -4,9 +4,9 @@
  */
 
 // 实体（从 Prisma Client 导出）
-export type { TbPost } from '@/generated/prisma-client';
-export type { TbUser } from '@/generated/prisma-client';
-export type { TbConfig } from '@/generated/prisma-client';
+export type { TbPost } from '@/generated/prisma-client/client';
+export type { TbUser } from '@/generated/prisma-client/client';
+export type { TbConfig } from '@/generated/prisma-client/client';
 
 // DTO
 export type {
@@ -50,8 +50,8 @@ export type { RolePermissions } from '@/types/role';
 
 // 前端使用的类型别名
 import type { SerializedPost } from '@/dto/post.dto';
-import type { TbUser } from '@/generated/prisma-client';
-import type { TbConfig } from '@/generated/prisma-client';
+import type { TbUser } from '@/generated/prisma-client/client';
+import type { TbConfig } from '@/generated/prisma-client/client';
 
 /**
  * 前端使用的 Post 类型（序列化后的版本）

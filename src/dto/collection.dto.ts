@@ -3,7 +3,7 @@
  * 参考 docs/blog-collection-design.md
  */
 
-import { TbCollection } from '@/generated/prisma-client';
+import { TbCollection } from '@/generated/prisma-client/client';
 import { SerializedPost } from './post.dto';
 
 /**

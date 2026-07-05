@@ -3,7 +3,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import type { Prisma } from '@/generated/prisma-client';
+import type { Prisma } from '@/generated/prisma-client/client';
 
 // ============ 类型定义 ============
 

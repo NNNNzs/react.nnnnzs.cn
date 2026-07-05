@@ -2,16 +2,13 @@
 // 文档: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client"
   // 自定义输出路径，避免被 pnpm prune 删除
-  output        = "../src/generated/prisma-client"
-  // 支持多架构部署
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  output   = "../src/generated/prisma-client"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 // 文章表

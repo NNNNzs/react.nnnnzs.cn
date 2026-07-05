@@ -2,7 +2,7 @@
  * 配置相关 DTO
  */
 
-import { TbConfig } from '@/generated/prisma-client';
+import { TbConfig } from '@/generated/prisma-client/client';
 
 /**
  * 创建配置 DTO

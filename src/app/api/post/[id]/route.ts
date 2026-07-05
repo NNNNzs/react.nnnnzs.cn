@@ -190,7 +190,7 @@ export async function PUT(
 
     const updatedPost = await updatePost(
       postId,
-      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
+      validationResult.data as Partial<import('@/generated/prisma-client/client').TbPost>,
       user.id
     );
 
@@ -292,7 +292,7 @@ export async function PATCH(
 
     const updatedPost = await updatePost(
       postId,
-      validationResult.data as Partial<import('@/generated/prisma-client').TbPost>,
+      validationResult.data as Partial<import('@/generated/prisma-client/client').TbPost>,
       user.id
     );
 

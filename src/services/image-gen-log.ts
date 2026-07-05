@@ -3,7 +3,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@/generated/prisma-client';
+import { Prisma } from '@/generated/prisma-client/client';
 
 export type ImageGenSource = 'ADMIN' | 'MCP';
 export type ImageGenStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';

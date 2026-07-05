@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createPost({
-      ...(validationResult.data as Partial<import('@/generated/prisma-client').TbPost>),
+      ...(validationResult.data as Partial<import('@/generated/prisma-client/client').TbPost>),
       // 创建人使用当前登录用户
       created_by: user.id,
     });

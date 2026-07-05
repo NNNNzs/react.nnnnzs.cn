@@ -9,7 +9,7 @@ import type { ImageGenOptions } from '@/services/image-gen';
 import { TaskQueue, type QueueTask } from '@/services/queue/task-queue';
 import type { AuthUser } from '@/types/auth';
 import type { ImageGenSource, ImageGenStatus } from '@/services/image-gen-log';
-import type { TbImageGenLog } from '@/generated/prisma-client';
+import type { TbImageGenLog } from '@/generated/prisma-client/client';
 
 interface ImageGenerationTaskPayload {
   jobId: string;

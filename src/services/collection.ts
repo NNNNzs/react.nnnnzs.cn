@@ -14,7 +14,7 @@ import {
   CollectionQueryCondition,
   CollectionPageQueryRes,
 } from '@/dto/collection.dto';
-import { TbCollection, TbPost } from '@/generated/prisma-client';
+import { TbCollection, TbPost } from '@/generated/prisma-client/client';
 import { serializePost } from './post';
 import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogsAsync } from '@/services/entity-change-log';

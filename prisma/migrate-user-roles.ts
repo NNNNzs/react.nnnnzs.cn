@@ -6,9 +6,9 @@
  * 使用方式：npx tsx prisma/migrate-user-roles.ts
  */
 
-import { PrismaClient } from '../src/generated/prisma-client';
+import { createScriptPrismaClient } from '../scripts/prisma-client';
 
-const prisma = new PrismaClient();
+const prisma = createScriptPrismaClient();
 
 async function main() {
   console.log('🚀 Starting user roles migration...\n');

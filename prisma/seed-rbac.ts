@@ -10,9 +10,9 @@
  * 使用方式：npx tsx prisma/seed-rbac.ts
  */
 
-import { PrismaClient } from '../src/generated/prisma-client';
+import { createScriptPrismaClient } from '../scripts/prisma-client';
 
-const prisma = new PrismaClient();
+const prisma = createScriptPrismaClient();
 
 // ============ 权限码定义 ============
 
