@@ -33,9 +33,14 @@
 
 ### 可用设计文档
 
-#### 性能优化
-- **[性能优化计划](docs/designs/performance-optimization-plan.md)** - 性能优化实施记录
-- **开发时使用**: `/vercel-react-best-practices` skill
+#### AI 系统
+- **[AI 配置组管理](docs/designs/ai/ai-config-profiles.md)** - 多套模型地址、模型和密钥配置组切换
+- **[AI Lab / LLM 学习实验台](docs/designs/ai/ai-lab.md)** - Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计
+- **[语音合成](docs/designs/ai/tts-page.md)** - MiMo TTS 语音合成
+- **[AI 图片生成](docs/designs/ai/image-gen.md)** - GPT Image 2 文生图/图文编辑
+
+#### 聊天系统
+- **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
 
 #### 向量检索与向量化
 - **[向量化总览](docs/designs/vector/overview.md)** - 向量化系统完整介绍
@@ -44,29 +49,24 @@
 - **[向量化队列](docs/designs/vector/queue.md)** - 异步队列系统
 - **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
-#### AI 对话系统
-- **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
-- **[AI Lab / LLM 学习实验台](docs/designs/ai-lab.md)** - Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计
+#### 业务功能
+- **[博客合集功能设计](docs/designs/features/collection-design.md)** - 文章合集管理功能
+- **[评论系统设计](docs/designs/features/comment-system-design.md)** - 评论功能设计
+- **[实体变更日志](docs/designs/features/entity-change-design.md)** - 数据变更追踪
+- **[统计系统设计](docs/designs/features/analytics-system-design.md)** - 点赞防刷 + GA4
 
-#### 站点级体验
-- **[站点级昼夜风格语义系统](docs/designs/day-night-style-system.md)** - 日间温和文艺、夜间赛博朋克的站点级风格与文案语义系统
-- **[首页 3D 昼夜双主题](docs/designs/homepage-3d-day-night.md)** - 同一 3D 房间的日间文艺、夜间赛博朋克主题，以及文章列表衔接方向
+#### 首页与风格
+- **[站点级昼夜风格语义系统](docs/designs/homepage/day-night-style-system.md)** - 日间温和文艺、夜间赛博朋克的站点级风格与文案语义系统
+- **[首页 3D 昼夜双主题](docs/designs/homepage/homepage-3d-day-night.md)** - 同一 3D 房间的日间文艺、夜间赛博朋克主题，以及文章列表衔接方向
+- **[首页 3D 房间布局规范](docs/designs/homepage/cyberpunk-homepage-room-layout.md)** - 三视图原型与家具空间关系基准
 - **[赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)** - 夜间模式、`/chat` 风格和 UI 命名可借用的赛博朋克元素
 
-#### 权限与认证
-- **[权限系统设计](docs/designs/permission-design.md)** - 多层权限防护架构
-- **[MCP OAuth 2.0 认证设计](docs/designs/mcp-oauth-design.md)** - MCP 服务 OAuth 2.0 集成
-
-#### 内容管理
-- **[博客合集功能设计](docs/designs/collection-design.md)** - 文章合集管理功能
-
-#### AI 工具
-- **[AI 配置组管理](docs/designs/ai-config-profiles.md)** - 多套模型地址、模型和密钥配置组切换
-- **[语音合成](docs/designs/tts-page.md)** - MiMo TTS 语音合成
-- **[AI 图片生成](docs/designs/image-gen.md)** - GPT Image 2 文生图/图文编辑
-
 #### 基础设施
-- **[队列系统](docs/designs/vector/queue.md)** - 异步任务队列系统（已整合到向量化模块）
+- **[权限系统设计](docs/designs/infra/permission-design.md)** - 多层权限防护架构
+- **[配置化 RBAC](docs/designs/infra/rbac-config-design.md)** - 角色权限配置化 + 统一接口注册表 + MCP 自动注册
+- **[MCP OAuth 2.0 认证设计](docs/designs/infra/mcp-oauth-design.md)** - MCP 服务 OAuth 2.0 集成
+- **[后台任务队列系统](docs/designs/infra/task-queue.md)** - 通用 TaskQueue、业务适配器、图片生成队列监控与重试
+- **[性能优化计划](docs/designs/infra/performance-optimization-plan.md)** - 性能优化实施记录
 
 ## 📋 计划文档目录
 
@@ -142,7 +142,7 @@ fix(scope): 简短描述
 - 日间：温和、明亮、文艺、适合阅读和创作
 - 夜间：赛博朋克、霓虹、雨夜、终端、记忆芯片和城市边缘感
 
-新增或修改前台文案、模块名称、空状态、按钮、`/chat` 回答风格时，应优先参考 [站点级昼夜风格语义系统](docs/designs/day-night-style-system.md)。夜间模式相关命名和视觉母题参考 [赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)。
+新增或修改前台文案、模块名称、空状态、按钮、`/chat` 回答风格时，应优先参考 [站点级昼夜风格语义系统](docs/designs/homepage/day-night-style-system.md)。夜间模式相关命名和视觉母题参考 [赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)。
 
 ### 管理后台布局
 管理后台页面使用 `overflow-hidden` 固定高度，需遵循特定的 flex 布局：
