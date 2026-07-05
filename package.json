@@ -45,7 +45,8 @@
     "@langchain/openai": "^1.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@next/third-parties": "^16.2.1",
-    "@prisma/client": "6.2.1",
+    "@prisma/adapter-mariadb": "7.8.0",
+    "@prisma/client": "7.8.0",
     "@qdrant/js-client-rest": "^1.17.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
@@ -59,6 +60,7 @@
     "cos-nodejs-sdk-v5": "^2.15.4",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.20",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.10.1",
@@ -95,20 +97,10 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "16.0.8",
     "fast-glob": "^3.3.3",
-    "prisma": "6.2.1",
+    "prisma": "7.8.0",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "esbuild",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
   },
   "packageManager": "pnpm@10.28.2"
 }

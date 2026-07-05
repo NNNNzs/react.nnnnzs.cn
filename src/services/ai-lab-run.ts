@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getAIConfig } from '@/lib/ai-config';
-import type { Prisma } from '@/generated/prisma-client';
+import type { Prisma } from '@/generated/prisma-client/client';
 import type { MessageMetadata, MessageMetadataStep } from '@/services/chat-log';
 
 export interface AiLabRunQuery {

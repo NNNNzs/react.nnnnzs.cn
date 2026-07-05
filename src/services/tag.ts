@@ -1,5 +1,6 @@
 import { getPrisma } from '@/lib/prisma';
 import { SerializedPost } from '@/dto/post.dto';
+import type { TbPost } from '@/generated/prisma-client/client';
 
 /**
  * 将字符串标签转换为数组
@@ -18,7 +19,7 @@ function parseTagsString(tags: string | null | undefined): string[] {
  * 序列化文章对象
  * 手动将数据库的字符串格式转换为前端需要的数组格式
  */
-function serializePost(post: import('@/generated/prisma-client').TbPost): SerializedPost {
+function serializePost(post: TbPost): SerializedPost {
   return {
     ...post,
     tags: parseTagsString(post.tags),

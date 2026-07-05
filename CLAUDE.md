@@ -75,6 +75,7 @@
 ### 当前计划
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充，昼夜双风格已提升为站点级语义系统）
 - **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 🔄 进行中（已完成后台信息架构拆分与 Run 观测表/接口/页面，后续推进 Run 转 Eval Case、Golden Dataset、Prompt Replay 与 LangSmith 集成）
+- **[Prisma 7 升级](docs/plans/prisma-7-upgrade.md)** — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）
 
 ### 已完成计划（已归档到 `docs/designs/archive/`）
 - **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph

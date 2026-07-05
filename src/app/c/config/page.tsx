@@ -39,7 +39,7 @@ import { CONFIG_VIEW, CONFIG_EDIT } from "@/constants/permissions";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import type { QueryConfigCondition } from "@/dto/config.dto";
-import type { TbConfig } from "@/generated/prisma-client";
+import type { TbConfig } from "@/generated/prisma-client/client";
 
 const { Search } = Input;
 const { confirm } = Modal;

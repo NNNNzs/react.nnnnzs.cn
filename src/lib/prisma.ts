@@ -3,7 +3,26 @@
  * 确保在开发环境中不会创建多个 Prisma Client 实例
  */
 
-import { PrismaClient } from '@/generated/prisma-client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { PrismaClient } from '@/generated/prisma-client/client';
+
+function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error('DATABASE_URL 未配置，无法初始化 Prisma Client');
+  }
+  return url;
+}
+
+function createPrismaClient(): PrismaClient {
+  const adapter = new PrismaMariaDb(getDatabaseUrl());
+
+  return new PrismaClient({
+    adapter,
+    log: process.env.PRISMA_HIDE_QUERY_LOG === 'true' ? ['error', 'warn'] : (process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']),
+    // log:['error']
+  });
+}
 
 /**
  * 全局 Prisma 实例类型声明
@@ -17,10 +36,7 @@ declare global {
  */
 export const prisma =
   global.prisma ||
-  new PrismaClient({
-    log: process.env.PRISMA_HIDE_QUERY_LOG === 'true' ? ['error', 'warn'] : (process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']),
-    // log:['error']
-  });
+  createPrismaClient();
 
 // 在开发环境中保存到全局变量，避免热重载时创建多个实例
 if (process.env.NODE_ENV !== 'production') {

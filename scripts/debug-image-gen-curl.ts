@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { PrismaClient } from '../src/generated/prisma-client/index.js';
+import { createScriptPrismaClient } from './prisma-client';
 
-const prisma = new PrismaClient();
+const prisma = createScriptPrismaClient();
 
 const keys = [
   'image_gen.api_key',

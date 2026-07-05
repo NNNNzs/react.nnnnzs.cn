@@ -1,6 +1,6 @@
 import { getPrisma } from '@/lib/prisma';
 import { verifyPassword, generateToken, storeToken } from '@/lib/auth';
-import { TbUser } from '@/generated/prisma-client';
+import { TbUser } from '@/generated/prisma-client/client';
 
 export async function login(account: string, password: string): Promise<{ token: string; userInfo: Omit<TbUser, 'password'> } | null> {
   const prisma = await getPrisma();

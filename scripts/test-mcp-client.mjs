@@ -13,9 +13,31 @@
  *   node scripts/test-mcp-client.mjs NNNNzs --token LTK_xxx
  */
 
-import { PrismaClient } from '../src/generated/prisma-client/index.js';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const prisma = new PrismaClient();
+if (!process.env.MCP_TEST_CLIENT_TSX) {
+  const result = spawnSync(
+    process.execPath,
+    ['--import', 'tsx', fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        MCP_TEST_CLIENT_TSX: '1',
+      },
+    },
+  );
+
+  if (result.error) {
+    console.error(result.error);
+  }
+
+  process.exit(result.status ?? 1);
+}
+
+const { createScriptPrismaClient } = await import('./prisma-client.ts');
+const prisma = createScriptPrismaClient();
 const BASE_URL = process.env.MCP_BASE_URL || "http://localhost:3000";
 
 /**

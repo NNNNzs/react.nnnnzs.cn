@@ -4,7 +4,7 @@
 
 import { getPrisma } from '@/lib/prisma';
 import type { CommentTreeNode, CreateCommentRequest, UserInfoForComment } from '@/dto/comment.dto';
-import type { TbUser, TbComment } from '@/generated/prisma-client';
+import type { TbUser, TbComment } from '@/generated/prisma-client/client';
 
 /**
  * 检查用户是否有评论权限

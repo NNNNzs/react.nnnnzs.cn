@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
@@ -8,6 +8,10 @@ import type { MenuProps } from "antd";
 import { SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
+
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 /**
  * 头部导航中的用户信息和菜单区域
@@ -18,13 +22,14 @@ export default function HeaderUserMenu() {
   const searchParams = useSearchParams();
   const { user, logout, hasPermission } = useAuth();
 
-  // 防止 hydration mismatch：登录态由客户端异步获取（useEffect），
+  // 防止 hydration mismatch：登录态由客户端异步获取，
   // SSR 时 user 恒为 null。在 mount 完成前渲染稳定占位，
   // 保证服务端与客户端首屏 DOM 一致。
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
 
   // 构建当前完整 URL 用于登录后返回
   const currentUrl = useMemo(() => {

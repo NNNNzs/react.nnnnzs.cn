@@ -1,6 +1,6 @@
 import { getPrisma } from '@/lib/prisma';
 import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dto/post.dto';
-import { TbPost } from '@/generated/prisma-client';
+import { TbPost } from '@/generated/prisma-client/client';
 import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
 import { queueEmbedPost } from '@/services/embedding';

@@ -5,7 +5,7 @@
 
 import { getPrisma } from '@/lib/prisma';
 import type { QueryConfigCondition, PageQueryRes, CreateConfigDto, UpdateConfigDto } from '@/dto/config.dto';
-import { TbConfig } from '@/generated/prisma-client';
+import { TbConfig } from '@/generated/prisma-client/client';
 
 /**
  * 获取配置列表

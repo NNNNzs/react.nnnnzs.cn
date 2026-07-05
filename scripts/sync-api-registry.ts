@@ -14,8 +14,8 @@ let prisma: any = null;
 
 async function initPrisma() {
   try {
-    const { PrismaClient } = await import('../src/generated/prisma-client');
-    prisma = new PrismaClient();
+    const { createScriptPrismaClient } = await import('./prisma-client');
+    prisma = createScriptPrismaClient();
     return true;
   } catch (error) {
     console.warn('⚠️ Prisma Client not generated, run pnpm prisma:generate');

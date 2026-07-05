@@ -1,6 +1,6 @@
-import { PrismaClient } from '../src/generated/prisma-client/index.js';
+import { createScriptPrismaClient } from './prisma-client';
 
-const prisma = new PrismaClient();
+const prisma = createScriptPrismaClient();
 
 const key = 'image_gen.api_mode';
 

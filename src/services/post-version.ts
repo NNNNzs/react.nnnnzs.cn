@@ -3,7 +3,7 @@
  */
 
 import { getPrisma } from '@/lib/prisma';
-import type { TbPostVersion } from '@/generated/prisma-client';
+import type { TbPostVersion } from '@/generated/prisma-client/client';
 
 /**
  * 创建文章版本
