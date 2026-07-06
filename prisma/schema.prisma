@@ -324,30 +324,68 @@ model TbApiRegistry {
   @@map("tb_api_registry")
 }
 
-// 图片生成日志表
-// 记录用户通过后台页面和 MCP 生成的图片日志
-model TbImageGenLog {
-  id            Int       @id @default(autoincrement())
-  job_id        String?   @unique @default(uuid()) @db.VarChar(36)          // 对外任务ID（UUID），用于异步查询，避免枚举自增ID
-  user_id       Int                                         // 操作用户ID
-  source        String    @db.VarChar(20)                   // 来源：ADMIN / MCP
-  prompt        String    @db.Text                          // 用户输入的提示词
-  edit_prompt   String?   @db.Text                          // 编辑模式下的编辑指令
-  edit_image_url String?  @db.Text                          // 编辑模式下的原始图片URL
-  size          String?   @db.VarChar(50)                   // 图片尺寸，如 1024x1024
-  quality       String?   @db.VarChar(20)                   // 图片质量，如 high / medium
-  model         String?   @db.VarChar(100)                  // 使用的模型（PENDING 时为 null）
-  original_url  String?   @db.Text                          // 生成接口返回的原始图片URL（PENDING 时为 null）
-  cdn_url       String?   @db.Text                          // 转存后的CDN地址
-  reserved_cdn_url String? @db.Text                         // 异步任务预分配的CDN地址
-  cos_key       String?   @db.VarChar(255)                  // 异步任务预分配的COS Key
-  status        String    @default("PENDING") @db.VarChar(20) // PENDING / PROCESSING / SUCCESS / FAILED
-  error_message String?   @db.Text                          // 失败时的错误信息
-  duration_ms   Int                                         // 生成耗时（毫秒）
-  started_at    DateTime?                                  // 开始处理时间
-  finished_at   DateTime?                                  // 完成或失败时间
-  created_at    DateTime  @default(now())
-  updated_at    DateTime? @updatedAt
+// 通用 AI 任务表（图片生成 / TTS / 文字生成 / 未来场景）
+model TbAiJob {
+  id              Int       @id @default(autoincrement())
+  job_id          String?   @unique @default(uuid()) @db.VarChar(36)   // 对外任务ID（UUID）
+  type            String    @db.VarChar(30)                            // 任务类型：image-gen / tts / text-gen
+  user_id         Int                                                  // 操作用户ID
+  source          String    @db.VarChar(20)                            // 来源：ADMIN / MCP
+
+  // ---- 通用业务字段 ----
+  prompt          String    @db.Text                                   // 主输入文本（图片=prompt，TTS=text，文字生成=prompt）
+  model           String?   @db.VarChar(100)                           // 使用的模型（PENDING 时可为 null）
+  status          String    @default("PENDING") @db.VarChar(20)        // PENDING / PROCESSING / SUCCESS / FAILED
+  error_message   String?   @db.Text                                   // 失败时的错误信息
+  duration_ms     Int       @default(0)                                // 执行耗时（毫秒）
+
+  // ---- CDN 资源字段（通用，所有场景都可能用到）----
+  original_url    String?   @db.Text                                   // 上游返回的原始资源标识
+  cdn_url         String?   @db.Text                                   // 转存后的 CDN 地址
+  reserved_cdn_url String?  @db.Text                                   // 预分配的 CDN 地址
+  cos_key         String?   @db.VarChar(255)                           // 预分配的 COS Key
+
+  // ---- 泛型扩展列 ----
+  ext_text        String?   @db.Text                                   // 扩展文本（图片=edit_prompt，TTS=instruction，其他场景按需）
+  ext_json        String?   @db.Text                                   // 扩展 JSON（各场景特有参数）
+
+  // ---- 时间戳 ----
+  started_at      DateTime?                                            // 开始处理时间
+  finished_at     DateTime?                                            // 完成或失败时间
+  created_at      DateTime  @default(now())
+  updated_at      DateTime? @updatedAt
+
+  @@index([type, user_id, created_at], name: "idx_type_user_time")
+  @@index([type, status], name: "idx_type_status")
+  @@index([source], name: "idx_source")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_ai_job")
+}
+
+// 图片生成旧日志表
+// 仅用于保留历史数据和后续迁移，新增日志写入 tb_ai_job。
+model TbImageGenLogLegacy {
+  id               Int       @id @default(autoincrement())
+  job_id           String?   @unique @default(uuid()) @db.VarChar(36)
+  user_id          Int
+  source           String    @db.VarChar(20)
+  prompt           String    @db.Text
+  edit_prompt      String?   @db.Text
+  edit_image_url   String?   @db.Text
+  size             String?   @db.VarChar(50)
+  quality          String?   @db.VarChar(20)
+  model            String?   @db.VarChar(100)
+  original_url     String?   @db.Text
+  cdn_url          String?   @db.Text
+  reserved_cdn_url String?   @db.Text
+  cos_key          String?   @db.VarChar(255)
+  status           String    @default("PENDING") @db.VarChar(20)
+  error_message    String?   @db.Text
+  duration_ms      Int
+  started_at       DateTime?
+  finished_at      DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime? @updatedAt
 
   @@index([user_id, created_at], name: "idx_user_time")
   @@index([source], name: "idx_source")

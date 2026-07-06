@@ -51,6 +51,8 @@ next-env.d.ts
 
 # PM2
 logs/
+!/src/app/api/**/logs/
+!/src/app/api/**/logs/**
 .pm2/
 *.log
 

@@ -248,6 +248,40 @@ async function createMcpServer(headers: Headers) {
     }
   );
 
+  server.registerResource(
+    "tts_job",
+    new ResourceTemplate("blog://tts-jobs/{jobId}", { list: undefined }),
+    {
+      title: "TTS Job Status",
+      description: "Read the status of an async TTS speech synthesis job by jobId. The synthesize_speech tool returns the matching resourceUri.",
+      mimeType: "application/json"
+    },
+    async (uri, variables) => {
+      const authedUser = await ensureAuth();
+      const rawJobId = variables.jobId;
+      const jobId = Array.isArray(rawJobId) ? rawJobId[0] : rawJobId;
+
+      if (!jobId) {
+        throw new Error("Missing TTS jobId");
+      }
+
+      const { getTTSJob } = await import('@/services/tts-job');
+      const job = await getTTSJob(jobId, authedUser);
+
+      if (!job) {
+        throw new Error("TTS job not found or not accessible");
+      }
+
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(job, null, 2)
+        }]
+      };
+    }
+  );
+
   return server;
 }
 

@@ -1,11 +1,13 @@
 /**
  * 语音合成页面
  * 路由: /c/tts
+ *
+ * 异步任务模式：提交任务 → 轮询状态 → CDN URL 播放
  */
 
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   Card,
   Select,
@@ -33,6 +35,11 @@ import { TTS_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
 
 const { TextArea } = Input;
+
+/**
+ * 任务状态类型
+ */
+type TtsJobStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
 
 /**
  * 模型定义
@@ -107,10 +114,14 @@ const PRESET_INSTRUCTIONS = [
   { label: "唱歌", value: "(唱歌)" },
 ];
 
+/** 轮询间隔（毫秒） */
+const POLL_INTERVAL = 1500;
+
 export default function TTSPage() {
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 表单状态
   const [modelId, setModelId] = useState("mimo-v2.5-tts");
@@ -118,8 +129,12 @@ export default function TTSPage() {
   const [instruction, setInstruction] = useState("");
   const [text, setText] = useState("");
 
-  // 结果状态
+  // 异步任务状态
   const [generating, setGenerating] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<TtsJobStatus | null>(null);
+
+  // 结果状态
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [resultInfo, setResultInfo] = useState<{
@@ -135,12 +150,21 @@ export default function TTSPage() {
   );
 
   // 权限检查
-  React.useEffect(() => {
+  useEffect(() => {
     if (!authLoading && user && !hasPermission(TTS_VIEW)) {
       message.warning("您没有权限访问此页面");
       router.push("/c/post");
     }
   }, [user, authLoading, hasPermission, router]);
+
+  // 组件卸载时清理轮询定时器
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        clearTimeout(pollingTimerRef.current);
+      }
+    };
+  }, []);
 
   // 模型切换时重置音色
   const handleModelChange = useCallback(
@@ -156,7 +180,54 @@ export default function TTSPage() {
     []
   );
 
-  // 合成语音
+  // 轮询任务状态
+  const pollJob = useCallback((jid: string) => {
+    const poll = async () => {
+      try {
+        const res = await axios.get(`/api/tts/jobs/${jid}`, { timeout: 15000 });
+        const job = res.data?.data;
+        if (!job) {
+          setGenerating(false);
+          message.error("查询任务状态失败");
+          return;
+        }
+
+        setJobStatus(job.status);
+
+        if (job.status === 'SUCCESS') {
+          setAudioSrc(job.audioUrl);
+          setResultInfo({
+            elapsed: job.elapsed,
+            model: job.model,
+            voice: job.voice,
+          });
+          message.success("语音合成成功");
+          setGenerating(false);
+          return; // 停止轮询
+        }
+
+        if (job.status === 'FAILED') {
+          message.error(job.errorMessage || "合成失败");
+          setGenerating(false);
+          return; // 停止轮询
+        }
+
+        // PENDING / PROCESSING → 继续轮询
+        pollingTimerRef.current = setTimeout(() => {
+          void poll();
+        }, POLL_INTERVAL);
+      } catch {
+        setGenerating(false);
+        message.error("查询任务状态失败");
+      }
+    };
+
+    pollingTimerRef.current = setTimeout(() => {
+      void poll();
+    }, POLL_INTERVAL);
+  }, []);
+
+  // 提交合成任务
   const handleSynthesize = useCallback(async () => {
     if (!text.trim()) {
       message.warning("请输入要合成的文本");
@@ -166,11 +237,18 @@ export default function TTSPage() {
     setGenerating(true);
     setAudioSrc(null);
     setResultInfo(null);
+    setJobId(null);
+    setJobStatus(null);
 
     // 停止之前的播放
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+    }
+
+    // 清理之前的轮询
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
     }
 
     try {
@@ -180,29 +258,64 @@ export default function TTSPage() {
         voice: voiceId || undefined,
         instruction: instruction.trim() || undefined,
       }, {
-        timeout: 60000,
+        timeout: 30000,
       });
 
-      if (res.data?.data?.audio) {
-        const { audio, elapsed, model, voice, format } = res.data.data;
-        const audioBlob = base64ToBlob(audio, `audio/${format || "wav"}`);
-        const url = URL.createObjectURL(audioBlob);
-        setAudioSrc(url);
-        setResultInfo({ elapsed, model, voice });
-        message.success("语音合成成功");
-      } else {
-        message.error(res.data?.message || "合成失败");
+      const job = res.data?.data;
+      if (!job?.jobId) {
+        message.error(res.data?.message || "提交失败");
+        setGenerating(false);
+        return;
       }
+
+      setJobId(job.jobId);
+      setJobStatus(job.status);
+
+      // 启动轮询
+      pollJob(job.jobId);
     } catch (error: unknown) {
       console.error("TTS synthesis error:", error);
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || "语音合成失败，请检查网络或配置";
       message.error(msg);
-    } finally {
       setGenerating(false);
     }
-  }, [text, modelId, voiceId, instruction]);
+  }, [text, modelId, voiceId, instruction, pollJob]);
+
+  // 重试失败任务
+  const handleRetry = useCallback(async () => {
+    if (!jobId) return;
+
+    setGenerating(true);
+    setJobStatus(null);
+
+    // 清理之前的轮询
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+    }
+
+    try {
+      const res = await axios.post(`/api/tts/jobs/${jobId}/retry`, {}, {
+        timeout: 30000,
+      });
+
+      const job = res.data?.data;
+      if (job?.jobId) {
+        setJobStatus(job.status);
+        pollJob(job.jobId);
+      } else {
+        message.error(res.data?.message || "重试失败");
+        setGenerating(false);
+      }
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "重试失败";
+      message.error(msg);
+      setGenerating(false);
+    }
+  }, [jobId, pollJob]);
 
   // 播放/暂停
   const handlePlayPause = useCallback(() => {
@@ -227,26 +340,26 @@ export default function TTSPage() {
     document.body.removeChild(a);
   }, [audioSrc]);
 
-  // base64 转 Blob
-  function base64ToBlob(base64: string, mimeType: string): Blob {
-    const byteCharacters = atob(base64);
-    const byteArrays: BlobPart[] = [];
-    const sliceSize = 1024;
-    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-      const slice = byteCharacters.slice(offset, offset + sliceSize);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-      byteArrays.push(new Uint8Array(byteNumbers));
-    }
-    return new Blob(byteArrays, { type: mimeType });
-  }
-
   // 应用预设指令
   const handlePresetClick = useCallback((value: string) => {
     setInstruction(value);
   }, []);
+
+  // 获取状态显示文本
+  const getStatusText = (status: TtsJobStatus | null) => {
+    switch (status) {
+      case 'PENDING':
+        return '排队中...';
+      case 'PROCESSING':
+        return '合成中...';
+      case 'SUCCESS':
+        return '合成成功';
+      case 'FAILED':
+        return '合成失败';
+      default:
+        return '正在提交...';
+    }
+  };
 
   if (authLoading) {
     return (
@@ -278,6 +391,7 @@ export default function TTSPage() {
                   value={modelId}
                   onChange={handleModelChange}
                   className="w-full"
+                  disabled={generating}
                   options={MODELS.map((m) => ({
                     value: m.id,
                     label: (
@@ -302,6 +416,7 @@ export default function TTSPage() {
                     value={voiceId}
                     onChange={setVoiceId}
                     className="w-full"
+                    disabled={generating}
                     options={currentModel.voices.map((v) => ({
                       value: v.id,
                       label: (
@@ -346,6 +461,7 @@ export default function TTSPage() {
                   rows={2}
                   maxLength={500}
                   showCount
+                  disabled={generating}
                 />
               </div>
 
@@ -362,6 +478,7 @@ export default function TTSPage() {
                   rows={6}
                   maxLength={5000}
                   showCount
+                  disabled={generating}
                 />
               </div>
 
@@ -374,7 +491,7 @@ export default function TTSPage() {
                 size="large"
                 block
               >
-                {generating ? "正在生成..." : "生成语音"}
+                {generating ? getStatusText(jobStatus) : "生成语音"}
               </Button>
             </div>
           </Card>
@@ -386,7 +503,12 @@ export default function TTSPage() {
             {generating && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Spin size="large" />
-                <p className="mt-4 text-gray-500">正在合成语音，请稍候...</p>
+                <p className="mt-4 text-gray-500">{getStatusText(jobStatus)}</p>
+                {jobId && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    任务ID: {jobId.slice(0, 8)}...
+                  </p>
+                )}
               </div>
             )}
 
@@ -394,6 +516,19 @@ export default function TTSPage() {
               <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                 <ExperimentOutlined className="text-4xl mb-3" />
                 <p>输入文本并点击「生成语音」</p>
+              </div>
+            )}
+
+            {!generating && jobStatus === 'FAILED' && jobId && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <p className="text-red-500 mb-4">合成失败</p>
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  onClick={handleRetry}
+                >
+                  重试
+                </Button>
               </div>
             )}
 

@@ -20,6 +20,7 @@ import { descriptor as postCreateRoute } from '@/app/api/post/create/route';
 import { getDescriptor as postGetRoute, updateDescriptor as postUpdateRoute, deleteDescriptor as postDeleteRoute } from '@/app/api/post/[id]/route';
 import { descriptor as postListRoute } from '@/app/api/post/list/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
+import { descriptor as ttsSynthesizeRoute } from '@/app/api/tts/synthesize/route';
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
 import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
 import { descriptor as uploadRoute } from '@/app/api/fs/upload/route';
@@ -217,6 +218,37 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
           prompt: args.prompt as string,
           size: args.size as string | undefined,
           quality: args.quality as string | undefined,
+        },
+        userId: user.id,
+        source: 'MCP',
+      });
+    },
+  },
+  // ---- TTS 语音合成模块 ----
+  {
+    ...ttsSynthesizeRoute,
+    apiPath: '/api/tts/synthesize',
+    mcpEnabled: true,
+    mcpToolName: 'synthesize_speech',
+    description: '创建 TTS 语音合成异步任务，立即返回 jobId、预分配 CDN URL 和 MCP resourceUri；通过 resourceUri 轮询任务状态，ready 后取 audioUrl 播放/下载。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: '要合成的文本（必填）' },
+        model: { type: 'string', description: 'TTS 模型，如 mimo-v2.5-tts（默认取系统配置）' },
+        voice: { type: 'string', description: '音色名称，如 冰糖/茉莉（默认取系统配置）' },
+        instruction: { type: 'string', description: '风格指令（可选）' },
+      },
+      required: ['text'],
+    },
+    handler: async (args, user) => {
+      const { createTTSJob } = await import('@/services/tts-job');
+      return createTTSJob({
+        options: {
+          text: args.text as string,
+          model: args.model as string | undefined,
+          voice: args.voice as string | undefined,
+          instruction: args.instruction as string | undefined,
         },
         userId: user.id,
         source: 'MCP',
