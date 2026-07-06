@@ -291,18 +291,24 @@ export default async function PostDetail({ params }: PageProps) {
 }
 
 export async function generateStaticParams() {
-  const { record } = await getPostList({ pageNum: 1, pageSize: 10000 }); // DB 查 path
+  try {
+    const { record } = await getPostList({ pageNum: 1, pageSize: 10000 }); // DB 查 path
 
-  return record.map((post) => {
-    const [, year, month, date, title] = post.path!.split("/");
+    return record.map((post) => {
+      const [, year, month, date, title] = post.path!.split("/");
 
-    return {
-      year,
-      month,
-      date,
-      title: title,
-    };
-  });
+      return {
+        year,
+        month,
+        date,
+        title: title,
+      };
+    });
+  } catch (error) {
+    // 构建时数据库不可达时优雅降级：跳过预渲染，由 ISR 在运行时按需生成
+    console.warn("⚠️ generateStaticParams: 数据库连接失败，跳过预渲染:", error);
+    return [];
+  }
 }
 
 // 使用 ISR (增量静态再生成)，支持按需重新验证
