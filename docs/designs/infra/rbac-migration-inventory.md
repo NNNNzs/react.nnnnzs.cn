@@ -164,7 +164,6 @@
 | `/api/face/status` | GET | 无 | — | 公开 | — |
 | `/api/fs/proxy-image` | GET | 无 | — | 公开 | — |
 | `/api/fs/upload` | POST | 仅登录验证 | — | 公开 | — |
-| `/api/upload` | POST | 仅登录验证 | — | 公开 | — |
 | `/api/github/auth` | GET | 无 | — | 公开 | — |
 | `/api/github/callback` | GET | 无 | — | 公开 | — |
 | `/api/github/unbind` | POST | 仅登录验证 | — | 公开 | — |
