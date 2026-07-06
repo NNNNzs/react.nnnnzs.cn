@@ -22,10 +22,10 @@ import {
   Typography,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
-import { QUEUE_VIEW } from '@/constants/permissions';
+import { QUEUE_VIEW, USER_MANAGE } from '@/constants/permissions';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const { Title, Text } = Typography;
@@ -113,8 +113,10 @@ export default function QueueMonitorPage() {
   const [embeddingQueue, setEmbeddingQueue] = useState<EmbeddingQueueStatus | null>(null);
   const [imageMonitor, setImageMonitor] = useState<ImageQueueMonitor | null>(null);
   const [taskStatuses, setTaskStatuses] = useState<Map<number, EmbedStatus>>(new Map());
+  const [deletingImageJobIds, setDeletingImageJobIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const hasAccess = Boolean(user && hasPermission(QUEUE_VIEW));
+  const canDeleteImageLog = Boolean(user && hasPermission(USER_MANAGE));
 
   const loadEmbeddingTaskStatuses = useCallback(async (taskIds: number[]) => {
     if (taskIds.length === 0 || !hasAccess) {
@@ -202,6 +204,32 @@ export default function QueueMonitorPage() {
         (requestError as { response?: { data?: { message?: string } } })?.response?.data?.message
         || (requestError instanceof Error ? requestError.message : '重试失败'),
       );
+    }
+  }, [loadDashboard]);
+
+  const handleDeleteImageJob = useCallback(async (record: ImageQueueTask) => {
+    setDeletingImageJobIds((prev) => new Set(prev).add(record.jobId));
+    try {
+      const response = await axios.delete(`/api/image-gen/logs/${record.id}`, {
+        data: { deleteCos: false },
+      });
+      if (!response.data?.status) {
+        throw new Error(response.data?.message || '删除失败');
+      }
+      message.success('失败任务已删除');
+      await loadDashboard();
+    } catch (requestError) {
+      console.error('删除图片生成失败任务失败:', requestError);
+      message.error(
+        (requestError as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (requestError instanceof Error ? requestError.message : '删除失败'),
+      );
+    } finally {
+      setDeletingImageJobIds((prev) => {
+        const next = new Set(prev);
+        next.delete(record.jobId);
+        return next;
+      });
     }
   }, [loadDashboard]);
 
@@ -346,16 +374,37 @@ export default function QueueMonitorPage() {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: canDeleteImageLog ? 160 : 100,
       render: (_, record) => (
-        <Popconfirm
-          title="重新入队该任务？"
-          onConfirm={() => void handleRetryImageJob(record.jobId)}
-          okText="重试"
-          cancelText="取消"
-        >
-          <Button size="small" variant="link">重试</Button>
-        </Popconfirm>
+        <Space size="small">
+          <Popconfirm
+            title="重新入队该任务？"
+            onConfirm={() => void handleRetryImageJob(record.jobId)}
+            okText="重试"
+            cancelText="取消"
+          >
+            <Button size="small" variant="link">重试</Button>
+          </Popconfirm>
+          {canDeleteImageLog ? (
+            <Popconfirm
+              title="删除该失败任务？"
+              description="只删除任务记录，不删除已生成的 COS 文件。"
+              onConfirm={() => void handleDeleteImageJob(record)}
+              okText="删除"
+              cancelText="取消"
+            >
+              <Button
+                size="small"
+                variant="link"
+                color="danger"
+                icon={<DeleteOutlined />}
+                loading={deletingImageJobIds.has(record.jobId)}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          ) : null}
+        </Space>
       ),
     },
   ];
