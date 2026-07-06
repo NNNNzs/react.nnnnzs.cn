@@ -170,6 +170,15 @@ export function jsonSchemaToZod(schema: Record<string, unknown>): Record<string,
       field = z.number();
     } else if (prop.type === 'boolean') {
       field = z.boolean();
+    } else if (prop.type === 'array') {
+      const items = prop.items as Record<string, unknown> | undefined;
+      if (items?.type === 'string') {
+        field = z.array(z.string());
+      } else if (items?.type === 'number') {
+        field = z.array(z.number());
+      } else {
+        field = z.array(z.unknown());
+      }
     } else {
       field = z.unknown();
     }

@@ -42,6 +42,7 @@ export interface ImageGenerationJobView extends AiJobView {
   mode: 'generate' | 'edit';
   size: string | null;
   quality: string | null;
+  referenceImageUrls: string[];
   imageUrl: string | null;  // 别名，指向 resourceUrl
 }
 
@@ -76,11 +77,17 @@ function toImageGenerationJobView(job: AiJobView | null): ImageGenerationJobView
   if (!job) return null;
 
   const extJson = job.extJson || {};
+  const editImageUrls = Array.isArray(extJson.edit_image_urls)
+    ? extJson.edit_image_urls.filter((url): url is string => typeof url === 'string')
+    : (typeof extJson.edit_image_url === 'string' ? [extJson.edit_image_url] : []);
+
   return {
     ...job,
+    resourceUri: `blog://image-generation-jobs/${job.jobId}`,
     mode: (extJson.mode as 'generate' | 'edit') || 'generate',
     size: (extJson.size as string) || null,
     quality: (extJson.quality as string) || null,
+    referenceImageUrls: editImageUrls,
     imageUrl: job.resourceUrl,
   };
 }
@@ -120,10 +127,13 @@ async function processImageGenerationJob(jobId: string) {
 
   // 从 ext_json 提取图片特有参数
   const extJson = job.ext_json ? JSON.parse(job.ext_json) : {};
+  const editImageUrls = Array.isArray(extJson.edit_image_urls)
+    ? extJson.edit_image_urls.filter((url: unknown): url is string => typeof url === 'string')
+    : (typeof extJson.edit_image_url === 'string' ? [extJson.edit_image_url] : []);
   const options: ImageGenOptions = {
     mode: extJson.mode || 'generate',
     prompt: job.prompt,
-    ...(extJson.edit_image_url ? { image: extJson.edit_image_url } : {}),
+    ...(editImageUrls.length > 0 ? { images: editImageUrls, image: editImageUrls[0] } : {}),
     ...(extJson.size ? { size: extJson.size } : {}),
     ...(extJson.quality ? { quality: extJson.quality } : {}),
   };
@@ -153,11 +163,23 @@ async function processImageGenerationJob(jobId: string) {
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : '图片生成失败';
 
+    // 将完整的任务上下文附加到错误消息中，方便队列监控页展示
+    const fullError = JSON.stringify({
+      message: errorMessage,
+      jobId,
+      mode: options.mode,
+      prompt: options.prompt?.slice(0, 200),
+      size: options.size,
+      quality: options.quality,
+      imageCount: editImageUrls.length,
+      durationMs,
+    });
+
     await prisma.tbAiJob.update({
       where: { job_id: jobId },
       data: {
         status: 'FAILED',
-        error_message: errorMessage,
+        error_message: fullError,
         duration_ms: durationMs,
         finished_at: new Date(),
       },
@@ -197,8 +219,13 @@ export async function createImageGenerationJob(params: CreateImageGenerationJobP
   const extJson: Record<string, unknown> = {
     mode: params.options.mode || 'generate',
   };
-  if (params.options.mode === 'edit' && params.options.image) {
-    extJson.edit_image_url = params.options.image;
+  if (params.options.mode === 'edit') {
+    const { normalizeImageInputs } = await import('@/services/image-gen');
+    const editImageUrls = normalizeImageInputs(params.options);
+    if (editImageUrls.length > 0) {
+      extJson.edit_image_url = editImageUrls[0];
+      extJson.edit_image_urls = editImageUrls;
+    }
   }
   if (params.options.size) extJson.size = params.options.size;
   if (params.options.quality) extJson.quality = params.options.quality;

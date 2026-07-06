@@ -69,6 +69,7 @@ export interface QueueLogSummary {
   updatedAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  extJson: Record<string, unknown> | null;
 }
 
 /**
@@ -118,6 +119,14 @@ export function toIsoString(date: Date | null) {
   return date ? date.toISOString() : null;
 }
 
+function getResourceUri(type: AiJobType, jobId: string) {
+  if (type === 'image-gen') {
+    return `blog://image-generation-jobs/${jobId}`;
+  }
+
+  return `blog://${type}-jobs/${jobId}`;
+}
+
 /**
  * 安全解析 JSON 字符串
  */
@@ -161,7 +170,7 @@ export function formatAiJob(log: TbAiJob | null): AiJobView | null {
     createdAt: log.created_at.toISOString(),
     startedAt: toIsoString(log.started_at),
     finishedAt: toIsoString(log.finished_at),
-    resourceUri: `blog://${log.type}-jobs/${log.job_id}`,
+    resourceUri: getResourceUri(log.type as AiJobType, log.job_id),
     statusUrl: `/api/${log.type}/jobs/${log.job_id}`,
     extText: log.ext_text,
     extJson: safeParseJson(log.ext_json),
@@ -184,6 +193,7 @@ export function toQueueLogSummary(log: TbAiJob): QueueLogSummary {
     updatedAt: toIsoString(log.updated_at),
     startedAt: toIsoString(log.started_at),
     finishedAt: toIsoString(log.finished_at),
+    extJson: safeParseJson(log.ext_json),
   };
 }
 

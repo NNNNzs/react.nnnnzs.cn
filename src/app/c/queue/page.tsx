@@ -14,6 +14,7 @@ import {
   Descriptions,
   message,
   Popconfirm,
+  Popover,
   Row,
   Space,
   Statistic,
@@ -56,6 +57,7 @@ interface ImageQueueTask {
   updatedAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  extJson: Record<string, unknown> | null;
 }
 
 interface ImageQueueMonitor {
@@ -89,6 +91,7 @@ interface TtsQueueTask {
   updatedAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  extJson: Record<string, unknown> | null;
 }
 
 interface TtsQueueMonitor {
@@ -450,11 +453,72 @@ export default function QueueMonitorPage() {
       render: (value: string) => <span title={value}>{ellipsis(value, 42)}</span>,
     },
     {
+      title: '参考图',
+      key: 'refImages',
+      width: 120,
+      render: (_, record) => {
+        const ext = record.extJson;
+        if (!ext) return '-';
+        const urls: string[] = Array.isArray(ext.edit_image_urls)
+          ? ext.edit_image_urls.filter((u): u is string => typeof u === 'string')
+          : (typeof ext.edit_image_url === 'string' ? [ext.edit_image_url] : []);
+        if (urls.length === 0) return '-';
+        return (
+          <Space size={2}>
+            {urls.slice(0, 3).map((url, idx) => (
+              <img
+                key={idx}
+                src={url}
+                alt={`参考图 ${idx + 1}`}
+                className="w-8 h-8 rounded object-cover border border-gray-200"
+                loading="lazy"
+              />
+            ))}
+            {urls.length > 3 && <span className="text-xs text-gray-400">+{urls.length - 3}</span>}
+          </Space>
+        );
+      },
+    },
+    {
       title: '失败原因',
       dataIndex: 'errorMessage',
       key: 'errorMessage',
-      ellipsis: true,
-      render: (value: string | null) => value || '-',
+      width: 360,
+      render: (value: string | null) => {
+        if (!value) return '-';
+        // 尝试解析 JSON 格式的错误详情
+        let parsed: Record<string, unknown> | null = null;
+        try {
+          parsed = JSON.parse(value);
+        } catch { /* 非 JSON，按原文展示 */ }
+
+        if (parsed && typeof parsed === 'object') {
+          const apiMessage = typeof parsed.message === 'string' ? parsed.message : '';
+          // 优先展示 API 调用层面的错误
+          const lines: string[] = [];
+          if (apiMessage) lines.push(`错误: ${apiMessage}`);
+          if (parsed.mode) lines.push(`模式: ${parsed.mode}`);
+          if (parsed.size) lines.push(`尺寸: ${parsed.size}`);
+          if (parsed.quality) lines.push(`质量: ${parsed.quality}`);
+          if (parsed.imageCount != null) lines.push(`参考图: ${parsed.imageCount} 张`);
+          if (parsed.durationMs) lines.push(`耗时: ${(Number(parsed.durationMs) / 1000).toFixed(1)}s`);
+
+          return (
+            <Popover
+              content={<pre className="max-w-lg max-h-64 overflow-auto text-xs whitespace-pre-wrap">{JSON.stringify(parsed, null, 2)}</pre>}
+              title="错误详情"
+              trigger="click"
+              overlayStyle={{ maxWidth: 520 }}
+            >
+              <span className="text-red-500 cursor-pointer underline decoration-dotted" title="点击查看完整错误">
+                {apiMessage || ellipsis(value, 60)}
+              </span>
+            </Popover>
+          );
+        }
+
+        return <span className="text-red-500">{ellipsis(value, 60)}</span>;
+      },
     },
     {
       title: '失败时间',

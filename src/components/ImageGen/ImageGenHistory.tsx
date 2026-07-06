@@ -42,8 +42,8 @@ interface LogRecord {
   user_id: number;
   source: string;
   prompt: string;
-  edit_prompt: string | null;
-  edit_image_url: string | null;
+  ext_text: string | null;
+  ext_json: string | null;
   job_id: string | null;
   size: string | null;
   quality: string | null;
@@ -56,6 +56,21 @@ interface LogRecord {
   error_message: string | null;
   duration_ms: number;
   created_at: string;
+}
+
+/** 从 ext_json 中解析编辑模式的参考图片 URL */
+function parseEditImageUrls(extJson: string | null): string[] {
+  if (!extJson) return [];
+  try {
+    const parsed = JSON.parse(extJson);
+    if (Array.isArray(parsed.edit_image_urls)) {
+      return parsed.edit_image_urls.filter((u: unknown): u is string => typeof u === 'string' && u.trim().length > 0);
+    }
+    if (typeof parsed.edit_image_url === 'string' && parsed.edit_image_url.trim()) {
+      return [parsed.edit_image_url.trim()];
+    }
+  } catch { /* ignore */ }
+  return [];
 }
 
 interface ImageGenHistoryProps {
@@ -487,6 +502,28 @@ export default function ImageGenHistory({
                       {record.prompt.slice(0, 40)}
                       {record.prompt.length > 40 ? "..." : ""}
                     </p>
+                    {/* 编辑模式：展示参考图片缩略图 */}
+                    {(() => {
+                      const refUrls = parseEditImageUrls(record.ext_json);
+                      if (refUrls.length === 0) return null;
+                      return (
+                        <div className="flex gap-1 mb-1 overflow-hidden">
+                          {refUrls.map((refUrl, idx) => (
+                            <Tooltip key={idx} title={`参考图 ${idx + 1}`}>
+                              <img
+                                src={refUrl}
+                                alt={`参考图 ${idx + 1}`}
+                                className="w-6 h-6 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
+                                loading="lazy"
+                              />
+                            </Tooltip>
+                          ))}
+                          <span className="text-[10px] text-gray-400 self-center">
+                            参考图
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-between">
                       <Space size={4} wrap>
                         {sourceInfo && (

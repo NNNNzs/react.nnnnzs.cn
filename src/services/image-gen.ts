@@ -1,9 +1,10 @@
 import { getAIConfigCandidates, type AIConfig } from '@/lib/ai-config';
 
 const VALID_MODES = ['generate', 'edit'] as const;
-const VALID_QUALITIES = ['high', 'medium'] as const;
+const VALID_QUALITIES = ['low', 'medium', 'high', 'auto'] as const;
 const VALID_API_MODES = ['chat_completions', 'images_generations'] as const;
 const IMAGE_URL_REGEX = /!\[image\]\((https?:\/\/[^\s)]+)\)/;
+const MAX_EDIT_IMAGES = 10;
 
 type ImageGenApiMode = typeof VALID_API_MODES[number];
 
@@ -11,6 +12,7 @@ export interface ImageGenOptions {
   mode: 'generate' | 'edit';
   prompt: string;
   image?: string;
+  images?: string[];
   size?: string;
   quality?: string;
 }
@@ -21,6 +23,17 @@ export interface ImageGenResult {
   b64Json?: string;
 }
 
+export function normalizeImageInputs(options: Pick<ImageGenOptions, 'image' | 'images'>): string[] {
+  const images = [
+    ...(Array.isArray(options.images) ? options.images : []),
+    ...(options.image ? options.image.split(/\r?\n/) : []),
+  ]
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(images));
+}
+
 export function validateImageGenOptions(options: ImageGenOptions): void {
   if (!VALID_MODES.includes(options.mode)) {
     throw new Error('无效的模式，仅支持 generate 或 edit');
@@ -28,10 +41,14 @@ export function validateImageGenOptions(options: ImageGenOptions): void {
   if (!options.prompt?.trim()) {
     throw new Error('提示词不能为空');
   }
-  if (options.mode === 'edit' && !options.image?.trim()) {
+  const imageInputs = normalizeImageInputs(options);
+  if (options.mode === 'edit' && imageInputs.length === 0) {
     throw new Error('编辑模式需要提供参考图片');
   }
-  if (options.size && !/^\d+x\d+$/.test(options.size)) {
+  if (options.mode === 'edit' && imageInputs.length > MAX_EDIT_IMAGES) {
+    throw new Error(`编辑模式最多支持 ${MAX_EDIT_IMAGES} 张参考图片`);
+  }
+  if (options.size && options.size !== 'auto' && !/^\d+x\d+$/.test(options.size)) {
     throw new Error('尺寸格式错误，应为 宽x高，如 1024x1024');
   }
   if (options.quality && !VALID_QUALITIES.includes(options.quality as typeof VALID_QUALITIES[number])) {
@@ -47,11 +64,108 @@ function resolveApiMode(value: string | null): ImageGenApiMode {
   return apiMode as ImageGenApiMode;
 }
 
-function createHeaders(apiKey: string): HeadersInit {
+function createAuthHeaders(apiKey: string): HeadersInit {
   return {
     'Authorization': `Bearer ${apiKey}`,
+  };
+}
+
+function createJsonHeaders(apiKey: string): HeadersInit {
+  return {
+    ...createAuthHeaders(apiKey),
     'Content-Type': 'application/json',
   };
+}
+
+function getExtnameFromUrl(url: string) {
+  try {
+    const pathname = new URL(url).pathname;
+    const filename = pathname.split('/').filter(Boolean).pop() || '';
+    const dotIndex = filename.lastIndexOf('.');
+    return dotIndex > 0 ? filename.slice(dotIndex).toLowerCase() : '';
+  } catch {
+    return '';
+  }
+}
+
+function inferImageType(input: string, contentType = '') {
+  const lowerContentType = contentType.toLowerCase();
+  const ext = getExtnameFromUrl(input);
+
+  if (lowerContentType.includes('jpeg') || lowerContentType.includes('jpg') || ext === '.jpg' || ext === '.jpeg') {
+    return { mimeType: 'image/jpeg', ext: '.jpg' };
+  }
+  if (lowerContentType.includes('webp') || ext === '.webp') {
+    return { mimeType: 'image/webp', ext: '.webp' };
+  }
+
+  return { mimeType: 'image/png', ext: '.png' };
+}
+
+async function imageInputToBlob(input: string, index: number): Promise<{ blob: Blob; filename: string }> {
+  if (input.startsWith('data:')) {
+    const match = input.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+    if (!match) {
+      throw new Error(`第 ${index + 1} 张参考图 data URL 格式无效`);
+    }
+
+    const mimeType = match[1] || 'image/png';
+    const isBase64 = Boolean(match[2]);
+    const payload = match[3] || '';
+    const buffer = isBase64
+      ? Buffer.from(payload, 'base64')
+      : Buffer.from(decodeURIComponent(payload));
+    const { ext } = inferImageType(input, mimeType);
+
+    return {
+      blob: new Blob([buffer], { type: mimeType }),
+      filename: `reference-${index + 1}${ext}`,
+    };
+  }
+
+  const response = await fetch(input, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; BlogBot/1.0)',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`下载第 ${index + 1} 张参考图失败 (${response.status}): ${input.slice(0, 200)}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const { mimeType, ext } = inferImageType(input, contentType);
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  return {
+    blob: new Blob([buffer], { type: mimeType }),
+    filename: `reference-${index + 1}${ext}`,
+  };
+}
+
+function parseImageApiResult(result: unknown, model: string, context: Record<string, unknown>): ImageGenResult {
+  const imageData = (result as { data?: Array<{ url?: unknown; b64_json?: unknown }> })?.data?.[0];
+  const imageUrl = typeof imageData?.url === 'string' ? imageData.url : undefined;
+  const b64Json = typeof imageData?.b64_json === 'string' ? imageData.b64_json : undefined;
+
+  if (imageUrl) {
+    return { imageUrl, model };
+  }
+
+  if (b64Json) {
+    return {
+      imageUrl: `data:image/png;base64,${b64Json}`,
+      model,
+      b64Json,
+    };
+  }
+
+  console.error('图片生成 Image API 返回格式异常:', {
+    ...context,
+    responseKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+    firstDataKeys: imageData && typeof imageData === 'object' ? Object.keys(imageData) : [],
+  });
+  throw new Error('API 返回数据异常，未包含图片 URL 或 base64 数据');
 }
 
 async function requestChatCompletions(params: {
@@ -61,15 +175,16 @@ async function requestChatCompletions(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { mode, prompt, image, size, quality } = options;
+  const { mode, prompt, size, quality } = options;
   const messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }> = [];
 
   if (mode === 'edit') {
+    const imageInputs = normalizeImageInputs(options);
     messages.push({
       role: 'user',
       content: [
         { type: 'text', text: prompt.trim() },
-        { type: 'image_url', image_url: { url: image!.trim() } },
+        ...imageInputs.map((url) => ({ type: 'image_url', image_url: { url } })),
       ],
     });
   } else {
@@ -92,13 +207,13 @@ async function requestChatCompletions(params: {
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: createHeaders(apiKey),
+    headers: createJsonHeaders(apiKey),
     body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('图片生成 chat_completions 调用失败:', {
+    const detail = JSON.stringify({
       endpoint,
       status: response.status,
       model,
@@ -107,7 +222,8 @@ async function requestChatCompletions(params: {
       quality,
       response: errorText.slice(0, 1000),
     });
-    throw new Error(`API 调用失败 (${response.status}): ${errorText.slice(0, 500)}`);
+    console.error('图片生成 chat_completions 调用失败:', detail);
+    throw new Error(`chat_completions 调用失败 (${response.status}): ${detail}`);
   }
 
   const result = await response.json();
@@ -136,11 +252,7 @@ async function requestImagesGenerations(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { mode, prompt, size, quality } = options;
-
-  if (mode === 'edit') {
-    throw new Error('images_generations 接口模式仅支持文生图；图文编辑请使用 chat_completions 模式');
-  }
+  const { prompt, size, quality } = options;
 
   const requestBody: Record<string, unknown> = {
     model,
@@ -154,13 +266,13 @@ async function requestImagesGenerations(params: {
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/generations`;
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: createHeaders(apiKey),
+    headers: createJsonHeaders(apiKey),
     body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('图片生成 images_generations 调用失败:', {
+    const detail = JSON.stringify({
       endpoint,
       status: response.status,
       model,
@@ -168,35 +280,73 @@ async function requestImagesGenerations(params: {
       quality,
       response: errorText.slice(0, 1000),
     });
-    throw new Error(`API 调用失败 (${response.status}): ${errorText.slice(0, 500)}`);
+    console.error('图片生成 images_generations 调用失败:', detail);
+    throw new Error(`images_generations 调用失败 (${response.status}): ${detail}`);
   }
 
   const result = await response.json();
-  const imageData = result?.data?.[0];
-  const imageUrl = typeof imageData?.url === 'string' ? imageData.url : undefined;
-  const b64Json = typeof imageData?.b64_json === 'string' ? imageData.b64_json : undefined;
-
-  if (imageUrl) {
-    return { imageUrl, model };
-  }
-
-  if (b64Json) {
-    return {
-      imageUrl: `data:image/png;base64,${b64Json}`,
-      model,
-      b64Json,
-    };
-  }
-
-  console.error('图片生成 images_generations 返回格式异常:', {
+  return parseImageApiResult(result, model, {
     endpoint,
     model,
     size,
     quality,
-    responseKeys: result && typeof result === 'object' ? Object.keys(result) : [],
-    firstDataKeys: imageData && typeof imageData === 'object' ? Object.keys(imageData) : [],
   });
-  throw new Error('API 返回数据异常，未包含图片 URL 或 base64 数据');
+}
+
+async function requestImagesEdits(params: {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  options: ImageGenOptions;
+}): Promise<ImageGenResult> {
+  const { apiKey, baseUrl, model, options } = params;
+  const { prompt, size, quality } = options;
+  const imageInputs = normalizeImageInputs(options);
+  const formData = new FormData();
+
+  formData.set('model', model);
+  formData.set('prompt', prompt.trim());
+  if (size) formData.set('size', size);
+  if (quality) formData.set('quality', quality);
+
+  const blobs = await Promise.all(
+    imageInputs.map((input, index) => imageInputToBlob(input, index)),
+  );
+
+  for (const item of blobs) {
+    formData.append('image[]', item.blob, item.filename);
+  }
+
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/edits`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: createAuthHeaders(apiKey),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const detail = JSON.stringify({
+      endpoint,
+      status: response.status,
+      model,
+      size,
+      quality,
+      imageCount: imageInputs.length,
+      response: errorText.slice(0, 1000),
+    });
+    console.error('图片编辑 images_edits 调用失败:', detail);
+    throw new Error(`images_edits 调用失败 (${response.status}): ${detail}`);
+  }
+
+  const result = await response.json();
+  return parseImageApiResult(result, model, {
+    endpoint,
+    model,
+    size,
+    quality,
+    imageCount: imageInputs.length,
+  });
 }
 
 /**
@@ -216,7 +366,9 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
 
     try {
       if (apiMode === 'images_generations') {
-        return await requestImagesGenerations({ apiKey, baseUrl, model, options });
+        return options.mode === 'edit'
+          ? await requestImagesEdits({ apiKey, baseUrl, model, options })
+          : await requestImagesGenerations({ apiKey, baseUrl, model, options });
       }
 
       return await requestChatCompletions({ apiKey, baseUrl, model, options });
@@ -265,6 +417,7 @@ export async function generateImageWithLog(
 ): Promise<ImageGenResult & { cdnUrl?: string }> {
   const startTime = Date.now();
   const { createImageGenLog } = await import('./image-gen-log');
+  const editImageUrls = normalizeImageInputs(options);
 
   try {
     // 1. 调用 AI 生成图片
@@ -286,7 +439,8 @@ export async function generateImageWithLog(
       source,
       prompt: options.prompt,
       editPrompt: options.mode === 'edit' ? options.prompt : undefined,
-      editImageUrl: options.mode === 'edit' ? options.image : undefined,
+      editImageUrl: options.mode === 'edit' ? editImageUrls[0] : undefined,
+      editImageUrls: options.mode === 'edit' ? editImageUrls : undefined,
       size: options.size,
       quality: options.quality,
       model: result.model,

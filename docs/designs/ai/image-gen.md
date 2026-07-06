@@ -6,7 +6,7 @@
 
 ## API 信息
 
-- **上游端点:** 支持 `https://www.micuapi.ai/v1/chat/completions` 和 OpenAI 兼容的 `/v1/images/generations`
+- **上游端点:** 支持 `https://www.micuapi.ai/v1/chat/completions` 和 OpenAI 兼容的 `/v1/images/generations`、`/v1/images/edits`
 - **模型:** `gpt-image-2`
 - **认证方式:** `Authorization: Bearer $API_KEY`
 - **返回格式:** 图片 URL（OSS 托管，非 base64）
@@ -36,7 +36,7 @@
 
 content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploads/xxx.png)`，通过正则提取。
 
-### Images Generations 模式
+### Images API 模式
 
 当后台配置 `image_gen.api_mode=images_generations` 时，请求使用 OpenAI 图片生成接口格式：
 
@@ -52,7 +52,16 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 
 响应支持 `data[0].url` 和 `data[0].b64_json` 两种格式。`b64_json` 会先转存到 CDN，再返回 CDN URL。
 
-> 注意：`images_generations` 仅支持文生图；图文编辑继续使用 `chat_completions` 模式。
+图文编辑模式会自动改用 OpenAI 兼容的 `/v1/images/edits`，以 `multipart/form-data` 上传一张或多张参考图：
+
+```text
+model=gpt-image-2
+prompt=编辑指令
+image[]=@reference-1.png
+image[]=@reference-2.png
+size=1024x1024
+quality=high
+```
 
 ## 系统配置
 
@@ -73,6 +82,7 @@ src/services/
 └── queue/task-queue.ts         # 通用后台任务队列
 src/app/api/image-gen/
 ├── route.ts                    # POST: 创建图片生成任务
+├── edit/route.ts               # POST: 创建图片编辑任务
 ├── jobs/[jobId]/route.ts       # GET: 查询图片生成任务状态
 ├── jobs/[jobId]/retry/route.ts # POST: 重试失败任务
 └── queue/route.ts              # GET: 队列监控快照
@@ -88,14 +98,19 @@ src/components/ImageGen/
 
 ## MCP 工具
 
-已注册为 MCP 工具 `generate_image`，支持 Claude 等 AI 客户端提交图片生成任务。工具会立即返回 `jobId`、预分配 `imageUrl` 和 `resourceUri`，不等待上游图片模型完成。
+已注册 MCP 工具 `generate_image` 和 `edit_image`，支持 Claude 等 AI 客户端提交图片生成或图片编辑任务。工具会立即返回 `jobId`、预分配 `imageUrl` 和 `resourceUri`，不等待上游图片模型完成。
 
 - **工具名**: `generate_image`
 - **权限**: `image:view`
 - **输入参数**: prompt、size、quality
 - **状态资源**: `blog://image-generation-jobs/{jobId}`
 
-MCP 状态查询使用 `ResourceTemplate`，客户端读取 `generate_image` 返回的 `resourceUri` 即可获得当前任务状态、最终 CDN URL、错误信息和耗时。
+- **工具名**: `edit_image`
+- **权限**: `image:view`
+- **输入参数**: prompt、image 或 images、size、quality
+- **状态资源**: `blog://image-generation-jobs/{jobId}`
+
+MCP 状态查询使用 `ResourceTemplate`，客户端读取工具返回的 `resourceUri` 即可获得当前任务状态、最终 CDN URL、错误信息和耗时。
 
 ## API 设计
 
@@ -108,9 +123,10 @@ MCP 状态查询使用 `ResourceTemplate`，客户端读取 `generate_image` 返
 interface ImageGenRequest {
   mode: 'generate' | 'edit';  // 模式
   prompt: string;              // 提示词（必填）
-  image?: string;              // 参考图 URL（edit 模式必填）
+  image?: string;              // 单张参考图 URL（兼容旧客户端）
+  images?: string[];           // 多张参考图 URL
   size?: string;               // 尺寸，如 1024x1024
-  quality?: string;            // 质量：high | medium
+  quality?: string;            // 质量：low | medium | high | auto
 }
 ```
 
