@@ -58,14 +58,21 @@ const applyThemeToDocument = (theme: ThemeMode): void => {
 
   // 只更新已存在 favicon 节点的 href，绝不删除/重建 React 管理的节点，
   // 否则会触发 "Cannot read properties of null (reading 'removeChild')"。
-  // 优先取 Next metadata 渲染的 <link rel="icon">（可能尚未打 id），找到后补上 id 复用。
+  // 同步所有 icon 链接，避免浏览器继续使用未更新的 metadata favicon。
   const faviconHref = FAVICON_BY_THEME[theme];
-  const existing =
-    document.getElementById(FAVICON_LINK_ID) ??
-    document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-  if (existing) {
-    existing.id = FAVICON_LINK_ID;
-    existing.setAttribute("href", faviconHref);
+  const iconLinks = Array.from(document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']"));
+  const themedLink = document.getElementById(FAVICON_LINK_ID) as HTMLLinkElement | null;
+  if (themedLink && !iconLinks.includes(themedLink)) {
+    themedLink.rel = "icon";
+    iconLinks.push(themedLink);
+  }
+
+  if (iconLinks.length > 0) {
+    iconLinks.forEach((link) => {
+      if (!link.type) link.type = "image/png";
+      link.setAttribute("href", faviconHref);
+    });
+    (themedLink ?? iconLinks[0]).id = FAVICON_LINK_ID;
   } else {
     const faviconLink = document.createElement("link");
     faviconLink.id = FAVICON_LINK_ID;

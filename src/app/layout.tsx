@@ -45,7 +45,7 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{
-          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");var h=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");var l=document.querySelector("link[rel~='icon']")||document.getElementById("theme-favicon");if(l){l.id="theme-favicon";l.href=h;}else{l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=h;document.head.appendChild(l);}}catch(e){}})();`,
+          __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");var h=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");var links=Array.prototype.slice.call(document.querySelectorAll("link[rel~='icon']"));var byId=document.getElementById("theme-favicon");if(byId&&links.indexOf(byId)===-1){byId.rel="icon";links.push(byId)}if(links.length){links.forEach(function(l){if(!l.type)l.type="image/png";l.href=h});(byId||links[0]).id="theme-favicon"}else{var l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=h;document.head.appendChild(l)}}catch(e){}})();`,
         }} />
       </head>
       <AuthProvider>
