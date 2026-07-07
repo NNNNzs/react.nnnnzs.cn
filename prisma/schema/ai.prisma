@@ -1,0 +1,159 @@
+// 通用 AI 任务表（图片生成 / TTS / 文字生成 / 未来场景）
+model TbAiJob {
+  id              Int       @id @default(autoincrement())
+  job_id          String?   @unique @default(uuid()) @db.VarChar(36)   // 对外任务ID（UUID）
+  type            String    @db.VarChar(30)                            // 任务类型：image-gen / tts / text-gen
+  user_id         Int                                                  // 操作用户ID
+  source          String    @db.VarChar(20)                            // 来源：ADMIN / MCP
+
+  // ---- 通用业务字段 ----
+  prompt          String    @db.Text                                   // 主输入文本（图片=prompt，TTS=text，文字生成=prompt）
+  model           String?   @db.VarChar(100)                           // 使用的模型（PENDING 时可为 null）
+  status          String    @default("PENDING") @db.VarChar(20)        // PENDING / PROCESSING / SUCCESS / FAILED
+  error_message   String?   @db.Text                                   // 失败时的错误信息
+  duration_ms     Int       @default(0)                                // 执行耗时（毫秒）
+
+  // ---- CDN 资源字段（通用，所有场景都可能用到）----
+  original_url    String?   @db.Text                                   // 上游返回的原始资源标识
+  cdn_url         String?   @db.Text                                   // 转存后的 CDN 地址
+  reserved_cdn_url String?  @db.Text                                   // 预分配的 CDN 地址
+  cos_key         String?   @db.VarChar(255)                           // 预分配的 COS Key
+
+  // ---- 泛型扩展列 ----
+  ext_text        String?   @db.Text                                   // 扩展文本（图片=edit_prompt，TTS=instruction，其他场景按需）
+  ext_json        String?   @db.Text                                   // 扩展 JSON（各场景特有参数）
+
+  // ---- 时间戳 ----
+  started_at      DateTime?                                            // 开始处理时间
+  finished_at     DateTime?                                            // 完成或失败时间
+  created_at      DateTime  @default(now())
+  updated_at      DateTime? @updatedAt
+
+  @@index([type, user_id, created_at], name: "idx_type_user_time")
+  @@index([type, status], name: "idx_type_status")
+  @@index([source], name: "idx_source")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_ai_job")
+}
+
+// 图片生成旧日志表
+// 仅用于保留历史数据和后续迁移，新增日志写入 tb_ai_job。
+model TbImageGenLogLegacy {
+  id               Int       @id @default(autoincrement())
+  job_id           String?   @unique @default(uuid()) @db.VarChar(36)
+  user_id          Int
+  source           String    @db.VarChar(20)
+  prompt           String    @db.Text
+  edit_prompt      String?   @db.Text
+  edit_image_url   String?   @db.Text
+  size             String?   @db.VarChar(50)
+  quality          String?   @db.VarChar(20)
+  model            String?   @db.VarChar(100)
+  original_url     String?   @db.Text
+  cdn_url          String?   @db.Text
+  reserved_cdn_url String?   @db.Text
+  cos_key          String?   @db.VarChar(255)
+  status           String    @default("PENDING") @db.VarChar(20)
+  error_message    String?   @db.Text
+  duration_ms      Int
+  started_at       DateTime?
+  finished_at      DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime? @updatedAt
+
+  @@index([user_id, created_at], name: "idx_user_time")
+  @@index([source], name: "idx_source")
+  @@index([status], name: "idx_status")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_image_gen_log")
+}
+
+// 聊天会话表
+model TbChatSession {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?                                     // 已登录用户ID，游客为 null
+  device_id     String?   @db.VarChar(36)               // 游客设备标识（UUID），已登录用户为 null
+  title         String?   @db.VarChar(255)               // 会话标题（取第一条用户消息前20字）
+  message_count Int       @default(0)                    // 消息数量
+  ip_address    String?   @db.VarChar(45)               // IPv4 或 IPv6
+  user_agent    String?   @db.Text                       // 浏览器 User-Agent
+  is_delete     Int       @default(0)                    // 逻辑删除：0-未删除，1-已删除
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  // 关联关系
+  user     TbUser?        @relation(fields: [user_id], references: [id])
+  messages TbChatMessage[]
+  aiLabRuns TbAiLabRun[]
+
+  @@index([user_id, created_at], name: "idx_session_user_time")
+  @@index([device_id, created_at], name: "idx_session_device_time")
+  @@index([created_at], name: "idx_session_created_at")
+  @@map("tb_chat_session")
+}
+
+// 聊天消息表
+model TbChatMessage {
+  id         Int      @id @default(autoincrement())
+  session_id Int                                        // 关联会话ID
+  role       String  @db.VarChar(20)                    // 角色：user / assistant
+  content    String  @db.Text                          // 用户原文 / AI 最终回答
+  metadata   Json?                                     // ReAct 步骤等结构化数据（JSON）
+  created_at DateTime @default(now())
+
+  // 关联关系
+  session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  aiLabRuns TbAiLabRun[]
+
+  @@index([session_id, created_at], name: "idx_msg_session_time")
+  @@map("tb_chat_message")
+}
+
+// AI Lab Run 观测表
+model TbAiLabRun {
+  id                   Int       @id @default(autoincrement())
+  source               String    @db.VarChar(50)   // chat / eval / retrieval_playground / prompt_replay
+  session_id            Int?
+  message_id            Int?
+  user_id               Int?
+  device_id             String?   @db.VarChar(36)
+  question              String    @db.Text
+  answer                String?   @db.Text
+  scenario              String?   @db.VarChar(50)
+  style_variant          String?   @db.VarChar(20)
+  model                 String?   @db.VarChar(100)
+  embedding_model        String?   @db.VarChar(100)
+  prompt_version         String?   @db.VarChar(120)
+  retriever_version      String?   @db.VarChar(120)
+  commit_sha            String?   @db.VarChar(80)
+  latency_ms            Int?
+  input_tokens          Int?
+  output_tokens         Int?
+  cost                  Decimal?  @db.Decimal(12, 6)
+  tool_call_count        Int       @default(0)
+  tool_error_count       Int       @default(0)
+  max_tool_duration_ms   Int?
+  first_tool_name        String?   @db.VarChar(100)
+  tool_calls            Json?
+  retrieval_results      Json?
+  metadata              Json?
+  langsmith_trace_id     String?   @db.VarChar(120)
+  langsmith_run_url      String?   @db.Text
+  feedback              String?   @db.VarChar(50)
+  feedback_note          String?   @db.Text
+  error                 String?   @db.Text
+  created_at            DateTime  @default(now())
+  updated_at            DateTime? @updatedAt
+
+  user    TbUser?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  session TbChatSession? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+  message TbChatMessage? @relation(fields: [message_id], references: [id], onDelete: SetNull)
+
+  @@index([source, created_at], name: "idx_ai_run_source_time")
+  @@index([session_id, message_id], name: "idx_ai_run_chat_message")
+  @@index([user_id, created_at], name: "idx_ai_run_user_time")
+  @@index([model], name: "idx_ai_run_model")
+  @@index([prompt_version], name: "idx_ai_run_prompt")
+  @@index([first_tool_name], name: "idx_ai_run_first_tool")
+  @@map("tb_ai_lab_run")
+}

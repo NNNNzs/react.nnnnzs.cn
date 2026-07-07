@@ -50,6 +50,7 @@
 - **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
 #### 业务功能
+- **[内容创作中台](docs/designs/features/content-creation-platform.md)** - 独立 `/create` 创作后台，整合博客文章与 `xhs` 本地工作流
 - **[博客合集功能设计](docs/designs/features/collection-design.md)** - 文章合集管理功能
 - **[评论系统设计](docs/designs/features/comment-system-design.md)** - 评论功能设计
 - **[实体变更日志](docs/designs/features/entity-change-design.md)** - 数据变更追踪
@@ -73,6 +74,8 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
+- **[模板管理与内容 Agent 建设](docs/plans/content-template-agent.md)** — 🔄 进行中（`content_templates`、模板 CRUD、`xhs/prompts` 导入和 `/create/templates` 管理页已落地；下一步做数据库结构同步和模板驱动草稿生成）
+- **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（阶段 0-3 部分完成：草稿库、素材库、选题库模型/API/列表页已落地，AI 可从博客文章生成选题；下一步做选题/博客到图文草稿生成）
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充，昼夜双风格已提升为站点级语义系统）
 - **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 🔄 进行中（已完成后台信息架构拆分与 Run 观测表/接口/页面，后续推进 Run 转 Eval Case、Golden Dataset、Prompt Replay 与 LangSmith 集成）
 - **[Prisma 7 升级](docs/plans/prisma-7-upgrade.md)** — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）

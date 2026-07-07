@@ -1,0 +1,121 @@
+// ============ 内容创作中台模型 ============
+
+// 选题池：承接博客文章、xhs 选题库和 AI 选题结果。
+model ContentTopic {
+  id             Int       @id @default(autoincrement())
+  title          String    @db.VarChar(255)
+  description    String?   @db.Text
+  pillar         String?   @db.VarChar(80)
+  series         String?   @db.VarChar(80)
+  status         String    @default("IDEA") @db.VarChar(30)
+  priority       Int       @default(3)
+  source_post_id Int?
+  source_note    String?   @db.Text
+  ai_reason      String?   @db.Text
+  created_by     Int?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  drafts ContentDraft[]
+  assets ContentAsset[]
+
+  @@index([status, priority], name: "idx_topic_status_priority")
+  @@index([source_post_id], name: "idx_topic_source_post")
+  @@index([created_at], name: "idx_topic_created_at")
+  @@map("content_topics")
+}
+
+// 草稿主体：优先承载小红书图文，视频脚本只保留类型扩展。
+model ContentDraft {
+  id                       Int       @id @default(autoincrement())
+  topic_id                 Int?
+  source_post_id           Int?
+  platform                 String    @default("xhs") @db.VarChar(40)
+  type                     String    @default("note") @db.VarChar(40)
+  title                    String    @db.VarChar(255)
+  hook                     String?   @db.Text
+  body                     String?   @db.LongText
+  tags_json                Json?
+  status                   String    @default("DRAFT") @db.VarChar(30)
+  generation_snapshot_json Json?
+  created_by               Int?
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  topic  ContentTopic?       @relation(fields: [topic_id], references: [id], onDelete: SetNull)
+  slides ContentDraftSlide[]
+  assets ContentAsset[]
+
+  @@index([status, updated_at], name: "idx_draft_status_updated")
+  @@index([topic_id], name: "idx_draft_topic")
+  @@index([source_post_id], name: "idx_draft_source_post")
+  @@index([created_by, created_at], name: "idx_draft_user_time")
+  @@map("content_drafts")
+}
+
+// 小红书图文卡片结构化内容。
+model ContentDraftSlide {
+  id         Int      @id @default(autoincrement())
+  draft_id   Int
+  sort_order Int      @default(0)
+  title      String?  @db.VarChar(255)
+  bullets_json Json?
+  prompt     String?  @db.Text
+  asset_id   Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  draft ContentDraft @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+
+  @@index([draft_id, sort_order], name: "idx_slide_draft_sort")
+  @@index([asset_id], name: "idx_slide_asset")
+  @@map("content_draft_slides")
+}
+
+// 素材库：当前只管理图片；草稿选用图片写入 ContentDraft.generation_snapshot_json.draftImages，不回写 draft_id。
+model ContentAsset {
+  id            Int      @id @default(autoincrement())
+  draft_id      Int?
+  topic_id      Int?
+  type          String   @default("image") @db.VarChar(40)
+  usage         String?  @db.VarChar(60)
+  title         String?  @db.VarChar(255)
+  cdn_url       String?  @db.Text
+  cos_key       String?  @db.VarChar(255)
+  local_path    String?  @db.Text
+  ai_job_id     Int?
+  metadata_json Json?
+  created_by    Int?
+  created_at    DateTime @default(now())
+
+  draft ContentDraft? @relation(fields: [draft_id], references: [id], onDelete: SetNull)
+  topic ContentTopic? @relation(fields: [topic_id], references: [id], onDelete: SetNull)
+
+  @@index([draft_id], name: "idx_asset_draft")
+  @@index([topic_id], name: "idx_asset_topic")
+  @@index([type, created_at], name: "idx_asset_type_time")
+  @@index([ai_job_id], name: "idx_asset_ai_job")
+  @@map("content_assets")
+}
+
+// 模板库：承接 xhs prompts、账号定位、TTS 风格和后续 Agent 上下文模板。
+model ContentTemplate {
+  id                 Int      @id @default(autoincrement())
+  name               String   @db.VarChar(255)
+  type               String   @db.VarChar(40)
+  scenario           String   @db.VarChar(80)
+  content            String   @db.LongText
+  variables_json     Json?
+  output_schema_json Json?
+  version            Int      @default(1)
+  status             String   @default("ACTIVE") @db.VarChar(30)
+  source_path        String?  @db.VarChar(255)
+  created_by         Int?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([type, scenario, status], name: "idx_template_type_scenario_status")
+  @@index([source_path], name: "idx_template_source_path")
+  @@index([updated_at], name: "idx_template_updated_at")
+  @@map("content_templates")
+}

@@ -14,7 +14,7 @@
 - **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight
 
 ### 后端核心
-- **ORM**: Prisma 6.2
+- **ORM**: Prisma 7.8.0
 - **数据库**: MySQL
 - **缓存**: Redis (Token 管理)
 - **认证**: JWT + Cookie + bcryptjs
@@ -153,6 +153,7 @@ src/
 ├── app/                      # Next.js App Router 页面
 │   ├── api/                 # API Routes
 │   ├── c/                   # 后台管理页面
+│   ├── create/              # 内容创作中台页面
 │   ├── chat/                # AI 聊天页面
 │   ├── collections/         # 合集页面
 │   ├── [year]/              # 文章详情页（日期路径）
@@ -196,6 +197,15 @@ src/
 - `/c/vector` - 向量管理
 - `/c/tokens` - Token 管理
 
+### 内容创作中台
+- `/create` - 内容创作工作台（独立于 `/c`，当前登录用户可访问）
+- `/create/topics` - 选题库
+- `/create/drafts` - 草稿库
+- `/create/assets` - 素材库
+- `/create/calendar` - 发布日历
+- `/create/review` - 复盘数据
+- `/create/templates` - 模板管理
+
 ### API 接口
 - `/api/post/*` - 文章相关接口
 - `/api/user/*` - 用户认证接口
@@ -218,7 +228,7 @@ src/
 - **TbPostVersion** - 文章版本历史
 - **LongTermToken** - 长期 Token 表
 
-详见：[Prisma Schema](./prisma/schema.prisma)
+详见：[Prisma Schema](./prisma/schema/)
 
 ##  AI 功能
 

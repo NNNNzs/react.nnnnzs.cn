@@ -1,0 +1,753 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Button,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Skeleton,
+  Tag,
+  message,
+} from "antd";
+import {
+  BulbOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  RobotOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+
+interface ApiResponse<T> {
+  status: boolean;
+  message: string;
+  data: T;
+}
+
+interface PageResult<T> {
+  record: T[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+interface TopicRecord {
+  id: number;
+  title: string;
+  description?: string | null;
+  pillar?: string | null;
+  series?: string | null;
+  status: string;
+  priority: number;
+  source_post_id?: number | null;
+  ai_reason?: string | null;
+  updated_at: string;
+  _count?: {
+    drafts: number;
+    assets: number;
+  };
+}
+
+interface DraftRecord {
+  id: number;
+  title: string;
+  hook?: string | null;
+  body?: string | null;
+  platform: string;
+  type: string;
+  status: string;
+  updated_at: string;
+  selected_images?: DraftImageItem[];
+}
+
+interface DraftImageItem {
+  id: string;
+  assetId: number;
+  title: string | null;
+  imageUrl: string;
+  group: string | null;
+  sortOrder: number;
+  remark: string | null;
+  addedAt: string;
+}
+
+interface AssetRecord {
+  id: number;
+  title?: string | null;
+  type: string;
+  usage?: string | null;
+  cdn_url?: string | null;
+  cos_key?: string | null;
+  local_path?: string | null;
+  created_at: string;
+  draft?: {
+    id: number;
+    title: string;
+    status: string;
+  } | null;
+  topic?: {
+    id: number;
+    title: string;
+  } | null;
+}
+
+interface OverviewData {
+  stats: {
+    draftTotal: number;
+    draftReady: number;
+    assetTotal: number;
+    topicTotal: number;
+    topicPlanned: number;
+  };
+  latestDrafts: DraftRecord[];
+  latestAssets: AssetRecord[];
+  latestTopics: TopicRecord[];
+}
+
+const statusOptions = [
+  { label: "全部状态", value: "" },
+  { label: "想法", value: "IDEA" },
+  { label: "计划中", value: "PLANNED" },
+  { label: "起草中", value: "DRAFTING" },
+  { label: "草稿", value: "DRAFT" },
+  { label: "素材待处理", value: "ASSET_PENDING" },
+  { label: "就绪", value: "READY" },
+  { label: "已发布", value: "PUBLISHED" },
+  { label: "归档", value: "ARCHIVED" },
+];
+
+const draftStatusOptions = [
+  { label: "全部状态", value: "" },
+  { label: "草稿", value: "DRAFT" },
+  { label: "素材待处理", value: "ASSET_PENDING" },
+  { label: "就绪", value: "READY" },
+  { label: "已发布", value: "PUBLISHED" },
+  { label: "归档", value: "ARCHIVED" },
+];
+
+const draftTypeOptions = [
+  { label: "全部类型", value: "" },
+  { label: "图文笔记", value: "note" },
+  { label: "短视频脚本", value: "short_video" },
+  { label: "清单", value: "checklist" },
+  { label: "问答", value: "faq" },
+];
+
+const draftTypeCreateOptions = draftTypeOptions.filter((option) => option.value);
+const draftStatusCreateOptions = draftStatusOptions.filter((option) => option.value);
+
+const draftTypeLabel = new Map(draftTypeOptions.map((option) => [option.value, option.label]));
+const draftStatusLabel = new Map(draftStatusOptions.map((option) => [option.value, option.label]));
+
+async function requestApi<T>(url: string, options?: RequestInit) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+  const payload = await response.json() as ApiResponse<T>;
+
+  if (!response.ok || !payload.status) {
+    throw new Error(payload.message || "请求失败");
+  }
+
+  return payload.data;
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0">
+        <div className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+          {eyebrow}
+        </div>
+        <h1 className="text-2xl font-semibold text-slate-950 md:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          {description}
+        </p>
+      </div>
+      {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+    </section>
+  );
+}
+
+function FilterBar({
+  query,
+  onQueryChange,
+  status,
+  onStatusChange,
+  onRefresh,
+  extra,
+  statusOptionsList = statusOptions,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  status?: string;
+  onStatusChange?: (value: string) => void;
+  onRefresh: () => void;
+  extra?: React.ReactNode;
+  statusOptionsList?: Array<{ label: string; value: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-3 lg:flex-row lg:items-center">
+      <Input
+        allowClear
+        prefix={<SearchOutlined className="text-slate-400" />}
+        placeholder="搜索标题、正文或说明"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        className="lg:max-w-sm"
+      />
+      {onStatusChange ? (
+        <Select
+          value={status ?? ""}
+          options={statusOptionsList}
+          onChange={onStatusChange}
+          className="w-full lg:w-40"
+        />
+      ) : null}
+      {extra}
+      <Button icon={<ReloadOutlined />} onClick={onRefresh}>
+        刷新
+      </Button>
+    </div>
+  );
+}
+
+function LoadingList() {
+  return (
+    <div className="grid gap-3">
+      <Skeleton active paragraph={{ rows: 2 }} />
+      <Skeleton active paragraph={{ rows: 2 }} />
+      <Skeleton active paragraph={{ rows: 2 }} />
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-slate-300 bg-white py-12">
+      <Empty description={text} />
+    </div>
+  );
+}
+
+export function CreateOverviewPage() {
+  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+
+  const loadOverview = useCallback(async () => {
+    setLoading(true);
+    try {
+      setOverview(await requestApi<OverviewData>("/api/create/overview"));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "加载概览失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOverview();
+  }, [loadOverview]);
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <PageHeader
+          eyebrow="create priority"
+          title="内容创作工作台"
+          description="当前阶段聚焦草稿库、素材库和选题库。发布日历、复盘、Remotion 和视频相关能力后置。"
+          actions={<Button icon={<ReloadOutlined />} onClick={loadOverview}>刷新</Button>}
+        />
+
+        {loading ? (
+          <LoadingList />
+        ) : (
+          <>
+            <section className="grid gap-3 md:grid-cols-5">
+              {[
+                ["草稿总数", overview?.stats.draftTotal ?? 0],
+                ["就绪草稿", overview?.stats.draftReady ?? 0],
+                ["素材总数", overview?.stats.assetTotal ?? 0],
+                ["选题总数", overview?.stats.topicTotal ?? 0],
+                ["推进中选题", overview?.stats.topicPlanned ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border border-slate-200 bg-white p-4">
+                  <div className="text-xs text-slate-500">{label}</div>
+                  <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
+                </div>
+              ))}
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-3">
+              <RecentPanel title="最近草稿" items={overview?.latestDrafts.map((item) => ({
+                key: item.id,
+                title: item.title,
+                meta: `${item.platform} / ${item.type} / ${item.status}`,
+              })) ?? []} />
+              <RecentPanel title="最近素材" items={overview?.latestAssets.map((item) => ({
+                key: item.id,
+                title: item.title || `素材 #${item.id}`,
+                meta: `${item.type}${item.usage ? ` / ${item.usage}` : ""}`,
+              })) ?? []} />
+              <RecentPanel title="优先选题" items={overview?.latestTopics.map((item) => ({
+                key: item.id,
+                title: item.title,
+                meta: `${item.series || "未分栏目"} / P${item.priority}`,
+              })) ?? []} />
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecentPanel({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ key: number; title: string; meta: string }>;
+}) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <div className="mb-3 text-sm font-medium text-slate-950">{title}</div>
+      <div className="grid gap-2">
+        {items.length > 0 ? items.map((item) => (
+          <div key={item.key} className="rounded-md bg-slate-50 px-3 py-2">
+            <div className="line-clamp-1 text-sm font-medium text-slate-800">{item.title}</div>
+            <div className="mt-1 text-xs text-slate-500">{item.meta}</div>
+          </div>
+        )) : (
+          <div className="rounded-md bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">
+            暂无数据
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CreateTopicsManager() {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PageResult<TopicRecord> | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form] = Form.useForm();
+  const [aiForm] = Form.useForm();
+
+  const loadTopics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        pageSize: "30",
+      });
+      if (query.trim()) params.set("query", query.trim());
+      if (status) params.set("status", status);
+      setData(await requestApi<PageResult<TopicRecord>>(`/api/create/topics?${params.toString()}`));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "加载选题失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [query, status]);
+
+  useEffect(() => {
+    void loadTopics();
+  }, [loadTopics]);
+
+  const handleCreate = async () => {
+    const values = await form.validateFields();
+    setSubmitting(true);
+    try {
+      await requestApi("/api/create/topics", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      message.success("选题已创建");
+      setCreateOpen(false);
+      form.resetFields();
+      await loadTopics();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "创建选题失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAiGenerate = async () => {
+    const values = await aiForm.validateFields();
+    setSubmitting(true);
+    try {
+      const result = await requestApi<{ created: TopicRecord[]; skipped: TopicRecord[] }>(
+        "/api/create/topics/generate-from-post",
+        {
+          method: "POST",
+          body: JSON.stringify(values),
+        },
+      );
+      message.success(`已生成 ${result.created.length} 个选题，跳过 ${result.skipped.length} 个重复选题`);
+      setAiOpen(false);
+      aiForm.resetFields();
+      await loadTopics();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "AI 选题失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <PageHeader
+          eyebrow="topic bank"
+          title="选题库"
+          description="先让 AI 基于博客文章拆出适合小红书的独立问题，再进入草稿库做图文结构。"
+          actions={(
+            <>
+              <Button icon={<RobotOutlined />} onClick={() => setAiOpen(true)}>
+                AI 从博客选题
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                新建选题
+              </Button>
+            </>
+          )}
+        />
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          status={status}
+          onStatusChange={setStatus}
+          onRefresh={loadTopics}
+        />
+        {loading ? (
+          <LoadingList />
+        ) : data?.record.length ? (
+          <div className="grid gap-3">
+            {data.record.map((topic) => (
+              <article key={topic.id} className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      <Tag color="blue">{topic.status}</Tag>
+                      <Tag color="gold">P{topic.priority}</Tag>
+                      {topic.series ? <Tag>{topic.series}</Tag> : null}
+                      {topic.source_post_id ? <Tag color="green">博客 #{topic.source_post_id}</Tag> : null}
+                    </div>
+                    <h2 className="line-clamp-2 text-base font-semibold text-slate-950">{topic.title}</h2>
+                    {topic.description ? (
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{topic.description}</p>
+                    ) : null}
+                    {topic.ai_reason ? (
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">AI 依据：{topic.ai_reason}</p>
+                    ) : null}
+                  </div>
+                  <div className="grid shrink-0 grid-cols-3 gap-2 text-center text-xs text-slate-500 lg:w-48">
+                    <div className="rounded-md bg-slate-50 px-2 py-2">
+                      <div className="text-base font-semibold text-slate-900">{topic._count?.drafts ?? 0}</div>
+                      草稿
+                    </div>
+                    <div className="rounded-md bg-slate-50 px-2 py-2">
+                      <div className="text-base font-semibold text-slate-900">{topic._count?.assets ?? 0}</div>
+                      素材
+                    </div>
+                    <div className="rounded-md bg-slate-50 px-2 py-2">
+                      <div className="text-base font-semibold text-slate-900">{formatDate(topic.updated_at)}</div>
+                      更新
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="暂无选题，可以先用博客文章让 AI 拆题。" />
+        )}
+      </div>
+
+      <Modal
+        title="新建选题"
+        open={createOpen}
+        onOk={handleCreate}
+        onCancel={() => setCreateOpen(false)}
+        confirmLoading={submitting}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="title" label="选题标题" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="选题说明">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Form.Item name="series" label="栏目">
+              <Input placeholder="能跑起来系列" />
+            </Form.Item>
+            <Form.Item name="pillar" label="内容支柱">
+              <Input placeholder="AI 应用工程实战" />
+            </Form.Item>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Form.Item name="priority" label="优先级" initialValue={3}>
+              <InputNumber min={1} max={5} className="w-full" />
+            </Form.Item>
+            <Form.Item name="source_post_id" label="来源博客 ID">
+              <InputNumber min={1} className="w-full" />
+            </Form.Item>
+          </div>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="AI 从博客选题"
+        open={aiOpen}
+        onOk={handleAiGenerate}
+        onCancel={() => setAiOpen(false)}
+        confirmLoading={submitting}
+        okText="生成并入库"
+        destroyOnHidden
+      >
+        <Form form={aiForm} layout="vertical" initialValues={{ limit: 5 }}>
+          <Form.Item name="postId" label="博客文章 ID" rules={[{ required: true }]}>
+            <InputNumber min={1} className="w-full" />
+          </Form.Item>
+          <Form.Item name="limit" label="生成数量">
+            <InputNumber min={1} max={8} className="w-full" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
+export function CreateDraftsManager() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PageResult<DraftRecord> | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form] = Form.useForm();
+
+  const loadDrafts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ pageSize: "30" });
+      if (query.trim()) params.set("query", query.trim());
+      if (status) params.set("status", status);
+      if (type) params.set("type", type);
+      setData(await requestApi<PageResult<DraftRecord>>(`/api/create/drafts?${params.toString()}`));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "加载草稿失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [query, status, type]);
+
+  useEffect(() => {
+    void loadDrafts();
+  }, [loadDrafts]);
+
+  const handleCreate = async () => {
+    const values = await form.validateFields();
+    setSubmitting(true);
+    try {
+      const draft = await requestApi<DraftRecord>("/api/create/drafts", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      message.success("草稿已创建");
+      setCreateOpen(false);
+      form.resetFields();
+      router.push(`/create/drafts/${draft.id}`);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "创建草稿失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (draftId: number) => {
+    try {
+      await requestApi(`/api/create/drafts/${draftId}`, {
+        method: "DELETE",
+      });
+      message.success("草稿已删除");
+      await loadDrafts();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "删除草稿失败");
+    }
+  };
+
+  const draftStats = useMemo(() => {
+    const records = data?.record ?? [];
+    return {
+      total: data?.total ?? 0,
+      ready: records.filter((item) => item.status === "READY").length,
+      withImages: records.filter((item) => (item.selected_images?.length ?? 0) > 0).length,
+    };
+  }, [data]);
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <PageHeader
+          eyebrow="drafts first"
+          title="草稿库"
+          description="草稿列表只保留入口和状态流转，正文、图片和细节都进入草稿编辑页处理。"
+          actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建草稿</Button>}
+        />
+        <section className="grid gap-3 md:grid-cols-3">
+          <Metric label="草稿总数" value={draftStats.total} icon={<FileTextOutlined />} />
+          <Metric label="就绪草稿" value={draftStats.ready} icon={<BulbOutlined />} />
+          <Metric label="已选图片" value={draftStats.withImages} icon={<PictureOutlined />} />
+        </section>
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          status={status}
+          onStatusChange={setStatus}
+          onRefresh={loadDrafts}
+          statusOptionsList={draftStatusOptions}
+          extra={(
+            <Select
+              value={type}
+              options={draftTypeOptions}
+              onChange={setType}
+              className="w-full lg:w-40"
+            />
+          )}
+        />
+        {loading ? (
+          <LoadingList />
+        ) : data?.record.length ? (
+          <div className="grid gap-3">
+            {data.record.map((draft) => (
+              <article key={draft.id} className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      <Tag color="blue">{draftStatusLabel.get(draft.status) ?? draft.status}</Tag>
+                      <Tag>{draftTypeLabel.get(draft.type) ?? draft.type}</Tag>
+                      {(draft.selected_images?.length ?? 0) > 0 ? (
+                        <Tag color="green">{draft.selected_images?.length} 张图片</Tag>
+                      ) : null}
+                    </div>
+                    <h2 className="line-clamp-2 text-base font-semibold text-slate-950">{draft.title}</h2>
+                    {draft.body ? (
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{draft.body}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-2 lg:w-56">
+                    <div className="rounded-md bg-slate-50 px-2 py-2">
+                      <div className="text-sm font-semibold text-slate-900">{formatDate(draft.updated_at)}</div>
+                      更新
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        icon={<EditOutlined />}
+                        onClick={() => router.push(`/create/drafts/${draft.id}`)}
+                        className="flex-1"
+                      >
+                        编辑
+                      </Button>
+                      <Popconfirm
+                        title="删除草稿"
+                        description="删除后无法恢复，确认继续？"
+                        okText="删除"
+                        cancelText="取消"
+                        onConfirm={() => handleDelete(draft.id)}
+                      >
+                        <Button danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="暂无草稿，可以先新建一个草稿再进入编辑页补内容。" />
+        )}
+      </div>
+
+      <Modal
+        title="新建草稿"
+        open={createOpen}
+        onOk={handleCreate}
+        onCancel={() => setCreateOpen(false)}
+        confirmLoading={submitting}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical" initialValues={{ type: "note", status: "DRAFT" }}>
+          <Form.Item name="title" label="草稿标题" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Form.Item name="type" label="类型" rules={[{ required: true }]}>
+              <Select options={draftTypeCreateOptions} />
+            </Form.Item>
+            <Form.Item name="status" label="状态" rules={[{ required: true }]}>
+              <Select options={draftStatusCreateOptions} />
+            </Form.Item>
+          </div>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
+function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-4">
+      <div>
+        <div className="text-xs text-slate-500">{label}</div>
+        <div className="mt-1 text-2xl font-semibold text-slate-950">{value}</div>
+      </div>
+      <div className="text-xl text-slate-400">{icon}</div>
+    </div>
+  );
+}

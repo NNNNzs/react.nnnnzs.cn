@@ -1,0 +1,175 @@
+// 文章表
+model TbPost {
+  id                  Int       @id @default(autoincrement())
+  path                String   @db.VarChar(255)
+  title               String?   @db.VarChar(255)
+  category            String?   @db.VarChar(255)
+  tags                String?   @db.VarChar(255) // 逗号分隔的标签字符串
+  date                DateTime? @db.DateTime(0)
+  updated             DateTime? @db.DateTime(0)
+  cover               String?   @db.VarChar(255)
+  layout              String?   @db.VarChar(255)
+  content             String    @db.Text
+  description         String?   @db.VarChar(500)
+  visitors            Int?      @default(0)
+  likes               Int?      @default(0)
+  hide                String?   @default("0") @db.VarChar(255)
+  is_delete           Int       @default(0)
+  created_by          Int? // 创建人ID，关联用户表
+  rag_status          String?   @default("pending") @db.VarChar(50) // 向量化状态：pending/processing/completed/failed
+  rag_error           String?   @db.Text // 向量化错误信息（当 rag_status=failed 时存储）
+  rag_updated_at      DateTime? // 最后一次向量化时间
+
+  // 关联关系
+  creator           TbUser?             @relation(fields: [created_by], references: [id])
+  versions          TbPostVersion[]
+  collectionPosts   TbCollectionPost[]  // 文章所属的合集（通过中间表）
+  comments          TbComment[]         // 文章的评论
+
+  @@map("tb_post")
+}
+
+// 配置表
+model TbConfig {
+  id           Int       @id @default(autoincrement())
+  title        String?   @db.VarChar(255)
+  key          String?   @db.VarChar(255)
+  value        String?   @db.Text
+  status       Int?
+  created_at   DateTime? @db.DateTime(0)
+  updated_at   DateTime? @db.DateTime(0)
+  last_read_at DateTime? @db.DateTime(0)
+  remark       String?   @db.Text
+
+  @@map("tb_config")
+}
+
+// 文章版本表
+model TbPostVersion {
+  id         Int      @id @default(autoincrement())
+  post_id    Int
+  version    Int
+  content    String   @db.LongText
+  created_at DateTime @default(now())
+  created_by Int?
+
+  post TbPost @relation(fields: [post_id], references: [id])
+
+  @@index([post_id, version])
+  @@map("tb_post_version")
+}
+
+// 合集表
+model TbCollection {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(255)    // 合集标题
+  slug        String    @unique @db.VarChar(191) // URL路径，如 /collections/nextjs-series (191字符限制，兼容MySQL 5.7索引键长度限制)
+  description String?   @db.VarChar(1000)   // 合集描述（支持Markdown）
+  cover       String?   @db.VarChar(255)    // 封面图URL
+  background  String?   @db.VarChar(255)    // 背景图URL
+  color       String?   @db.VarChar(20)     // 主题色，如 #2563eb
+
+  // 统计信息（冗余字段，提高查询性能）
+  article_count Int     @default(0)       // 文章数量
+  total_views   Int     @default(0)       // 总浏览量
+  total_likes   Int     @default(0)       // 总点赞数
+
+  // 状态字段
+  status      Int       @default(1)       // 状态：1-正常，0-隐藏
+  is_delete   Int       @default(0)       // 逻辑删除：0-未删除，1-已删除
+
+  // 时间戳
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  // 关联关系
+  collectionPosts TbCollectionPost[] // 该合集包含的文章（通过中间表）
+  creator          TbUser?           @relation(fields: [created_by], references: [id])
+  created_by       Int?              // 创建人ID
+
+  @@index([status])
+  @@index([created_at])
+  @@map("tb_collection")
+}
+
+// 合集文章关联表（中间表）
+model TbCollectionPost {
+  id            Int       @id @default(autoincrement())
+  collection_id Int       // 合集ID
+  post_id       Int       // 文章ID
+  sort_order    Int       @default(0)  // 排序序号，用于控制合集内文章顺序
+
+  created_at    DateTime  @default(now())
+
+  // 关联关系
+  collection    TbCollection @relation(fields: [collection_id], references: [id])
+  post          TbPost       @relation(fields: [post_id], references: [id])
+
+  @@unique([collection_id, post_id]) // 防止重复关联
+  @@index([collection_id, sort_order])
+  @@map("tb_collection_post")
+}
+
+// 评论表
+model TbComment {
+  id         Int       @id @default(autoincrement())
+  post_id    Int       // 关联文章ID
+  user_id    Int       // 评论者用户ID
+  parent_id  Int?      // 父评论ID（用于回复）
+  content    String    @db.Text  // 评论内容（支持Markdown）
+  status     Int       @default(1)  // 状态：1-正常，0-隐藏
+  is_delete  Int       @default(0)  // 逻辑删除：0-未删除，1-已删除
+  like_count Int       @default(0)  // 点赞数
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  // 关联关系
+  post    TbPost     @relation(fields: [post_id], references: [id])
+  user    TbUser     @relation(fields: [user_id], references: [id])
+  parent  TbComment? @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies TbComment[] @relation("CommentReplies")
+
+  @@index([post_id])
+  @@index([user_id])
+  @@index([parent_id])
+  @@index([created_at])
+  @@map("tb_comment")
+}
+
+// 点赞记录表
+// 用于记录用户点赞行为，支持 IP 防刷
+model TbLikeRecord {
+  id          Int      @id @default(autoincrement())
+  target_type String   @db.VarChar(50)  // 目标类型：POST, COLLECTION, COMMENT
+  target_id   Int                        // 目标ID
+  ip_address  String   @db.VarChar(45)   // IPv4 或 IPv6
+  created_at  DateTime @default(now())
+
+  @@index([target_type, target_id, ip_address], name: "idx_target_ip")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_like_record")
+}
+
+// 实体变更日志表
+// 用于记录文章、合集等实体的字段变更历史
+model TbEntityChangeLog {
+  id          Int      @id @default(autoincrement())
+  entity_id   Int                                              // 实体ID（文章ID、合集ID等）
+  entity_type String   @db.VarChar(50)                         // 实体类型：POST, COLLECTION, CATEGORY, TAG 等
+  field_name  String   @db.VarChar(100)                        // 变更的字段名：title, path, tags 等
+  old_value   String?  @db.Text                                // 变更前的值（JSON字符串）
+  new_value   String?  @db.Text                                // 变更后的值（JSON字符串）
+  value_type  String   @db.VarChar(20)                         // 值类型：string, number, boolean, array, object
+  created_at  DateTime @default(now())
+  created_by  Int?                                             // 操作人ID（可能为null，如系统操作）
+
+  // 关联用户表
+  creator TbUser? @relation("EntityChangeLogCreator", fields: [created_by], references: [id])
+
+  // 索引优化
+  @@index([entity_id, entity_type], name: "idx_entity")
+  @@index([entity_type, created_at], name: "idx_type_time")
+  @@index([created_by, created_at], name: "idx_user_time")
+  @@index([created_at], name: "idx_created_at")
+  @@map("tb_entity_change_log")
+}

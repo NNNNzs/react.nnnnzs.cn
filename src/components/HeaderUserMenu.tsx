@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
-import { SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
+import { EditOutlined, SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
 
@@ -42,6 +42,15 @@ export default function HeaderUserMenu() {
       key: "admin",
       label: <Link href="/c">管理后台</Link>,
       icon: <SettingOutlined />,
+    },
+    {
+      key: "create",
+      label: (
+        <Link href="/create" target="_blank" rel="noopener noreferrer">
+          内容创作中台
+        </Link>
+      ),
+      icon: <EditOutlined />,
     },
     {
       key: "user",

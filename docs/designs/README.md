@@ -16,6 +16,7 @@ docs/designs/
 ├── features/                    # 业务功能
 │   ├── collection-design.md     # 博客合集功能
 │   ├── comment-system-design.md # 评论系统设计
+│   ├── content-creation-platform.md # 内容创作中台
 │   ├── entity-change-design.md  # 实体变更日志系统
 │   └── analytics-system-design.md # 统计系统设计
 ├── homepage/                    # 首页与风格
@@ -76,6 +77,7 @@ docs/designs/
 |------|------|------|
 | [博客合集功能](features/collection-design.md) | 文章合集管理 | ✅ 已实施 |
 | [评论系统](features/comment-system-design.md) | 评论功能设计 | ✅ 已实施 |
+| [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；当前只做登录守卫，内容权限后置 | 🔄 进行中 |
 | [实体变更日志](features/entity-change-design.md) | 数据变更追踪 | ✅ 已实施 |
 | [统计系统](features/analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
 
@@ -122,4 +124,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-07-05
+**最后更新**: 2026-07-07

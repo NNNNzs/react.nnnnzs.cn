@@ -1,0 +1,12 @@
+// Prisma Schema 文件
+// 文档: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  // 自定义输出路径，避免被 pnpm prune 删除
+  output   = "../../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "mysql"
+}

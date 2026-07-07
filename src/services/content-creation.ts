@@ -1,0 +1,1427 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { z } from 'zod';
+import { ChatPromptTemplate } from '@/lib/ai';
+import { createAIChain } from '@/lib/ai';
+import { getPrisma } from '@/lib/prisma';
+import { getPostById } from '@/services/post';
+import { formatAiJob } from '@/services/ai-job';
+import type { ImageGenerationJobView } from '@/services/image-gen-job';
+import type { ImageGenOptions } from '@/services/image-gen';
+import { Prisma, type TbAiJob } from '@/generated/prisma-client/client';
+import { generateUuid } from '@/lib/uuid';
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const MAX_BLOG_CONTENT_LENGTH = 9000;
+const DRAFT_IMAGES_KEY = 'draftImages';
+const XHS_PROMPTS_DIR = process.env.CONTENT_XHS_PROMPTS_DIR || '/Users/nnnnzs/project/xhs/prompts';
+
+export const CONTENT_DRAFT_TYPES = ['note', 'short_video', 'checklist', 'faq'] as const;
+export const CONTENT_DRAFT_STATUSES = ['DRAFT', 'ASSET_PENDING', 'READY', 'PUBLISHED', 'ARCHIVED'] as const;
+export const CONTENT_TEMPLATE_TYPES = ['prompt', 'voice_style', 'visual', 'checklist', 'context'] as const;
+export const CONTENT_TEMPLATE_STATUSES = ['ACTIVE', 'DRAFT', 'ARCHIVED'] as const;
+export const CONTENT_TEMPLATE_SCENARIOS = [
+  'blog_to_xhs_note',
+  'blog_to_short_video',
+  'tts',
+  'image_card',
+  'content_agent',
+] as const;
+
+export type ContentDraftType = typeof CONTENT_DRAFT_TYPES[number];
+export type ContentDraftStatus = typeof CONTENT_DRAFT_STATUSES[number];
+export type ContentTemplateType = typeof CONTENT_TEMPLATE_TYPES[number];
+export type ContentTemplateStatus = typeof CONTENT_TEMPLATE_STATUSES[number];
+export type ContentTemplateScenario = typeof CONTENT_TEMPLATE_SCENARIOS[number];
+
+export type ContentAssetSource = 'generated' | 'uploaded';
+
+export interface ContentAssetMetadata {
+  source?: ContentAssetSource;
+  isFavorite?: boolean;
+  prompt?: string;
+  mode?: 'generate' | 'edit';
+  size?: string;
+  quality?: string;
+  jobId?: string;
+  referenceImageUrls?: string[];
+  referenceAssetIds?: number[];
+  originalFilename?: string;
+  mimeType?: string;
+  uploadedAt?: string;
+}
+
+interface PageParams {
+  pageNum?: number;
+  pageSize?: number;
+  query?: string;
+  status?: string;
+}
+
+export interface TopicQueryParams extends PageParams {
+  sourcePostId?: number;
+}
+
+export interface DraftQueryParams extends PageParams {
+  platform?: string;
+  type?: string;
+  topicId?: number;
+}
+
+export interface AssetQueryParams extends PageParams {
+  type?: string;
+  usage?: string;
+  group?: string;
+  source?: ContentAssetSource;
+  favorite?: boolean;
+  draftId?: number;
+  topicId?: number;
+}
+
+export interface TemplateQueryParams extends PageParams {
+  type?: string;
+  scenario?: string;
+}
+
+export interface CreateTopicInput {
+  title: string;
+  description?: string | null;
+  pillar?: string | null;
+  series?: string | null;
+  status?: string;
+  priority?: number;
+  source_post_id?: number | null;
+  source_note?: string | null;
+  ai_reason?: string | null;
+  created_by?: number | null;
+}
+
+export interface CreateDraftSlideInput {
+  title?: string | null;
+  bullets?: string[] | null;
+  prompt?: string | null;
+}
+
+export interface CreateDraftInput {
+  topic_id?: number | null;
+  source_post_id?: number | null;
+  platform?: string;
+  type?: ContentDraftType | string;
+  title: string;
+  hook?: string | null;
+  body?: string | null;
+  tags?: string[] | null;
+  status?: ContentDraftStatus | string;
+  generation_snapshot_json?: Prisma.InputJsonValue;
+  created_by?: number | null;
+  slides?: CreateDraftSlideInput[];
+}
+
+export interface UpdateDraftInput {
+  title?: string;
+  hook?: string | null;
+  body?: string | null;
+  tags?: string[] | null;
+  type?: ContentDraftType | string;
+  status?: ContentDraftStatus | string;
+}
+
+export interface DraftImageItem {
+  id: string;
+  assetId: number;
+  title: string | null;
+  imageUrl: string;
+  group: string | null;
+  sortOrder: number;
+  remark: string | null;
+  addedAt: string;
+}
+
+export interface UpdateDraftImageInput {
+  id: string;
+  sortOrder: number;
+  remark?: string | null;
+}
+
+export interface CreateAssetInput {
+  draft_id?: number | null;
+  topic_id?: number | null;
+  type?: string;
+  usage?: string | null;
+  title?: string | null;
+  cdn_url?: string | null;
+  cos_key?: string | null;
+  local_path?: string | null;
+  ai_job_id?: number | null;
+  metadata_json?: Prisma.InputJsonValue;
+  created_by?: number | null;
+}
+
+export interface CreateGeneratedImageAssetInput {
+  job: ImageGenerationJobView;
+  options: ImageGenOptions;
+  title?: string | null;
+  group?: string | null;
+  referenceAssetIds?: number[];
+  created_by?: number | null;
+}
+
+export interface CreateUploadedImageAssetInput {
+  title?: string | null;
+  group?: string | null;
+  cdn_url: string;
+  cos_key?: string | null;
+  originalFilename: string;
+  mimeType?: string | null;
+  created_by?: number | null;
+}
+
+export interface UpdateContentImageAssetInput {
+  title?: string | null;
+  group?: string | null;
+  isFavorite?: boolean;
+}
+
+export interface CreateContentTemplateInput {
+  name: string;
+  type: ContentTemplateType | string;
+  scenario: ContentTemplateScenario | string;
+  content: string;
+  variables_json?: Prisma.InputJsonValue | null;
+  output_schema_json?: Prisma.InputJsonValue | null;
+  version?: number;
+  status?: ContentTemplateStatus | string;
+  source_path?: string | null;
+  created_by?: number | null;
+}
+
+export interface UpdateContentTemplateInput {
+  name?: string;
+  type?: ContentTemplateType | string;
+  scenario?: ContentTemplateScenario | string;
+  content?: string;
+  variables_json?: Prisma.InputJsonValue | null;
+  output_schema_json?: Prisma.InputJsonValue | null;
+  version?: number;
+  status?: ContentTemplateStatus | string;
+  source_path?: string | null;
+}
+
+interface XhsPromptTemplateSeed {
+  fileName: string;
+  sourcePath: string;
+  name: string;
+  type: ContentTemplateType;
+  scenario: ContentTemplateScenario;
+  variables: Prisma.InputJsonObject;
+  outputSchema?: Prisma.InputJsonObject;
+}
+
+export interface GenerateTopicsFromPostInput {
+  postId: number;
+  limit?: number;
+  userId?: number | null;
+}
+
+function normalizePage(params: PageParams) {
+  const pageNum = Math.max(1, Number(params.pageNum) || 1);
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Number(params.pageSize) || DEFAULT_PAGE_SIZE),
+  );
+
+  return { pageNum, pageSize };
+}
+
+function cleanString(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function toNullableString(value?: string | null) {
+  return cleanString(value) ?? null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function compactJsonRecord(value: Record<string, unknown>): Prisma.InputJsonObject {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined),
+  ) as Prisma.InputJsonObject;
+}
+
+function toPrismaJson(value?: Prisma.InputJsonValue | null) {
+  if (value === undefined) return undefined;
+  return value === null ? Prisma.JsonNull : value;
+}
+
+function readJsonRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function normalizeDraftImageItem(value: unknown, index: number): DraftImageItem | null {
+  if (!isRecord(value)) return null;
+  const assetId = value.assetId;
+  const sortOrder = value.sortOrder;
+  if (
+    typeof value.id !== 'string'
+    || typeof assetId !== 'number'
+    || !Number.isInteger(assetId)
+    || typeof value.imageUrl !== 'string'
+    || value.imageUrl.length === 0
+    || typeof value.addedAt !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    assetId,
+    title: typeof value.title === 'string' ? value.title : null,
+    imageUrl: value.imageUrl,
+    group: typeof value.group === 'string' ? value.group : null,
+    sortOrder: typeof sortOrder === 'number' && Number.isInteger(sortOrder) && sortOrder > 0
+      ? sortOrder
+      : index + 1,
+    remark: typeof value.remark === 'string' ? toNullableString(value.remark) : null,
+    addedAt: value.addedAt,
+  };
+}
+
+function normalizeDraftImages(images: DraftImageItem[]): DraftImageItem[] {
+  return [...images]
+    .sort((left, right) => (
+      left.sortOrder - right.sortOrder
+      || left.addedAt.localeCompare(right.addedAt)
+      || left.id.localeCompare(right.id)
+    ))
+    .map((image, index) => ({
+      ...image,
+      sortOrder: index + 1,
+    }));
+}
+
+function readDraftImages(value: unknown): DraftImageItem[] {
+  const snapshot = readJsonRecord(value);
+  const images = snapshot[DRAFT_IMAGES_KEY];
+  return Array.isArray(images)
+    ? normalizeDraftImages(
+        images
+          .map(normalizeDraftImageItem)
+          .filter((image): image is DraftImageItem => image !== null),
+      )
+    : [];
+}
+
+function writeDraftImages(value: unknown, images: DraftImageItem[]): Prisma.InputJsonObject {
+  return compactJsonRecord({
+    ...readJsonRecord(value),
+    [DRAFT_IMAGES_KEY]: normalizeDraftImages(images),
+  });
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : undefined;
+}
+
+function readNumberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is number => Number.isInteger(item) && item > 0)
+    : undefined;
+}
+
+function readContentAssetMetadata(value: unknown): ContentAssetMetadata {
+  if (!isRecord(value)) return {};
+
+  const source = value.source === 'uploaded' ? 'uploaded' : value.source === 'generated' ? 'generated' : undefined;
+  const mode = value.mode === 'edit' ? 'edit' : value.mode === 'generate' ? 'generate' : undefined;
+
+  return {
+    source,
+    isFavorite: typeof value.isFavorite === 'boolean' ? value.isFavorite : undefined,
+    prompt: typeof value.prompt === 'string' ? value.prompt : undefined,
+    mode,
+    size: typeof value.size === 'string' ? value.size : undefined,
+    quality: typeof value.quality === 'string' ? value.quality : undefined,
+    jobId: typeof value.jobId === 'string' ? value.jobId : undefined,
+    referenceImageUrls: readStringArray(value.referenceImageUrls),
+    referenceAssetIds: readNumberArray(value.referenceAssetIds),
+    originalFilename: typeof value.originalFilename === 'string' ? value.originalFilename : undefined,
+    mimeType: typeof value.mimeType === 'string' ? value.mimeType : undefined,
+    uploadedAt: typeof value.uploadedAt === 'string' ? value.uploadedAt : undefined,
+  };
+}
+
+function formatContentImageJob(job: TbAiJob) {
+  const baseJob = formatAiJob(job);
+  if (!baseJob) return null;
+
+  const extJson = baseJob.extJson || {};
+  const referenceImageUrls = Array.isArray(extJson.edit_image_urls)
+    ? extJson.edit_image_urls.filter((url): url is string => typeof url === 'string')
+    : (typeof extJson.edit_image_url === 'string' ? [extJson.edit_image_url] : []);
+
+  return {
+    ...baseJob,
+    mode: extJson.mode === 'edit' ? 'edit' : 'generate',
+    size: typeof extJson.size === 'string' ? extJson.size : null,
+    quality: typeof extJson.quality === 'string' ? extJson.quality : null,
+    referenceImageUrls,
+    imageUrl: baseJob.resourceUrl,
+  };
+}
+
+function clampPriority(priority?: number) {
+  if (!Number.isFinite(priority)) return 3;
+  return Math.min(5, Math.max(1, Math.round(priority ?? 3)));
+}
+
+function extractJsonObject(text: string) {
+  const withoutFence = text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+  const start = withoutFence.indexOf('{');
+  const end = withoutFence.lastIndexOf('}');
+
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('AI 返回内容不是 JSON 对象');
+  }
+
+  return withoutFence.slice(start, end + 1);
+}
+
+const aiTopicSchema = z.object({
+  title: z.string().min(1).max(80),
+  description: z.string().min(1).max(600).optional(),
+  pillar: z.string().max(80).optional(),
+  series: z.string().max(80).optional(),
+  priority: z.coerce.number().int().min(1).max(5).optional(),
+  reason: z.string().max(800).optional(),
+  draftDirection: z.string().max(800).optional(),
+});
+
+const aiTopicResponseSchema = z.object({
+  topics: z.array(aiTopicSchema).min(1).max(8),
+});
+
+const xhsPromptTemplateSeeds: XhsPromptTemplateSeed[] = [
+  {
+    fileName: 'blog-to-xhs-note.md',
+    sourcePath: 'xhs/prompts/blog-to-xhs-note.md',
+    name: '博客转小红书图文',
+    type: 'prompt',
+    scenario: 'blog_to_xhs_note',
+    variables: {
+      variables: [
+        { name: 'BLOG_CONTENT', label: '博客正文', required: true },
+      ],
+      defaultImageSize: '1080x1440',
+      defaultImageQuality: 'medium',
+    },
+    outputSchema: {
+      type: 'object',
+      required: ['title', 'hook', 'slides', 'body', 'tags', 'remotionProps', 'coverPrompt', 'slidePrompts'],
+      properties: {
+        title: { type: 'string' },
+        hook: { type: 'string' },
+        slides: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['title', 'bullets'],
+            properties: {
+              title: { type: 'string' },
+              bullets: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+        body: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+        remotionProps: { type: 'object' },
+        coverPrompt: { type: 'string' },
+        slidePrompts: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  },
+  {
+    fileName: 'blog-to-short-video.md',
+    sourcePath: 'xhs/prompts/blog-to-short-video.md',
+    name: '博客转短视频脚本',
+    type: 'prompt',
+    scenario: 'blog_to_short_video',
+    variables: {
+      variables: [
+        { name: 'BLOG_CONTENT', label: '博客正文', required: true },
+      ],
+      durationSeconds: '30-60',
+      targetPlatforms: ['douyin', 'xhs_video', 'wechat_video'],
+    },
+    outputSchema: {
+      type: 'object',
+      required: ['title', 'opening', 'script', 'caption', 'tags', 'remotionProps'],
+      properties: {
+        title: { type: 'string' },
+        opening: { type: 'string' },
+        script: { type: 'array', items: { type: 'string' } },
+        caption: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+        remotionProps: { type: 'object' },
+      },
+    },
+  },
+  {
+    fileName: 'mimo-tts-style.md',
+    sourcePath: 'xhs/prompts/mimo-tts-style.md',
+    name: 'MiMo TTS 风格',
+    type: 'voice_style',
+    scenario: 'tts',
+    variables: {
+      variants: [
+        { key: 'tutorial', label: '实战教程' },
+        { key: 'debug_review', label: '踩坑复盘' },
+        { key: 'project_review', label: '项目复盘' },
+      ],
+      voiceBrand: '倪同学搞AI',
+    },
+  },
+];
+
+function buildTopicWhere(params: TopicQueryParams): Prisma.ContentTopicWhereInput {
+  const where: Prisma.ContentTopicWhereInput = {};
+  const query = cleanString(params.query);
+
+  if (params.status) {
+    where.status = params.status;
+  }
+
+  if (params.sourcePostId) {
+    where.source_post_id = params.sourcePostId;
+  }
+
+  if (query) {
+    where.OR = [
+      { title: { contains: query } },
+      { description: { contains: query } },
+      { pillar: { contains: query } },
+      { series: { contains: query } },
+      { source_note: { contains: query } },
+      { ai_reason: { contains: query } },
+    ];
+  }
+
+  return where;
+}
+
+function buildDraftWhere(params: DraftQueryParams): Prisma.ContentDraftWhereInput {
+  const where: Prisma.ContentDraftWhereInput = {};
+  const query = cleanString(params.query);
+
+  if (params.status) {
+    where.status = params.status;
+  }
+  if (params.platform) {
+    where.platform = params.platform;
+  }
+  if (params.type) {
+    where.type = params.type;
+  }
+  if (params.topicId) {
+    where.topic_id = params.topicId;
+  }
+  if (query) {
+    where.OR = [
+      { title: { contains: query } },
+      { hook: { contains: query } },
+      { body: { contains: query } },
+    ];
+  }
+
+  return where;
+}
+
+function buildAssetWhere(params: AssetQueryParams): Prisma.ContentAssetWhereInput {
+  const andFilters: Prisma.ContentAssetWhereInput[] = [{ type: 'image' }];
+  const where: Prisma.ContentAssetWhereInput = {};
+  const query = cleanString(params.query);
+  const group = cleanString(params.group) ?? cleanString(params.usage);
+
+  if (group) {
+    where.usage = group;
+  }
+  if (params.source) {
+    andFilters.push({ metadata_json: { path: '$.source', equals: params.source } });
+  }
+  if (typeof params.favorite === 'boolean') {
+    andFilters.push({ metadata_json: { path: '$.isFavorite', equals: params.favorite } });
+  }
+  if (params.draftId) {
+    where.draft_id = params.draftId;
+  }
+  if (params.topicId) {
+    where.topic_id = params.topicId;
+  }
+  if (query) {
+    where.OR = [
+      { title: { contains: query } },
+      { cdn_url: { contains: query } },
+      { cos_key: { contains: query } },
+      { local_path: { contains: query } },
+    ];
+  }
+  where.AND = andFilters;
+
+  return where;
+}
+
+function buildTemplateWhere(params: TemplateQueryParams): Prisma.ContentTemplateWhereInput {
+  const where: Prisma.ContentTemplateWhereInput = {};
+  const query = cleanString(params.query);
+
+  if (params.status) {
+    where.status = params.status;
+  }
+  if (params.type) {
+    where.type = params.type;
+  }
+  if (params.scenario) {
+    where.scenario = params.scenario;
+  }
+  if (query) {
+    where.OR = [
+      { name: { contains: query } },
+      { scenario: { contains: query } },
+      { content: { contains: query } },
+      { source_path: { contains: query } },
+    ];
+  }
+
+  return where;
+}
+
+export async function listContentTopics(params: TopicQueryParams = {}) {
+  const prisma = await getPrisma();
+  const { pageNum, pageSize } = normalizePage(params);
+  const where = buildTopicWhere(params);
+
+  const [record, total] = await Promise.all([
+    prisma.contentTopic.findMany({
+      where,
+      include: {
+        _count: {
+          select: {
+            drafts: true,
+            assets: true,
+          },
+        },
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { updated_at: 'desc' },
+      ],
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.contentTopic.count({ where }),
+  ]);
+
+  return { record, total, pageNum, pageSize };
+}
+
+export async function createContentTopic(input: CreateTopicInput) {
+  const prisma = await getPrisma();
+
+  return prisma.contentTopic.create({
+    data: {
+      title: input.title.trim(),
+      description: toNullableString(input.description),
+      pillar: toNullableString(input.pillar),
+      series: toNullableString(input.series),
+      status: input.status || 'IDEA',
+      priority: clampPriority(input.priority),
+      source_post_id: input.source_post_id ?? null,
+      source_note: toNullableString(input.source_note),
+      ai_reason: toNullableString(input.ai_reason),
+      created_by: input.created_by ?? null,
+    },
+  });
+}
+
+export async function listContentDrafts(params: DraftQueryParams = {}) {
+  const prisma = await getPrisma();
+  const { pageNum, pageSize } = normalizePage(params);
+  const where = buildDraftWhere(params);
+
+  const [drafts, total] = await Promise.all([
+    prisma.contentDraft.findMany({
+      where,
+      orderBy: { updated_at: 'desc' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.contentDraft.count({ where }),
+  ]);
+
+  const record = drafts.map((draft) => ({
+    ...draft,
+    selected_images: readDraftImages(draft.generation_snapshot_json),
+  }));
+
+  return { record, total, pageNum, pageSize };
+}
+
+export async function createContentDraft(input: CreateDraftInput) {
+  const prisma = await getPrisma();
+
+  const draft = await prisma.contentDraft.create({
+    data: {
+      topic_id: input.topic_id ?? null,
+      source_post_id: input.source_post_id ?? null,
+      platform: input.platform || 'xhs',
+      type: input.type || 'note',
+      title: input.title.trim(),
+      hook: toNullableString(input.hook),
+      body: toNullableString(input.body),
+      tags_json: input.tags ? input.tags : undefined,
+      status: input.status || 'DRAFT',
+      generation_snapshot_json: input.generation_snapshot_json,
+      created_by: input.created_by ?? null,
+      slides: input.slides?.length
+        ? {
+            create: input.slides.map((slide, index) => ({
+              sort_order: index + 1,
+              title: toNullableString(slide.title),
+              bullets_json: slide.bullets ?? undefined,
+              prompt: toNullableString(slide.prompt),
+            })),
+          }
+        : undefined,
+    },
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
+    },
+  });
+
+  return {
+    ...draft,
+    selected_images: readDraftImages(draft.generation_snapshot_json),
+  };
+}
+
+export async function getContentDraft(id: number) {
+  const prisma = await getPrisma();
+  const draft = await prisma.contentDraft.findUnique({
+    where: { id },
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
+    },
+  });
+
+  if (!draft) return null;
+
+  return {
+    ...draft,
+    selected_images: readDraftImages(draft.generation_snapshot_json),
+  };
+}
+
+export async function updateContentDraft(id: number, input: UpdateDraftInput) {
+  const prisma = await getPrisma();
+  const data: Prisma.ContentDraftUpdateInput = {};
+
+  if (input.title !== undefined) {
+    data.title = input.title.trim();
+  }
+  if (input.hook !== undefined) {
+    data.hook = toNullableString(input.hook);
+  }
+  if (input.body !== undefined) {
+    data.body = toNullableString(input.body);
+  }
+  if (input.tags !== undefined) {
+    data.tags_json = input.tags ?? undefined;
+  }
+  if (input.type !== undefined) {
+    data.type = input.type;
+  }
+  if (input.status !== undefined) {
+    data.status = input.status;
+  }
+
+  const draft = await prisma.contentDraft.update({
+    where: { id },
+    data,
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
+    },
+  });
+
+  return {
+    ...draft,
+    selected_images: readDraftImages(draft.generation_snapshot_json),
+  };
+}
+
+export async function deleteContentDraft(id: number) {
+  const prisma = await getPrisma();
+  await prisma.contentDraft.delete({
+    where: { id },
+  });
+}
+
+export async function addContentDraftImage(draftId: number, assetId: number) {
+  const prisma = await getPrisma();
+  const [draft, asset] = await Promise.all([
+    prisma.contentDraft.findUnique({ where: { id: draftId } }),
+    prisma.contentAsset.findFirst({
+      where: {
+        id: assetId,
+        type: 'image',
+        cdn_url: { not: null },
+      },
+      select: {
+        id: true,
+        title: true,
+        usage: true,
+        cdn_url: true,
+      },
+    }),
+  ]);
+
+  if (!draft) {
+    throw new Error('草稿不存在');
+  }
+  if (draft.status !== 'DRAFT') {
+    throw new Error('只能添加到草稿状态的草稿');
+  }
+  if (!asset?.cdn_url) {
+    throw new Error('图片素材不存在或尚未生成完成');
+  }
+
+  const images = readDraftImages(draft.generation_snapshot_json);
+  const nextImages: DraftImageItem[] = [
+    ...images,
+    {
+      id: generateUuid(),
+      assetId: asset.id,
+      title: asset.title,
+      imageUrl: asset.cdn_url,
+      group: asset.usage,
+      sortOrder: images.length + 1,
+      remark: null,
+      addedAt: new Date().toISOString(),
+    },
+  ];
+  const normalizedImages = normalizeDraftImages(nextImages);
+
+  const updated = await prisma.contentDraft.update({
+    where: { id: draftId },
+    data: {
+      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, normalizedImages),
+    },
+  });
+
+  return {
+    ...updated,
+    selected_images: normalizedImages,
+  };
+}
+
+export async function removeContentDraftImage(draftId: number, imageId: string) {
+  const prisma = await getPrisma();
+  const draft = await prisma.contentDraft.findUnique({
+    where: { id: draftId },
+  });
+
+  if (!draft) {
+    throw new Error('草稿不存在');
+  }
+
+  const images = readDraftImages(draft.generation_snapshot_json);
+  const nextImages = normalizeDraftImages(images.filter((image) => image.id !== imageId));
+
+  const updated = await prisma.contentDraft.update({
+    where: { id: draftId },
+    data: {
+      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
+    },
+  });
+
+  return {
+    ...updated,
+    selected_images: nextImages,
+  };
+}
+
+export async function updateContentDraftImages(draftId: number, input: UpdateDraftImageInput[]) {
+  const prisma = await getPrisma();
+  const draft = await prisma.contentDraft.findUnique({
+    where: { id: draftId },
+  });
+
+  if (!draft) {
+    throw new Error('草稿不存在');
+  }
+
+  const images = readDraftImages(draft.generation_snapshot_json);
+  const imageIds = new Set(images.map((image) => image.id));
+  const seenUpdateIds = new Set<string>();
+  const updateMap = new Map<string, UpdateDraftImageInput>();
+
+  for (const item of input) {
+    if (!imageIds.has(item.id)) {
+      throw new Error('草稿图片不存在');
+    }
+    if (seenUpdateIds.has(item.id)) {
+      throw new Error('草稿图片更新项重复');
+    }
+    seenUpdateIds.add(item.id);
+    updateMap.set(item.id, item);
+  }
+
+  const nextImages = normalizeDraftImages(images.map((image) => {
+    const item = updateMap.get(image.id);
+    if (!item) return image;
+
+    return {
+      ...image,
+      sortOrder: item.sortOrder,
+      remark: item.remark === undefined ? image.remark : toNullableString(item.remark),
+    };
+  }));
+
+  const updated = await prisma.contentDraft.update({
+    where: { id: draftId },
+    data: {
+      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
+    },
+  });
+
+  return {
+    ...updated,
+    selected_images: nextImages,
+  };
+}
+
+export async function listContentAssets(params: AssetQueryParams = {}) {
+  const prisma = await getPrisma();
+  const { pageNum, pageSize } = normalizePage(params);
+  const where = buildAssetWhere(params);
+
+  const [assets, total] = await Promise.all([
+    prisma.contentAsset.findMany({
+      where,
+      include: {
+        draft: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
+        topic: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.contentAsset.count({ where }),
+  ]);
+
+  const aiJobIds = assets
+    .map((asset) => asset.ai_job_id)
+    .filter((id): id is number => typeof id === 'number');
+  const aiJobs = aiJobIds.length > 0
+    ? await prisma.tbAiJob.findMany({
+        where: {
+          id: { in: aiJobIds },
+          type: 'image-gen',
+        },
+      })
+    : [];
+  const aiJobMap = new Map(aiJobs.map((job) => [job.id, formatContentImageJob(job)] as const));
+  const record = assets.map((asset) => ({
+    ...asset,
+    asset_metadata: readContentAssetMetadata(asset.metadata_json),
+    image_job: asset.ai_job_id ? aiJobMap.get(asset.ai_job_id) ?? null : null,
+  }));
+
+  return { record, total, pageNum, pageSize };
+}
+
+export async function createContentAsset(input: CreateAssetInput) {
+  const prisma = await getPrisma();
+
+  return prisma.contentAsset.create({
+    data: {
+      draft_id: input.draft_id ?? null,
+      topic_id: input.topic_id ?? null,
+      type: input.type || 'image',
+      usage: toNullableString(input.usage),
+      title: toNullableString(input.title),
+      cdn_url: toNullableString(input.cdn_url),
+      cos_key: toNullableString(input.cos_key),
+      local_path: toNullableString(input.local_path),
+      ai_job_id: input.ai_job_id ?? null,
+      metadata_json: input.metadata_json,
+      created_by: input.created_by ?? null,
+    },
+  });
+}
+
+export async function createGeneratedContentImageAsset(input: CreateGeneratedImageAssetInput) {
+  const title = cleanString(input.title) ?? input.options.prompt.slice(0, 80);
+
+  return createContentAsset({
+    type: 'image',
+    usage: input.group,
+    title,
+    cdn_url: input.job.reservedCdnUrl ?? input.job.imageUrl,
+    cos_key: input.job.cosKey,
+    ai_job_id: input.job.id,
+    metadata_json: compactJsonRecord({
+      source: 'generated',
+      isFavorite: false,
+      jobId: input.job.jobId,
+      prompt: input.options.prompt,
+      mode: input.options.mode,
+      size: input.options.size,
+      quality: input.options.quality,
+      referenceImageUrls: input.job.referenceImageUrls,
+      referenceAssetIds: input.referenceAssetIds,
+    }),
+    created_by: input.created_by,
+  });
+}
+
+export async function createUploadedContentImageAsset(input: CreateUploadedImageAssetInput) {
+  return createContentAsset({
+    type: 'image',
+    usage: input.group,
+    title: cleanString(input.title) ?? input.originalFilename,
+    cdn_url: input.cdn_url,
+    cos_key: input.cos_key,
+    metadata_json: compactJsonRecord({
+      source: 'uploaded',
+      isFavorite: false,
+      originalFilename: input.originalFilename,
+      mimeType: input.mimeType ?? undefined,
+      uploadedAt: new Date().toISOString(),
+    }),
+    created_by: input.created_by,
+  });
+}
+
+export async function updateContentImageAsset(id: number, input: UpdateContentImageAssetInput) {
+  const prisma = await getPrisma();
+  const asset = await prisma.contentAsset.findFirst({
+    where: {
+      id,
+      type: 'image',
+    },
+  });
+
+  if (!asset) return null;
+
+  const data: Prisma.ContentAssetUpdateInput = {};
+
+  if ('title' in input) {
+    data.title = toNullableString(input.title);
+  }
+  if ('group' in input) {
+    data.usage = toNullableString(input.group);
+  }
+  if (typeof input.isFavorite === 'boolean') {
+    const existingMetadata = isRecord(asset.metadata_json) ? asset.metadata_json : {};
+    data.metadata_json = compactJsonRecord({
+      ...existingMetadata,
+      isFavorite: input.isFavorite,
+    });
+  }
+
+  if (Object.keys(data).length === 0) {
+    return asset;
+  }
+
+  return prisma.contentAsset.update({
+    where: { id },
+    data,
+  });
+}
+
+export async function getContentImageAssetsByIds(ids: number[]) {
+  const prisma = await getPrisma();
+  const uniqueIds = Array.from(new Set(ids.filter((id) => Number.isInteger(id) && id > 0)));
+
+  if (uniqueIds.length === 0) return [];
+
+  return prisma.contentAsset.findMany({
+    where: {
+      id: { in: uniqueIds },
+      type: 'image',
+      cdn_url: { not: null },
+    },
+    select: {
+      id: true,
+      title: true,
+      cdn_url: true,
+    },
+  });
+}
+
+export async function listContentTemplates(params: TemplateQueryParams = {}) {
+  const prisma = await getPrisma();
+  const { pageNum, pageSize } = normalizePage(params);
+  const where = buildTemplateWhere(params);
+
+  const [record, total] = await Promise.all([
+    prisma.contentTemplate.findMany({
+      where,
+      orderBy: { updated_at: 'desc' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.contentTemplate.count({ where }),
+  ]);
+
+  return { record, total, pageNum, pageSize };
+}
+
+export async function getContentTemplate(id: number) {
+  const prisma = await getPrisma();
+  return prisma.contentTemplate.findUnique({
+    where: { id },
+  });
+}
+
+export async function createContentTemplate(input: CreateContentTemplateInput) {
+  const prisma = await getPrisma();
+
+  return prisma.contentTemplate.create({
+    data: {
+      name: input.name.trim(),
+      type: input.type,
+      scenario: input.scenario,
+      content: input.content,
+      variables_json: toPrismaJson(input.variables_json),
+      output_schema_json: toPrismaJson(input.output_schema_json),
+      version: input.version && input.version > 0 ? Math.round(input.version) : 1,
+      status: input.status || 'ACTIVE',
+      source_path: toNullableString(input.source_path),
+      created_by: input.created_by ?? null,
+    },
+  });
+}
+
+export async function updateContentTemplate(id: number, input: UpdateContentTemplateInput) {
+  const prisma = await getPrisma();
+  const data: Prisma.ContentTemplateUpdateInput = {};
+
+  if (input.name !== undefined) {
+    data.name = input.name.trim();
+  }
+  if (input.type !== undefined) {
+    data.type = input.type;
+  }
+  if (input.scenario !== undefined) {
+    data.scenario = input.scenario;
+  }
+  if (input.content !== undefined) {
+    data.content = input.content;
+  }
+  if (input.variables_json !== undefined) {
+    data.variables_json = toPrismaJson(input.variables_json);
+  }
+  if (input.output_schema_json !== undefined) {
+    data.output_schema_json = toPrismaJson(input.output_schema_json);
+  }
+  if (input.version !== undefined) {
+    data.version = input.version > 0 ? Math.round(input.version) : 1;
+  }
+  if (input.status !== undefined) {
+    data.status = input.status;
+  }
+  if (input.source_path !== undefined) {
+    data.source_path = toNullableString(input.source_path);
+  }
+
+  return prisma.contentTemplate.update({
+    where: { id },
+    data,
+  });
+}
+
+export async function archiveContentTemplate(id: number) {
+  return updateContentTemplate(id, { status: 'ARCHIVED' });
+}
+
+async function readXhsPromptContent(seed: XhsPromptTemplateSeed) {
+  const filePath = path.join(XHS_PROMPTS_DIR, seed.fileName);
+  return readFile(filePath, 'utf8');
+}
+
+export async function importXhsPromptTemplates(createdBy?: number | null) {
+  const prisma = await getPrisma();
+  const created = [];
+  const updated = [];
+
+  for (const seed of xhsPromptTemplateSeeds) {
+    const content = await readXhsPromptContent(seed);
+    const existing = await prisma.contentTemplate.findFirst({
+      where: { source_path: seed.sourcePath },
+    });
+    const baseData = {
+      name: seed.name,
+      type: seed.type,
+      scenario: seed.scenario,
+      content,
+      variables_json: seed.variables,
+      output_schema_json: seed.outputSchema ?? Prisma.JsonNull,
+      status: 'ACTIVE',
+      source_path: seed.sourcePath,
+    };
+
+    if (existing) {
+      const template = await prisma.contentTemplate.update({
+        where: { id: existing.id },
+        data: {
+          ...baseData,
+          version: existing.version + 1,
+        },
+      });
+      updated.push(template);
+      continue;
+    }
+
+    const template = await prisma.contentTemplate.create({
+      data: {
+        ...baseData,
+        version: 1,
+        created_by: createdBy ?? null,
+      },
+    });
+    created.push(template);
+  }
+
+  return { created, updated };
+}
+
+export async function getContentCreationOverview() {
+  const prisma = await getPrisma();
+
+  const [
+    draftTotal,
+    draftReady,
+    assetTotal,
+    topicTotal,
+    topicPlanned,
+    latestDrafts,
+    latestAssets,
+    latestTopics,
+  ] = await Promise.all([
+    prisma.contentDraft.count(),
+    prisma.contentDraft.count({ where: { status: 'READY' } }),
+    prisma.contentAsset.count({ where: { type: 'image' } }),
+    prisma.contentTopic.count(),
+    prisma.contentTopic.count({ where: { status: { in: ['PLANNED', 'DRAFTING'] } } }),
+    prisma.contentDraft.findMany({
+      orderBy: { updated_at: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        platform: true,
+        type: true,
+        updated_at: true,
+      },
+    }),
+    prisma.contentAsset.findMany({
+      where: { type: 'image' },
+      orderBy: { created_at: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        usage: true,
+        cdn_url: true,
+        created_at: true,
+      },
+    }),
+    prisma.contentTopic.findMany({
+      orderBy: [
+        { priority: 'desc' },
+        { updated_at: 'desc' },
+      ],
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        series: true,
+        updated_at: true,
+      },
+    }),
+  ]);
+
+  return {
+    stats: {
+      draftTotal,
+      draftReady,
+      assetTotal,
+      topicTotal,
+      topicPlanned,
+    },
+    latestDrafts,
+    latestAssets,
+    latestTopics,
+  };
+}
+
+async function invokeTopicAI(input: {
+  postTitle: string;
+  postDescription: string;
+  postCategory: string;
+  postTags: string;
+  postContent: string;
+  limit: number;
+}) {
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      'system',
+      [
+        '你是技术内容创作中台的选题策划助手。',
+        '目标账号定位：前端工程师转 AI 应用开发实战。',
+        '小红书是搜索型经验分享和收藏型内容平台，不要原文搬运博客。',
+        '每个选题只解决一个明确问题，优先真实踩坑、可复现教程、路线、对比清单、项目复盘。',
+        '只输出严格 JSON，不要 Markdown，不要解释。',
+      ].join('\n'),
+    ],
+    [
+      'human',
+      [
+        '请基于下面这篇博客，拆出 {limit} 个适合小红书图文的选题。',
+        'priority 取 1-5，5 表示最值得优先做。',
+        'series 从这些栏目里选一个：能跑起来系列、踩坑复盘系列、项目拆解系列、前端转 AI 系列、NAS 实战系列。',
+        'pillar 从这些内容支柱里选一个：AI 应用工程实战、本地大模型和 NAS 实战、程序员效率工具、个人项目复盘、前端转 AI 应用开发路线。',
+        '',
+        '输出 JSON 格式：',
+        '{"topics":[{"title":"选题标题","description":"为什么值得做以及用户能获得什么","pillar":"内容支柱","series":"栏目","priority":5,"reason":"从博客中提取的依据","draftDirection":"后续草稿角度"}]}',
+        '',
+        '博客标题：{postTitle}',
+        '博客描述：{postDescription}',
+        '博客分类：{postCategory}',
+        '博客标签：{postTags}',
+        '博客正文节选：',
+        '{postContent}',
+      ].join('\n'),
+    ],
+  ]);
+
+  const scenarios = ['ai_text', 'chat'];
+  let lastError: unknown;
+
+  for (const scenario of scenarios) {
+    try {
+      const chain = await createAIChain(prompt, {
+        scenario,
+        temperature: 0.35,
+        maxTokens: 1800,
+        streaming: false,
+      });
+      const raw = await chain.invoke(input);
+      const parsed = JSON.parse(extractJsonObject(raw));
+      return aiTopicResponseSchema.parse(parsed).topics;
+    } catch (error) {
+      lastError = error;
+      console.warn(`内容选题 AI 场景 ${scenario} 失败，尝试下一个场景`, error);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('AI 选题失败');
+}
+
+export async function generateTopicsFromPost(input: GenerateTopicsFromPostInput) {
+  const limit = Math.min(8, Math.max(1, input.limit || 5));
+  const post = await getPostById(input.postId);
+
+  if (!post) {
+    throw new Error('博客文章不存在或已删除');
+  }
+
+  const topics = await invokeTopicAI({
+    postTitle: post.title || '',
+    postDescription: post.description || '',
+    postCategory: post.category || '',
+    postTags: Array.isArray(post.tags) ? post.tags.join(', ') : '',
+    postContent: (post.content || '').slice(0, MAX_BLOG_CONTENT_LENGTH),
+    limit,
+  });
+
+  const created = [];
+  const skipped = [];
+  const prisma = await getPrisma();
+
+  for (const topic of topics) {
+    const existing = await prisma.contentTopic.findFirst({
+      where: {
+        source_post_id: post.id,
+        title: topic.title,
+      },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    if (existing) {
+      skipped.push(existing);
+      continue;
+    }
+
+    const createdTopic = await createContentTopic({
+      title: topic.title,
+      description: topic.description,
+      pillar: topic.pillar,
+      series: topic.series,
+      priority: topic.priority,
+      source_post_id: post.id,
+      source_note: topic.draftDirection || `来自博客《${post.title || post.id}》`,
+      ai_reason: topic.reason,
+      created_by: input.userId ?? null,
+    });
+
+    created.push(createdTopic);
+  }
+
+  return {
+    post: {
+      id: post.id,
+      title: post.title,
+      path: post.path,
+      category: post.category,
+      tags: post.tags,
+    },
+    suggestions: topics,
+    created,
+    skipped,
+  };
+}

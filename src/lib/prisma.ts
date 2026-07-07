@@ -24,6 +24,17 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
+function hasCurrentModelDelegates(client: PrismaClient | undefined): client is PrismaClient {
+  return Boolean(
+    client
+    && client.contentTopic
+    && client.contentDraft
+    && client.contentDraftSlide
+    && client.contentAsset
+    && client.contentTemplate,
+  );
+}
+
 /**
  * 全局 Prisma 实例类型声明
  */
@@ -35,7 +46,7 @@ declare global {
  * Prisma Client 实例
  */
 export const prisma =
-  global.prisma ||
+  hasCurrentModelDelegates(global.prisma) ? global.prisma :
   createPrismaClient();
 
 // 在开发环境中保存到全局变量，避免热重载时创建多个实例

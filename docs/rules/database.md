@@ -13,7 +13,7 @@
 ## 数据库技术栈
 
 ### 核心技术
-- **ORM**: Prisma 6.2.1
+- **ORM**: Prisma 7.8.0
 - **数据库**: MySQL 5.7+
 - **迁移工具**: Prisma db push（同步数据库结构）
 
@@ -25,8 +25,23 @@ DATABASE_URL="mysql://user:password@host:port/database"
 ## 数据模型定义
 
 ### Prisma Schema 位置
-- **文件**: `prisma/schema.prisma`
-- **备份**: `src/generated/prisma-client/schema.prisma`
+- **目录**: `prisma/schema/`
+- **入口配置**: `prisma.config.ts`
+- **生成备份**: `src/generated/prisma-client/schema.prisma`
+
+Schema 使用目录化拆分：
+
+- `base.prisma`: generator / datasource
+- `blog.prisma`: 文章、合集、评论、实体变更日志
+- `rbac.prisma`: 用户、长期 Token、角色权限、接口注册表
+- `ai.prisma`: AI 任务、聊天记录、AI Lab Run
+- `content.prisma`: 内容创作中台 `content_*` 模型
+
+### Prisma Client 运行时缓存
+
+开发环境会在 `global.prisma` 缓存 Prisma Client，减少热更新时重复创建连接。新增模型后，即使已经执行 `pnpm prisma:push` 和 `prisma generate`，正在运行的 dev server 仍可能持有旧 client，表现为新模型 delegate 为 `undefined`，例如 `prisma.contentDraft.findMany` 报 `Cannot read properties of undefined`。
+
+当前 `src/lib/prisma.ts` 会检查内容中台模型 delegate（`contentTopic`、`contentDraft`、`contentDraftSlide`、`contentAsset`、`contentTemplate`），如果全局缓存 client 缺少这些 delegate，会自动创建新的 Prisma Client。若后续新增更多模型且出现类似错误，先确认已重新生成 client，再检查 `global.prisma` 的 delegate 自检是否需要扩展；手动重启 dev server 也可以清掉旧缓存。
 
 ### 实体命名规范
 - **表名**: `tb_` 前缀 + 小写 + 下划线（如：`tb_post`, `tb_user`）
@@ -198,8 +213,8 @@ model TbChatMessage {
 
 #### 1. 修改 Schema
 ```bash
-# 1. 修改 prisma/schema.prisma
-vim prisma/schema.prisma
+# 1. 修改 prisma/schema/ 下对应模块文件
+vim prisma/schema/blog.prisma
 
 # 2. 同步数据库结构（开发环境）
 pnpm prisma db push
@@ -212,7 +227,7 @@ pnpm prisma generate
 ```bash
 # 完整的开发流程
 # 1. 修改 Schema
-vim prisma/schema.prisma
+vim prisma/schema/blog.prisma
 
 # 2. 推送数据库变更（会自动创建/修改表结构）
 pnpm prisma db push
@@ -518,7 +533,7 @@ pnpm prisma format
 ### 1. 新功能开发
 ```bash
 # 1. 修改 Schema
-vim prisma/schema.prisma
+vim prisma/schema/blog.prisma
 
 # 2. 同步数据库结构
 pnpm prisma db push

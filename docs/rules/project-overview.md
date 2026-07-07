@@ -24,7 +24,7 @@
 
 ### 数据层
 - 数据库：MySQL 5.7+
-- ORM：Prisma 6.2.1
+- ORM：Prisma 7.8.0
 - 缓存：Redis (ioredis)
 - 向量数据库：Qdrant
 

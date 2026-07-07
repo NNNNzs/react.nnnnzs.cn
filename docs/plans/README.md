@@ -4,6 +4,8 @@
 
 ## 📋 当前计划
 
+- [模板管理与内容 Agent 建设](./content-template-agent.md) — 🔄 进行中（`content_templates`、模板 CRUD、`xhs/prompts` 导入和 `/create/templates` 管理页已落地；下一步做数据库结构同步和模板驱动草稿生成）
+- [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（阶段 0-3 部分完成：草稿库、素材库、选题库模型/API/列表页已落地，AI 可从博客文章生成选题；下一步做选题/博客到图文草稿生成）
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充；昼夜双风格已提升为站点级语义系统，下一步家具模型补强 + 文案工具落地）
 - [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成后台信息架构拆分与 Run 观测表/接口/页面，下一步从 Run 转 Eval Case 并推进 Golden Dataset）
 - [Prisma 7 升级](./prisma-7-upgrade.md) — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）
@@ -75,4 +77,4 @@
 
 ---
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-07-07
