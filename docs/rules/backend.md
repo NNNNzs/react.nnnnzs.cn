@@ -168,7 +168,15 @@ src/services/ai/
 │   ├── search-posts-meta.ts  # 元数据搜索工具
 │   ├── search-collection.ts  # 合集搜索工具
 │   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
+│   ├── create-tools/         # 创作助手工具集（闭包工厂 buildCreateTools）
+│   │   ├── draft-patch.ts    # DraftPatch 共享类型（后端+前端）
+│   │   ├── langchain-tools.ts # LangChain 包装层（7 个工具）
+│   │   └── index.ts          # 业务工具层
 │   └── index.ts              # 工具统一导出
+├── create-agent/     # 创作助手 Agent（SSE 版，独立于 chat-agent）
+│   ├── prompt.ts      # 从 content_templates 加载 system prompt
+│   ├── create-agent.ts # LangGraph Agent + SSE 编码
+│   └── index.ts       # 导出 createAgentStream
 ├── text/              # AI文本处理服务（使用 Anthropic）
 │   └── index.ts
 ├── description/       # 文章描述生成服务（使用 Anthropic）

@@ -209,13 +209,16 @@ export interface UpdateContentTemplateInput {
 }
 
 interface XhsPromptTemplateSeed {
-  fileName: string;
+  /** xhs 项目下的文件名；与 content 二选一 */
+  fileName?: string;
   sourcePath: string;
   name: string;
   type: ContentTemplateType;
   scenario: ContentTemplateScenario;
   variables: Prisma.InputJsonObject;
   outputSchema?: Prisma.InputJsonObject;
+  /** 内置模板正文；提供时不再读取 xhs 文件（用于 content_agent 等自有 system prompt） */
+  content?: string;
 }
 
 export interface GenerateTopicsFromPostInput {
@@ -489,6 +492,37 @@ const xhsPromptTemplateSeeds: XhsPromptTemplateSeed[] = [
       ],
       voiceBrand: '倪同学搞AI',
     },
+  },
+  {
+    // 创作助手 system prompt，由 create-agent 加载
+    sourcePath: 'builtin/content-agent-system-prompt.md',
+    name: '创作助手 System Prompt',
+    type: 'context',
+    scenario: 'content_agent',
+    variables: { variables: [
+      { name: 'draftTitle', label: '草稿标题', required: false },
+      { name: 'draftType', label: '草稿类型', required: false },
+    ] },
+    content: `你是「倪同学搞AI」内容创作中台的创作助手，服务场景是把博客文章和选题加工成小红书图文 / 短视频脚本草稿。
+
+当前草稿上下文：
+- 标题：{draftTitle}
+- 类型：{draftType}
+
+你可以使用以下工具：
+- read_prompt_template：读取指定场景的提示词模板（如 blog_to_xhs_note），按里面的方法论产出内容
+- get_draft：读取当前草稿的标题、正文、图卡、已选图片
+- search_posts / get_post_content：检索博客文章作为创作素材
+- generate_image：提交文生图或图文编辑异步任务，返回 jobId
+- poll_image_job：轮询文生图任务状态，成功返回 CDN URL
+- emit_draft_patch：把你要写进草稿的内容以结构化 patch 形式发给前端
+
+工作原则：
+1. 先理解用户意图，需要方法论时先用 read_prompt_template 读对应模板，再按模板产出。
+2. 修改草稿内容（标题、hook、正文、标签、图卡）时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch，前端会自动填入表单。写权限在用户手里，用户点保存才落库。
+3. 文生图是异步任务：先 generate_image 拿 jobId，再 poll_image_job 轮询直到成功，拿到 CDN URL 后通过 emit_draft_patch 的 addImages 字段回填到草稿。轮询不要超过 30 次。
+4. 回答简洁，多用工具少用嘴。最终给用户的文字总结要说明你做了什么、改了哪些字段，提醒用户点保存。
+5. 风格：倪同学搞AI，前端工程师转 AI 应用开发实战，不讲玄学，只讲能跑起来的东西。小红书文案要有钩子、有要点、口语化。`,
   },
 ];
 
@@ -1172,6 +1206,10 @@ export async function archiveContentTemplate(id: number) {
 }
 
 async function readXhsPromptContent(seed: XhsPromptTemplateSeed) {
+  if (seed.content !== undefined) return seed.content;
+  if (!seed.fileName) {
+    throw new Error(`模板 seed 缺少 fileName 和 content：${seed.sourcePath}`);
+  }
   const filePath = path.join(XHS_PROMPTS_DIR, seed.fileName);
   return readFile(filePath, 'utf8');
 }

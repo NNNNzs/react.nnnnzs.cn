@@ -24,8 +24,12 @@ import {
   PictureOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RobotOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
+import { CreateAgentPanel } from "./CreateAgentPanel";
+import { useCreateAgent } from "./useCreateAgent";
+import type { DraftPatch } from "@/services/ai/tools/create-tools/draft-patch";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -170,6 +174,7 @@ export function CreateDraftEditor() {
   const [imageSaving, setImageSaving] = useState(false);
   const [downloadingImages, setDownloadingImages] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
+  const [agentOpen, setAgentOpen] = useState(false);
   const selectedImages = useMemo(() => normalizeDraftImages(draft?.selected_images ?? []), [draft?.selected_images]);
 
   const loadDraft = useCallback(async () => {
@@ -263,6 +268,46 @@ export function CreateDraftEditor() {
       message.error(error instanceof Error ? error.message : "删除草稿失败");
     }
   };
+
+  /**
+   * 应用 agent 产出的 draft_patch（方案 B）：
+   * title/body 只改前端 state（不落库，等用户点保存）；
+   * addImages 调 /images 接口把已入库素材 attach 到草稿（图片即时落库）。
+   */
+  const handleAgentPatch = useCallback(
+    async (patch: DraftPatch) => {
+      if (patch.title) setTitle(patch.title);
+      if (patch.body) setBody(patch.body);
+
+      if (patch.addImages?.length) {
+        for (const img of patch.addImages) {
+          if (!img.assetId) continue;
+          try {
+            const result = await requestApi<DraftRecord>(
+              `/api/create/drafts/${draftId}/images`,
+              {
+                method: "POST",
+                body: JSON.stringify({ asset_id: img.assetId }),
+              },
+            );
+            // 只合并图片快照，不整体覆盖 draft（result 的 title/body 是 DB 旧值，
+            // 整体覆盖会让刚 patch 进 title/body state 的内容与 draft 失配）
+            setDraft((current) =>
+              current ? { ...current, selected_images: result.selected_images } : result,
+            );
+          } catch (error) {
+            console.error("[agent] 回填图片失败:", error);
+          }
+        }
+        message.success(`AI 已追加 ${patch.addImages.length} 张图片`);
+      }
+
+      message.info("AI 已填入内容，记得点保存", 2);
+    },
+    [draftId],
+  );
+
+  const agent = useCreateAgent({ draftId, onPatch: handleAgentPatch });
 
   const handleAddAsset = async (asset: ImageAssetRecord) => {
     const imageUrl = getAssetImageUrl(asset);
@@ -456,6 +501,13 @@ export function CreateDraftEditor() {
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/create/drafts")}>
               返回
+            </Button>
+            <Button
+              type={agentOpen ? "primary" : "default"}
+              icon={<RobotOutlined />}
+              onClick={() => setAgentOpen((v) => !v)}
+            >
+              AI 助手
             </Button>
             <Popconfirm
               title="删除草稿"
@@ -666,6 +718,15 @@ export function CreateDraftEditor() {
           <Empty description="暂无图片素材" />
         )}
       </Modal>
+
+      <CreateAgentPanel
+        open={agentOpen}
+        onClose={() => setAgentOpen(false)}
+        messages={agent.messages}
+        isStreaming={agent.isStreaming}
+        onSend={(text) => agent.sendMessage(text, agent.messages)}
+        onAbort={agent.abort}
+      />
     </div>
   );
 }

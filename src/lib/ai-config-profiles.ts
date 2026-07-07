@@ -11,6 +11,7 @@ export const AI_BUILTIN_CONFIG_SCENARIOS = [
   'embedding',
   'image_gen',
   'tts',
+  'create_agent',
 ] as const satisfies readonly AIConfigScenario[];
 export const AI_CONFIG_SCENARIOS = AI_BUILTIN_CONFIG_SCENARIOS;
 
@@ -70,6 +71,12 @@ export const AI_SCENARIO_META: Record<string, AIProfileScenarioMeta> = {
     description: 'MiMo TTS 语音合成',
     requiredFields: ['api_key', 'model', 'base_url'],
     optionalFields: ['voice'],
+  },
+  create_agent: {
+    label: '创作 Agent',
+    description: '草稿库创作助手 /create/drafts/[id]，需支持 function calling 的模型',
+    requiredFields: ['api_key', 'model', 'base_url'],
+    optionalFields: ['temperature', 'max_tokens'],
   },
 };
 

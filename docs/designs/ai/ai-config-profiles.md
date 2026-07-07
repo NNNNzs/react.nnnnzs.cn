@@ -99,6 +99,7 @@
 | `embedding` | 文章向量化、向量搜索、RAG 检索 | `api_key`, `model`, `base_url`, `dimensions` |
 | `image_gen` | 后台图片生成、图片任务重试、MCP 图片生成 | `api_key`, `model`, `base_url`, `api_mode` |
 | `tts` | MiMo TTS 语音合成 | `api_key`, `model`, `base_url`, `voice` |
+| `create_agent` | 草稿库创作助手 `/create/drafts/[id]` | `api_key`, `model`, `base_url`, `temperature`, `max_tokens` |
 
 Qdrant 的 `qdrant.*` 是向量数据库连接配置，不属于大模型地址切换范围，仍保留原单项配置。
 

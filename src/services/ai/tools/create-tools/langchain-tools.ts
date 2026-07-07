@@ -1,0 +1,310 @@
+/**
+ * 创作助手 LangChain 工具包装层
+ *
+ * 通过 buildCreateTools 工厂按请求构建工具数组，注入 draftId / userId / emitPatch 上下文。
+ * 与 chat-agent 的静态 chatTools 不同：这里每次对话都重新构造，避免跨草稿上下文泄漏。
+ *
+ * 工具 execute 必须返回 string（LangChain tool calling 约定）。
+ */
+
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+import type { StructuredTool } from '@langchain/core/tools';
+import { createImageGenerationJob } from '@/services/image-gen-job';
+import { getAiJob } from '@/services/ai-job';
+import { createContentAsset } from '@/services/content-creation';
+import type { AuthUser } from '@/types/auth';
+import type { Prisma } from '@/generated/prisma-client/client';
+import {
+  readPromptTemplateTool,
+  createGetDraftTool,
+  getPostContentTool,
+} from './index';
+import { searchPostsMetaTool as _searchPostsMetaTool } from '../search-posts-meta';
+import type { DraftPatch } from './draft-patch';
+
+export interface BuildCreateToolsParams {
+  draftId: number;
+  userId: number;
+  /** emit_draft_patch 工具被调用时触发，把 patch 推到 SSE 流 */
+  emitPatch: (patch: DraftPatch) => void;
+}
+
+/** 构造最小 AuthUser，仅用于 getAiJob 归属校验（job 由同 userId 创建） */
+function buildMinimalUser(userId: number): AuthUser {
+  return {
+    id: userId,
+    account: '',
+    nickname: '',
+    avatar: null,
+    role: null,
+    roles: [],
+    permissions: [],
+    dataScopes: {},
+  };
+}
+
+export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool[] {
+  const { draftId, userId, emitPatch } = params;
+
+  const readPromptTemplate = wrapReadPromptTemplate();
+  const getDraft = wrapGetDraft(draftId);
+  const searchPosts = wrapSearchPosts();
+  const getPostContent = wrapGetPostContent();
+  const generateImage = wrapGenerateImage(userId);
+  const pollImageJob = wrapPollImageJob(userId);
+  const emitDraftPatch = wrapEmitDraftPatch(emitPatch, userId, draftId);
+
+  return [
+    readPromptTemplate,
+    getDraft,
+    searchPosts,
+    getPostContent,
+    generateImage,
+    pollImageJob,
+    emitDraftPatch,
+  ];
+}
+
+/* ---------- 包装函数 ---------- */
+
+function wrapReadPromptTemplate(): StructuredTool {
+  return tool(
+    async ({ scenario, name }) => {
+      const result = await readPromptTemplateTool.execute({ scenario, name });
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'read_prompt_template',
+      description:
+        '读取内容模板库中的提示词正文。需要按某套方法论（如博客转小红书图文 blog_to_xhs_note、转短视频脚本 blog_to_short_video）产出内容时先读对应模板。',
+      schema: z.object({
+        scenario: z
+          .string()
+          .optional()
+          .describe('模板场景：blog_to_xhs_note / blog_to_short_video / tts / image_card'),
+        name: z.string().optional().describe('模板名称关键词，与 scenario 组合使用'),
+      }),
+    },
+  );
+}
+
+function wrapGetDraft(draftId: number): StructuredTool {
+  const getDraftTool = createGetDraftTool(draftId);
+  return tool(
+    async () => {
+      const result = await getDraftTool.execute({});
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'get_draft',
+      description: '读取当前正在编辑的草稿（标题、hook、正文、标签、图卡、已选图片），无需参数。',
+      schema: z.object({}),
+    },
+  );
+}
+
+function wrapSearchPosts(): StructuredTool {
+  return tool(
+    async ({ keyword, limit, tags }) => {
+      const result = await _searchPostsMetaTool.execute({
+        keyword,
+        limit: limit ?? 5,
+        tags,
+      });
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'search_posts',
+      description:
+        '按关键词 / 标签检索博客文章列表（返回 id、标题、摘要、标签、日期）。用于把博客作为创作素材时先找到候选文章。',
+      schema: z.object({
+        keyword: z.string().describe('标题和描述的关键词'),
+        tags: z.string().optional().describe('标签筛选，逗号分隔，如 "AI,前端"'),
+        limit: z.number().optional().describe('返回数量，默认 5'),
+      }),
+    },
+  );
+}
+
+function wrapGetPostContent(): StructuredTool {
+  return tool(
+    async ({ postId }) => {
+      const result = await getPostContentTool.execute({ postId });
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'get_post_content',
+      description: '按文章 ID 读取博客全文（Markdown），作为创作素材。',
+      schema: z.object({
+        postId: z.number().int().describe('博客文章 ID'),
+      }),
+    },
+  );
+}
+
+function wrapGenerateImage(userId: number): StructuredTool {
+  return tool(
+    async ({ prompt, mode, images, size, quality }) => {
+      try {
+        const job = await createImageGenerationJob({
+          options: {
+            mode: mode ?? 'generate',
+            prompt,
+            images: images ?? undefined,
+            size: size ?? '1080x1440',
+            quality: quality ?? 'medium',
+          },
+          userId,
+          source: 'ADMIN',
+        });
+        return JSON.stringify({
+          jobId: job.jobId,
+          status: job.status,
+          message: `已提交 ${mode ?? 'generate'} 任务，请用 poll_image_job 轮询 jobId=${job.jobId}`,
+        });
+      } catch (error) {
+        return JSON.stringify({
+          error: error instanceof Error ? error.message : '提交文生图任务失败',
+        });
+      }
+    },
+    {
+      name: 'generate_image',
+      description:
+        '提交文生图或图文编辑异步任务，返回 jobId。拿到 jobId 后必须用 poll_image_job 轮询直到成功，再通过 emit_draft_patch 的 addImages 回填。',
+      schema: z.object({
+        prompt: z.string().min(1).describe('图片提示词，中文大标题 + 2-4 条要点，适合手机阅读'),
+        mode: z
+          .enum(['generate', 'edit'])
+          .optional()
+          .describe('generate 纯文生图；edit 基于参考图编辑（需提供 images）'),
+        images: z
+          .array(z.string())
+          .optional()
+          .describe('edit 模式的参考图 URL 列表'),
+        size: z.string().optional().describe('尺寸，如 1080x1440（小红书竖图默认）'),
+        quality: z.enum(['low', 'medium', 'high', 'auto']).optional().describe('质量，默认 medium'),
+      }),
+    },
+  );
+}
+
+function wrapPollImageJob(userId: number): StructuredTool {
+  const user = buildMinimalUser(userId);
+  return tool(
+    async ({ jobId }) => {
+      try {
+        const job = await getAiJob(jobId, user, 'image-gen');
+        if (!job) {
+          return JSON.stringify({ error: `任务 ${jobId} 不存在或无权访问` });
+        }
+        if (job.status === 'SUCCESS') {
+          return JSON.stringify({
+            status: 'SUCCESS',
+            cdnUrl: job.resourceUrl,
+            message: `图片生成成功：${job.resourceUrl}`,
+          });
+        }
+        if (job.status === 'FAILED') {
+          return JSON.stringify({ status: 'FAILED', error: job.errorMessage });
+        }
+        return JSON.stringify({
+          status: job.status,
+          message: `任务仍在进行中（${job.status}），请继续轮询`,
+        });
+      } catch (error) {
+        return JSON.stringify({
+          error: error instanceof Error ? error.message : '轮询任务失败',
+        });
+      }
+    },
+    {
+      name: 'poll_image_job',
+      description:
+        '轮询文生图任务状态。SUCCESS 返回 cdnUrl；FAILED 返回错误；PENDING/PROCESSING 提示继续轮询。轮询不要超过 30 次。',
+      schema: z.object({
+        jobId: z.string().describe('generate_image 返回的 jobId'),
+      }),
+    },
+  );
+}
+
+/**
+ * emit_draft_patch：伪工具。
+ * 模型以为在修改草稿，实际只通过 emitPatch 推送结构化 patch 到前端，由前端填表单。
+ * 若 patch 含 addImages 且只给了 cdnUrl（无 assetId），此处自动入库为素材并补上 assetId。
+ */
+function wrapEmitDraftPatch(
+  emitPatch: (patch: DraftPatch) => void,
+  userId: number,
+  draftId: number,
+): StructuredTool {
+  return tool(
+    async (rawPatch) => {
+      try {
+        const patch: DraftPatch = { ...rawPatch };
+
+        // 把只有 cdnUrl 的图片入库为素材，补上 assetId
+        if (patch.addImages && patch.addImages.length > 0) {
+          const enriched = await Promise.all(
+            patch.addImages.map(async (img) => {
+              if (img.assetId) return img;
+              if (!img.imageUrl) return img;
+              const asset = await createContentAsset({
+                type: 'image',
+                draft_id: draftId,
+                title: img.title ?? null,
+                usage: img.group ?? null,
+                cdn_url: img.imageUrl,
+                created_by: userId,
+                metadata_json: {
+                  source: 'agent_generated',
+                } as Prisma.InputJsonValue,
+              });
+              return { ...img, assetId: asset.id };
+            }),
+          );
+          patch.addImages = enriched;
+        }
+
+        emitPatch(patch);
+        const fields = Object.keys(patch).filter((k) => k !== 'addImages');
+        const imgCount = patch.addImages?.length ?? 0;
+        return JSON.stringify({
+          ok: true,
+          message: `已填入字段 [${fields.join(', ')}]${imgCount ? `，追加 ${imgCount} 张图片` : ''}。提醒用户点保存。`,
+        });
+      } catch (error) {
+        return JSON.stringify({
+          error: error instanceof Error ? error.message : 'emit_draft_patch 失败',
+        });
+      }
+    },
+    {
+      name: 'emit_draft_patch',
+      description:
+        '把要写进草稿的内容以结构化 patch 提交给前端表单。修改草稿（标题/hook/正文/标签/状态/追加图片）必须用此工具，不要只在对话里贴文本。写权限在用户手里，用户点保存才落库。',
+      schema: z.object({
+        title: z.string().optional().describe('新标题'),
+        hook: z.string().optional().describe('钩子文案'),
+        body: z.string().optional().describe('正文（Markdown）'),
+        tags: z.array(z.string()).optional().describe('标签数组'),
+        status: z
+          .enum(['DRAFT', 'ASSET_PENDING', 'READY', 'PUBLISHED', 'ARCHIVED'])
+          .optional()
+          .describe('草稿状态'),
+        addImages: z
+          .array(
+            z.object({
+              imageUrl: z.string().describe('图片 CDN URL（来自 poll_image_job 的 cdnUrl）'),
+              title: z.string().optional().describe('图片备注/标题'),
+              group: z.string().optional().describe('分组名，如 cover'),
+            }),
+          )
+          .optional()
+          .describe('要追加到草稿的图片'),
+      }),
+    },
+  );
+}

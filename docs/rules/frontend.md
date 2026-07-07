@@ -414,67 +414,27 @@ const processText = useCallback(async () => {
 }, [])
 ```
 
-#### SSE 格式流式处理（特殊场景）
-某些 API 可能使用 SSE（Server-Sent Events）格式，需要特殊处理：
+#### SSE 格式流式处理（标准方案）
+
+标准 SSE（`text/event-stream`）流式响应统一使用 `src/lib/sse.ts` 的 `parseSSEStream`，不要在内联复制解析逻辑：
 
 ```typescript
-/**
- * 处理 SSE 格式的流式响应
- * 用于处理包含元数据（如思维链）的响应
- */
-const handleSSEStreamResponse = async (
-  response: Response,
-  onContent: (text: string) => void,
-  onMetadata?: (data: unknown) => void
-) => {
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('无法读取响应流')
-  }
+import { parseSSEStream, parseSSEData } from '@/lib/sse'
 
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      
-      if (done) break
-
-      if (value) {
-        buffer += decoder.decode(value, { stream: true })
-        
-        // 处理 SSE 格式的数据
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || '' // 保留最后一个不完整的行
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              
-              if (data.type === 'content') {
-                // 内容数据
-                onContent(typeof data.data === 'string' ? data.data : '')
-              } else if (data.type === 'thought_chain') {
-                // 元数据（如思维链）
-                onMetadata?.(data.data)
-              }
-            } catch {
-              // 忽略解析错误
-            }
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('处理 SSE 流式响应错误:', error)
-    throw error
-  } finally {
-    reader.releaseLock()
-  }
-}
+// 后端用 createSSEResponse + encodeSSE 产出多事件流
+// 前端用 parseSSEStream 逐帧消费，按 event 分发
+await parseSSEStream(
+  response,
+  (frame) => {
+    const data = parseSSEData(frame.data)
+    if (frame.event === 'token') onContent((data as { content?: string }).content ?? '')
+    else if (frame.event === 'done') onComplete()
+  },
+  abortController.signal, // 可选，支持中断
+)
 ```
+
+`src/lib/sse.ts` 是站点级公用 SSE 基础设施，`create-agent` 已接入，`chat-agent` 后续迁移复用。新增 SSE 流式接口时优先复用，不要自造解析器。
 
 ### 使用场景说明
 

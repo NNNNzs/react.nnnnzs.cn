@@ -54,6 +54,7 @@ docs/designs/
 | [AI Lab / LLM 学习实验台](ai/ai-lab.md) | Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计 | 🚧 执行中 |
 | [TTS 语音合成](ai/tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](ai/image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
+| [草稿库创作 Agent 助手](ai/create-agent.md) | LangGraph ReAct Agent + SSE 多事件流 + 草稿回填（方案 B） | ✅ 已落地 |
 
 ### 聊天系统
 
