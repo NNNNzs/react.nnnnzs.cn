@@ -12,7 +12,7 @@
 ## 二、核心设计决策
 
 1. **唤起位置**：仅 `/create/drafts/[id]`。新建草稿走传统表单。
-2. **独立服务**：新建 `src/services/ai/create-agent/`，不扩展 chat-agent。复用 `createOpenAIModel`，新增 `create_agent` scenario 取不同配置组。
+2. **独立服务**：新建 `src/services/ai/create-agent/`，不扩展 chat-agent。复用 `createOpenAIModel`，新增 `create_agent` scenario，通过 `/c/config` 场景绑定选择模型。
 3. **System prompt 来源**：`content_templates` 表（`scenario = 'content_agent'`），可在线编辑，不在文件系统。
 4. **流式协议**：标准 SSE（`text/event-stream`）多事件，公用基础设施在 `src/lib/sse.ts`。不复用 chat-agent 的 XML 标签协议。
 5. **草稿回填（方案 B）**：agent 不直接写库，通过 `emit_draft_patch` 伪工具产出 `draft_patch` SSE 事件；前端收到后填入表单 state，用户点保存才落库。图片 attach 这一步走 `/images` 接口即时落库（资产级别）。
@@ -23,7 +23,7 @@
 ### 已落地
 
 - [x] `src/lib/sse.ts`：公用 SSE 编解码（`encodeSSE` / `createSSEResponse` / `parseSSEStream`）
-- [x] `src/lib/ai-config-profiles.ts`：注册 `create_agent` scenario
+- [x] `src/lib/ai-scenarios.ts`：注册 `create_agent` scenario 元数据
 - [x] `src/services/content-creation.ts`：`XhsPromptTemplateSeed` 支持内置 `content`；新增 `content_agent` system prompt seed
 - [x] `src/services/ai/create-agent/`：`prompt.ts`（从模板加载）、`create-agent.ts`（LangGraph + SSE 编码）、`index.ts`
 - [x] `src/services/ai/tools/create-tools/`：`read_prompt_template`、`get_draft`、`search_posts`、`get_post_content`、`generate_image`、`poll_image_job`、`emit_draft_patch`；`buildCreateTools` 闭包工厂；`draft-patch.ts` 共享类型
@@ -46,7 +46,7 @@
 
 ## 四、验证
 
-1. `/c/config` 激活 `create_agent` scenario（需支持 function calling 的模型）
+1. `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
 4. 场景：文案建议、patch 填表单（不保存刷新可逆）、保存落库、文生图全链路、博客检索、断流停止

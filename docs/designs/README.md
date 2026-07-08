@@ -7,7 +7,7 @@
 ```
 docs/designs/
 ├── ai/                          # AI 系统
-│   ├── ai-config-profiles.md    # AI 配置组管理
+│   ├── ai-config-profiles.md    # AI Provider 配置管理
 │   ├── ai-lab.md                # AI Lab / LLM 学习实验台
 │   ├── image-gen.md             # AI 图片生成
 │   └── tts-page.md              # TTS 语音合成
@@ -50,7 +50,7 @@ docs/designs/
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [AI 配置组管理](ai/ai-config-profiles.md) | 多套模型地址、模型和密钥配置组切换 | ✅ 已实施 |
+| [AI Provider 配置管理](ai/ai-config-profiles.md) | Provider、模型清单和场景绑定配置 | 🚧 执行中 |
 | [AI Lab / LLM 学习实验台](ai/ai-lab.md) | Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计 | 🚧 执行中 |
 | [TTS 语音合成](ai/tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](ai/image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |

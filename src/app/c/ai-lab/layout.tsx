@@ -12,7 +12,6 @@ import {
   ProfileOutlined,
   RobotOutlined,
   SearchOutlined,
-  SettingOutlined,
   SoundOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,12 +49,6 @@ const AI_LAB_NAV_ITEMS: AiLabNavItem[] = [
     label: "检索实验台",
     permissions: [VECTOR_VIEW],
     icon: <SearchOutlined />,
-  },
-  {
-    path: "/c/ai-lab/config",
-    label: "AI 配置组",
-    permissions: [CONFIG_VIEW],
-    icon: <SettingOutlined />,
   },
   {
     path: "/c/ai-lab/image-gen",

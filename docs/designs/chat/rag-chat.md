@@ -535,12 +535,7 @@ export const lcMyTool = tool(
 ## 配置管理
 
 ### AI 模型配置
-聊天系统的 AI 模型配置从数据库 `tb_config` 表读取（场景: `chat`），包括：
-- `chat.api_key`: API 密钥
-- `chat.model`: 模型名称
-- `chat.base_url`: API 基础 URL
-- `chat.temperature`: 温度参数
-- `chat.max_tokens`: 最大 Token 数
+聊天系统的 AI 模型配置从 `/c/config` 的 `chat` 场景绑定读取，包括 Provider 的 API Key、Base URL、绑定模型、温度和最大 Token 数。
 
 配置通过 `src/lib/ai-config.ts` 读取，内存缓存 5 分钟 TTL。
 

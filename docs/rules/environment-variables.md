@@ -103,15 +103,15 @@ GITHUB_TOKEN=ghp_your_github_token
 
 ## 已迁移至数据库的配置
 
-以下配置已从环境变量迁移到数据库 `tb_config` 表，通过**系统配置管理页面**配置：
+以下 AI 模型配置已从环境变量迁移到数据库，通过 `/c/config` 的「AI 供应商」和「场景绑定」维护：
 
 ### AI 服务配置
-- 聊天模型（`chat.api_key`, `chat.model` 等）
-- 向量化模型（`embedding.api_key`, `embedding.model` 等）
-- AI 文本生成（`ai_text.*`）
-- 描述生成（`description.*`）
+- 聊天模型（`chat` 场景绑定）
+- 向量化模型（`embedding` 场景绑定）
+- AI 文本生成（`ai_text` 场景绑定）
+- 描述生成（`description` 场景绑定）
 
-详见：[scripts/README-AI-CONFIG.md](../../scripts/README-AI-CONFIG.md)
+详见：[AI Provider 配置管理设计](../designs/ai/ai-config-profiles.md)
 
 ### Qdrant 向量数据库
 - `qdrant.url`：Qdrant 服务地址

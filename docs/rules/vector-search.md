@@ -37,7 +37,7 @@
 - 维度: 1024
 
 **配置读取**:
-- Embedding API 配置：从数据库 `tb_config` 表读取（`embedding.api_key`, `embedding.model`, `embedding.base_url`）
+- Embedding 模型配置：在 `/c/config` 的「场景绑定」中维护 `embedding` 场景的 Provider、模型和 `dimensions`
 - 配置工具：`src/lib/ai-config.ts`（场景: `embedding`）
 
 **向量化流程**:

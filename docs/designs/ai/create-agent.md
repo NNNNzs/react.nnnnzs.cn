@@ -81,7 +81,7 @@ sequenceDiagram
 | 文件 | 作用 |
 |------|------|
 | `src/lib/sse.ts` | 公用 SSE 编解码（站点级，chat-agent 后续复用） |
-| `src/lib/ai-config-profiles.ts` | 注册 `create_agent` scenario |
+| `src/lib/ai-scenarios.ts` | 注册 `create_agent` scenario 元数据 |
 | `src/services/content-creation.ts` | `content_agent` system prompt seed |
 | `src/services/ai/create-agent/prompt.ts` | 从 content_templates 加载 system prompt |
 | `src/services/ai/create-agent/create-agent.ts` | LangGraph Agent + SSE 编码 |
@@ -107,7 +107,7 @@ sequenceDiagram
 
 ## 五、使用前准备
 
-1. `/c/config` AI 配置面板激活 `create_agent` scenario（需支持 function calling 的模型）
+1. `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`，点「AI 助手」按钮
 
@@ -122,5 +122,5 @@ sequenceDiagram
 
 - [草稿库创作 Agent 助手计划](../../plans/create-agent.md) - 实施计划
 - [内容创作中台建设](../../plans/content-creation-platform.md) - 所属中台
-- [AI 配置组管理](./ai-config-profiles.md) - create_agent scenario 配置
+- [AI Provider 配置管理](./ai-config-profiles.md) - create_agent scenario 配置
 - [Agent 聊天系统](../chat/rag-chat.md) - chat-agent 参考实现

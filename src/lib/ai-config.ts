@@ -1,15 +1,18 @@
 /**
  * AI 模型配置读取工具
  * 从数据库读取配置，支持缓存，避免频繁查询
+ *
+ * 配置来源已重构为「Provider + 场景绑定」两张表：
+ *  - getAIConfig(scenario) 读取该场景 is_active=true 的绑定，join provider 拿 base_url/api_key
+ *  - 旧的 tbConfig JSON profile（ai.profile_groups 等）已废弃
  */
 
 import { configByKeys } from '@/services/config';
-import { getAIProfileState } from '@/services/ai-config-profiles';
 import {
-  getActiveProfileValues,
-  getProfileConfigCandidates,
-  type AIProfileScenarioConfig,
-} from '@/lib/ai-config-profiles';
+  getActiveBinding,
+  listBindingsByScenario,
+  type AiBindingWithProvider,
+} from '@/services/ai-scenario-binding';
 
 /**
  * AI 配置场景类型
@@ -30,47 +33,35 @@ export interface AIConfig {
   voice?: string; // 仅用于 tts
 }
 
-function parseAIConfigValues(
-  scenario: AIConfigScenario,
-  values: AIProfileScenarioConfig | null,
-): AIConfig {
-  if (!values) {
-    throw new Error(`AI 配置组缺失场景: ${scenario}`);
+/** 把场景绑定（带 provider）解析为 AIConfig */
+function bindingToAIConfig(scenario: AIConfigScenario, binding: AiBindingWithProvider | null): AIConfig {
+  if (!binding) {
+    throw new Error(`AI 场景未配置或未激活: ${scenario}`);
   }
 
-  const apiKey = values.api_key;
-  const model = values.model;
-  const baseUrl = values.base_url;
+  const apiKey = binding.provider.api_key;
+  const baseUrl = binding.provider.base_url;
+  const model = binding.model;
 
   if (!apiKey) {
-    throw new Error(`AI 配置组字段缺失: ${scenario}.api_key`);
-  }
-  if (!model) {
-    throw new Error(`AI 配置组字段缺失: ${scenario}.model`);
+    throw new Error(`AI 场景 ${scenario} 的供应商缺少 api_key`);
   }
   if (!baseUrl) {
-    throw new Error(`AI 配置组字段缺失: ${scenario}.base_url`);
+    throw new Error(`AI 场景 ${scenario} 的供应商缺少 base_url`);
   }
-
-  const temperature = values.temperature
-    ? parseFloat(values.temperature)
-    : undefined;
-  const maxTokens = values.max_tokens
-    ? parseInt(values.max_tokens, 10)
-    : undefined;
-  const dimensions = values.dimensions
-    ? parseInt(values.dimensions, 10)
-    : undefined;
+  if (!model) {
+    throw new Error(`AI 场景 ${scenario} 的绑定缺少 model`);
+  }
 
   return {
     api_key: apiKey,
     model,
     base_url: baseUrl,
-    temperature,
-    max_tokens: maxTokens,
-    ...(dimensions !== undefined && { dimensions }),
-    ...(values.api_mode !== undefined && { api_mode: values.api_mode }),
-    ...(values.voice !== undefined && { voice: values.voice }),
+    ...(binding.temperature !== null && { temperature: binding.temperature }),
+    ...(binding.max_tokens !== null && { max_tokens: binding.max_tokens }),
+    ...(binding.dimensions !== null && { dimensions: binding.dimensions }),
+    ...(binding.api_mode && { api_mode: binding.api_mode }),
+    ...(binding.voice && { voice: binding.voice }),
   };
 }
 
@@ -81,10 +72,11 @@ const configCache = new Map<string, { value: string | null; timestamp: number }>
 const CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
 
 /**
- * 清除缓存
+ * 清除缓存（含单项值缓存与场景级 AIConfig 缓存）
  */
 export function clearAIConfigCache(): void {
   configCache.clear();
+  scenarioConfigCache.clear();
 }
 
 /**
@@ -172,31 +164,39 @@ export async function getAIConfigValues(
   return result;
 }
 
+/** 场景级 AIConfig 缓存（按 scenario），TTL 5 分钟；切换激活后由 activate 接口调用 clearAIConfigCache 失效 */
+const scenarioConfigCache = new Map<string, { value: AIConfig; timestamp: number }>();
+const SCENARIO_CACHE_TTL = 5 * 60 * 1000;
+
 /**
- * 获取指定场景的完整 AI 配置
+ * 获取指定场景的完整 AI 配置（读激活绑定）。
  * @param scenario 配置场景
- * @returns AI 配置对象
  */
 export async function getAIConfig(scenario: AIConfigScenario): Promise<AIConfig> {
-  const profileState = await getAIProfileState();
-  const values = getActiveProfileValues(profileState, scenario);
-
-  if (!profileState.activeProfileIds[scenario]) {
-    throw new Error(`AI 配置组未激活，请在配置管理中选择 ${scenario} 的当前配置组`);
+  const cached = scenarioConfigCache.get(scenario);
+  if (cached && Date.now() - cached.timestamp < SCENARIO_CACHE_TTL) {
+    return cached.value;
   }
 
-  return parseAIConfigValues(scenario, values);
+  const binding = await getActiveBinding(scenario);
+  if (!binding) {
+    throw new Error(`AI 场景未配置或未激活，请在配置管理中为 ${scenario} 绑定并激活一个配置`);
+  }
+
+  const config = bindingToAIConfig(scenario, binding);
+  scenarioConfigCache.set(scenario, { value: config, timestamp: Date.now() });
+  return config;
 }
 
+/**
+ * 获取指定场景的全部候选配置（激活项在前），用于失败重试/降级。
+ */
 export async function getAIConfigCandidates(scenario: AIConfigScenario): Promise<AIConfig[]> {
-  const profileState = await getAIProfileState();
-  const candidates = getProfileConfigCandidates(profileState, scenario);
-
-  if (!profileState.activeProfileIds[scenario]) {
-    throw new Error(`AI 配置组未激活，请在配置管理中选择 ${scenario} 的当前配置组`);
+  const bindings = await listBindingsByScenario(scenario);
+  if (bindings.length === 0 || !bindings.some((b) => b.is_active)) {
+    throw new Error(`AI 场景未配置或未激活，请在配置管理中为 ${scenario} 绑定并激活一个配置`);
   }
-
-  return candidates.map((candidate) => parseAIConfigValues(scenario, candidate));
+  return bindings.map((b) => bindingToAIConfig(scenario, b));
 }
 
 /**

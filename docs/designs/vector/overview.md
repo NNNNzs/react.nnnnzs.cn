@@ -88,12 +88,11 @@ flowchart TB
 ## 配置管理
 
 ### 数据库配置（推荐）
-Embedding API 和 Qdrant 的配置均已迁移到数据库 `tb_config` 表：
+Embedding API 和 Qdrant 的配置均已迁移到数据库：
 
 **Embedding 配置**（通过 `src/lib/ai-config.ts` 读取，场景: `embedding`）：
-- `embedding.api_key`: API 密钥
-- `embedding.model`: 模型名称（如 BAAI/bge-large-zh-v1.5）
-- `embedding.base_url`: API 基础 URL
+- 在 `/c/config` 的「AI 供应商」维护 API Key、Base URL 和模型清单
+- 在 `/c/config` 的「场景绑定」维护 `embedding` 模型和 `dimensions`
 
 **Qdrant 配置**（通过 `src/lib/vector-db-config.ts` 读取）：
 - `qdrant.url`: Qdrant 服务地址

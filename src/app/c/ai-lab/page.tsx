@@ -58,10 +58,10 @@ const LAB_AREAS: LabArea[] = [
     icon: <SearchOutlined />,
   },
   {
-    title: "AI 配置组",
-    path: "/c/ai-lab/config",
-    description: "集中管理 chat、embedding、image_gen、tts 等 AI Profile 场景配置。",
-    metric: "来源: /c/config",
+    title: "AI 配置管理",
+    path: "/c/config",
+    description: "集中管理 AI 供应商、场景绑定和单项配置。",
+    metric: "Provider / Binding / Config",
     status: "已接入",
     accent: "border-amber-500",
     permissions: [CONFIG_VIEW],
@@ -126,7 +126,7 @@ const ADMIN_SPLIT = [
   },
   {
     title: "拆入 AI Lab",
-    items: ["聊天记录 -> Runs", "向量检索 -> 检索实验台", "AI 配置组", "AI 图片生成", "语音合成"],
+    items: ["聊天记录 -> Runs", "向量检索 -> 检索实验台", "AI 配置管理", "AI 图片生成", "语音合成"],
   },
 ];
 

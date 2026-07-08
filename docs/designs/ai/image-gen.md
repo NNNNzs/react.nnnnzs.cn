@@ -65,12 +65,13 @@ quality=high
 
 ## 系统配置
 
-| 配置 Key | 说明 | 示例值 |
-|----------|------|--------|
-| `image_gen.api_key` | API 密钥 | `sk-xxx` |
-| `image_gen.base_url` | 基础地址 | `https://www.micuapi.ai` |
-| `image_gen.model` | 模型名 | `gpt-image-2` |
-| `image_gen.api_mode` | 接口模式：`chat_completions` 或 `images_generations` | `chat_completions` |
+图片生成配置在 `/c/config` 统一维护：
+
+| 位置 | 说明 |
+|----------|------|
+| AI 供应商 | 维护 API Key、Base URL 和可用模型清单 |
+| 场景绑定 `image_gen` | 选择 Provider、模型和 `api_mode` |
+| 运行时 | `getAIConfigCandidates('image_gen')` 返回激活绑定和候选绑定，失败时按顺序尝试 |
 
 ## 文件结构
 

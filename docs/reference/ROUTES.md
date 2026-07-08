@@ -237,11 +237,10 @@ src/app/
 }
 ```
 
-**配置项**（存数据库，通过配置管理页面设置）：
-- `image_gen.api_key` - API 密钥
-- `image_gen.base_url` - 中转站地址
-- `image_gen.model` - 模型名称（默认 gpt-image-2）
-- `image_gen.api_mode` - 图片生成接口模式：`chat_completions`（默认）或 `images_generations`
+**配置项**：
+- 在 `/c/config` 的「AI 供应商」中维护 `base_url`、`api_key` 和模型清单
+- 在 `/c/config` 的「场景绑定」中为 `image_gen` 选择 Provider、模型和 `api_mode`
+- 运行时通过 `getAIConfigCandidates('image_gen')` 读取激活绑定和候选绑定
 
 ### 部署与活动数据 API 端点（新增）
 

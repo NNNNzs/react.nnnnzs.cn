@@ -1,3 +1,65 @@
+// AI 供应商表
+// base_url + api_key 只维护一次，被多个场景绑定复用（对标 ccswitch 的 provider 概念）
+model TbAiProvider {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(100)                          // 显示名，如 "DeepSeek 官方"
+  base_url   String    @db.VarChar(500)
+  api_key    String    @db.VarChar(500)                          // 明文存储（与旧 tbConfig 现状一致）
+  models     Json?                                               // string[] 可用模型清单（一键拉取或手填）
+  status     Int       @default(1)                                // 1 启用 0 停用
+  remark     String?   @db.Text
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+
+  bindings TbAiScenarioBinding[]
+
+  @@index([status], name: "idx_ai_provider_status")
+  @@map("tb_ai_provider")
+}
+
+// AI 场景定义表
+// 内置场景在 ai-scenarios.ts 中硬编码，自定义场景存在此表
+model TbAiScenario {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique @db.VarChar(50)                  // 场景唯一标识，如 my_custom_agent
+  label          String   @db.VarChar(100)                         // 显示名
+  description    String?  @db.Text                                  // 描述
+  optionalFields Json?                                              // string[] 该场景的可选参数字段名
+  is_builtin     Boolean  @default(false)                           // 内置场景标记，内置场景不允许删除
+  status         Int      @default(1)                               // 1 启用 0 停用
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now())
+
+  @@index([status], name: "idx_ai_scenario_status")
+  @@map("tb_ai_scenario")
+}
+
+// AI 场景绑定表
+// 每条记录 = 某场景选用某 provider 的某模型 + 场景专属参数；每场景仅 1 条 is_active=true（应用层事务保证）
+model TbAiScenarioBinding {
+  id          Int      @id @default(autoincrement())
+  scenario    String   @db.VarChar(50)                            // chat / ai_text / description / embedding / image_gen / tts / create_agent
+  provider_id Int
+  model       String   @db.VarChar(200)                           // 从 provider.models 选，或手填
+  temperature Float?                                              // chat / ai_text / description / create_agent
+  max_tokens  Int?                                                // chat / ai_text / description / create_agent
+  dimensions  Int?                                                // embedding 专用
+  api_mode    String?  @db.VarChar(50)                            // image_gen 专用
+  voice       String?  @db.VarChar(100)                           // tts 专用
+  is_active   Boolean  @default(false)                            // 每场景仅 1 条 active
+  name        String?  @db.VarChar(100)                           // 绑定显示名，如 "DeepSeek-Chat 主用"
+  remark      String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+
+  provider TbAiProvider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  @@index([scenario], name: "idx_ai_binding_scenario")
+  @@index([provider_id], name: "idx_ai_binding_provider")
+  @@index([scenario, is_active], name: "idx_ai_binding_scenario_active")
+  @@map("tb_ai_scenario_binding")
+}
+
 // 通用 AI 任务表（图片生成 / TTS / 文字生成 / 未来场景）
 model TbAiJob {
   id              Int       @id @default(autoincrement())

@@ -2,116 +2,62 @@
 
 ## 概述
 
-项目已将 AI 模型配置从环境变量迁移到数据库，使用业务场景前缀的 key 命名规范。
+AI 模型配置已经从“环境变量 / `tb_config` 散 key”迁移为 Provider + 场景绑定模型。
 
-## 配置 Key 设计
+当前入口：
 
-### 1. AI 文本处理（Markdown 编辑器：润色/扩写/摘要）
-- `ai_text.api_key` - API 密钥
-- `ai_text.model` - 模型名称（如：qwen3-8b, glm-4.5-air）
-- `ai_text.base_url` - API 基础 URL
-- `ai_text.temperature` - 温度参数（可选，默认 0.7）
-- `ai_text.max_tokens` - 最大 token 数（可选，默认 2000）
+- `/c/config` -> `AI 供应商`：维护 Base URL、API Key、可用模型清单。
+- `/c/config` -> `场景绑定`：为每个场景选择 Provider、模型和场景参数。
+- `scripts/migrate-ai-config-to-provider.ts`：一次性把旧 `ai.profile_groups` 数据迁移到新表。
 
-### 2. 文章描述生成
-- `description.api_key` - API 密钥
-- `description.model` - 模型名称
-- `description.base_url` - API 基础 URL
-- `description.temperature` - 温度参数（可选，默认 0.9）
-- `description.max_tokens` - 最大 token 数（可选，默认 1000）
+## 当前数据模型
 
-### 3. 对话/Chat（ReAct Agent）
-- `chat.api_key` - API 密钥
-- `chat.model` - 模型名称
-- `chat.base_url` - API 基础 URL
-- `chat.temperature` - 温度参数（可选，默认 0.7）
-- `chat.max_tokens` - 最大 token 数（可选，默认 2000）
+| 表 | 作用 |
+| --- | --- |
+| `tb_ai_provider` | 供应商，保存 `base_url`、`api_key`、`models` |
+| `tb_ai_scenario_binding` | 场景绑定，保存 `scenario`、`provider_id`、`model`、场景参数和 `is_active` |
+| `tb_ai_scenario` | 自定义场景 |
 
-### 4. 向量嵌入（Embedding）
-- `embedding.api_key` - API 密钥
-- `embedding.model` - 模型名称（如：BAAI/bge-large-zh-v1.5）
-- `embedding.base_url` - API 基础 URL
-- `embedding.dimensions` - 向量维度（可选，默认 1024）
+运行时统一通过 `src/lib/ai-config.ts` 读取：
 
-### 5. 图片生成
-- `image_gen.api_key` - API 密钥
-- `image_gen.model` - 模型名称（如：gpt-image-2）
-- `image_gen.base_url` - API 基础 URL
-- `image_gen.api_mode` - 图片生成接口模式，可选 `chat_completions` 或 `images_generations`（可选，默认 `chat_completions`）
+- `getAIConfig(scenario)`：读取当前 active binding。
+- `getAIConfigCandidates(scenario)`：读取当前场景全部候选 binding，active 在前。
 
-## 批量添加配置
+## 内置场景
 
-### 方法 1：使用浏览器脚本（推荐）
+| 场景 | 用途 | 场景参数 |
+| --- | --- | --- |
+| `chat` | `/chat`、Chat Agent、标题生成 | `temperature`, `max_tokens` |
+| `ai_text` | 编辑器 AI 文本处理 | `temperature`, `max_tokens` |
+| `description` | 文章描述生成 | `temperature`, `max_tokens` |
+| `create_agent` | 草稿库创作助手 | `temperature`, `max_tokens` |
+| `embedding` | 向量化和 RAG 检索 | `dimensions` |
+| `image_gen` | 图片生成 | `api_mode` |
+| `tts` | 语音合成 | `voice` |
 
-1. 登录系统并打开配置管理页面：`http://your-domain/c/config`
-2. 打开浏览器开发者工具（F12）
-3. 复制 `scripts/batch-add-ai-configs.js` 的内容
-4. 在控制台（Console）中粘贴并运行
-5. 根据提示输入 API Key 和 Base URL（如果脚本中未填写）
-6. 等待所有配置添加完成
+## 历史迁移
 
-### 方法 2：手动添加
+旧版配置使用以下 `tb_config` JSON key：
 
-在配置管理页面（`/c/config`）逐个添加上述配置项。
+- `ai.profile_groups`
+- `ai.active_profiles`
+- `ai.fallback_profiles`
 
-### 方法 3：使用 API
+迁移命令：
 
 ```bash
-# 示例：添加 chat.api_key
-curl -X POST http://your-domain/api/config \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "key": "chat.api_key",
-    "title": "对话/Chat - API密钥",
-    "value": "your-api-key-here",
-    "remark": "用于聊天对话功能（ReAct Agent）",
-    "status": 1
-  }'
+pnpm tsx scripts/migrate-ai-config-to-provider.ts
 ```
 
-## 向后兼容
+脚本会按 `base_url` 去重生成 Provider，并把旧 profile 迁移成场景绑定。迁移完成后会删除旧 3 个 JSON key。
 
-如果数据库配置不存在，系统会自动回退到环境变量：
+## 缓存
 
-- `chat.*` → `SILICONFLOW_API_KEY`, `SILICONFLOW_BASE_URL`, `SILICONFLOW_FREE_QWEN`
-- `embedding.*` → `BLOG_EMBEDDING_API_KEY`, `BLOG_EMBEDDING_BASE_URL`, `BLOG_EMBEDDING_MODEL`
-
-**建议**：迁移完成后，可以逐步移除环境变量，完全依赖数据库配置。
-
-## 配置缓存
-
-配置读取使用内存缓存（5 分钟 TTL），避免频繁查询数据库。如需清除缓存，可以重启应用。
-
-## 代码变更
-
-### 新增文件
-- `src/lib/ai-config.ts` - 配置读取工具函数
-
-### 修改文件
-- `src/lib/ai.ts` - 改为从数据库读取配置
-- `src/services/ai/text/index.ts` - 改为使用 OpenAI + LangChain，从数据库读取
-- `src/services/ai/description/index.ts` - 改为使用 OpenAI + LangChain，从数据库读取
-- `src/services/embedding/embedding.ts` - 从数据库读取配置
-- `src/services/vector/embedding.ts` - 从数据库读取配置
-- `src/app/api/chat/route.ts` - 使用新的配置读取方式
+`getAIConfig()` 对场景配置做 5 分钟内存缓存。Provider 或 Binding 变更后，相关 API 会调用 `clearAIConfigCache()`，使运行时立即读取新配置。
 
 ## 注意事项
 
-1. **必需配置**：每个场景的 `api_key`、`model`、`base_url` 是必需的
-2. **可选配置**：`temperature`、`max_tokens`、`dimensions` 有默认值，可以不配置
-3. **模型切换**：修改数据库中的 `model` 和 `base_url` 即可快速切换模型
-4. **多场景支持**：不同场景可以使用不同的模型和 API，互不影响
-
-## 支持的模型
-
-- **Qwen3 8B**: `qwen3-8b`（SiliconFlow）
-- **GLM 4.5 Air**: `glm-4.5-air`（SiliconFlow）
-- **其他兼容 OpenAI API 的模型**：只需配置正确的 `base_url` 和 `model` 名称
-
-## 故障排查
-
-1. **配置不存在错误**：检查数据库 `tb_config` 表中是否有对应的配置项
-2. **API 调用失败**：检查 `api_key` 和 `base_url` 是否正确
-3. **模型不存在**：确认 `model` 名称在对应的 API 服务中有效
-4. **缓存问题**：重启应用清除缓存，或等待 5 分钟缓存过期
+1. Provider 的 API Key 目前仍明文存储，与旧 `tb_config` 方案一致。
+2. 一键拉取模型只支持 OpenAI 兼容 `/models` 接口，失败时手动维护模型名。
+3. 新业务场景优先在 `src/lib/ai-scenarios.ts` 注册内置场景；临时场景可在后台新增自定义场景。
+4. 旧 `chat.api_key`、`embedding.api_key`、`image_gen.api_key` 等散 key 不再作为运行时回退来源。

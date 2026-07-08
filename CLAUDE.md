@@ -34,7 +34,7 @@
 ### 可用设计文档
 
 #### AI 系统
-- **[AI 配置组管理](docs/designs/ai/ai-config-profiles.md)** - 多套模型地址、模型和密钥配置组切换
+- **[AI Provider 配置管理](docs/designs/ai/ai-config-profiles.md)** - Provider、模型清单和场景绑定配置
 - **[AI Lab / LLM 学习实验台](docs/designs/ai/ai-lab.md)** - Run 观测、RAG 评测、检索实验、Prompt Replay 与 LangSmith 集成设计
 - **[语音合成](docs/designs/ai/tts-page.md)** - MiMo TTS 语音合成
 - **[AI 图片生成](docs/designs/ai/image-gen.md)** - GPT Image 2 文生图/图文编辑

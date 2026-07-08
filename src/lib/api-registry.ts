@@ -25,6 +25,13 @@ import { descriptor as ttsSynthesizeRoute } from '@/app/api/tts/synthesize/route
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
 import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
 import { descriptor as uploadRoute } from '@/app/api/fs/upload/route';
+import { getDescriptor as aiProvidersGet, createDescriptor as aiProvidersCreate } from '@/app/api/config/ai/providers/route';
+import { updateDescriptor as aiProviderUpdate, deleteDescriptor as aiProviderDelete } from '@/app/api/config/ai/providers/[id]/route';
+import { descriptor as aiProviderFetchModels } from '@/app/api/config/ai/providers/[id]/fetch-models/route';
+import { getDescriptor as aiBindingsGet, updateDescriptor as aiBindingsUpdate } from '@/app/api/config/ai/bindings/route';
+import { descriptor as aiBindingActivate } from '@/app/api/config/ai/bindings/[id]/activate/route';
+import { deleteDescriptor as aiBindingDelete } from '@/app/api/config/ai/bindings/[id]/route';
+import { getDescriptor as aiScenariosGet, createDescriptor as aiScenarioCreate } from '@/app/api/config/ai/scenarios/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -359,6 +366,20 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpEnabled: false,
     permissionCode: CONFIG_EDIT,
   },
+  // ---- AI 供应商管理 ----
+  { ...aiProvidersGet, apiPath: '/api/config/ai/providers', mcpEnabled: false },
+  { ...aiProvidersCreate, apiPath: '/api/config/ai/providers', mcpEnabled: false },
+  { ...aiProviderUpdate, apiPath: '/api/config/ai/providers/[id]', mcpEnabled: false },
+  { ...aiProviderDelete, apiPath: '/api/config/ai/providers/[id]', mcpEnabled: false },
+  { ...aiProviderFetchModels, apiPath: '/api/config/ai/providers/[id]/fetch-models', mcpEnabled: false },
+  // ---- AI 场景绑定 ----
+  { ...aiBindingsGet, apiPath: '/api/config/ai/bindings', mcpEnabled: false },
+  { ...aiBindingsUpdate, apiPath: '/api/config/ai/bindings', mcpEnabled: false },
+  { ...aiBindingActivate, apiPath: '/api/config/ai/bindings/[id]/activate', mcpEnabled: false },
+  { ...aiBindingDelete, apiPath: '/api/config/ai/bindings/[id]', mcpEnabled: false },
+  // ---- AI 场景管理 ----
+  { ...aiScenariosGet, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
+  { ...aiScenarioCreate, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
 ];
 
 // ============ 运行时查询 ============

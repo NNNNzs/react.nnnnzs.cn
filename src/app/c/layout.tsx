@@ -199,7 +199,6 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       const pathPermissions: Array<[string, RoutePermission]> = [
         ['/c/ai-lab/runs', CHAT_LOG_VIEW],
         ['/c/ai-lab/retrieval-playground', VECTOR_VIEW],
-        ['/c/ai-lab/config', CONFIG_VIEW],
         ['/c/ai-lab/image-gen', IMAGE_VIEW],
         ['/c/ai-lab/tts', TTS_VIEW],
         ['/c/ai-lab/eval-cases', [CHAT_LOG_VIEW, VECTOR_VIEW]],
@@ -259,7 +258,6 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/ai-lab',
       '/c/ai-lab/runs',
       '/c/ai-lab/retrieval-playground',
-      '/c/ai-lab/config',
       '/c/ai-lab/image-gen',
       '/c/ai-lab/tts',
       '/c/ai-lab/eval-cases',

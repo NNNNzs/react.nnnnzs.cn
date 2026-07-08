@@ -4,13 +4,13 @@
 > **创建时间**：2026-07-04
 > **最近更新**：2026-07-04
 > **合集**：大模型学习
-> **长期设计**：[AI Lab / LLM 学习实验台设计](../designs/ai-lab.md)
+> **长期设计**：[AI Lab / LLM 学习实验台设计](../designs/ai/ai-lab.md)
 
 ---
 
 ## 一、问题分析
 
-当前站点已经具备 LangGraph ReAct Agent、RAG 检索、Qdrant 向量库、聊天记录持久化、工具耗时 metadata、AI 配置组切换等能力，但这些能力仍主要服务于“能聊天”和“能排障”。
+当前站点已经具备 LangGraph ReAct Agent、RAG 检索、Qdrant 向量库、聊天记录持久化、工具耗时 metadata、AI Provider 场景绑定等能力，但这些能力仍主要服务于“能聊天”和“能排障”。
 
 下一阶段的学习价值不在继续堆一个新的聊天框，而在把真实博客内容、真实用户问题、真实工具调用、真实部署环境沉淀成一个可观测、可评测、可复盘的 LLM 学习实验系统。
 
@@ -21,7 +21,7 @@
 - `tb_chat_message.metadata` 已经保存 `thoughts`、`reactLoops`、`reactTimeline`、`toolName`、`durationMs` 等运行过程。
 - `/c/chat-logs` 已经能查看历史对话。
 - `/c/vector-search` 已经有向量检索运维入口。
-- `/c/config` 已经支持按 `chat`、`embedding`、`image_gen` 等场景切换 AI 配置组。
+- `/c/config` 已经支持按 `chat`、`embedding`、`image_gen` 等场景配置 AI Provider 绑定。
 
 主要缺口：
 
@@ -78,7 +78,7 @@ flowchart TB
 | 评测集 | `/c/ai-lab/eval-cases` | Golden Dataset、失败样本沉淀 | 手工维护 + 从聊天记录转入 |
 | 评测运行 | `/c/ai-lab/eval-runs` | Hit@K、MRR、Recall、延迟趋势 | 同一批 case 批量跑配置 |
 | Prompt 实验 | `/c/ai-lab/prompts` | prompt diff、replay、rollback | 先登记版本和当前模板快照 |
-| AI 配置组 | `/c/ai-lab/config` | 多场景模型 profile、fallback、运行配置 | 复用现有 AI 配置组页面，保留 `/c/config` 单项配置入口 |
+| AI 配置管理 | `/c/config` | AI 供应商、场景绑定、单项配置 | 统一承载 Provider + Binding + Config 三类配置 |
 | 生成实验 | `/c/ai-lab/image-gen`、`/c/ai-lab/tts` | 多模态生成、TTS、实验资产 | 先迁移入口，后续纳入 Run 和 Eval |
 | LangSmith | 配置与外链 | trace、dataset、online/offline eval | 先写 trace id / run url 字段，后续接入 |
 
@@ -87,7 +87,7 @@ flowchart TB
 ### 阶段 0：文档和边界确认
 
 1. [x] 新增计划文档 `docs/plans/ai-lab-llm-learning.md`。
-2. [x] 新增长期设计文档 `docs/designs/ai-lab.md`。
+2. [x] 新增长期设计文档 `docs/designs/ai/ai-lab.md`。
 3. [x] 更新 `docs/plans/README.md`、`docs/designs/README.md`、`CLAUDE.md` 索引。
 4. [x] 根据设计文档确认第一阶段只做 AI Lab MVP，不引入复杂 rerank / hybrid / 多模态。
 
@@ -233,7 +233,7 @@ flowchart TB
 |------------|-------------|
 | 文章管理、评论管理、合集管理 | `/c/ai-lab/runs`：Run 观测 |
 | 队列监控 | `/c/ai-lab/retrieval-playground`：原向量检索能力 |
-| `/c/config` 单项配置 | `/c/ai-lab/config`：AI 配置组入口 |
+| `/c/config` 单项配置 | `/c/config`：AI 配置管理入口 |
 | 用户、角色、权限、接口管理 | `/c/ai-lab/image-gen`：AI 图片生成 |
 | 模型检查台（Three.js / 3D 方向） | `/c/ai-lab/tts`：语音合成 |
 | 个人中心 | `/c/ai-lab/eval-cases`、`/eval-runs`、`/prompts`：规划入口 |
@@ -246,7 +246,7 @@ flowchart TB
 | 评测调用成本高 | 批量 replay 消耗 token | 默认小批量、手动触发、显示预估 case 数和模型 |
 | LangSmith 网络不稳定 | 国内访问和外部服务依赖可能影响主流程 | LangSmith 只做可选增强，本地 Run 记录必须完整 |
 | 指标被误用 | Hit@K 好不代表答案好 | UI 同时展示召回、延迟、人工反馈和样例，不只看总分 |
-| Prompt Replay 影响线上配置 | 实验配置误切到生产 | Eval 使用显式配置快照，不自动修改 `/c/config` active profile |
+| Prompt Replay 影响线上配置 | 实验配置误切到生产 | Eval 使用显式配置快照，不自动修改 `/c/config` active binding |
 | 检索实验暴露隐藏文章 | 数据安全风险 | 所有检索默认沿用 `hide='0'` 和现有权限过滤 |
 
 ## 八、验证清单
