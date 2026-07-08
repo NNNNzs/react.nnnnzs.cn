@@ -1,5 +1,19 @@
-#!/usr/bin/env node
-import { PrismaClient } from '../../../../src/generated/prisma-client/index.js';
+#!/usr/bin/env tsx
+
+/**
+ * Prisma 7.x Query Helper for Claude Code Skills
+ * Usage:
+ *   npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "prisma.tbPost.findMany({ take: 5 })"
+ *   npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --raw "SELECT COUNT(*) AS count FROM tb_post"
+ */
+
+import { config } from 'dotenv';
+import { resolve } from 'path';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { PrismaClient } from '../../../../src/generated/prisma-client/client';
+
+// 加载项目根目录的 .env 文件
+config({ path: resolve(process.cwd(), '.env') });
 
 const WRITE_PATTERNS = [
   /\bcreate(?:Many)?\s*\(/,
@@ -10,10 +24,10 @@ const WRITE_PATTERNS = [
   /\$queryRawUnsafe\s*\(/,
 ];
 
-function printUsage() {
+function printUsage(): void {
   console.error(`Usage:
-  node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbPost.findMany({ take: 5 })"
-  node .claude/skills/project-prisma-client/scripts/prisma-query.mjs --raw "SELECT COUNT(*) AS count FROM tb_post"
+  npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "prisma.tbPost.findMany({ take: 5 })"
+  npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --raw "SELECT COUNT(*) AS count FROM tb_post"
 
 Notes:
   - The first argument is a JavaScript expression.
@@ -22,11 +36,17 @@ Notes:
   - Write/delete/migration operations require separate explicit confirmation.`);
 }
 
-function parseArgs(argv) {
+interface ParseResult {
+  help?: boolean;
+  raw: boolean;
+  query: string;
+}
+
+function parseArgs(argv: string[]): ParseResult {
   const args = argv.slice(2);
 
   if (args.includes('--help') || args.includes('-h')) {
-    return { help: true };
+    return { help: true, raw: false, query: '' };
   }
 
   const rawIndex = args.indexOf('--raw');
@@ -43,7 +63,7 @@ function parseArgs(argv) {
   };
 }
 
-function assertReadOnly(query) {
+function assertReadOnly(query: string): void {
   for (const pattern of WRITE_PATTERNS) {
     if (pattern.test(query)) {
       throw new Error('Blocked non-read Prisma operation. Show the planned write/delete/migration and ask the user for explicit confirmation first.');
@@ -51,7 +71,7 @@ function assertReadOnly(query) {
   }
 }
 
-function sanitize(value) {
+function sanitize(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sanitize);
   }
@@ -60,11 +80,15 @@ function sanitize(value) {
     return value.toISOString();
   }
 
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
   if (!value || typeof value !== 'object') {
     return value;
   }
 
-  const result = {};
+  const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
     const lowerKey = key.toLowerCase();
     if (
@@ -82,7 +106,15 @@ function sanitize(value) {
   return result;
 }
 
-async function main() {
+function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error('DATABASE_URL 未配置，无法初始化 Prisma Client');
+  }
+  return url;
+}
+
+async function main(): Promise<void> {
   const options = parseArgs(process.argv);
 
   if (options.help || !options.query) {
@@ -92,10 +124,15 @@ async function main() {
 
   assertReadOnly(options.query);
 
-  const prisma = new PrismaClient({ log: ['error', 'warn'] });
+  // 使用项目相同的 adapter 初始化方式
+  const adapter = new PrismaMariaDb(getDatabaseUrl());
+  const prisma = new PrismaClient({
+    adapter,
+    log: ['error', 'warn'],
+  });
 
   try {
-    let data;
+    let data: unknown;
 
     if (options.raw) {
       data = await prisma.$queryRawUnsafe(options.query);
@@ -110,7 +147,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

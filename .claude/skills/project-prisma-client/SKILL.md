@@ -10,13 +10,13 @@ Use this skill to work with this project's database through the generated Prisma
 For read-only queries, use the Node.js helper instead of writing temporary scripts:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbUser.count()"
+npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "prisma.tbUser.count()"
 ```
 
 For read-only SQL that Prisma Client cannot express cleanly:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs --raw "SELECT COUNT(*) AS count FROM tb_user"
+npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --raw "SELECT COUNT(*) AS count FROM tb_user"
 ```
 
 The helper accepts a JavaScript expression with `prisma` in scope, prints sanitized JSON, and disconnects automatically.
@@ -48,13 +48,13 @@ The helper accepts a JavaScript expression with `prisma` in scope, prints saniti
 Recent visible posts:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "prisma.tbPost.findMany({ where: { is_delete: 0, hide: '0' }, select: { id: true, title: true, path: true, updated: true }, orderBy: { updated: 'desc' }, take: 5 })"
+npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "prisma.tbPost.findMany({ where: { is_delete: 0, hide: '0' }, select: { id: true, title: true, path: true, updated: true }, orderBy: { updated: 'desc' }, take: 5 })"
 ```
 
 Core counts:
 
 ```bash
-node .claude/skills/project-prisma-client/scripts/prisma-query.mjs "Promise.all([prisma.tbPost.count(), prisma.tbUser.count(), prisma.tbCollection.count()]).then(([posts, users, collections]) => ({ posts, users, collections }))"
+npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "Promise.all([prisma.tbPost.count(), prisma.tbUser.count(), prisma.tbCollection.count()]).then(([posts, users, collections]) => ({ posts, users, collections }))"
 ```
 
 ## Model names
