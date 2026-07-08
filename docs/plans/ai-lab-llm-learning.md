@@ -127,11 +127,14 @@ flowchart TB
 
 ### 阶段 4：Prompt 版本和 Replay
 
-1. [ ] 为当前 `docs/reference/chat-agent-system-prompt.md` 建立 prompt 版本快照。
-2. [ ] 记录每次 Run 使用的 `promptVersion`。
-3. [ ] 支持从 eval case 批量 replay 当前 prompt。
-4. [ ] 支持 prompt diff 和启用/回滚记录。
-5. [ ] 支持 day/night 风格分别评测，避免夜间表达增强影响事实约束。
+1. [x] 新增系统级 `TbAiTemplate` / `TbAiTemplateVersion`，承载 Prompt / Skill 模板和版本正文。
+2. [x] `/c/ai-lab/prompts` 从规划占位改为真实管理页，使用 AntD `Mentions` 支持 `@` 引用模板。
+3. [x] 模板变量统一使用 LangChain `mustache`：`{{变量}}`。
+4. [x] 新增 Prompt Skill 工具：`list_prompt_skills` 返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
+5. [x] 支持从旧 `content_templates` 导入首批系统模板。
+6. [ ] 记录每次 Run 使用的 `promptVersion` 和实际加载过的 skill 版本。
+7. [ ] 支持从 eval case 批量 replay 当前 prompt。
+8. [ ] 支持 day/night 风格分别评测，避免夜间表达增强影响事实约束。
 
 ### 阶段 5：LangSmith 接入
 

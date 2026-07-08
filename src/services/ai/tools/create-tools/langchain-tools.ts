@@ -17,6 +17,8 @@ import type { AuthUser } from '@/types/auth';
 import type { Prisma } from '@/generated/prisma-client/client';
 import {
   readPromptTemplateTool,
+  listPromptSkillsTool,
+  loadPromptSkillTemplateTool,
   createGetDraftTool,
   getPostContentTool,
 } from './index';
@@ -48,6 +50,8 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   const { draftId, userId, emitPatch } = params;
 
   const readPromptTemplate = wrapReadPromptTemplate();
+  const listPromptSkills = wrapListPromptSkills();
+  const loadPromptSkillTemplate = wrapLoadPromptSkillTemplate();
   const getDraft = wrapGetDraft(draftId);
   const searchPosts = wrapSearchPosts();
   const getPostContent = wrapGetPostContent();
@@ -56,6 +60,8 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   const emitDraftPatch = wrapEmitDraftPatch(emitPatch, userId, draftId);
 
   return [
+    listPromptSkills,
+    loadPromptSkillTemplate,
     readPromptTemplate,
     getDraft,
     searchPosts,
@@ -68,6 +74,49 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
 
 /* ---------- 包装函数 ---------- */
 
+function wrapListPromptSkills(): StructuredTool {
+  return tool(
+    async ({ query, type }) => {
+      const result = await listPromptSkillsTool.execute({ query, type });
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'list_prompt_skills',
+      description:
+        '列出可按需加载的 Prompt / Skill 模板 metadata。只返回摘要，不返回完整正文。需要确认有哪些风格指南、写作指南、提示词模板可用时先用它。',
+      schema: z.object({
+        query: z.string().optional().describe('模板名称、slug、描述关键词'),
+        type: z
+          .enum(['prompt', 'skill', 'style', 'context', 'tool_instruction', 'schema', 'checklist'])
+          .optional()
+          .describe('模板类型筛选'),
+      }),
+    },
+  );
+}
+
+function wrapLoadPromptSkillTemplate(): StructuredTool {
+  return tool(
+    async ({ slug, version, variables }) => {
+      const result = await loadPromptSkillTemplateTool.execute({ slug, version, variables });
+      return JSON.stringify(result.success ? result.data : { error: result.error });
+    },
+    {
+      name: 'load_prompt_skill_template',
+      description:
+        '按 slug 加载 Prompt / Skill 模板完整正文。只有确实需要完整指南、方法论或模板内容时才调用；例如 slug=xhs-style-guide 可加载小红书风格指南原文。',
+      schema: z.object({
+        slug: z.string().min(1).describe('模板 slug，如 xhs-style-guide'),
+        version: z.number().int().positive().optional().describe('指定版本号；不传读取当前激活版本'),
+        variables: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('可选 LangChain mustache 渲染变量对象'),
+      }),
+    },
+  );
+}
+
 function wrapReadPromptTemplate(): StructuredTool {
   return tool(
     async ({ scenario, name }) => {
@@ -77,7 +126,7 @@ function wrapReadPromptTemplate(): StructuredTool {
     {
       name: 'read_prompt_template',
       description:
-        '读取内容模板库中的提示词正文。需要按某套方法论（如博客转小红书图文 blog_to_xhs_note、转短视频脚本 blog_to_short_video）产出内容时先读对应模板。',
+        '兼容旧工具：按旧 scenario 读取提示词正文。新任务优先使用 list_prompt_skills 和 load_prompt_skill_template。',
       schema: z.object({
         scenario: z
           .string()

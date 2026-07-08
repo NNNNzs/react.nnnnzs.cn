@@ -10,6 +10,10 @@ import { searchArticlesTool as _searchArticlesTool } from './search-articles';
 import { searchPostsMetaTool as _searchPostsMetaTool } from './search-posts-meta';
 import { searchCollectionTool as _searchCollectionTool } from './search-collection';
 import { githubSearchTool as _githubSearchTool } from './github-search';
+import {
+  listPromptSkillsTool,
+  loadPromptSkillTemplateTool,
+} from './create-tools';
 
 /**
  * RAG 检索工具
@@ -144,6 +148,47 @@ export const lcGithubSearchTool = tool(
   },
 );
 
+export const lcListPromptSkillsTool = tool(
+  async ({ query, type }) => {
+    const result = await listPromptSkillsTool.execute({ query, type });
+    if (!result.success) return JSON.stringify({ error: result.error });
+    return JSON.stringify(result.data);
+  },
+  {
+    name: 'list_prompt_skills',
+    description:
+      '列出可按需加载的 Prompt / Skill 模板 metadata。只返回摘要，不返回完整正文。需要确认有哪些风格指南、写作指南、提示词模板可用时先用它。',
+    schema: z.object({
+      query: z.string().optional().describe('模板名称、slug、描述关键词'),
+      type: z
+        .enum(['prompt', 'skill', 'style', 'context', 'tool_instruction', 'schema', 'checklist'])
+        .optional()
+        .describe('模板类型筛选'),
+    }),
+  },
+);
+
+export const lcLoadPromptSkillTemplateTool = tool(
+  async ({ slug, version, variables }) => {
+    const result = await loadPromptSkillTemplateTool.execute({ slug, version, variables });
+    if (!result.success) return JSON.stringify({ error: result.error });
+    return JSON.stringify(result.data);
+  },
+  {
+    name: 'load_prompt_skill_template',
+    description:
+      '按 slug 加载 Prompt / Skill 模板完整正文。只有确实需要完整指南、方法论或模板内容时才调用。',
+    schema: z.object({
+      slug: z.string().min(1).describe('模板 slug，如 xhs-style-guide'),
+      version: z.number().int().positive().optional().describe('指定版本号；不传读取当前激活版本'),
+      variables: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('可选 LangChain mustache 渲染变量对象'),
+    }),
+  },
+);
+
 /**
  * 所有 LangChain 工具集合
  */
@@ -152,4 +197,6 @@ export const chatTools = [
   lcSearchPostsMetaTool,
   lcSearchCollectionTool,
   lcGithubSearchTool,
+  lcListPromptSkillsTool,
+  lcLoadPromptSkillTemplateTool,
 ];

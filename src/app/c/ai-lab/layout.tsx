@@ -81,7 +81,6 @@ const AI_LAB_NAV_ITEMS: AiLabNavItem[] = [
     label: "Prompts",
     permissions: [CONFIG_VIEW],
     icon: <ProfileOutlined />,
-    phase: "规划",
   },
 ];
 

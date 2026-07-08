@@ -111,14 +111,38 @@ sequenceDiagram
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`，点「AI 助手」按钮
 
-## 六、后置规划
+## 六、常见问答
+
+### 6.1 AI 助手生成后，后台在哪里保存？
+
+保存入口在草稿详情页顶部操作区的「保存」按钮，和「返回」「AI 助手」「删除」同一行。
+
+AI 助手调用 `emit_draft_patch` 后，只是把标题、正文、标签等内容回填到前端表单 state。此时刷新页面仍可能丢失这些文本改动，必须点击页面顶部「保存」按钮，才会通过 `PATCH /api/create/drafts/[id]` 写入数据库。
+
+图片资源是例外：文生图成功后会先通过 `/images` 关联资产，因此图片 attach 属于资产级即时落库；但正文、标题、hook、标签、状态仍以草稿「保存」为准。
+
+### 6.2 看到 `✓ load_prompt_skill_template`、`✓ search_posts`、`✓ emit_draft_patch` 代表成功了吗？
+
+代表对应 LangChain Tool 已完成调用，基本可以判断 Agent 的工具链路跑通了。
+
+- `load_prompt_skill_template` 成功：Agent 已按 slug 加载完整 Prompt / Skill 模板正文，例如小红书风格指南。
+- `search_posts` 成功：Agent 已执行博客素材检索；即使结果为空，也说明工具调用本身完成。
+- `emit_draft_patch` 成功：Agent 已把结构化草稿建议通过 SSE `draft_patch` 发给前端，前端应合并进表单。
+
+但 `emit_draft_patch` 成功不等于草稿已保存到数据库。最终落库信号仍是用户点击「保存」后，草稿详情页保存请求成功。
+
+### 6.3 工具调用结果里出现 `ToolMessage` JSON 正常吗？
+
+正常。当前前端会展示 LangChain 工具返回对象的截断文本，所以可能看到 `{"lc":1,"type":"constructor","id":["langchain_core","messages","ToolMessage"]...` 这类内容。它表示底层返回的是 LangChain 消息对象，并不代表失败；真正需要关注的是工具标签是否从调用中变成 `✓`，以及表单是否收到回填内容。
+
+## 七、后置规划
 
 - **会话持久化**：`content_agent_sessions` + `content_agent_messages` 表
 - **TTS 旁白工具**：复用 `synthesize_speech` 异步任务
 - **chat-agent 迁移 SSE**：复用 `src/lib/sse.ts`
 - **content 抽取逻辑复用**：提取 chat-agent 的 `extractTextContent` 等到共享模块
 
-## 七、关联计划
+## 八、关联计划
 
 - [草稿库创作 Agent 助手计划](../../plans/create-agent.md) - 实施计划
 - [内容创作中台建设](../../plans/content-creation-platform.md) - 所属中台

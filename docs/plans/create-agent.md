@@ -49,8 +49,9 @@
 1. `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
-4. 场景：文案建议、patch 填表单（不保存刷新可逆）、保存落库、文生图全链路、博客检索、断流停止
-5. `pnpm typecheck` / `pnpm lint` 通过
+4. 场景：文案建议、patch 填表单（不保存刷新可逆）、顶部「保存」按钮落库、文生图全链路、博客检索、断流停止
+5. 工具调用验收：`load_prompt_skill_template` 能按 slug 读取完整 Skill，`search_posts` 能返回检索结果或空结果，`emit_draft_patch` 成功后只代表表单已回填，不代表数据库已保存
+6. `pnpm typecheck` / `pnpm lint` 通过
 
 ## 五、非目标 / 后置
 

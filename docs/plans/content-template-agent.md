@@ -288,7 +288,7 @@ interface CreatorContext {
 
 ### 阶段 3：模板驱动草稿生成
 
-1. [ ] 增加模板读取和变量渲染 helper。
+1. [x] 模板读取和变量渲染 helper 已升级为系统级 `src/services/ai-template`，统一使用 LangChain `mustache`。
 2. [ ] 增加博客文章到图文草稿生成接口。
 3. [ ] 增加博客文章到短视频脚本生成接口。
 4. [ ] 输出 JSON 使用 zod schema 校验。
@@ -297,7 +297,7 @@ interface CreatorContext {
 
 ### 阶段 4：CreatorSoul 与上下文包
 
-1. [ ] 先用 `content_templates.type=context` 保存账号定位、读者画像、表达风格和禁区。
+1. [x] 账号定位、读者画像、表达风格和禁区迁移到 AI Lab 系统级 Prompt / Skill Template，不再绑定内容中台专属 `content_templates`。
 2. [ ] 增加 `CreatorContext Builder`，聚合文章、选题、草稿、模板上下文。
 3. [ ] 支持按合集、标签、近期时间窗口构建上下文。
 4. [ ] 在生成快照中保存上下文摘要。

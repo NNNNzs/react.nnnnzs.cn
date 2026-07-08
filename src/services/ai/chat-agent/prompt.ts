@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { PromptTemplate } from '@langchain/core/prompts';
 import { getAllCollectionsSummary } from '@/services/collection';
 import { getPublicPostCount } from '@/services/post';
 import { getAllTags } from '@/services/tag';
@@ -8,6 +7,11 @@ import { chatStyleVoiceCopy } from '@/config/site-copy/chat';
 import { selectStyleText } from '@/lib/site-style/copy';
 import { parseSiteStyleVariant } from '@/lib/site-style/variant';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
+import {
+  compilePromptTemplate,
+  createMustachePromptTemplate,
+  loadPromptSkillTemplate,
+} from '@/services/ai-template';
 
 const CHAT_AGENT_PROMPT_PATH = path.join(
   process.cwd(),
@@ -15,6 +19,11 @@ const CHAT_AGENT_PROMPT_PATH = path.join(
   'reference',
   'chat-agent-system-prompt.md',
 );
+
+const CHAT_AGENT_TEMPLATE_SLUGS: Record<SiteStyleVariant, string> = {
+  day: 'chat-agent-day',
+  night: 'chat-agent-night',
+};
 
 export interface ChatAgentPromptParams {
   userInfo: string;
@@ -33,9 +42,31 @@ type PromptContext = {
 const PROMPT_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
 let promptContextCache: { value: PromptContext; expiresAt: number } | null = null;
 
-async function loadPromptTemplate(): Promise<PromptTemplate> {
+function convertLegacyFStringToMustache(template: string) {
+  return template
+    .replaceAll('{siteName}', '{{siteName}}')
+    .replaceAll('{baseUrl}', '{{baseUrl}}')
+    .replaceAll('{currentTime}', '{{currentTime}}')
+    .replaceAll('{userInfo}', '{{userInfo}}')
+    .replaceAll('{styleVoiceInstruction}', '{{styleVoiceInstruction}}')
+    .replaceAll('{knowledgeBaseSummary}', '{{knowledgeBaseSummary}}')
+    .replaceAll('{collectionsSummary}', '{{collectionsSummary}}');
+}
+
+async function loadPromptTemplate(styleVariant: SiteStyleVariant) {
+  try {
+    const template = await loadPromptSkillTemplate({
+      slug: CHAT_AGENT_TEMPLATE_SLUGS[styleVariant],
+    });
+    if (template.version.content.trim()) {
+      return template.version.content;
+    }
+  } catch (error) {
+    console.warn(`[chat-agent] 加载 ${CHAT_AGENT_TEMPLATE_SLUGS[styleVariant]} 模板失败，回退到文件模板:`, error);
+  }
+
   const template = await readFile(CHAT_AGENT_PROMPT_PATH, 'utf8');
-  return PromptTemplate.fromTemplate(template);
+  return convertLegacyFStringToMustache(template);
 }
 
 async function getPromptContext(): Promise<PromptContext> {
@@ -99,12 +130,13 @@ function formatCollectionsSummary(
 export async function buildChatAgentSystemPrompt(
   params: ChatAgentPromptParams,
 ): Promise<string> {
-  const [template, context] = await Promise.all([
-    loadPromptTemplate(),
+  const styleVariant = parseSiteStyleVariant(params.styleVariant);
+  const [rawTemplate, context] = await Promise.all([
+    loadPromptTemplate(styleVariant),
     getPromptContext(),
   ]);
-
-  const styleVariant = parseSiteStyleVariant(params.styleVariant);
+  const compiled = await compilePromptTemplate(rawTemplate);
+  const template = createMustachePromptTemplate(compiled.content);
 
   return template.format({
     siteName: params.siteName,

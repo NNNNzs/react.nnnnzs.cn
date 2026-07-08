@@ -98,6 +98,55 @@ model TbAiJob {
   @@map("tb_ai_job")
 }
 
+// 系统级 AI Prompt / Skill 模板主表
+// 保存模板身份、别名、当前激活版本和摘要 metadata；正文进入版本表。
+model TbAiTemplate {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique @db.VarChar(120)                 // 稳定引用键，如 xhs-style-guide
+  key             String?  @unique @db.VarChar(120)                 // 兼容系统内部 key，如 xhs.blog_to_note
+  name            String   @db.VarChar(200)
+  type            String   @default("prompt") @db.VarChar(40)       // prompt / skill / style / context / tool_instruction / schema / checklist
+  scope           String   @default("system") @db.VarChar(40)       // system / content / chat / create_agent
+  description     String?  @db.Text
+  aliases         Json?                                            // string[]，支持 @中文别名 解析
+  metadata_json   Json?
+  current_version Int      @default(1)
+  status          String   @default("ACTIVE") @db.VarChar(30)       // ACTIVE / DRAFT / ARCHIVED
+  created_by      Int?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  versions TbAiTemplateVersion[]
+
+  @@index([type, status], name: "idx_ai_template_type_status")
+  @@index([scope, status], name: "idx_ai_template_scope_status")
+  @@index([updated_at], name: "idx_ai_template_updated_at")
+  @@map("tb_ai_template")
+}
+
+// 系统级 AI Prompt / Skill 模板版本表
+// 模板正文统一按 LangChain mustache 解析，即 {{变量}}。
+model TbAiTemplateVersion {
+  id            Int      @id @default(autoincrement())
+  template_id   Int
+  version       Int
+  content       String   @db.LongText
+  checksum      String?  @db.VarChar(80)
+  metadata_json Json?
+  change_note   String?  @db.Text
+  status        String   @default("ACTIVE") @db.VarChar(30)       // ACTIVE / DRAFT / ARCHIVED
+  created_by    Int?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  template TbAiTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, version], name: "uniq_ai_template_version")
+  @@index([template_id, status], name: "idx_ai_template_version_status")
+  @@index([created_at], name: "idx_ai_template_version_created")
+  @@map("tb_ai_template_version")
+}
+
 // 图片生成旧日志表
 // 仅用于保留历史数据和后续迁移，新增日志写入 tb_ai_job。
 model TbImageGenLogLegacy {

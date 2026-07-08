@@ -10,8 +10,120 @@ import {
   getContentDraft,
   type DraftImageItem,
 } from '@/services/content-creation';
+import {
+  listAiTemplates,
+  loadPromptSkillTemplate,
+} from '@/services/ai-template';
 import { getPostById } from '@/services/post';
 import type { Tool, ToolResult } from '../index';
+
+const LEGACY_SCENARIO_TO_SLUG: Record<string, string> = {
+  blog_to_xhs_note: 'xhs-blog-to-note',
+  blog_to_short_video: 'xhs-blog-to-short-video',
+  tts: 'xhs-mimo-tts-style',
+  content_agent: 'agent-create-agent-system',
+};
+
+export const listPromptSkillsTool: Tool = {
+  name: 'list_prompt_skills',
+  description:
+    '列出可按需加载的 Prompt / Skill 模板 metadata。只返回摘要，不返回完整正文，用于决定是否需要进一步读取。',
+  parameters: {
+    query: {
+      type: 'string',
+      description: '模板名称、slug、描述关键词',
+      required: false,
+    },
+    type: {
+      type: 'string',
+      description: '模板类型：prompt / skill / style / context / tool_instruction / schema / checklist',
+      required: false,
+    },
+  },
+  async execute(args): Promise<ToolResult> {
+    try {
+      const { record } = await listAiTemplates({
+        query: (args.query as string) || undefined,
+        type: (args.type as string) || undefined,
+        status: 'ACTIVE',
+        pageNum: 1,
+        pageSize: 20,
+      });
+
+      return {
+        success: true,
+        data: {
+          templates: record.map((item) => ({
+            slug: item.slug,
+            key: item.key,
+            name: item.name,
+            type: item.type,
+            scope: item.scope,
+            description: item.description,
+            aliases: item.aliases,
+            currentVersion: item.current_version,
+            metadata: item.metadata_json,
+            loadTool: 'load_prompt_skill_template',
+          })),
+          message: `找到 ${record.length} 个可用模板`,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '查询 Prompt Skill 失败',
+      };
+    }
+  },
+};
+
+export const loadPromptSkillTemplateTool: Tool = {
+  name: 'load_prompt_skill_template',
+  description:
+    '按 slug 加载 Prompt / Skill 模板完整正文。只有确实需要完整指南、方法论或模板内容时才调用。',
+  parameters: {
+    slug: {
+      type: 'string',
+      description: '模板 slug，如 xhs-style-guide',
+      required: true,
+    },
+    version: {
+      type: 'number',
+      description: '指定版本号；不传则读取当前激活版本',
+      required: false,
+    },
+    variables: {
+      type: 'object',
+      description: '可选的 LangChain mustache 渲染变量对象',
+      required: false,
+    },
+  },
+  async execute(args): Promise<ToolResult> {
+    try {
+      const slug = String(args.slug || '').trim();
+      if (!slug) return { success: false, error: 'slug 不能为空' };
+
+      const variables = args.variables && typeof args.variables === 'object' && !Array.isArray(args.variables)
+        ? args.variables as Record<string, unknown>
+        : undefined;
+      const data = await loadPromptSkillTemplate({
+        slug,
+        version: typeof args.version === 'number' ? args.version : undefined,
+        variables,
+      });
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '加载 Prompt Skill 失败',
+      };
+    }
+  },
+};
 
 /** 读取指定 scenario 的提示词模板正文 */
 export const readPromptTemplateTool: Tool = {
@@ -35,6 +147,28 @@ export const readPromptTemplateTool: Tool = {
     try {
       const scenario = (args.scenario as string) || undefined;
       const query = (args.name as string) || undefined;
+      const slug = scenario ? LEGACY_SCENARIO_TO_SLUG[scenario] : undefined;
+
+      if (slug) {
+        const data = await loadPromptSkillTemplate({ slug });
+        return {
+          success: true,
+          data: {
+            templates: [{
+              id: data.template.id,
+              name: data.template.name,
+              scenario,
+              type: data.template.type,
+              content: data.version.content,
+              variables: data.version.metadata_json,
+              outputSchema: data.template.metadata_json,
+              slug: data.template.slug,
+              version: data.version.version,
+            }],
+            message: '找到 1 个模板',
+          },
+        };
+      }
 
       const { record } = await listContentTemplates({
         scenario,
