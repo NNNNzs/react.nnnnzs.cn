@@ -135,7 +135,7 @@ docker-compose -f docker-compose.local.yml up -d
 
 ```bash
 # 使用部署脚本（推荐）
-./scripts/deploy.sh deploy
+./scripts/deploy/deploy.sh deploy
 
 # 或使用 docker-compose
 docker-compose -f docker-compose.prod.yml up -d

@@ -215,7 +215,7 @@ DockerHub 用户名: $DOCKERHUB_USERNAME
      export DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
      
      # 运行部署脚本
-     ./scripts/deploy.sh deploy
+     ./scripts/deploy/deploy.sh deploy
 
 更多信息请查看: docs/DOCKER_DEPLOYMENT.md
 

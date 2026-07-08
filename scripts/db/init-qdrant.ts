@@ -7,7 +7,7 @@
  */
 
 // 使用相对路径导入
-import { initQdrantCollection } from '../src/lib/qdrant';
+import { initQdrantCollection } from '../../src/lib/qdrant';
 
 async function main() {
   console.log('🚀 开始初始化 Qdrant 集合...\n');

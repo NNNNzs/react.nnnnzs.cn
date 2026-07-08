@@ -1,7 +1,7 @@
 /**
  * 一次性迁移脚本：把旧 tbConfig 中的 AI profile JSON 迁移到新的 provider + binding 表
  *
- * 用法: pnpm tsx scripts/migrate-ai-config-to-provider.ts
+ * 用法: pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
  *
  * 逻辑:
  * 1. 读取 tbConfig 中 ai.profile_groups / ai.active_profiles 两个 JSON key
@@ -14,7 +14,7 @@
 
 import 'dotenv/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { PrismaClient } from '../src/generated/prisma-client/client';
+import { PrismaClient } from '../../src/generated/prisma-client/client';
 
 function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;

@@ -99,7 +99,7 @@ model TbAiScenario {
 
 ## 4. 迁移脚本
 
-一次性 Node 脚本 `scripts/migrate-ai-config-to-provider.ts`,逻辑:
+一次性 Node 脚本 `scripts/db/migrate-ai-config-to-provider.ts`,逻辑:
 
 1. 读 `tbConfig` 的 `ai.profile_groups` JSON。
 2. 按 scenario 遍历,对每条 profile:
@@ -111,7 +111,7 @@ model TbAiScenario {
 
 执行方式(手动):
 ```bash
-pnpm tsx scripts/migrate-ai-config-to-provider.ts
+pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 ```
 
 幂等设计:脚本先按 `base_url` 判存,可重复执行。

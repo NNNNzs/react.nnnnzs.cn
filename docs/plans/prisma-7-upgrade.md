@@ -55,8 +55,8 @@ Prisma 7 的主要变化包括：
 - `src/app/api/post/[id]/route.ts`
 - `prisma/seed-rbac.ts`
 - `prisma/migrate-user-roles.ts`
-- `scripts/*.ts`
-- `scripts/test-mcp-client.mjs`
+- `scripts/db/*.ts`
+- `scripts/debug/test-mcp-client.mjs`
 
 ### Docker 构建
 

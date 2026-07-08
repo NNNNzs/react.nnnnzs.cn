@@ -72,7 +72,7 @@ echo ""
 # 检查本地镜像是否存在
 if ! docker images | grep -q "${IMAGE_NAME}.*${TAG}"; then
   echo -e "${YELLOW}警告: 本地镜像 ${IMAGE_NAME}:${TAG} 不存在${NC}"
-  echo -e "${YELLOW}请先运行构建脚本: ./scripts/build-docker.sh -t ${TAG}${NC}"
+  echo -e "${YELLOW}请先运行构建脚本: ./scripts/deploy/build-docker.sh -t ${TAG}${NC}"
   exit 1
 fi
 

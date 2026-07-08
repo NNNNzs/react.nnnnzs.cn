@@ -212,7 +212,7 @@ MCP handler 只对有 `handler` 函数的接口生效，当前已实现的 handl
 | `post_get` | `get_article` | 获取文章 |
 | `post_list` | `list_articles` | 文章列表 |
 
-新增 MCP handler 时，需要同步更新 `scripts/sync-api-registry.ts` 中的 `handlerCodes` 列表。
+新增 MCP handler 时，需要同步更新 `scripts/db/sync-api-registry.ts` 中的 `handlerCodes` 列表。
 
 ### 代码 vs 数据库的分工
 

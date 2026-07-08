@@ -8,7 +8,7 @@ AI 模型配置已经从“环境变量 / `tb_config` 散 key”迁移为 Provid
 
 - `/c/config` -> `AI 供应商`：维护 Base URL、API Key、可用模型清单。
 - `/c/config` -> `场景绑定`：为每个场景选择 Provider、模型和场景参数。
-- `scripts/migrate-ai-config-to-provider.ts`：一次性把旧 `ai.profile_groups` 数据迁移到新表。
+- `scripts/db/migrate-ai-config-to-provider.ts`：一次性把旧 `ai.profile_groups` 数据迁移到新表。
 
 ## 当前数据模型
 
@@ -46,7 +46,7 @@ AI 模型配置已经从“环境变量 / `tb_config` 散 key”迁移为 Provid
 迁移命令：
 
 ```bash
-pnpm tsx scripts/migrate-ai-config-to-provider.ts
+pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 ```
 
 脚本会按 `base_url` 去重生成 Provider，并把旧 profile 迁移成场景绑定。迁移完成后会删除旧 3 个 JSON key。

@@ -4,13 +4,13 @@
  * MCP 测试客户端
  *
  * 用法：
- *   node scripts/test-mcp-client.mjs                              # 列出所有有 token 的用户
- *   node scripts/test-mcp-client.mjs <account>                    # 按 account 查 LongTermToken 测试
- *   node scripts/test-mcp-client.mjs <account> --token <token>    # 直接用 token 测试
+ *   node scripts/debug/test-mcp-client.mjs                              # 列出所有有 token 的用户
+ *   node scripts/debug/test-mcp-client.mjs <account>                    # 按 account 查 LongTermToken 测试
+ *   node scripts/debug/test-mcp-client.mjs <account> --token <token>    # 直接用 token 测试
  *
  * 示例：
- *   node scripts/test-mcp-client.mjs
- *   node scripts/test-mcp-client.mjs NNNNzs --token LTK_xxx
+ *   node scripts/debug/test-mcp-client.mjs
+ *   node scripts/debug/test-mcp-client.mjs NNNNzs --token LTK_xxx
  */
 
 import { spawnSync } from 'node:child_process';
@@ -36,7 +36,7 @@ if (!process.env.MCP_TEST_CLIENT_TSX) {
   process.exit(result.status ?? 1);
 }
 
-const { createScriptPrismaClient } = await import('./prisma-client.ts');
+const { createScriptPrismaClient } = await import('../prisma-client.ts');
 const prisma = createScriptPrismaClient();
 const BASE_URL = process.env.MCP_BASE_URL || "http://localhost:3000";
 
@@ -159,7 +159,7 @@ async function testUser(account, tokenArg) {
     const userInfo = await getUserToken(account);
     if (!userInfo) {
       console.error(`用户 "${account}" 不存在或没有有效的 LongTermToken，请使用 --token 参数直接传入 token`);
-      console.error(`用法: node scripts/test-mcp-client.mjs ${account} --token <token>`);
+      console.error(`用法: node scripts/debug/test-mcp-client.mjs ${account} --token <token>`);
       process.exit(1);
     }
     user = userInfo.user;

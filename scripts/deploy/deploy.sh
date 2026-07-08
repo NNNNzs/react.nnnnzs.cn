@@ -112,7 +112,7 @@ start_new() {
 purge_cdn() {
     print_info "刷新 CDN 缓存..."
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local PURGE_SCRIPT="${SCRIPT_DIR}/purge-cdn.mjs"
+    local PURGE_SCRIPT="${SCRIPT_DIR}/../purge-cdn.mjs"
 
     # 检查宿主机上是否有脚本
     if [ ! -f "$PURGE_SCRIPT" ]; then

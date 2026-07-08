@@ -14,7 +14,7 @@ let prisma: any = null;
 
 async function initPrisma() {
   try {
-    const { createScriptPrismaClient } = await import('./prisma-client');
+    const { createScriptPrismaClient } = await import('../prisma-client');
     prisma = createScriptPrismaClient();
     return true;
   } catch (error) {
@@ -194,7 +194,7 @@ async function main() {
   console.log(`  Disabled: ${disabled.count}`);
 
   // 从 API_REGISTRY 动态获取有 handler 的接口，不再写死
-  const { API_REGISTRY } = await import('../src/lib/api-registry');
+  const { API_REGISTRY } = await import('../../src/lib/api-registry');
   const handlerCodes = API_REGISTRY
     .filter(entry => !!entry.handler)
     .map(entry => entry.code);

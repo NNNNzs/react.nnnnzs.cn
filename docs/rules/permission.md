@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
 | `src/types/api-descriptor.ts` | API 接口自描述类型定义 |
 | `src/lib/api-registry.ts` | MCP handler 注册表（从 route.ts descriptor 展开元数据，补充 MCP 专属字段） |
 | `src/lib/mcp-adapter.ts` | MCP 适配器（权限检查） |
-| `scripts/sync-api-registry.ts` | 接口扫描同步脚本（从 route.ts descriptor 扫描元数据） |
+| `scripts/db/sync-api-registry.ts` | 接口扫描同步脚本（从 route.ts descriptor 扫描元数据） |
 
 ### API 接口自描述
 

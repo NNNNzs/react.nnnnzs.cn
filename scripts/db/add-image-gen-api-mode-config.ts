@@ -1,4 +1,4 @@
-import { createScriptPrismaClient } from './prisma-client';
+import { createScriptPrismaClient } from '../prisma-client';
 
 const prisma = createScriptPrismaClient();
 

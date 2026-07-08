@@ -1,8 +1,31 @@
-# 🛠️ 部署脚本说明
+# 🛠️ 脚本目录说明
 
-本目录包含用于 Docker 自动化部署的辅助脚本。
+本目录包含项目开发、部署和调试所需的辅助脚本，按功能分类组织。
 
-## 📝 脚本清单
+## 📂 目录结构
+
+```
+scripts/
+├── deploy/           # 部署相关脚本
+│   ├── deploy.sh          # 服务器快速部署脚本
+│   ├── build-docker.sh    # 本地 Docker 镜像构建脚本
+│   ├── push-docker.sh     # Docker 镜像推送到远程仓库
+│   └── setup-secrets.sh   # GitHub Secrets 配置助手
+├── db/               # 数据库相关脚本
+│   ├── sync-api-registry.ts      # API Registry 同步脚本
+│   ├── init-qdrant.ts            # Qdrant 向量数据库初始化
+│   ├── migrate-ai-config-to-provider.ts  # AI 配置迁移脚本（一次性）
+│   └── add-image-gen-api-mode-config.ts  # 图片生成配置脚本（一次性）
+├── debug/            # 调试测试脚本
+│   ├── test-mcp-client.mjs       # MCP 测试客户端
+│   └── debug-image-gen-curl.ts   # 图片生成调试工具
+├── prisma-client.ts  # Prisma Client 工厂函数（公共依赖）
+├── purge-cdn.mjs     # 腾讯云 CDN 缓存刷新脚本
+├── archive/          # 已归档的一次性脚本
+└── README.md         # 本文档
+```
+
+## 📝 部署脚本清单
 
 ### 1. setup-secrets.sh - GitHub Secrets 配置助手
 
@@ -19,7 +42,7 @@
 
 ```bash
 # 运行配置助手
-./scripts/setup-secrets.sh
+./scripts/deploy/setup-secrets.sh
 ```
 
 **前置条件**:
@@ -53,34 +76,34 @@
 
 ```bash
 # 部署最新版本
-./scripts/deploy.sh deploy
+./scripts/deploy/deploy.sh deploy
 
 # 更新到最新版本（同 deploy）
-./scripts/deploy.sh update
+./scripts/deploy/deploy.sh update
 
 # 重启容器
-./scripts/deploy.sh restart
+./scripts/deploy/deploy.sh restart
 
 # 停止容器
-./scripts/deploy.sh stop
+./scripts/deploy/deploy.sh stop
 
 # 启动容器
-./scripts/deploy.sh start
+./scripts/deploy/deploy.sh start
 
 # 查看日志（实时）
-./scripts/deploy.sh logs
+./scripts/deploy/deploy.sh logs
 
 # 查看状态
-./scripts/deploy.sh status
+./scripts/deploy/deploy.sh status
 
 # 回滚到上一个版本
-./scripts/deploy.sh rollback
+./scripts/deploy/deploy.sh rollback
 
 # 清理旧镜像
-./scripts/deploy.sh clean
+./scripts/deploy/deploy.sh clean
 
 # 显示帮助信息
-./scripts/deploy.sh help
+./scripts/deploy/deploy.sh help
 ```
 
 **环境变量**:
@@ -90,7 +113,7 @@
 export DOCKERHUB_USERNAME=your-dockerhub-username
 
 # 然后运行部署
-./scripts/deploy.sh deploy
+./scripts/deploy/deploy.sh deploy
 ```
 
 **前置条件**:
@@ -114,7 +137,7 @@ export DOCKERHUB_USERNAME=your-dockerhub-username
 
 ```bash
 # 步骤 1: 配置 GitHub Secrets（只需一次）
-./scripts/setup-secrets.sh
+./scripts/deploy/setup-secrets.sh
 
 # 步骤 2: 推送到 release 分支触发自动构建
 git checkout -b release
@@ -136,10 +159,10 @@ nano .env  # 修改数据库等配置
 export DOCKERHUB_USERNAME=your-dockerhub-username
 
 # 4. 运行部署
-./scripts/deploy.sh deploy
+./scripts/deploy/deploy.sh deploy
 
 # 5. 查看日志
-./scripts/deploy.sh logs
+./scripts/deploy/deploy.sh logs
 ```
 
 ### 日常更新
@@ -156,7 +179,7 @@ git push origin release
 # 等待自动构建完成后，在服务器上更新
 ssh your-server
 cd /path/to/project
-./scripts/deploy.sh update
+./scripts/deploy/deploy.sh update
 ```
 
 ## 🐛 故障排查
@@ -169,11 +192,11 @@ cd /path/to/project
 
 ```bash
 # 添加执行权限
-chmod +x scripts/*.sh
+chmod +x scripts/deploy/*.sh
 
 # 或单独添加
-chmod +x scripts/setup-secrets.sh
-chmod +x scripts/deploy.sh
+chmod +x scripts/deploy/setup-secrets.sh
+chmod +x scripts/deploy/deploy.sh
 ```
 
 ### 问题 2: Docker 未安装
@@ -226,7 +249,7 @@ docker ps -a
 docker inspect react-nnnnzs-cn-prod
 
 # 尝试重新部署
-./scripts/deploy.sh deploy
+./scripts/deploy/deploy.sh deploy
 ```
 
 ### 问题 5: 无法拉取镜像
@@ -276,7 +299,7 @@ docker pull your-username/react-nnnnzs-cn:latest
 
 ### 修改镜像仓库
 
-编辑 `scripts/deploy.sh`:
+编辑 `scripts/deploy/deploy.sh`:
 
 ```bash
 # 修改镜像名称
@@ -285,7 +308,7 @@ IMAGE_NAME="your-registry/your-repo/react-nnnnzs-cn"
 
 ### 修改容器名称
 
-编辑 `scripts/deploy.sh`:
+编辑 `scripts/deploy/deploy.sh`:
 
 ```bash
 # 修改容器名称
@@ -294,7 +317,7 @@ CONTAINER_NAME="your-container-name"
 
 ### 修改 Compose 文件
 
-编辑 `scripts/deploy.sh`:
+编辑 `scripts/deploy/deploy.sh`:
 
 ```bash
 # 修改 compose 文件路径
