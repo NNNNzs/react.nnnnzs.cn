@@ -24,8 +24,11 @@ The helper accepts a JavaScript expression with `prisma` in scope, prints saniti
 ## Safety rules
 
 - Read-only queries can run after a brief说明 of what will be queried.
-- Write/delete/migration requests require a clear plan in Chinese and explicit confirmation before execution.
-- Treat these as write operations: `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, `$executeRawUnsafe`, `pnpm prisma:migrate`, `pnpm prisma:push`.
+- Write/delete/migration requests require:
+  1. 先用中文说明操作目的、影响范围（涉及哪些表、多少行）
+  2. 给出将要执行的完整 Prisma 表达式
+  3. 等待用户明确确认后才执行
+- 以下视为写操作：`create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, `$executeRawUnsafe`, `pnpm prisma:migrate`, `pnpm prisma:push`.
 - Do not print `DATABASE_URL`, passwords, tokens, or other secrets.
 
 ## Output style
@@ -57,11 +60,17 @@ Core counts:
 npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "Promise.all([prisma.tbPost.count(), prisma.tbUser.count(), prisma.tbCollection.count()]).then(([posts, users, collections]) => ({ posts, users, collections }))"
 ```
 
-## Model names
+## Model discovery
 
-Common models in this repo include `tbPost`, `tbUser`, `tbConfig`, `tbCollection`, `tbComment`, `tbRole`, `tbPermission`, `tbUserRole`, `tbRolePermission`, `tbApiRegistry`, and `tbImageGenLog`.
+List all models grouped by schema file:
+
+```bash
+npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --models
+```
+
+This reads `prisma/schema/*.prisma` directly and always reflects the current schema — no hardcoded list to maintain.
 
 ## When blocked
 
 If the generated client is missing or stale, run `pnpm prisma:generate` before querying.
-If a query fails because the model or field name changed, re-read `prisma/schema.prisma` and adjust.
+If a query fails because the model or field name changed, run `--models` to see current model names, or re-read `prisma/schema/*.prisma` and adjust.

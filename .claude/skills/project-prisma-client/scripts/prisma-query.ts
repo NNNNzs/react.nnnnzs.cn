@@ -8,36 +8,30 @@
  */
 
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { readdirSync, readFileSync } from 'fs';
+import { resolve, join } from 'path';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../../../../src/generated/prisma-client/client';
 
 // 加载项目根目录的 .env 文件
 config({ path: resolve(process.cwd(), '.env') });
 
-const WRITE_PATTERNS = [
-  /\bcreate(?:Many)?\s*\(/,
-  /\bupdate(?:Many)?\s*\(/,
-  /\bupsert\s*\(/,
-  /\bdelete(?:Many)?\s*\(/,
-  /\$executeRaw(?:Unsafe)?\s*\(/,
-  /\$queryRawUnsafe\s*\(/,
-];
-
 function printUsage(): void {
   console.error(`Usage:
   npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts "prisma.tbPost.findMany({ take: 5 })"
   npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --raw "SELECT COUNT(*) AS count FROM tb_post"
+  npx tsx .claude/skills/project-prisma-client/scripts/prisma-query.ts --models
 
 Notes:
   - The first argument is a JavaScript expression.
   - The expression receives: prisma.
-  - Only read queries are allowed by this script.
-  - Write/delete/migration operations require separate explicit confirmation.`);
+  - --models lists all Prisma models grouped by schema file.
+  - Write/delete operations execute directly; the calling agent must obtain user confirmation beforehand.`);
 }
 
 interface ParseResult {
   help?: boolean;
+  models?: boolean;
   raw: boolean;
   query: string;
 }
@@ -47,6 +41,10 @@ function parseArgs(argv: string[]): ParseResult {
 
   if (args.includes('--help') || args.includes('-h')) {
     return { help: true, raw: false, query: '' };
+  }
+
+  if (args.includes('--models')) {
+    return { models: true, raw: false, query: '' };
   }
 
   const rawIndex = args.indexOf('--raw');
@@ -63,12 +61,20 @@ function parseArgs(argv: string[]): ParseResult {
   };
 }
 
-function assertReadOnly(query: string): void {
-  for (const pattern of WRITE_PATTERNS) {
-    if (pattern.test(query)) {
-      throw new Error('Blocked non-read Prisma operation. Show the planned write/delete/migration and ask the user for explicit confirmation first.');
+function listModels(): Record<string, string[]> {
+  const schemaDir = resolve(process.cwd(), 'prisma/schema');
+  const files = readdirSync(schemaDir).filter((f) => f.endsWith('.prisma'));
+  const result: Record<string, string[]> = {};
+
+  for (const file of files) {
+    const content = readFileSync(join(schemaDir, file), 'utf-8');
+    const matches = content.match(/^model\s+(\w+)/gm);
+    if (matches) {
+      result[file] = matches.map((m) => m.replace(/^model\s+/, ''));
     }
   }
+
+  return result;
 }
 
 function sanitize(value: unknown): unknown {
@@ -117,12 +123,20 @@ function getDatabaseUrl(): string {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv);
 
-  if (options.help || !options.query) {
+  if (options.help) {
     printUsage();
-    process.exit(options.help ? 0 : 1);
+    process.exit(0);
   }
 
-  assertReadOnly(options.query);
+  if (options.models) {
+    console.log(JSON.stringify(listModels(), null, 2));
+    return;
+  }
+
+  if (!options.query) {
+    printUsage();
+    process.exit(1);
+  }
 
   // 使用项目相同的 adapter 初始化方式
   const adapter = new PrismaMariaDb(getDatabaseUrl());
