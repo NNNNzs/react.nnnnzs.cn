@@ -651,28 +651,96 @@ export default function Error({
 ## 管理后台页面布局规范 ⚠️ IMPORTANT
 
 ### 布局背景
-管理后台布局 (`src/app/c/layout.tsx`) 使用 `overflow-hidden` 来固定高度，因此**每个管理页面**都需要遵循特定的 flex 布局模式来实现独立滚动。
+管理后台布局 (`src/app/c/layout.tsx`) 使用 `overflow-hidden` 来固定高度，并统一负责后台内容区背景和桌面端内边距（`p-4 lg:p-6`）。**每个管理页面**只负责自身内容骨架和滚动区域，避免重复制造外层容器样式。
+
+页面级约束：
+- 列表页和工作台页不要在最外层再包 `container mx-auto`，否则会出现左右留白、双背景或内容宽度不一致。
+- 页面不要为了补偿布局而额外添加顶层 `padding` / `margin`；紧凑间距统一放在页面内部的标题栏、筛选栏、表格区域。
+- 页面根节点保持 `w-full h-full flex flex-col`，内部可滚动区域必须保留 `min-h-0`。
 
 ### 标准布局结构
 ```tsx
+import { Button, Input, Select } from 'antd';
+import ResponsiveTable from '@/components/ResponsiveTable';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+
+const { Search } = Input;
+
 export default function AdminPage() {
   return (
-    <div className="w-full h-full flex flex-col">           {/* 最外层：全高 flex 容器 */}
-      <div className="flex-1 flex flex-col min-h-0">        {/* 中间层：flex-1 占据剩余空间，min-h-0 允许收缩 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">  {/* 顶部操作栏：固定高度 */}
-          <h1 className="text-2xl font-bold">页面标题</h1>
-          <Button color="primary" variant="solid">操作按钮</Button>
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
+        <AdminPageHeader
+          title="页面标题"
+          extra={
+            <Button color="primary" variant="solid" size="small">
+              新建
+            </Button>
+          }
+        />
+
+        <div className="mb-4 shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Search size="middle" style={{ maxWidth: 400 }} />
+          <Select size="middle" style={{ width: 120 }} />
         </div>
 
-        {/* 可滚动内容区：flex-1 占据剩余空间 */}
-        <div className="flex-1 min-h-0">
-          {/* 内容区域（可能是表格、表单等） */}
-        </div>
+        <ResponsiveTable
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          pagination={pagination}
+        />
       </div>
     </div>
   );
 }
 ```
+
+### 标题栏和按钮规范
+- 后台页面标题统一使用 `AdminPageHeader`，不要在页面里自行写 `h1 text-2xl`、`h1 text-lg`、`Typography.Title level={2/3}`。
+- 标题视觉规格由 `AdminPageHeader` 内部维护，当前为 `text-xl font-semibold leading-8`。标题大小不应受右侧按钮数量、按钮尺寸或筛选栏影响。
+- 页面头部主操作按钮统一使用 `size="small"`；筛选栏中的 `Search`、`Select` 等控件一般使用 `size="middle"`。
+- 后台标题栏和筛选栏避免使用 `size="large"`，除非是独立表单页面中有明确输入体验诉求的字段。
+
+### 表格操作列规范
+表格操作列统一使用 `AdminTableActions` + `AdminActionButton`。桌面端操作按钮使用「图标 + 文字」的小按钮样式；删除、移除、禁用等危险操作使用 `color="danger"`。
+
+```tsx
+import {
+  AdminActionButton,
+  AdminTableActions,
+} from '@/components/admin/AdminPageHeader';
+
+{
+  title: '操作',
+  key: 'actions',
+  render: (_, record) => (
+    <AdminTableActions>
+      <AdminActionButton
+        icon={<EditOutlined />}
+        onClick={() => handleEdit(record)}
+      >
+        编辑
+      </AdminActionButton>
+      <AdminActionButton
+        color="danger"
+        icon={<DeleteOutlined />}
+        onClick={() => handleDelete(record)}
+      >
+        删除
+      </AdminActionButton>
+    </AdminTableActions>
+  ),
+}
+```
+
+操作列约束：
+- 桌面端表格操作列避免只放纯图标按钮，保证可扫读性。
+- 多个操作按钮之间由 `AdminTableActions` 控制间距和换行，页面不要手写零散的 `Space size="small"`。
+- 移动端卡片可以继续用 `Dropdown` 收纳密集操作，但危险操作仍需清晰标记。
+- Ant Design v6 写法使用 `color` / `variant`，不要新增已废弃的 `type` 写法。
 
 ### 关键 Tailwind 类说明
 - `flex flex-col`: 创建垂直方向的 flex 容器
@@ -682,15 +750,17 @@ export default function AdminPage() {
 - `overflow-y-auto`: 在需要滚动的容器上添加
 
 ### 列表页面的表格布局
+管理后台所有**表格列表页面**（评论、合集、配置、用户、文章、队列等）优先使用 `ResponsiveTable`，不要直接使用 `<Table>`。`ResponsiveTable` 会在桌面端渲染 Ant Design Table，并自动处理 ResizeObserver 和滚动高度；移动端渲染卡片列表。
+
 ```tsx
-<div className="flex-1 min-h-0">
-  <Table
-    columns={columns}
-    dataSource={data}
-    scroll={{ y: 'calc(100vh - var(--header-height) - 300px)' }}
-    pagination={{ ... }}
-  />
-</div>
+<ResponsiveTable
+  columns={columns}
+  dataSource={data}
+  rowKey="id"
+  loading={loading}
+  renderMobileCard={renderMobileCard}
+  pagination={pagination}
+/>
 ```
 
 ### 表单页面的滚动布局
@@ -703,10 +773,20 @@ export default function AdminPage() {
 ```
 
 ### 参考实现
-- 文章管理页：`src/app/c/post/page.tsx:454-569`
-- 合集管理页：`src/app/c/collections/page.tsx:227-263`
-- 合集编辑页：`src/app/c/collections/[id]/page.tsx:125-250`
-- 合集文章管理：`src/app/c/collections/[id]/posts/page.tsx:203-383`
+- 后台通用标题和表格操作组件：`src/components/admin/AdminPageHeader.tsx`
+- 文章管理页：`src/app/c/post/page.tsx`
+- 评论管理页：`src/app/c/comments/page.tsx`
+- 队列管理页：`src/app/c/queue/page.tsx`
+- 合集管理页：`src/app/c/collections/page.tsx`
+
+### 验收命令
+后台页面样式或组件规范调整后，至少执行：
+
+```bash
+pnpm typecheck
+pnpm lint src/app/c src/components/admin
+pnpm dlx @ant-design/cli --version 6.1.1 --lang zh --format markdown lint --only deprecated src/app/c src/components/admin
+```
 
 ## 管理后台移动端适配规范 ⚠️ IMPORTANT
 
@@ -726,7 +806,7 @@ const { isMobile } = useBreakpoint(); // 默认 768px
 
 ### 列表页面：ResponsiveTable 组件 ⚠️ IMPORTANT
 
-管理后台所有**表格列表页面**（评论、合集、配置、用户、文章）必须使用 `ResponsiveTable` 组件，**禁止直接使用 `<Table>`**。
+管理后台所有**表格列表页面**（文章、评论、合集、配置、用户、角色、权限、队列、接口注册等）必须使用 `ResponsiveTable` 组件，**禁止直接使用 `<Table>`**。
 
 ```tsx
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -770,29 +850,27 @@ const { isMobile } = useBreakpoint();
 // 外层容器
 <div className={`mb-4 shrink-0 ${isMobile ? 'flex flex-col gap-2' : 'flex gap-4'}`}>
   <Search
-    size={isMobile ? 'middle' : 'large'}
+    size="middle"
     style={isMobile ? { width: '100%' } : { maxWidth: 400 }}
   />
   <Select
-    size={isMobile ? 'middle' : 'large'}
+    size="middle"
     style={{ width: isMobile ? '100%' : 120 }}
   />
 </div>
 ```
 
-### 标题栏响应式
+### 标题栏和操作按钮
 
 ```tsx
-<div className={`mb-6 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
-  <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>页面标题</h1>
-  <Button
-    color="primary"
-    variant="solid"
-    size={isMobile ? 'middle' : 'large'}
-  >
-    {isMobile ? '新建' : '创建新标题'}
-  </Button>
-</div>
+<AdminPageHeader
+  title="页面标题"
+  extra={
+    <Button color="primary" variant="solid" size="small">
+      新建
+    </Button>
+  }
+/>
 ```
 
 ### 统计卡片响应式（Row/Col）

@@ -201,7 +201,7 @@ export default function AiLabPage() {
               <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
                 <span className="text-xs text-slate-500">{area.metric}</span>
                 <Button
-                  type="text"
+                  variant="text"
                   size="small"
                   icon={<ArrowRightOutlined />}
                   aria-label={`进入${area.title}`}

@@ -16,7 +16,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Button,
   Input,
-  Space,
   Tag,
   message,
   Modal,
@@ -38,6 +37,11 @@ import { CONFIG_VIEW, CONFIG_EDIT } from "@/constants/permissions";
 
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import ResponsiveTable from "@/components/ResponsiveTable";
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 import type { QueryConfigCondition } from "@/dto/config.dto";
 import type { TbConfig } from "@/generated/prisma-client/client";
 
@@ -406,20 +410,21 @@ function ConfigPageContent() {
       width: 150,
       fixed: "right" as const,
       render: (_: unknown, record: Config) => (
-        <Space>
-          <Button variant="link"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </Button>
-          <Button variant="link" color="danger"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -456,22 +461,21 @@ function ConfigPageContent() {
             ? dayjs(record.updated_at).format("YYYY-MM-DD HH:mm")
             : "-"}
         </span>
-        <Space>
-          <Button variant="link"
-            size="small"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </Button>
-          <Button variant="link" color="danger"
-            size="small"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       </div>
     </Card>
   );
@@ -480,18 +484,18 @@ function ConfigPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
-            单项配置
-          </h1>
+        <AdminPageHeader
+          title="单项配置"
+          extra={
           <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
-            size={isMobile ? "middle" : "large"}
+            size="small"
           >
             {isMobile ? "新建" : "创建新配置"}
           </Button>
-        </div>
+          }
+        />
 
         <div className="flex h-full min-h-0 flex-col">
           {/* 搜索和筛选 */}
@@ -504,7 +508,7 @@ function ConfigPageContent() {
               placeholder="搜索标题或Key"
               allowClear
               enterButton={<SearchOutlined />}
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               value={searchInputValue}
               onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
               onChange={(e) => setSearchInputValue(e.target.value)}
@@ -513,7 +517,7 @@ function ConfigPageContent() {
             <Select
               placeholder="状态筛选"
               allowClear
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               style={isMobile ? { width: "100%" } : { width: 120 }}
               value={statusFilter === "all" ? undefined : statusFilter}
               onChange={(value) =>

@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import ImageGenPanel from "@/components/ImageGen/ImageGenPanel";
 import ImageResultCard from "@/components/ImageGen/ImageResultCard";
 import ImageGenHistory from "@/components/ImageGen/ImageGenHistory";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 interface ResultMeta {
   elapsed?: string;
@@ -240,12 +241,11 @@ export default function ImageGenPage() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        {/* 标题栏 */}
-        <div className="shrink-0 flex items-center gap-2 mb-4">
-          <PictureOutlined className="text-2xl text-blue-500" />
-          <h1 className="text-2xl font-bold">AI 图片生成</h1>
-          <Tag color="blue">GPT Image 2</Tag>
-        </div>
+        <AdminPageHeader
+          title="AI 图片生成"
+          icon={<PictureOutlined className="text-xl text-blue-500" />}
+          tag={<Tag color="blue">GPT Image 2</Tag>}
+        />
 
         {/* 左右分栏 */}
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">

@@ -30,6 +30,11 @@ import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import ResponsiveTable from '@/components/ResponsiveTable';
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from '@/components/admin/AdminPageHeader';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -505,44 +510,45 @@ function AdminPageContent() {
               }}
               trigger={['click']}
             >
-              <Button variant="text" icon={<MoreOutlined />} />
+              <Button variant="text" size="small" icon={<MoreOutlined />} />
             </Dropdown>
           );
         }
         // 桌面端：保持原有按钮组
         return (
-          <Space wrap>
-            <Button variant="link"
+          <AdminTableActions>
+            <AdminActionButton
               icon={<EyeOutlined />}
               onClick={() => handleView(record)}
             >
               查看
-            </Button>
-            <Button variant="link"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
-            </Button>
-            <Button variant="link"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
-            </Button>
-            <Button variant="link"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<ReloadOutlined />}
               onClick={() => handleUpdateEmbedding(record)}
             >
               更新向量
-            </Button>
-            <Button variant="link" color="danger"
+            </AdminActionButton>
+            <AdminActionButton
+              color="danger"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
             >
               删除
-            </Button>
-          </Space>
+            </AdminActionButton>
+          </AdminTableActions>
         );
       },
     },
@@ -609,9 +615,10 @@ function AdminPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className={`mb-4 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
-          <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>文章管理</h1>
-          <Space size={isMobile ? 'small' : 'middle'}>
+        <AdminPageHeader
+          title="文章管理"
+          extra={
+            <>
             {!isMobile && (
               <Dropdown
                 menu={{
@@ -632,7 +639,7 @@ function AdminPageContent() {
                 <Button
                   icon={<SyncOutlined />}
                   loading={embeddingLoading}
-                  size="large"
+                  size="small"
                 >
                   批量更新向量
                 </Button>
@@ -641,12 +648,13 @@ function AdminPageContent() {
             <Button variant="solid" color="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
-              size={isMobile ? 'middle' : 'large'}
+              size="small"
             >
               {isMobile ? '新建' : '创建新文章'}
             </Button>
-          </Space>
-        </div>
+            </>
+          }
+        />
 
         {/* 批量更新进度显示 */}
         {embeddingProgress && (
@@ -685,7 +693,7 @@ function AdminPageContent() {
             placeholder="搜索标题或内容"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? 'middle' : 'large'}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
@@ -700,7 +708,7 @@ function AdminPageContent() {
             {hasPermission(POST_VIEW_DELETED) && (
               <Select
                 placeholder="创建者"
-                size={isMobile ? 'middle' : 'large'}
+                size="middle"
                 style={{ width: isMobile ? 'auto' : 120, minWidth: isMobile ? 90 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
                 value={urlState.ownerFilter}
                 onChange={(value) => updateQueryParams({ owner: value || 'mine', page: 1 })}
@@ -714,7 +722,7 @@ function AdminPageContent() {
             {hasPermission(POST_VIEW_DELETED) && (
               <Select
                 placeholder="已删除"
-                size={isMobile ? 'middle' : 'large'}
+                size="middle"
                 style={{ width: isMobile ? 'auto' : 140, minWidth: isMobile ? 90 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
                 value={urlState.includeDeleted ? true : undefined}
                 onChange={(value) => updateQueryParams({ is_delete: value ? '1' : undefined, page: 1 })}
@@ -727,7 +735,7 @@ function AdminPageContent() {
             <Select
               placeholder="状态"
               allowClear
-              size={isMobile ? 'middle' : 'large'}
+              size="middle"
               style={{ width: isMobile ? 'auto' : 120, minWidth: isMobile ? 80 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
               value={hideFilter === 'all' ? undefined : hideFilter}
               onChange={(value) => updateQueryParams({ hide: value || 'all', page: 1 })}

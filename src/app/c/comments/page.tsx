@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Button, Input, Space, Tag, message, Modal, Select, Tooltip, Card } from 'antd';
+import { Button, Input, Tag, message, Modal, Select, Tooltip, Card } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   DeleteOutlined,
@@ -20,6 +20,11 @@ import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from '@/components/admin/AdminPageHeader';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -360,14 +365,15 @@ function CommentsPageContent() {
       key: 'action',
       width: 120,
       render: (_: unknown, record: Comment) => (
-        <Space wrap>
-          <Button variant="link" color="danger"
+        <AdminTableActions>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -424,9 +430,7 @@ function CommentsPageContent() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>评论管理</h1>
-        </div>
+        <AdminPageHeader title="评论管理" />
 
         {/* 搜索和筛选 */}
         <div className={`mb-4 shrink-0 ${isMobile ? 'flex flex-col gap-2' : 'flex gap-4'}`}>
@@ -434,7 +438,7 @@ function CommentsPageContent() {
             placeholder="搜索评论内容"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? 'middle' : 'large'}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
@@ -447,7 +451,7 @@ function CommentsPageContent() {
           <Select
             placeholder="状态筛选"
             allowClear
-            size={isMobile ? 'middle' : 'large'}
+            size="middle"
             style={isMobile ? { width: '100%' } : { width: 120 }}
             value={urlState.statusFilter === 'all' ? undefined : urlState.statusFilter}
             onChange={(value) => updateQueryParams({ status: value || 'all', page: 1 })}

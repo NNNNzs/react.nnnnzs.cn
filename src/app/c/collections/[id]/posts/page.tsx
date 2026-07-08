@@ -19,6 +19,8 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   SaveOutlined,
   SearchOutlined,
   PlusOutlined,
@@ -224,6 +226,7 @@ export default function CollectionPostsPage() {
                 <Button variant="text"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push('/c/collections')}
+                  size="small"
                 >
                   返回
                 </Button>
@@ -238,6 +241,7 @@ export default function CollectionPostsPage() {
                   icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
+                  size="small"
                 >
                   保存
                 </Button>
@@ -292,7 +296,8 @@ export default function CollectionPostsPage() {
                           </div>
                         </div>
                         <Button
-                          type={isSelected ? 'default' : 'primary'}
+                          color={isSelected ? undefined : 'primary'}
+                          variant={isSelected ? 'outlined' : 'solid'}
                           size="small"
                           icon={isSelected ? <MinusCircleOutlined /> : <PlusOutlined />}
                           onClick={() => {
@@ -358,6 +363,7 @@ export default function CollectionPostsPage() {
                       <Space size="small" wrap={isMobile}>
                         <Button
                           size="small"
+                          icon={<ArrowUpOutlined />}
                           disabled={index === 0}
                           onClick={() => handleMoveUp(index)}
                         >
@@ -365,6 +371,7 @@ export default function CollectionPostsPage() {
                         </Button>
                         <Button
                           size="small"
+                          icon={<ArrowDownOutlined />}
                           disabled={index === selectedArticles.length - 1}
                           onClick={() => handleMoveDown(index)}
                         >
@@ -372,6 +379,7 @@ export default function CollectionPostsPage() {
                         </Button>
                         <Button color="danger"
                           size="small"
+                          icon={<MinusCircleOutlined />}
                           onClick={() => handleRemove(article.id)}
                         >
                           移除
@@ -385,7 +393,7 @@ export default function CollectionPostsPage() {
 
             {selectedArticles.length > 1 && (
               <div className="mt-6 text-center">
-                <Button color="primary" variant="solid" onClick={handleSaveOrder} loading={saving}>
+                <Button color="primary" variant="solid" icon={<SaveOutlined />} onClick={handleSaveOrder} loading={saving} size="small">
                   保存排序
                 </Button>
               </div>

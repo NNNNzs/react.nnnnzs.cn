@@ -331,7 +331,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 如果正在加载或未登录，显示加载状态
   if (loading || !user) {
     return (
-      <div className={`admin-light-shell flex ${ADMIN_LAYOUT_HEIGHT} items-center justify-center bg-slate-50 text-slate-950`}>
+      <div className={`admin-light-shell flex ${ADMIN_LAYOUT_HEIGHT} items-center justify-center !bg-slate-50 text-slate-950`}>
         <div>加载中...</div>
       </div>
     );
@@ -340,7 +340,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 移动端：隐藏 Sider，使用 Drawer + 全宽内容区
   if (isMobile) {
     return (
-      <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
+      <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
         {/* 移动端顶部菜单切换按钮 */}
         <div
           className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 shrink-0"
@@ -358,7 +358,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* 主内容区占满全宽 */}
-        <Content className="flex-1 overflow-auto bg-slate-50 px-3 py-4">
+        <Content className="flex-1 overflow-auto !bg-slate-50 px-3 py-4">
           {children}
         </Content>
 
@@ -388,7 +388,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
 
   // 桌面端：保持原有布局不变
   return (
-    <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
+    <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
       <Sider
         width={200}
         className="admin-light-sider bg-white"
@@ -415,8 +415,8 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
           className="admin-light-menu h-[calc(100vh-var(--header-height)-64px)] border-r-0"
         />
       </Sider>
-      <Layout className="ml-[200px] h-full bg-slate-50">
-        <Content className="h-full overflow-hidden bg-slate-50 container mx-auto px-4 py-8">
+      <Layout className="ml-[200px] h-full min-w-0 !bg-slate-50">
+        <Content className="h-full min-w-0 overflow-hidden !bg-slate-50 p-4 lg:p-6">
           {children}
         </Content>
       </Layout>

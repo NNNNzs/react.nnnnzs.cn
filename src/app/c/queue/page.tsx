@@ -28,6 +28,11 @@ import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { QUEUE_VIEW, USER_MANAGE } from '@/constants/permissions';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from '@/components/admin/AdminPageHeader';
 
 const { Title, Text } = Typography;
 
@@ -531,14 +536,14 @@ export default function QueueMonitorPage() {
       key: 'action',
       width: canDeleteImageLog ? 160 : 100,
       render: (_, record) => (
-        <Space size="small">
+        <AdminTableActions>
           <Popconfirm
             title="重新入队该任务？"
             onConfirm={() => void handleRetryImageJob(record.jobId)}
             okText="重试"
             cancelText="取消"
           >
-            <Button size="small" variant="link">重试</Button>
+            <AdminActionButton icon={<ReloadOutlined />}>重试</AdminActionButton>
           </Popconfirm>
           {canDeleteImageLog ? (
             <Popconfirm
@@ -548,18 +553,16 @@ export default function QueueMonitorPage() {
               okText="删除"
               cancelText="取消"
             >
-              <Button
-                size="small"
-                variant="link"
+              <AdminActionButton
                 color="danger"
                 icon={<DeleteOutlined />}
                 loading={deletingImageJobIds.has(record.jobId)}
               >
                 删除
-              </Button>
+              </AdminActionButton>
             </Popconfirm>
           ) : null}
-        </Space>
+        </AdminTableActions>
       ),
     },
   ];
@@ -637,14 +640,14 @@ export default function QueueMonitorPage() {
       key: 'action',
       width: canDeleteImageLog ? 160 : 100,
       render: (_, record) => (
-        <Space size="small">
+        <AdminTableActions>
           <Popconfirm
             title="重新入队该 TTS 任务？"
             onConfirm={() => void handleRetryTtsJob(record.jobId)}
             okText="重试"
             cancelText="取消"
           >
-            <Button size="small" variant="link">重试</Button>
+            <AdminActionButton icon={<ReloadOutlined />}>重试</AdminActionButton>
           </Popconfirm>
           {canDeleteImageLog ? (
             <Popconfirm
@@ -654,18 +657,16 @@ export default function QueueMonitorPage() {
               okText="删除"
               cancelText="取消"
             >
-              <Button
-                size="small"
-                variant="link"
+              <AdminActionButton
                 color="danger"
                 icon={<DeleteOutlined />}
                 loading={deletingTtsJobIds.has(record.jobId)}
               >
                 删除
-              </Button>
+              </AdminActionButton>
             </Popconfirm>
           ) : null}
-        </Space>
+        </AdminTableActions>
       ),
     },
   ];
@@ -680,15 +681,20 @@ export default function QueueMonitorPage() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <div>
-            <Title level={isMobile ? 4 : 2} className="mb-0">后台任务监控</Title>
-            <Text type="secondary">统一查看 embedding、image-gen、TTS 异步任务。</Text>
-          </div>
-          <Button icon={<ReloadOutlined />} onClick={() => void loadDashboard()} loading={loading}>
+        <AdminPageHeader
+          title="后台任务监控"
+          description="统一查看 embedding、image-gen、TTS 异步任务。"
+          extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => void loadDashboard()}
+            loading={loading}
+            size="small"
+          >
             刷新
           </Button>
-        </div>
+          }
+        />
 
         {error ? (
           <Alert

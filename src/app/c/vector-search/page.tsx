@@ -8,13 +8,14 @@
 
 import React, { useState } from 'react';
 import { Card, Input, Button, List, Tag, Space, Typography, Alert, Divider, Row, Col, Statistic } from 'antd';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { EyeOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { VECTOR_VIEW } from '@/constants/permissions';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 interface SearchResult {
@@ -99,11 +100,10 @@ export default function VectorSearchPage() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {/* 页面标题 */}
-        <div className="mb-6">
-          <Title level={isMobile ? 4 : 2} className="mb-2">向量检索测试</Title>
-          <Text type="secondary">测试语义搜索功能，查找相关文章片段</Text>
-        </div>
+        <AdminPageHeader
+          title="向量检索测试"
+          description="测试语义搜索功能，查找相关文章片段"
+        />
 
         {/* 搜索区域 */}
         <Card className="mb-6">
@@ -128,7 +128,7 @@ export default function VectorSearchPage() {
                 icon={<SearchOutlined />}
                 onClick={handleSearch}
                 loading={loading}
-                size="large"
+                size="small"
               >
                 搜索
               </Button>
@@ -136,6 +136,7 @@ export default function VectorSearchPage() {
                 icon={<ReloadOutlined />}
                 onClick={handleClear}
                 disabled={!searchQuery && searchResults.length === 0}
+                size="small"
               >
                 清空
               </Button>
@@ -218,6 +219,7 @@ export default function VectorSearchPage() {
                         </Tag>
                         <Button variant="link"
                           size="small"
+                          icon={<EyeOutlined />}
                           onClick={() => handleViewPost(item.postId)}
                         >
                           查看文章

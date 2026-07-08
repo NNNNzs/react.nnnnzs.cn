@@ -10,6 +10,7 @@ import { Tag, message, Card, Input, Select, Empty } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 const { Search } = Input;
 
@@ -112,12 +113,10 @@ function PermissionsPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* 标题栏 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
-            权限管理
-          </h1>
-          <Tag color="blue">{permissions.length} 个权限码</Tag>
-        </div>
+        <AdminPageHeader
+          title="权限管理"
+          tag={<Tag color="blue">{permissions.length} 个权限码</Tag>}
+        />
 
         {/* 搜索和筛选 */}
         <div className={`mb-4 shrink-0 ${isMobile ? "flex flex-col gap-2" : "flex gap-4"}`}>
@@ -125,7 +124,7 @@ function PermissionsPageContent() {
             placeholder="搜索权限码或名称"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? "middle" : "large"}
+            size="middle"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={isMobile ? { width: "100%" } : { maxWidth: 400 }}
@@ -133,7 +132,7 @@ function PermissionsPageContent() {
           <Select
             placeholder="模块筛选"
             allowClear
-            size={isMobile ? "middle" : "large"}
+            size="middle"
             style={isMobile ? { width: "100%" } : { width: 140 }}
             value={moduleFilter === "all" ? undefined : moduleFilter}
             onChange={(value) => setModuleFilter(value || "all")}

@@ -10,7 +10,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
-  Button,
   Input,
   Space,
   Tag,
@@ -31,6 +30,11 @@ import axios from "axios";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MODULE_LABELS, MODULE_COLORS } from "@/constants/permissions";
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 
 const { Search } = Input;
 
@@ -364,13 +368,11 @@ function ApiRegistryPageContent() {
       width: 80,
       fixed: "right" as const,
       render: (_: unknown, record: ApiRegistryItem) => (
-        <Button variant="link"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => handleEdit(record)}
-        >
-          配置
-        </Button>
+        <AdminTableActions>
+          <AdminActionButton icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            配置
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -408,9 +410,9 @@ function ApiRegistryPageContent() {
           disabled={record.mcp_available === 0}
           onChange={(checked) => handleToggleMcp(record, checked)}
         />
-        <Button variant="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+        <AdminActionButton icon={<EditOutlined />} onClick={() => handleEdit(record)}>
           配置
-        </Button>
+        </AdminActionButton>
       </div>
     </Card>
   );
@@ -420,11 +422,7 @@ function ApiRegistryPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className={`mb-4 shrink-0 ${isMobile ? '' : 'flex items-center justify-between'}`}>
-          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
-            接口管理
-          </h1>
-        </div>
+        <AdminPageHeader title="接口管理" />
 
         {/* 搜索和筛选 */}
         <div className={`mb-4 shrink-0 ${isMobile ? "flex flex-col gap-2" : "flex gap-4"}`}>
@@ -432,7 +430,7 @@ function ApiRegistryPageContent() {
             placeholder="搜索接口编码、名称、路径"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? "middle" : "large"}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
@@ -446,7 +444,7 @@ function ApiRegistryPageContent() {
             <Select
               placeholder="模块"
               allowClear
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               value={urlState.moduleFilter || undefined}
               onChange={(value) => updateQueryParams({ module: value || "", page: 1 })}
               style={isMobile ? { width: "50%" } : { width: 140 }}
@@ -458,7 +456,7 @@ function ApiRegistryPageContent() {
             <Select
               placeholder="MCP 状态"
               allowClear
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               value={urlState.mcpFilter || undefined}
               onChange={(value) => updateQueryParams({ mcp_enabled: value || "", page: 1 })}
               style={isMobile ? { width: "50%" } : { width: 120 }}

@@ -20,7 +20,6 @@ import {
 import {
   Typography,
   Button,
-  Space,
   Input,
   DatePicker,
   Popconfirm,
@@ -44,11 +43,16 @@ import XMarkdown from "@ant-design/x-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { CHAT_LOG_VIEW, CHAT_LOG_DELETE } from "@/constants/permissions";
 import ResponsiveTable from "@/components/ResponsiveTable";
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 import type { TableColumnsType } from "antd";
 import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 // ============ 类型定义 ============
@@ -402,9 +406,8 @@ function PageContent() {
         key: "action",
         width: 120,
         render: (_, record) => (
-          <Space size="small">
-            <Button variant="link"
-              size="small"
+          <AdminTableActions>
+            <AdminActionButton
               icon={<EyeOutlined />}
               onClick={() => {
                 setDetailSessionId(record.id);
@@ -412,7 +415,7 @@ function PageContent() {
               }}
             >
               详情
-            </Button>
+            </AdminActionButton>
             {hasPermission(CHAT_LOG_DELETE) && (
               <Popconfirm
                 title="确定删除此对话记录？"
@@ -425,10 +428,12 @@ function PageContent() {
                   if (res.ok) loadData();
                 }}
               >
-                <Button variant="link" color="danger" size="small" icon={<DeleteOutlined />} />
+                <AdminActionButton color="danger" icon={<DeleteOutlined />}>
+                  删除
+                </AdminActionButton>
               </Popconfirm>
             )}
-          </Space>
+          </AdminTableActions>
         ),
       },
     ],
@@ -458,15 +463,16 @@ function PageContent() {
         <Text type="secondary" className="text-xs">
           {dayjs(record.updated_at).format("YYYY-MM-DD HH:mm")}
         </Text>
-        <Space size="small">
-          <Button variant="link"
-            size="small"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<EyeOutlined />}
             onClick={() => {
               setDetailSessionId(record.id);
               setDetailOpen(true);
             }}
-          />
+          >
+            详情
+          </AdminActionButton>
           {hasPermission(CHAT_LOG_DELETE) && (
             <Popconfirm
               title="确定删除？"
@@ -479,10 +485,12 @@ function PageContent() {
                 if (res.ok) loadData();
               }}
             >
-              <Button variant="link" color="danger" size="small" icon={<DeleteOutlined />} />
+              <AdminActionButton color="danger" icon={<DeleteOutlined />}>
+                删除
+              </AdminActionButton>
             </Popconfirm>
           )}
-        </Space>
+        </AdminTableActions>
       </div>
     </Card>
   );
@@ -491,16 +499,14 @@ function PageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className="mb-4 flex items-center justify-between">
-          <Title level={3} className="mb-0">
-            聊天记录
-          </Title>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => loadData()}>
+        <AdminPageHeader
+          title="聊天记录"
+          extra={
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} size="small">
               刷新
             </Button>
-          </Space>
-        </div>
+          }
+        />
 
         {/* 搜索和筛选 */}
         <div className="mb-4 flex flex-wrap gap-3">
@@ -551,7 +557,7 @@ function PageContent() {
               title={`确定删除选中的 ${selectedRowKeys.length} 条记录？`}
               onConfirm={handleBatchDelete}
             >
-              <Button color="danger" icon={<DeleteOutlined />}>
+              <Button color="danger" icon={<DeleteOutlined />} size="small">
                 删除选中 ({selectedRowKeys.length})
               </Button>
             </Popconfirm>

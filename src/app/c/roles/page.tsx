@@ -33,6 +33,11 @@ import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import PermissionTree from "@/components/PermissionTree";
 import { USER_ROLE_ASSIGN } from "@/constants/permissions";
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 
 const { Search } = Input;
 
@@ -450,28 +455,29 @@ function RolesPageContent() {
       width: 220,
       fixed: "right" as const,
       render: (_: unknown, record: RoleItem) => (
-        <Space>
-          <Button variant="link"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<SettingOutlined />}
             onClick={() => handleManagePermissions(record)}
             disabled={!hasPermission(USER_ROLE_ASSIGN)}
           >
             权限
-          </Button>
-          <Button variant="link"
+          </AdminActionButton>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </Button>
-          <Button variant="link" color="danger"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={["admin", "user"].includes(record.code)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -497,31 +503,29 @@ function RolesPageContent() {
         <span className="text-gray-400 text-xs">
           {record.created_at ? dayjs(record.created_at).format("YYYY-MM-DD") : "-"}
         </span>
-        <Space size="small">
-          <Button variant="link"
-            size="small"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<SettingOutlined />}
             onClick={() => handleManagePermissions(record)}
             disabled={!hasPermission(USER_ROLE_ASSIGN)}
           >
             权限
-          </Button>
-          <Button variant="link"
-            size="small"
+          </AdminActionButton>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </Button>
-          <Button variant="link" color="danger"
-            size="small"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={["admin", "user"].includes(record.code)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       </div>
     </Card>
   );
@@ -530,18 +534,18 @@ function RolesPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* 标题栏 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
-            角色管理
-          </h1>
+        <AdminPageHeader
+          title="角色管理"
+          extra={
           <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
-            size={isMobile ? "middle" : "large"}
+            size="small"
           >
             {isMobile ? "新建" : "创建角色"}
           </Button>
-        </div>
+          }
+        />
 
         {/* 搜索 */}
         <div className="mb-4 shrink-0">
@@ -549,7 +553,7 @@ function RolesPageContent() {
             placeholder="搜索角色编码、名称或描述"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? "middle" : "large"}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}

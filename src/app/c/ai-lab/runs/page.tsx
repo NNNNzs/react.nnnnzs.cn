@@ -26,6 +26,10 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ResponsiveTable from "@/components/ResponsiveTable";
+import {
+  AdminActionButton,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 
 const { Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -329,13 +333,15 @@ export default function AiLabRunsPage() {
       key: "action",
       width: 100,
       render: (_, record) => (
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          onClick={() => loadDetail(record.id)}
-        >
-          详情
-        </Button>
+        <AdminTableActions>
+          <AdminActionButton
+            variant="text"
+            icon={<EyeOutlined />}
+            onClick={() => loadDetail(record.id)}
+          >
+            详情
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -353,9 +359,9 @@ export default function AiLabRunsPage() {
       </Paragraph>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <span>{run.model || "-"}</span>
-        <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => loadDetail(run.id)}>
+        <AdminActionButton variant="text" icon={<EyeOutlined />} onClick={() => loadDetail(run.id)}>
           详情
-        </Button>
+        </AdminActionButton>
       </div>
     </div>
   );
@@ -434,7 +440,7 @@ export default function AiLabRunsPage() {
           onChange={(value) => updateUrl({ hasError: value || "all", pageNum: 1 })}
           className="lg:w-[130px]"
         />
-        <Button icon={<ReloadOutlined />} onClick={() => loadRuns()}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadRuns()} size="small">
           刷新
         </Button>
       </div>

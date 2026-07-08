@@ -134,6 +134,7 @@ export default function CollectionEditPage() {
                 <Button variant="text"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push('/c/collections')}
+                  size="small"
                 >
                   返回
                 </Button>
@@ -236,6 +237,7 @@ export default function CollectionEditPage() {
                     htmlType="submit"
                     icon={<SaveOutlined />}
                     loading={loading}
+                    size="small"
                   >
                     {isEdit ? '保存修改' : '创建合集'}
                   </Button>
@@ -244,6 +246,7 @@ export default function CollectionEditPage() {
                     <Button
                       icon={<UnorderedListOutlined />}
                       onClick={() => router.push(`/c/collections/${collectionId}/posts`)}
+                      size="small"
                     >
                       管理文章
                     </Button>

@@ -150,15 +150,21 @@ fix(scope): 简短描述
 新增或修改前台文案、模块名称、空状态、按钮、`/chat` 回答风格时，应优先参考 [站点级昼夜风格语义系统](docs/designs/homepage/day-night-style-system.md)。夜间模式相关命名和视觉母题参考 [赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)。
 
 ### 管理后台布局
-管理后台页面使用 `overflow-hidden` 固定高度，需遵循特定的 flex 布局：
+管理后台页面使用 `overflow-hidden` 固定高度，需遵循统一布局和组件规范：
 ```tsx
 <div className="w-full h-full flex flex-col">
   <div className="flex-1 flex flex-col min-h-0">
-    <div className="shrink-0">固定头部</div>
-    <div className="flex-1 min-h-0">可滚动内容</div>
+    <AdminPageHeader title="页面标题" extra={...} />
+    <div className="mb-4 shrink-0">筛选栏</div>
+    <ResponsiveTable ... />
   </div>
 </div>
 ```
+
+- `src/app/c/layout.tsx` 统一负责后台内容区背景和桌面端内边距，页面不要再用 `container mx-auto` 包裹列表页。
+- 后台标题统一使用 `AdminPageHeader`，不要在页面里自行写不同尺寸的 `h1` / `Typography.Title`。
+- 页面头部操作按钮使用 `size="small"`，筛选控件一般使用 `size="middle"`。
+- 表格操作列统一使用 `AdminTableActions` + `AdminActionButton`，桌面端按钮采用「图标 + 文字」的小按钮样式，危险操作使用 `color="danger"`。
 
 详见：[前端开发规范](docs/rules/frontend.md)
 

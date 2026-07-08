@@ -43,6 +43,11 @@ import type { QueryUserCondition, UserInfo } from "@/dto/user.dto";
 import { UserRole, RoleDisplayNames, getRoleOptions } from "@/types/role";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from "@/components/admin/AdminPageHeader";
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -527,33 +532,34 @@ function UserPageContent() {
       width: 300,
       fixed: "right" as const,
       render: (_: unknown, record: UserInfo) => (
-        <Space>
-          <Button variant="link"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </Button>
-          <Button variant="link"
+          </AdminActionButton>
+          <AdminActionButton
             icon={<SafetyOutlined />}
             onClick={() => handleAssignRoles(record)}
           >
             角色
-          </Button>
-          <Button variant="link"
+          </AdminActionButton>
+          <AdminActionButton
             icon={<LockOutlined />}
             onClick={() => handleResetPassword(record)}
           >
             重置密码
-          </Button>
-          <Button variant="link" color="danger"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
             disabled={record.role === UserRole.ADMIN}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -601,37 +607,34 @@ function UserPageContent() {
               ? dayjs(record.registered_time).format("YYYY-MM-DD")
               : "-"}
           </span>
-          <Space size="small">
-            <Button variant="link"
-              size="small"
+          <AdminTableActions>
+            <AdminActionButton
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
-            </Button>
-            <Button variant="link"
-              size="small"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<SafetyOutlined />}
               onClick={() => handleAssignRoles(record)}
             >
               角色
-            </Button>
-            <Button variant="link"
-              size="small"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<LockOutlined />}
               onClick={() => handleResetPassword(record)}
             >
               重置密码
-            </Button>
-            <Button variant="link" color="danger"
-              size="small"
+            </AdminActionButton>
+            <AdminActionButton
+              color="danger"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
               disabled={record.role === UserRole.ADMIN}
             >
               删除
-            </Button>
-          </Space>
+            </AdminActionButton>
+          </AdminTableActions>
         </div>
       </Card>
     );
@@ -642,18 +645,18 @@ function UserPageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 标题栏 */}
-        <div className={`mb-4 flex items-center justify-between shrink-0 ${isMobile ? 'gap-2' : ''}`}>
-          <h1 className={`font-bold ${isMobile ? "text-lg" : "text-2xl"}`}>
-            用户管理
-          </h1>
+        <AdminPageHeader
+          title="用户管理"
+          extra={
           <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
-            size={isMobile ? "middle" : "large"}
+            size="small"
           >
             {isMobile ? "新建" : "创建新用户"}
           </Button>
-        </div>
+          }
+        />
 
         {/* 搜索和筛选 */}
         <div className={`mb-4 shrink-0 ${isMobile ? "flex flex-col gap-2" : "flex gap-4"}`}>
@@ -661,7 +664,7 @@ function UserPageContent() {
             placeholder="搜索账号、昵称或邮箱"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? "middle" : "large"}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}
@@ -671,7 +674,7 @@ function UserPageContent() {
             <Select
               placeholder="角色筛选"
               allowClear
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               style={isMobile ? { width: "50%" } : { width: 140 }}
               value={roleFilter === "all" ? undefined : roleFilter}
               onChange={(value) =>
@@ -685,7 +688,7 @@ function UserPageContent() {
             <Select
               placeholder="状态筛选"
               allowClear
-              size={isMobile ? "middle" : "large"}
+              size="middle"
               style={isMobile ? { width: "50%" } : { width: 120 }}
               value={statusFilter === "all" ? undefined : statusFilter}
               onChange={(value) =>

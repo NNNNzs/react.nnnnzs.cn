@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Button, Input, Space, Tag, message, Modal, Switch, Card } from 'antd';
+import { Button, Input, Tag, message, Modal, Switch, Card } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
@@ -27,6 +27,11 @@ import { EntityType } from '@/types/entity-change';
 import { optimizeImageUrl, ImageOptimizationType } from '@/lib/image';
 import ResponsiveTable from '@/components/ResponsiveTable';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import {
+  AdminActionButton,
+  AdminPageHeader,
+  AdminTableActions,
+} from '@/components/admin/AdminPageHeader';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -290,29 +295,27 @@ function CollectionsManagePageContent() {
             <span>{dayjs(record.created_at).format('YYYY-MM-DD')}</span>
           </div>
           {/* 操作行 */}
-          <div className="mt-2 flex items-center gap-1">
-            <Button variant="link"
-              size="small"
+          <AdminTableActions className="mt-2">
+            <AdminActionButton
               icon={<EditOutlined />}
               onClick={() => router.push(`/c/collections/${record.id}`)}
             >
               编辑
-            </Button>
-            <Button variant="link"
-              size="small"
+            </AdminActionButton>
+            <AdminActionButton
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
-            </Button>
-            <Button variant="link" color="danger"
-              size="small"
+            </AdminActionButton>
+            <AdminActionButton
+              color="danger"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id, record.title)}
             >
               删除
-            </Button>
-          </div>
+            </AdminActionButton>
+          </AdminTableActions>
         </div>
       </div>
     </Card>
@@ -409,26 +412,27 @@ function CollectionsManagePageContent() {
       key: 'action',
       width: 240,
       render: (_, record) => (
-        <Space size="small">
-          <Button variant="link"
+        <AdminTableActions>
+          <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => router.push(`/c/collections/${record.id}`)}
           >
             编辑
-          </Button>
-          <Button variant="link"
+          </AdminActionButton>
+          <AdminActionButton
             icon={<HistoryOutlined />}
             onClick={() => handleViewChangeHistory(record)}
           >
             变更历史
-          </Button>
-          <Button variant="link" color="danger"
+          </AdminActionButton>
+          <AdminActionButton
+            color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id, record.title)}
           >
             删除
-          </Button>
-        </Space>
+          </AdminActionButton>
+        </AdminTableActions>
       ),
     },
   ];
@@ -438,16 +442,18 @@ function CollectionsManagePageContent() {
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
         {/* 头部操作栏 - 响应式 */}
-        <div className="mb-6 flex items-center justify-between shrink-0">
-          <h1 className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>合集管理</h1>
+        <AdminPageHeader
+          title="合集管理"
+          extra={
           <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={() => router.push('/c/collections/new')}
-            size={isMobile ? 'middle' : 'large'}
+            size="small"
           >
             {isMobile ? '新建' : '创建合集'}
           </Button>
-        </div>
+          }
+        />
 
         {/* 搜索 */}
         <div className="mb-4 shrink-0">
@@ -455,7 +461,7 @@ function CollectionsManagePageContent() {
             placeholder="搜索合集标题、Slug 或描述"
             allowClear
             enterButton={<SearchOutlined />}
-            size={isMobile ? 'middle' : 'large'}
+            size="middle"
             value={searchInputValue}
             onSearch={(value) => updateQueryParams({ q: value, page: 1 })}
             onChange={(e) => setSearchInputValue(e.target.value)}

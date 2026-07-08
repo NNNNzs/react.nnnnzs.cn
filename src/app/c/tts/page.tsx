@@ -33,6 +33,7 @@ import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { TTS_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 const { TextArea } = Input;
 
@@ -370,12 +371,13 @@ export default function TTSPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-2 mb-2">
-        <SoundOutlined className="text-2xl text-blue-500" />
-        <h1 className="text-2xl font-bold">语音合成</h1>
-        <Tag color="blue">MiMo TTS</Tag>
-      </div>
+    <div className="h-full w-full overflow-y-auto">
+      <div className="space-y-4">
+        <AdminPageHeader
+          title="语音合成"
+          icon={<SoundOutlined className="text-xl text-blue-500" />}
+          tag={<Tag color="blue">MiMo TTS</Tag>}
+        />
 
       <Row gutter={[24, 16]}>
         {/* 左侧：参数配置 */}
@@ -488,7 +490,7 @@ export default function TTSPage() {
                 loading={generating}
                 disabled={!text.trim()}
                 onClick={handleSynthesize}
-                size="large"
+                size="small"
                 block
               >
                 {generating ? getStatusText(jobStatus) : "生成语音"}
@@ -523,9 +525,11 @@ export default function TTSPage() {
               <div className="flex flex-col items-center justify-center py-8">
                 <p className="text-red-500 mb-4">合成失败</p>
                 <Button
-                  type="primary"
+                  color="primary"
+                  variant="solid"
                   icon={<ReloadOutlined />}
                   onClick={handleRetry}
+                  size="small"
                 >
                   重试
                 </Button>
@@ -557,12 +561,14 @@ export default function TTSPage() {
                       playing ? <PauseCircleOutlined /> : <PlayCircleOutlined />
                     }
                     onClick={handlePlayPause}
+                    size="small"
                   >
                     {playing ? "暂停" : "播放"}
                   </Button>
                   <Button
                     icon={<DownloadOutlined />}
                     onClick={handleDownload}
+                    size="small"
                   >
                     下载音频
                   </Button>
@@ -571,7 +577,10 @@ export default function TTSPage() {
                       icon={<ReloadOutlined />}
                       onClick={handleSynthesize}
                       loading={generating}
-                    />
+                      size="small"
+                    >
+                      重新生成
+                    </Button>
                   </Tooltip>
                 </Space>
 
@@ -594,6 +603,7 @@ export default function TTSPage() {
           </Card>
         </Col>
       </Row>
+      </div>
     </div>
   );
 }

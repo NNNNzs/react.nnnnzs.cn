@@ -42,8 +42,9 @@ import LongTermTokenCard from "@/components/LongTermTokenCard";
 import OAuthTokenCard from "@/components/OAuthTokenCard";
 import { isAdmin } from "@/types/role";
 import { RoleDisplayNames } from "@/types/role";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /**
  * 用户信息编辑页面组件
@@ -245,20 +246,19 @@ export default function UserInfoPage() {
 
   return (
     <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <AdminPageHeader
+        title="个人中心"
+        extra={
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={handleGoBack}
             variant="text"
+            size="small"
           >
             返回
           </Button>
-          <Title level={2} style={{ marginBottom: 0 }}>
-            个人中心
-          </Title>
-        </div>
-      </div>
+        }
+      />
 
       <Card>
         <Space orientation="vertical" size="large" className="w-full">
@@ -287,9 +287,9 @@ export default function UserInfoPage() {
               </Upload>
             </div>
             <div>
-              <Title level={4} style={{ marginBottom: 4 }}>
+              <h2 className="mb-1 text-base font-semibold text-slate-950">
                 {userInfo?.nickname || "未设置昵称"}
-              </Title>
+              </h2>
               <Text type="secondary">账号: {userInfo?.account}</Text>
             </div>
           </div>
@@ -342,7 +342,7 @@ export default function UserInfoPage() {
                 { max: 16, message: "昵称最多16个字符" },
               ]}
             >
-              <Input placeholder="请输入昵称" size="large" autoComplete="nickname" />
+              <Input placeholder="请输入昵称" size="middle" autoComplete="nickname" />
             </Form.Item>
 
             <Form.Item
@@ -353,7 +353,7 @@ export default function UserInfoPage() {
                 { max: 30, message: "邮箱最多30个字符" },
               ]}
             >
-              <Input placeholder="请输入邮箱（可选）" size="large" type="email" autoComplete="email" />
+              <Input placeholder="请输入邮箱（可选）" size="middle" type="email" autoComplete="email" />
             </Form.Item>
 
             <Form.Item
@@ -367,7 +367,7 @@ export default function UserInfoPage() {
                 { max: 11, message: "手机号最多11位" },
               ]}
             >
-              <Input placeholder="请输入手机号（可选）" size="large" autoComplete="tel" />
+              <Input placeholder="请输入手机号（可选）" size="middle" autoComplete="tel" />
             </Form.Item>
 
             <Form.Item
@@ -391,11 +391,11 @@ export default function UserInfoPage() {
                   htmlType="submit"
                   icon={<SaveOutlined />}
                   loading={loading}
-                  size="large"
+                  size="small"
                 >
                   保存
                 </Button>
-                <Button onClick={() => form.resetFields()} size="large">
+                <Button onClick={() => form.resetFields()} size="small">
                   重置
                 </Button>
               </Space>
@@ -416,6 +416,7 @@ export default function UserInfoPage() {
                 passwordForm.resetFields();
                 setPasswordModalOpen(true);
               }}
+              size="small"
             >
               修改密码
             </Button>
