@@ -37,6 +37,23 @@ export type {
 
 export type { ResponseBody } from '@/dto/response.dto';
 
+// Agent 流式通信共享类型
+export type {
+  AgentMessage,
+  AgentToolCall,
+  SSEClientEvent,
+  ReactStep,
+  ReactLoop,
+  ReactTimelineThinkItem,
+  ReactTimelineLoopItem,
+  ReactTimelineItem,
+  StepType,
+  DraftPatch,
+  DraftPatchImage,
+  StoredReactStep,
+  StoredReactTimelineItem,
+} from '@/types/agent-stream';
+
 // 角色相关类型
 export {
   UserRole,

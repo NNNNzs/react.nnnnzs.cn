@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { Button, Drawer, Input, Tag, Tooltip } from "antd";
+import React, { useRef, useState } from "react";
+import { Button, Drawer, Input, Tag } from "antd";
 import { SendOutlined, StopOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import type { AgentMessage } from "./useCreateAgent";
+import { AgentMessageContent } from "@/components/agent/AgentMessageContent";
+import { useExternalLinks } from "@/hooks/useExternalLinks";
+import { useSmartAutoScroll } from "@/hooks/useSmartAutoScroll";
 
 interface CreateAgentPanelProps {
   open: boolean;
@@ -31,12 +34,10 @@ export function CreateAgentPanel({
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 新消息时滚动到底部
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+  // 智能滚动：仅当用户停在底部时自动跟随，上翻时不打断
+  const { onScroll } = useSmartAutoScroll(scrollRef, isStreaming, [messages]);
+  // Markdown 链接在新标签页打开，避免在编辑器内跳转丢草稿
+  useExternalLinks(scrollRef, [messages]);
 
   const handleSend = (text?: string) => {
     const value = (text ?? input).trim();
@@ -57,6 +58,7 @@ export function CreateAgentPanel({
     >
       <div
         ref={scrollRef}
+        onScroll={onScroll}
         className="flex-1 overflow-y-auto px-4 py-3"
         style={{ minHeight: 0 }}
       >
@@ -101,9 +103,7 @@ export function CreateAgentPanel({
             disabled={isStreaming}
           />
           {isStreaming ? (
-            <Tooltip title="停止">
-              <Button danger icon={<StopOutlined />} onClick={onAbort} />
-            </Tooltip>
+            <Button danger icon={<StopOutlined />} onClick={onAbort} />
           ) : (
             <Button type="primary" icon={<SendOutlined />} onClick={() => handleSend()} />
           )}
@@ -116,50 +116,33 @@ export function CreateAgentPanel({
 function MessageBubble({ message }: { message: AgentMessage }) {
   const isUser = message.role === "user";
   return (
-    <div className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
+    <div className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm ${
+        className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
           isUser
-            ? "bg-blue-500 text-white"
-            : "bg-slate-100 text-slate-800"
+            ? "whitespace-pre-wrap break-words bg-blue-500 text-white"
+            : "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200"
         }`}
       >
-        {message.content || (isUser ? "" : "…")}
+        {isUser ? (
+          message.content
+        ) : (
+          <AgentMessageContent
+            content={message.content}
+            thoughts={[]}
+            reactLoops={[]}
+            reactTimeline={message.reactTimeline || []}
+            isLoading={false}
+            variant="compact"
+          />
+        )}
       </div>
 
-      {!isUser && message.tools.length > 0 && (
-        <div className="flex w-full flex-col gap-1">
-          {message.tools.map((tool) => (
-            <ToolCallTag key={tool.step} tool={tool} />
-          ))}
-        </div>
-      )}
-
       {!isUser && message.hasPatch && (
-        <Tag color="orange" className="!text-xs">
+        <Tag color="orange" className="!text-xs self-start">
           已填入表单，记得点保存
         </Tag>
       )}
     </div>
   );
-}
-
-function ToolCallTag({ tool }: { tool: AgentMessage["tools"][number] }) {
-  const isRunning = tool.status === "running";
-  return (
-    <Tag
-      color={isRunning ? "processing" : "default"}
-      className="!max-w-full !text-xs !whitespace-normal"
-    >
-      {isRunning ? "⚙️ 调用" : "✓"}{" "}
-      <span className="font-mono">{tool.tool}</span>
-      {tool.result ? (
-        <span className="text-slate-400"> → {truncate(tool.result, 80)}</span>
-      ) : null}
-    </Tag>
-  );
-}
-
-function truncate(text: string, max: number) {
-  return text.length <= max ? text : `${text.slice(0, max)}…`;
 }

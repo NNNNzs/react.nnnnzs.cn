@@ -18,7 +18,7 @@ function getClientIp(request: NextRequest): string | undefined {
     || undefined;
 }
 import { chatAgentStream } from '@/services/ai/chat-agent';
-import { createStreamResponse } from '@/lib/stream';
+import { createSSEResponse } from '@/lib/sse';
 import {
   createSession,
   createMessage,
@@ -26,10 +26,9 @@ import {
   touchSession,
   updateSessionTitle,
 } from '@/services/chat-log';
-import { StreamTagParser, type StreamStepMeta, type StreamTag } from '@/lib/stream-tags';
 import { errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
-import type { StepType } from '@/lib/stream-tags';
+import type { StoredReactStep, StoredReactTimelineItem } from '@/types/agent-stream';
 import { generateChatSessionTitle } from '@/services/ai/chat-agent/title';
 import { parseSiteStyleVariant } from '@/lib/site-style/variant';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
@@ -79,26 +78,6 @@ interface ChatRequest {
   sessionId?: number;
   styleVariant?: SiteStyleVariant;
 }
-
-type StoredReactStep = {
-  type: StepType;
-  content: string;
-  toolName?: string;
-  startedAt?: string;
-  endedAt?: string;
-  durationMs?: number;
-};
-
-type StoredReactTimelineItem =
-  | {
-      type: 'think';
-      content: string;
-    }
-  | {
-      type: 'loop';
-      index: number;
-      steps: StoredReactStep[];
-    };
 
 /**
  * 聊天 API
@@ -167,7 +146,7 @@ export async function POST(request: NextRequest) {
     });
     await touchSession(activeSessionId, { increment: 1 });
 
-    // 调用 Chat Agent 服务（流式响应，ReAct 范式）
+    // 调用 Chat Agent 服务（流式响应，SSE 事件流）
     const runStartedAt = Date.now();
     const originalStream = await chatAgentStream({
       question: message,
@@ -179,7 +158,7 @@ export async function POST(request: NextRequest) {
       styleVariant,
     });
 
-    // 用 TransformStream 包装，收集流式内容用于存储
+    // 用 TransformStream 包装：透传 SSE 帧给客户端，同时解析收集用于落库
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
     const writer = writable.getWriter();
 
@@ -188,64 +167,160 @@ export async function POST(request: NextRequest) {
     const collectedSteps: Array<StoredReactStep & { index: number }> = [];
     const collectedTimeline: StoredReactTimelineItem[] = [];
     let collectedContent = '';
-    const parser = new StreamTagParser();
+    let currentThinkContent = '';
 
-    const appendThink = (content: string) => {
-      const lastTimelineItem = collectedTimeline[collectedTimeline.length - 1];
-      if (lastTimelineItem?.type === 'think') {
-        const lastThoughtIndex = collectedThoughts.length - 1;
-        if (lastThoughtIndex >= 0) {
-          collectedThoughts[lastThoughtIndex] += content;
-        } else {
-          collectedThoughts.push(content);
-        }
-        lastTimelineItem.content += content;
-      } else {
-        collectedThoughts.push(content);
-        collectedTimeline.push({
-          type: 'think',
-          content,
-        });
+    // 简易 SSE 帧解析器（服务端用，处理 Uint8Array 流）
+    const sseBuffer = new TextDecoder();
+    let sseRaw = '';
+
+    const processSSEBuffer = () => {
+      let sepIndex: number;
+      while ((sepIndex = sseRaw.indexOf('\n\n')) !== -1) {
+        const rawFrame = sseRaw.slice(0, sepIndex);
+        sseRaw = sseRaw.slice(sepIndex + 2);
+        parseSSEFrameServer(rawFrame);
       }
     };
 
-    const appendStep = (
-      type: StepType,
-      content: string,
-      index: number,
-      meta: StreamStepMeta = {},
-    ) => {
-      const step: StoredReactStep & { index: number } = {
-        type,
-        content,
-        index,
-        ...(meta.toolName ? { toolName: meta.toolName } : {}),
-        ...(meta.startedAt ? { startedAt: meta.startedAt } : {}),
-        ...(meta.endedAt ? { endedAt: meta.endedAt } : {}),
-        ...(typeof meta.durationMs === 'number' ? { durationMs: meta.durationMs } : {}),
-      };
+    const parseSSEFrameServer = (raw: string) => {
+      const lines = raw.split('\n');
+      let eventName = 'message';
+      const dataLines: string[] = [];
 
-      collectedSteps.push(step);
-      const { index: _stepIndex, ...storedStep } = step;
-      void _stepIndex;
+      for (const line of lines) {
+        if (!line || line.startsWith(':')) continue;
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).replace(/^ /, ''));
+        }
+      }
 
-      const existingTimelineItem = collectedTimeline.find(
-        (item): item is Extract<StoredReactTimelineItem, { type: 'loop' }> =>
-          item.type === 'loop' && item.index === index,
-      );
-      if (existingTimelineItem) {
-        existingTimelineItem.steps.push(storedStep);
+      if (dataLines.length === 0) return;
+
+      const dataStr = dataLines.join('\n');
+      let data: unknown;
+      try {
+        data = JSON.parse(dataStr);
+      } catch {
         return;
       }
 
-      collectedTimeline.push({
-        type: 'loop',
-        index,
-        steps: [storedStep],
-      });
+      switch (eventName) {
+        case 'think_chunk': {
+          const { content } = data as { content: string };
+          currentThinkContent += content;
+          break;
+        }
+        case 'think_start': {
+          currentThinkContent = '';
+          collectedThoughts.push('');
+          collectedTimeline.push({ type: 'think', content: '' });
+          break;
+        }
+        case 'think_end': {
+          if (currentThinkContent) {
+            const thoughtIdx = collectedThoughts.length - 1;
+            if (thoughtIdx >= 0) {
+              collectedThoughts[thoughtIdx] = currentThinkContent;
+            }
+            const lastTimeline = collectedTimeline[collectedTimeline.length - 1];
+            if (lastTimeline && lastTimeline.type === 'think') {
+              lastTimeline.content = currentThinkContent;
+            }
+          }
+          currentThinkContent = '';
+          break;
+        }
+        case 'tool_start': {
+          const { tool, args, step } = data as {
+            tool: string;
+            args?: unknown;
+            step: number;
+            runId: string;
+          };
+          const stepContent = `${tool}(${typeof args === 'string' ? args : JSON.stringify(args)})`;
+          collectedSteps.push({
+            type: 'action',
+            content: stepContent,
+            index: step,
+            toolName: tool,
+            startedAt: new Date().toISOString(),
+          });
+          const existing = collectedTimeline.find(
+            (item): item is StoredReactTimelineItem & { type: 'loop' } =>
+              item.type === 'loop' && item.index === step,
+          );
+          if (existing) {
+            existing.steps.push({
+              type: 'action',
+              content: stepContent,
+              index: step,
+              toolName: tool,
+              startedAt: new Date().toISOString(),
+            });
+          } else {
+            collectedTimeline.push({
+              type: 'loop',
+              index: step,
+              steps: [{
+                type: 'action',
+                content: stepContent,
+                index: step,
+                toolName: tool,
+                startedAt: new Date().toISOString(),
+              }],
+            });
+          }
+          break;
+        }
+        case 'tool_end': {
+          const { result, step } = data as {
+            tool: string;
+            result?: string;
+            step: number;
+            runId: string;
+          };
+          const stepRecord = collectedSteps.find(
+            (s) => s.index === step && s.type === 'action',
+          );
+          if (stepRecord) {
+            stepRecord.type = 'observation';
+            stepRecord.content = result || '';
+            stepRecord.endedAt = new Date().toISOString();
+            if (stepRecord.startedAt) {
+              stepRecord.durationMs =
+                new Date(stepRecord.endedAt).getTime() -
+                new Date(stepRecord.startedAt).getTime();
+            }
+          }
+          const loopItem = collectedTimeline.find(
+            (item): item is StoredReactTimelineItem & { type: 'loop' } =>
+              item.type === 'loop' && item.index === step,
+          );
+          if (loopItem) {
+            const actionStep = loopItem.steps.find((s) => s.type === 'action' && !s.endedAt);
+            if (actionStep) {
+              actionStep.type = 'observation';
+              actionStep.content = result || '';
+              actionStep.endedAt = stepRecord?.endedAt;
+              if (typeof stepRecord?.durationMs === 'number') {
+                actionStep.durationMs = stepRecord.durationMs;
+              }
+            }
+          }
+          break;
+        }
+        case 'content_chunk':
+        case 'token': {
+          const { content: chunk } = data as { content: string };
+          collectedContent += chunk;
+          break;
+        }
+      }
     };
 
-    // 将原始流的数据泵入 writer，同时用 parser 收集内容
+    // 将原始流的数据泵入 writer，同时解析 SSE 帧收集内容
     const pumpAndCollect = async () => {
       const reader = originalStream.getReader();
 
@@ -255,31 +330,17 @@ export async function POST(request: NextRequest) {
           if (done) break;
           if (!value) continue;
 
-          // 传给客户端
+          // 透传给客户端
           await writer.write(value);
 
-          // 用 parser 收集内容
-          parser.parseChunk(value, (tag: StreamTag) => {
-            if (tag.type === 'think') {
-              appendThink(tag.content);
-            } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-              appendStep(tag.stepType, tag.content, tag.stepIndex, tag);
-            } else if (tag.type === 'content') {
-              collectedContent += tag.content;
-            }
-          });
+          // 解析 SSE 帧收集内容
+          sseRaw += sseBuffer.decode(value, { stream: true });
+          processSSEBuffer();
         }
 
-        // 处理 parser 缓冲区剩余内容
-        parser.finish((tag: StreamTag) => {
-          if (tag.type === 'think') {
-            appendThink(tag.content);
-          } else if (tag.type === 'step' && tag.stepType && tag.stepIndex) {
-            appendStep(tag.stepType, tag.content, tag.stepIndex, tag);
-          } else if (tag.type === 'content') {
-            collectedContent += tag.content;
-          }
-        });
+        // 处理残留 buffer
+        sseRaw += sseBuffer.decode();
+        if (sseRaw.trim()) processSSEBuffer();
       } catch (err) {
         console.error('Stream pump error:', err);
       } finally {
@@ -287,13 +348,10 @@ export async function POST(request: NextRequest) {
 
         // 异步存储 AI 回复（不阻塞响应）
         if (collectedContent) {
-          // 按 index 分组 steps 为 reactLoops
           const reactLoopsMap = new Map<number, StoredReactStep[]>();
           for (const step of collectedSteps) {
             const existing = reactLoopsMap.get(step.index) || [];
-            const { index, ...storedStep } = step;
-            void index;
-            existing.push(storedStep);
+            existing.push(step);
             reactLoopsMap.set(step.index, existing);
           }
           const reactLoops = Array.from(reactLoopsMap.entries()).map(([index, steps]) => ({
@@ -358,10 +416,8 @@ export async function POST(request: NextRequest) {
     pumpAndCollect();
 
     // 在响应头中携带 sessionId，前端可用于后续请求
-    return createStreamResponse(readable, {
-      additionalHeaders: {
-        'X-Session-Id': String(activeSessionId),
-      },
+    return createSSEResponse(readable, {
+      'X-Session-Id': String(activeSessionId),
     });
   } catch (error) {
     console.error('聊天 API 错误:', error);
