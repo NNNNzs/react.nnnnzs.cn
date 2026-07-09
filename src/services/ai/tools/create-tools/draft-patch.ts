@@ -1,14 +1,14 @@
 /**
  * 草稿 patch 类型定义
  *
- * 由 create-agent 的 emit_draft_patch 工具产出，通过 SSE draft_patch 事件下发，
- * 前端应用到草稿表单 state（方案 B：不直接落库，用户点保存才写库）。
+ * 由 create-agent 的 emit_draft_patch 工具产出，通过 SSE patch 事件下发，
+ * 前端先展示差异并等待用户确认，再应用到草稿表单 state。
  *
- * 后端（agent 工具）与前端（表单应用）共享此类型。
+ * 后端（agent 工具）与前端（待确认建议）共享此类型。
  */
 
 export interface DraftPatchImage {
-  /** 已入库的素材 ID（前端回填草稿图片快照需要） */
+  /** 已入库的素材 ID（用户确认后 attach 到草稿需要） */
   assetId?: number;
   /** 图片 CDN URL */
   imageUrl: string;

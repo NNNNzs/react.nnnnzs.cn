@@ -8,15 +8,9 @@
 import React, { useState, useCallback } from 'react';
 import { Button, Modal, List, Select, Spin, Empty, message, Tooltip } from 'antd';
 import { HistoryOutlined, SwapOutlined } from '@ant-design/icons';
-import dynamic from 'next/dynamic';
 import dayjs from 'dayjs';
 import axios from '@/lib/axios';
-
-// 动态导入 diff viewer（避免 SSR 问题）
-const ReactDiffViewer = dynamic(
-  () => import('react-diff-viewer-continued'),
-  { ssr: false, loading: () => <Spin tip="加载对比组件..." /> }
-);
+import { ContentDiffViewer } from '@/components/diff/ContentDiffViewer';
 
 interface PostVersionHistoryProps {
   /** 文章 ID */
@@ -219,42 +213,13 @@ export default function PostVersionHistory({ postId }: PostVersionHistoryProps) 
                 </Button>
               </div>
             </div>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <ReactDiffViewer
-                oldValue={diffData.oldContent}
-                newValue={diffData.newContent}
-                splitView={true}
-                showDiffOnly={false}
-                useDarkTheme={false}
-                leftTitle={`版本 ${diffData.fromVersion}${diffData.fromVersion === 0 ? '（初始）' : ''}`}
-                rightTitle={`版本 ${diffData.toVersion}${diffData.toVersion === diffData.currentVersion ? '（当前）' : ''}`}
-                styles={{
-                  variables: {
-                    light: {
-                      diffViewerBackground: '#fff',
-                      diffViewerColor: '#212121',
-                      addedBackground: '#e6ffec',
-                      addedColor: '#24292e',
-                      removedBackground: '#ffebe9',
-                      removedColor: '#24292e',
-                      wordAddedBackground: '#acf2bd',
-                      wordRemovedBackground: '#ffc0c0',
-                      addedGutterBackground: '#cdffd8',
-                      removedGutterBackground: '#ffdce0',
-                      gutterBackground: '#f7f7f7',
-                      gutterBackgroundDark: '#f0f0f0',
-                      highlightBackground: '#fffbdd',
-                      highlightGutterBackground: '#fff5b1',
-                    },
-                  },
-                  contentText: {
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    fontSize: '13px',
-                    lineHeight: '1.5',
-                  },
-                }}
-              />
-            </div>
+            <ContentDiffViewer
+              oldValue={diffData.oldContent}
+              newValue={diffData.newContent}
+              leftTitle={`版本 ${diffData.fromVersion}${diffData.fromVersion === 0 ? '（初始）' : ''}`}
+              rightTitle={`版本 ${diffData.toVersion}${diffData.toVersion === diffData.currentVersion ? '（当前）' : ''}`}
+              className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+            />
           </div>
         ) : (
           // 版本列表视图

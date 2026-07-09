@@ -29,6 +29,7 @@ import {
 } from "@ant-design/icons";
 import { CreateAgentPanel } from "./CreateAgentPanel";
 import { useCreateAgent } from "./useCreateAgent";
+import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
 import type { DraftPatch } from "@/services/ai/tools/create-tools/draft-patch";
 
 interface ApiResponse<T> {
@@ -156,6 +157,89 @@ function getDownloadFileName(disposition: string | null) {
   return plainMatch?.[1] ?? null;
 }
 
+interface DraftPatchDiff {
+  oldValue: string;
+  newValue: string;
+  fields: string[];
+}
+
+function formatDiffSection(label: string, value: unknown) {
+  const text = Array.isArray(value)
+    ? value.join("\n")
+    : typeof value === "string"
+      ? value
+      : value == null
+        ? ""
+        : JSON.stringify(value, null, 2);
+  return `## ${label}\n${text || "（空）"}`;
+}
+
+function buildDraftPatchDiff(params: {
+  patch: DraftPatch;
+  title: string;
+  body: string;
+  status: string;
+  selectedImages: DraftImageItem[];
+}): DraftPatchDiff {
+  const { patch, title, body, status, selectedImages } = params;
+  const oldSections: string[] = [];
+  const newSections: string[] = [];
+  const fields: string[] = [];
+
+  if (patch.title !== undefined) {
+    fields.push("标题");
+    oldSections.push(formatDiffSection("标题", title));
+    newSections.push(formatDiffSection("标题", patch.title));
+  }
+
+  if (patch.hook !== undefined) {
+    fields.push("Hook");
+    oldSections.push(formatDiffSection("Hook", "当前草稿页暂未接入 hook 字段"));
+    newSections.push(formatDiffSection("Hook", patch.hook));
+  }
+
+  if (patch.body !== undefined) {
+    fields.push("正文");
+    oldSections.push(formatDiffSection("正文", body));
+    newSections.push(formatDiffSection("正文", patch.body));
+  }
+
+  if (patch.status !== undefined) {
+    fields.push("状态");
+    oldSections.push(formatDiffSection("状态", status));
+    newSections.push(formatDiffSection("状态", patch.status));
+  }
+
+  if (patch.tags !== undefined) {
+    fields.push("标签");
+    oldSections.push(formatDiffSection("标签", "当前草稿页暂未接入 tags 字段"));
+    newSections.push(formatDiffSection("标签", patch.tags));
+  }
+
+  if (patch.addImages?.length) {
+    fields.push("图片");
+    oldSections.push(formatDiffSection(
+      "图片",
+      selectedImages.map((image) => `${image.sortOrder}. ${image.title || image.imageUrl}`),
+    ));
+    newSections.push(formatDiffSection(
+      "图片",
+      [
+        ...selectedImages.map((image) => `${image.sortOrder}. ${image.title || image.imageUrl}`),
+        ...patch.addImages.map((image, index) => (
+          `新增 ${index + 1}. ${image.title || image.imageUrl}${image.assetId ? ` (#${image.assetId})` : ""}`
+        )),
+      ],
+    ));
+  }
+
+  return {
+    oldValue: oldSections.join("\n\n"),
+    newValue: newSections.join("\n\n"),
+    fields,
+  };
+}
+
 export function CreateDraftEditor() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -175,7 +259,15 @@ export function CreateDraftEditor() {
   const [downloadingImages, setDownloadingImages] = useState(false);
   const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [pendingPatch, setPendingPatch] = useState<DraftPatch | null>(null);
+  const [patchOpen, setPatchOpen] = useState(false);
+  const [patchApplying, setPatchApplying] = useState(false);
   const selectedImages = useMemo(() => normalizeDraftImages(draft?.selected_images ?? []), [draft?.selected_images]);
+  const pendingPatchDiff = useMemo(() => (
+    pendingPatch
+      ? buildDraftPatchDiff({ patch: pendingPatch, title, body, status, selectedImages })
+      : null
+  ), [body, pendingPatch, selectedImages, status, title]);
 
   const loadDraft = useCallback(async () => {
     if (!Number.isInteger(draftId) || draftId <= 0) return;
@@ -269,15 +361,11 @@ export function CreateDraftEditor() {
     }
   };
 
-  /**
-   * 应用 agent 产出的 draft_patch（方案 B）：
-   * title/body 只改前端 state（不落库，等用户点保存）；
-   * addImages 调 /images 接口把已入库素材 attach 到草稿（图片即时落库）。
-   */
-  const handleAgentPatch = useCallback(
+  const applyAgentPatch = useCallback(
     async (patch: DraftPatch) => {
-      if (patch.title) setTitle(patch.title);
-      if (patch.body) setBody(patch.body);
+      if (patch.title !== undefined) setTitle(patch.title);
+      if (patch.body !== undefined) setBody(patch.body);
+      if (patch.status !== undefined) setStatus(patch.status);
 
       if (patch.addImages?.length) {
         for (const img of patch.addImages) {
@@ -301,11 +389,30 @@ export function CreateDraftEditor() {
         }
         message.success(`AI 已追加 ${patch.addImages.length} 张图片`);
       }
-
-      message.info("AI 已填入内容，记得点保存", 2);
     },
     [draftId],
   );
+
+  /**
+   * 收到 emit_draft_patch 后先进入待确认状态，不直接改表单。
+   */
+  const handleAgentPatch = useCallback((patch: DraftPatch) => {
+    setPendingPatch(patch);
+    message.info("收到 AI 草稿建议，可点击查看对比", 2);
+  }, []);
+
+  const handleApplyPendingPatch = useCallback(async () => {
+    if (!pendingPatch) return;
+    setPatchApplying(true);
+    try {
+      await applyAgentPatch(pendingPatch);
+      setPatchOpen(false);
+      setPendingPatch(null);
+      message.success("AI 建议已应用到表单，请确认后保存");
+    } finally {
+      setPatchApplying(false);
+    }
+  }, [applyAgentPatch, pendingPatch]);
 
   const agent = useCreateAgent({ draftId, onPatch: handleAgentPatch });
 
@@ -509,6 +616,11 @@ export function CreateDraftEditor() {
             >
               AI 助手
             </Button>
+            {pendingPatch ? (
+              <Button onClick={() => setPatchOpen(true)}>
+                查看 AI 建议
+              </Button>
+            ) : null}
             <Popconfirm
               title="删除草稿"
               description="删除后无法恢复，确认继续？"
@@ -661,6 +773,38 @@ export function CreateDraftEditor() {
       </div>
 
       <Modal
+        title="确认 AI 草稿建议"
+        open={patchOpen}
+        onCancel={() => setPatchOpen(false)}
+        onOk={handleApplyPendingPatch}
+        okText="应用到表单"
+        cancelText="先不应用"
+        confirmLoading={patchApplying}
+        width="88vw"
+        destroyOnHidden
+      >
+        {pendingPatchDiff ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <span>改动项目：</span>
+              {pendingPatchDiff.fields.map((field) => (
+                <Tag key={field} color="blue">{field}</Tag>
+              ))}
+            </div>
+            <ContentDiffViewer
+              oldValue={pendingPatchDiff.oldValue}
+              newValue={pendingPatchDiff.newValue}
+              leftTitle="当前表单"
+              rightTitle="AI 建议"
+              className="max-h-[65vh] overflow-auto rounded-md border border-slate-200"
+            />
+          </div>
+        ) : (
+          <Empty description="暂无可对比的 AI 建议" />
+        )}
+      </Modal>
+
+      <Modal
         title="添加素材图片"
         open={assetOpen}
         onCancel={() => setAssetOpen(false)}
@@ -726,6 +870,8 @@ export function CreateDraftEditor() {
         isStreaming={agent.isStreaming}
         onSend={(text) => agent.sendMessage(text, agent.messages)}
         onAbort={agent.abort}
+        hasPendingPatch={Boolean(pendingPatch)}
+        onViewPatch={() => setPatchOpen(true)}
       />
     </div>
   );

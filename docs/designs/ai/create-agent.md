@@ -6,9 +6,9 @@
 
 ## 一、目标
 
-在草稿详情页唤起一个对话式创作助手，通过 LangGraph ReAct Agent 编排模板读取、草稿读写、文生图等工具，把分散的 `content_*` API 和图片生成能力串成可对话、可调用工具、可产出结构化建议的助手。
+在草稿详情页唤起一个对话式创作助手，通过 LangGraph ReAct Agent 编排模板读取、草稿读取、文生图等工具，把分散的 `content_*` API 和图片生成能力串成可对话、可调用工具、可产出结构化建议的助手。
 
-核心交互：用户说「把这篇扩展成 3 张小红书图卡」→ 助手自动读模板提示词 → 产出文案 → 调文生图 → 把生成的图建议回填到草稿表单。
+核心交互：用户说「把这篇扩展成 3 张小红书图卡」→ 助手自动读模板提示词 → 产出文案 → 调文生图 → 把生成的结构化建议提交给前端 → 用户对比差异并确认应用。
 
 ## 二、架构
 
@@ -35,11 +35,11 @@ Tools：src/services/ai/tools/create-tools/ (7 个工具)
 | System prompt | 文件系统 `chat-agent-system-prompt.md` | 数据库 `content_templates` 表（`scenario=content_agent`） |
 | 流式协议 | 自定义 XML 标签（`text/plain`） | **标准 SSE（`text/event-stream`）** |
 | 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 文生图+轮询 / 博客检索 |
-| 写业务数据 | 不写 | **不直接写**，由前端应用 `draft_patch` |
+| 写业务数据 | 不写 | **不直接写**，由前端确认并应用 `patch` |
 
 ### 2.3 草稿回填架构（方案 B）
 
-Agent **不直接写库**，通过 `emit_draft_patch` 伪工具产出 `draft_patch` SSE 事件；前端收到后合并进表单 state，**用户点保存才落库**。
+Agent **不直接写库**，通过 `emit_draft_patch` 伪工具产出 `patch` SSE 事件；前端收到后显示「查看对比」入口。用户点击后用 `ContentDiffViewer` 展示当前表单与 AI 建议差异，确认后才合并进表单 state，**用户点保存才落库**。
 
 ```mermaid
 sequenceDiagram
@@ -56,10 +56,13 @@ sequenceDiagram
     Agent->>Agent: generate_image() → jobId
     Agent->>Agent: poll_image_job() → cdnUrl
     Agent->>Agent: createContentAsset() → assetId
-    Agent->>FE: SSE: draft_patch {addImages: [{assetId, imageUrl}]}
+    Agent->>FE: SSE: patch {addImages: [{assetId, imageUrl}]}
+    FE->>U: 显示「查看对比」入口
+    U->>FE: 点击 [查看对比]
+    FE->>U: 展示 ContentDiffViewer 差异确认弹窗
+    U->>FE: 点击 [应用到表单]
     FE->>DB: POST /images {asset_id}
     FE->>FE: setState(title, body, selectedImages)
-    FE->>U: "已填入，记得点保存"
     U->>FE: 点击 [保存]
     FE->>DB: PATCH /api/create/drafts/[id]
 ```
@@ -72,7 +75,7 @@ sequenceDiagram
 | `token` | `{ content }` | 模型流式输出 |
 | `tool_start` | `{ tool, args, runId, step }` | 工具开始 |
 | `tool_end` | `{ tool, result, runId, step }` | 工具结束 |
-| `draft_patch` | `{ title?, hook?, body?, tags?, status?, addImages? }` | 草稿建议 |
+| `patch` | `{ title?, hook?, body?, tags?, status?, addImages? }` | 草稿建议（由 `emit_draft_patch` 触发） |
 | `error` | `{ message }` | 异常 |
 | `done` | `{}` | 结束 |
 
@@ -103,7 +106,7 @@ sequenceDiagram
 | `get_post_content` | 只读 | 按 ID 读博客全文 |
 | `generate_image` | 后端任务 | 提交文生图异步任务，返回 jobId |
 | `poll_image_job` | 只读 | 轮询任务状态，SUCCESS 返回 cdnUrl |
-| `emit_draft_patch` | 伪工具 | 把草稿建议推到前端表单（不写库） |
+| `emit_draft_patch` | 伪工具 | 把草稿建议推到前端待确认队列（不写库） |
 
 ## 五、使用前准备
 
@@ -117,7 +120,7 @@ sequenceDiagram
 
 保存入口在草稿详情页顶部操作区的「保存」按钮，和「返回」「AI 助手」「删除」同一行。
 
-AI 助手调用 `emit_draft_patch` 后，只是把标题、正文、标签等内容回填到前端表单 state。此时刷新页面仍可能丢失这些文本改动，必须点击页面顶部「保存」按钮，才会通过 `PATCH /api/create/drafts/[id]` 写入数据库。
+AI 助手调用 `emit_draft_patch` 后，前端会显示「查看对比」入口。用户点击后打开「确认 AI 草稿建议」对比弹窗，展示当前表单与 AI 建议的差异。用户点击「应用到表单」后，标题、正文、标签等内容才会进入前端表单 state；此时刷新页面仍可能丢失这些文本改动，必须点击页面顶部「保存」按钮，才会通过 `PATCH /api/create/drafts/[id]` 写入数据库。
 
 图片资源是例外：文生图成功后会先通过 `/images` 关联资产，因此图片 attach 属于资产级即时落库；但正文、标题、hook、标签、状态仍以草稿「保存」为准。
 
@@ -127,13 +130,13 @@ AI 助手调用 `emit_draft_patch` 后，只是把标题、正文、标签等内
 
 - `load_prompt_skill_template` 成功：Agent 已按 slug 加载完整 Prompt / Skill 模板正文，例如小红书风格指南。
 - `search_posts` 成功：Agent 已执行博客素材检索；即使结果为空，也说明工具调用本身完成。
-- `emit_draft_patch` 成功：Agent 已把结构化草稿建议通过 SSE `draft_patch` 发给前端，前端应合并进表单。
+- `emit_draft_patch` 成功：Agent 已把结构化草稿建议通过 SSE `patch` 发给前端，前端会等待用户确认后再应用到表单。
 
-但 `emit_draft_patch` 成功不等于草稿已保存到数据库。最终落库信号仍是用户点击「保存」后，草稿详情页保存请求成功。
+但 `emit_draft_patch` 成功不等于草稿已应用到表单，也不等于草稿已保存到数据库。最终落库信号仍是用户确认应用并点击「保存」后，草稿详情页保存请求成功。
 
 ### 6.3 工具调用结果里出现 `ToolMessage` JSON 正常吗？
 
-正常。当前前端会展示 LangChain 工具返回对象的截断文本，所以可能看到 `{"lc":1,"type":"constructor","id":["langchain_core","messages","ToolMessage"]...` 这类内容。它表示底层返回的是 LangChain 消息对象，并不代表失败；真正需要关注的是工具标签是否从调用中变成 `✓`，以及表单是否收到回填内容。
+正常。当前前端会展示 LangChain 工具返回对象的截断文本，所以可能看到 `{"lc":1,"type":"constructor","id":["langchain_core","messages","ToolMessage"]...` 这类内容。它表示底层返回的是 LangChain 消息对象，并不代表失败；真正需要关注的是工具标签是否从调用中变成 `✓`，以及前端是否出现「查看对比」入口。
 
 ## 七、后置规划
 

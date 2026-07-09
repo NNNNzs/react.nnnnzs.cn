@@ -2,7 +2,7 @@
  * 创作助手对话 API
  * POST /api/create/drafts/[id]/chat
  *
- * 返回标准 SSE 多事件流（meta/token/tool_start/tool_end/draft_patch/error/done）。
+ * 返回标准 SSE 多事件流（meta/token/tool_start/tool_end/patch/error/done）。
  * 会话不持久化（第一期内存级），前端自行维护 history。
  */
 

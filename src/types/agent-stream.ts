@@ -40,7 +40,7 @@ export interface AgentMessage {
    */
   tools: AgentToolCall[];
   /**
-   * 标记收到过 draft_patch，便于 UI 提示用户保存
+   * 标记收到过业务 patch，便于 UI 提示用户确认
    * 仅 /create 页面使用
    */
   hasPatch?: boolean;
@@ -194,7 +194,7 @@ export interface DraftPatchImage {
  * 草稿 Patch
  *
  * 由创作助手的 emit_draft_patch 工具产出，通过 SSE patch 事件下发。
- * 前端应用到草稿表单 state（不直接落库，用户点保存才写库）。
+ * 前端先展示差异并等待用户确认，再应用到草稿表单 state。
  */
 export interface DraftPatch {
   /** 新标题 */

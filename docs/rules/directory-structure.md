@@ -71,6 +71,8 @@ src/
 │   ├── ImageGen/                 # AI 图片生成组件（GPT Image 2）
 │   │   ├── ImageGenPanel.tsx     # 图片生成面板（文生图/图文编辑）
 │   │   └── ImageResultCard.tsx   # 图片生成结果卡片
+│   ├── agent/                    # Agent 对话消息与助手面板
+│   ├── diff/                     # 文本/版本对比组件
 │   └── (shared UI components)    # 其他共享组件
 │
 ├── contexts/                     # React Contexts
@@ -155,6 +157,8 @@ src/
 │   ├── useCachedApi.ts           # 带缓存的 API 请求
 │   ├── useConfig.ts              # 系统配置 Hook
 │   ├── useDarkMode.ts            # 暗色模式 Hook
+│   ├── useAgentStream.ts         # 通用 Agent SSE 流消费
+│   ├── useAssistantAgent.ts      # 业务助手场景封装
 │   ├── useRouteMatch.ts          # 路由匹配 Hook
 │   └── useScrollProgress.ts      # 滚动进度 Hook
 ├── types/                        # TypeScript 类型定义 (重新导出)
@@ -236,4 +240,3 @@ src/components/cyberpunk/
 - 不可见补光必须明确命名或注释为 fill/bounce/window light，并保持 `visibleFixture={false}` 或直接使用不可见 light primitive，避免被误认为房间里的物件。
 - 纯装饰 emissive 片、HUD 光点、状态点可以 mesh-only；一旦承担照明语义，就要和 `pointLight` / `spotLight` 封装到同一个物件组件中。
 - 灯具组件优先按 `*Fixture` / `*Light` / `*Lamp` 这类语义命名，组件内部统一负责位置、模型、发光材质和实际光源。
-

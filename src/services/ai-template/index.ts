@@ -659,13 +659,13 @@ const BUILTIN_SKILL_TEMPLATES: CreateAiTemplateInput[] = [
 - search_posts / get_post_content：检索博客文章作为创作素材
 - generate_image：提交文生图或图文编辑异步任务，返回 jobId
 - poll_image_job：轮询文生图任务状态，成功返回 CDN URL
-- emit_draft_patch：把你要写进草稿的内容以结构化 patch 形式发给前端
+- emit_draft_patch：把你建议写进草稿的内容以结构化 patch 形式发给前端，等待用户确认
 
 工作原则：
 1. 先理解用户意图，需要方法论时先用 list_prompt_skills 或 load_prompt_skill_template 读取对应模板。
-2. 修改草稿内容时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch。
+2. 修改草稿内容时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch，由前端展示差异并等待用户确认。
 3. 文生图是异步任务：先 generate_image 拿 jobId，再 poll_image_job 轮询直到成功。
-4. 回答简洁，多用工具少用嘴。最终说明做了什么、改了哪些字段，提醒用户点保存。`,
+4. 回答简洁，多用工具少用嘴。最终说明做了什么、建议改哪些字段，提醒用户确认建议并保存。`,
   },
 ];
 

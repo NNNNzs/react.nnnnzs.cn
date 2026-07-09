@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import {
   Button,
   Descriptions,
@@ -30,11 +29,7 @@ import {
 import dayjs from "dayjs";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-
-const ReactDiffViewer = dynamic(
-  () => import("react-diff-viewer-continued"),
-  { ssr: false, loading: () => <Spin tip="加载对比组件..." /> },
-);
+import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -642,11 +637,9 @@ export default function AiLabPromptsPage() {
           <Button icon={<DiffOutlined />} loading={diffLoading} onClick={handleLoadDiff}>重新对比</Button>
         </div>
         {diffData ? (
-          <ReactDiffViewer
+          <ContentDiffViewer
             oldValue={diffData.oldContent}
             newValue={diffData.newContent}
-            splitView
-            showDiffOnly={false}
             leftTitle={`v${diffData.fromVersion}`}
             rightTitle={`v${diffData.toVersion}${diffData.toVersion === diffData.currentVersion ? "（当前）" : ""}`}
           />

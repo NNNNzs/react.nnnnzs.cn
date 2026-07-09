@@ -15,7 +15,7 @@ export interface UseAgentStreamOptions<TContext = unknown> {
   endpoint: string;
   /** 额外请求头 */
   headers?: Record<string, string>;
-  /** 收到 patch 事件时的回调（如 draft_patch） */
+  /** 收到业务 patch 事件时的回调 */
   onPatch?: (patch: TContext) => void;
   /** 原始 SSE 帧回调（用于自定义处理） */
   onFrame?: (frame: SSEClientEvent) => void;
@@ -70,7 +70,7 @@ function nextId(): string {
  *
  * 适用于：
  * - /chat 知识问答（think/step/content 渲染 + ReAct Timeline）
- * - /create 创作助手（tool calls + draft_patch）
+ * - /create 创作助手（tool calls + typed patch）
  */
 export function useAgentStream<TContext = unknown>({
   endpoint,
@@ -322,7 +322,7 @@ export function useAgentStream<TContext = unknown>({
                     return { ...msg, loading: true, content: msg.content + chunk };
                   }
 
-                  // --- 业务 Patch（如 draft_patch） ---
+                  // --- 业务 Patch ---
                   case "patch": {
                     onPatch?.(data as TContext);
                     return { ...msg, loading: true, hasPatch: true };

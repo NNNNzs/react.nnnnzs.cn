@@ -221,7 +221,7 @@ function wrapGenerateImage(userId: number): StructuredTool {
     {
       name: 'generate_image',
       description:
-        '提交文生图或图文编辑异步任务，返回 jobId。拿到 jobId 后必须用 poll_image_job 轮询直到成功，再通过 emit_draft_patch 的 addImages 回填。',
+        '提交文生图或图文编辑异步任务，返回 jobId。拿到 jobId 后必须用 poll_image_job 轮询直到成功，再通过 emit_draft_patch 的 addImages 提交待确认图片建议。',
       schema: z.object({
         prompt: z.string().min(1).describe('图片提示词，中文大标题 + 2-4 条要点，适合手机阅读'),
         mode: z
@@ -281,7 +281,7 @@ function wrapPollImageJob(userId: number): StructuredTool {
 
 /**
  * emit_draft_patch：伪工具。
- * 模型以为在修改草稿，实际只通过 emitPatch 推送结构化 patch 到前端，由前端填表单。
+ * 模型以为在修改草稿，实际只通过 emitPatch 推送结构化 patch 到前端待确认。
  * 若 patch 含 addImages 且只给了 cdnUrl（无 assetId），此处自动入库为素材并补上 assetId。
  */
 function wrapEmitDraftPatch(
@@ -322,7 +322,7 @@ function wrapEmitDraftPatch(
         const imgCount = patch.addImages?.length ?? 0;
         return JSON.stringify({
           ok: true,
-          message: `已填入字段 [${fields.join(', ')}]${imgCount ? `，追加 ${imgCount} 张图片` : ''}。提醒用户点保存。`,
+          message: `已提交待确认字段 [${fields.join(', ')}]${imgCount ? `，建议追加 ${imgCount} 张图片` : ''}。提醒用户先确认建议再保存。`,
         });
       } catch (error) {
         return JSON.stringify({
@@ -333,7 +333,7 @@ function wrapEmitDraftPatch(
     {
       name: 'emit_draft_patch',
       description:
-        '把要写进草稿的内容以结构化 patch 提交给前端表单。修改草稿（标题/hook/正文/标签/状态/追加图片）必须用此工具，不要只在对话里贴文本。写权限在用户手里，用户点保存才落库。',
+        '把建议写进草稿的内容以结构化 patch 提交给前端待确认。修改草稿（标题/hook/正文/标签/状态/追加图片）必须用此工具，不要只在对话里贴文本。写权限在用户手里，用户确认应用并点保存才落库。',
       schema: z.object({
         title: z.string().optional().describe('新标题'),
         hook: z.string().optional().describe('钩子文案'),
