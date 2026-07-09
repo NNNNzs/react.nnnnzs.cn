@@ -5,7 +5,7 @@
 "use client";
 
 import React, { useCallback } from "react";
-import { Image, Button, Space, Spin, Empty, Tag, Tooltip, message } from "antd";
+import { Button, Empty, Image, Space, Spin, Tag, Tooltip, message } from "antd";
 import {
   DownloadOutlined,
   LinkOutlined,
@@ -13,6 +13,10 @@ import {
   ExperimentOutlined,
   ClockCircleOutlined,
 } from "@ant-design/icons";
+import ImageGenJobImage, {
+  type ImageGenJobSnapshot,
+} from "@/components/ImageGen/ImageGenJobImage";
+import { ImageOptimizationType } from "@/lib/image";
 
 interface ImageResultItem {
   id: string;
@@ -41,6 +45,7 @@ interface ImageResultCardProps {
   } | null;
   history: ImageResultItem[];
   onHistoryClick?: (item: ImageResultItem) => void;
+  onJobChange?: (job: ImageGenJobSnapshot) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -61,11 +66,16 @@ export default function ImageResultCard({
   meta,
   history,
   onHistoryClick,
+  onJobChange,
 }: ImageResultCardProps) {
+  const isTerminalLoading = loading && !meta?.jobId;
+  const currentStatus = meta?.status;
+  const resultImageUrl = currentStatus && currentStatus !== "SUCCESS" ? null : imageUrl;
+
   const handleDownload = useCallback(async () => {
-    if (!imageUrl) return;
+    if (!resultImageUrl) return;
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(resultImageUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -76,22 +86,22 @@ export default function ImageResultCard({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      window.open(imageUrl, "_blank");
+      window.open(resultImageUrl, "_blank");
     }
-  }, [imageUrl]);
+  }, [resultImageUrl]);
 
   const handleCopyUrl = useCallback(() => {
-    if (!imageUrl) return;
-    navigator.clipboard.writeText(imageUrl).then(
+    if (!resultImageUrl) return;
+    navigator.clipboard.writeText(resultImageUrl).then(
       () => message.success("已复制图片链接"),
       () => message.error("复制失败")
     );
-  }, [imageUrl]);
+  }, [resultImageUrl]);
 
   const handleOpenNewTab = useCallback(() => {
-    if (!imageUrl) return;
-    window.open(imageUrl, "_blank");
-  }, [imageUrl]);
+    if (!resultImageUrl) return;
+    window.open(resultImageUrl, "_blank");
+  }, [resultImageUrl]);
 
   return (
     <div className="space-y-4">
@@ -101,7 +111,7 @@ export default function ImageResultCard({
           <span className="text-sm font-medium">生成结果</span>
         </div>
         <div className="p-4">
-          {loading && (
+          {isTerminalLoading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Spin size="large" />
               <p className="mt-4 text-gray-500">图片任务处理中，请稍候...</p>
@@ -113,50 +123,65 @@ export default function ImageResultCard({
             </div>
           )}
 
-          {!loading && !imageUrl && meta?.status === "FAILED" && (
+          {!isTerminalLoading && !resultImageUrl && meta?.status === "FAILED" && (
             <div className="rounded-md border border-red-100 bg-red-50 p-3 text-sm text-red-600">
               {meta.errorMessage || "图片生成失败"}
             </div>
           )}
 
-          {!loading && !imageUrl && meta?.status !== "FAILED" && (
+          {!isTerminalLoading && !resultImageUrl && !meta?.jobId && meta?.status !== "FAILED" && (
             <Empty
               image={<ExperimentOutlined className="text-4xl text-gray-300" />}
               description="输入提示词并点击「生成图片」"
             />
           )}
 
-          {!loading && imageUrl && (
+          {!isTerminalLoading && (resultImageUrl || meta?.jobId) && (
             <div className="space-y-3">
-              <Image
-                src={imageUrl}
-                alt="生成的图片"
-                className="w-full rounded-md"
-                fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LXNpemU9IjE0Ij7lm77niYfliqDovb3lpLHotKU8L3RleHQ+PC9zdmc+"
-              />
-              <Space wrap>
-                <Button
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  size="small"
-                >
-                  下载
-                </Button>
-                <Tooltip title="新标签打开">
+              <div className="aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
+                <ImageGenJobImage
+                  job={{
+                    jobId: meta?.jobId,
+                    status: meta?.status as ImageGenJobSnapshot["status"],
+                    imageUrl: resultImageUrl,
+                    errorMessage: meta?.errorMessage,
+                    elapsed: meta?.elapsed,
+                    model: meta?.model,
+                    size: meta?.size,
+                    quality: meta?.quality,
+                    resourceUri: meta?.resourceUri,
+                  }}
+                  imageUrl={resultImageUrl}
+                  alt="生成的图片"
+                  optimizationType={ImageOptimizationType.POST_LIST_COVER}
+                  onJobChange={onJobChange}
+                />
+              </div>
+              {resultImageUrl && (
+                <Space wrap>
                   <Button
-                    icon={<LinkOutlined />}
-                    onClick={handleOpenNewTab}
+                    icon={<DownloadOutlined />}
+                    onClick={handleDownload}
                     size="small"
-                  />
-                </Tooltip>
-                <Tooltip title="复制图片链接">
-                  <Button
-                    icon={<CopyOutlined />}
-                    onClick={handleCopyUrl}
-                    size="small"
-                  />
-                </Tooltip>
-              </Space>
+                  >
+                    下载
+                  </Button>
+                  <Tooltip title="新标签打开">
+                    <Button
+                      icon={<LinkOutlined />}
+                      onClick={handleOpenNewTab}
+                      size="small"
+                    />
+                  </Tooltip>
+                  <Tooltip title="复制图片链接">
+                    <Button
+                      icon={<CopyOutlined />}
+                      onClick={handleCopyUrl}
+                      size="small"
+                    />
+                  </Tooltip>
+                </Space>
+              )}
               {meta && (
                 <div className="text-xs text-gray-400 space-y-0.5 pt-2 border-t border-gray-100 dark:border-gray-700">
                   {meta.prompt && (

@@ -20,7 +20,6 @@ import {
 } from "antd";
 import {
   CopyOutlined,
-  CloseCircleOutlined,
   RobotOutlined,
   DesktopOutlined,
   ClockCircleOutlined,
@@ -34,6 +33,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
 import type { ImageGenStatus } from "@/services/image-gen-log";
+import ImageGenJobImage, {
+  type ImageGenJobSnapshot,
+} from "@/components/ImageGen/ImageGenJobImage";
+import { ImageOptimizationType } from "@/lib/image";
 
 interface LogRecord {
   id: number;
@@ -141,6 +144,7 @@ export default function ImageGenHistory({
       if (statusFilter) params.set("status", statusFilter);
 
       const res = await fetch(`/api/image-gen/logs?${params}`, {
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
       });
       const json = await res.json();
@@ -184,14 +188,14 @@ export default function ImageGenHistory({
   const handleDelete = useCallback(
     (e: React.MouseEvent, record: LogRecord) => {
       e.stopPropagation();
-      let deleteCos = false;
+      let deleteCos = true;
 
       Modal.confirm({
         title: "删除生成记录",
         content: (
           <div className="space-y-3">
             <p>确定删除这条图片生成记录吗？</p>
-            <Checkbox onChange={(event) => {
+            <Checkbox defaultChecked onChange={(event) => {
               deleteCos = event.target.checked;
             }}>
               同时删除 COS 中的图片文件
@@ -247,14 +251,14 @@ export default function ImageGenHistory({
 
   const handleBatchDelete = useCallback(() => {
     if (selectedIds.size === 0) return;
-    let deleteCos = false;
+    let deleteCos = true;
 
     Modal.confirm({
       title: `批量删除 ${selectedIds.size} 条记录`,
       content: (
         <div className="space-y-3">
           <p>确定删除选中的 {selectedIds.size} 条图片生成记录吗？</p>
-          <Checkbox onChange={(event) => {
+          <Checkbox defaultChecked onChange={(event) => {
             deleteCos = event.target.checked;
           }}>
             同时删除 COS 中的图片文件
@@ -298,6 +302,22 @@ export default function ImageGenHistory({
 
   const displayUrl = (record: LogRecord) =>
     record.status === "SUCCESS" ? record.cdn_url || record.original_url : null;
+
+  const updateRecordFromJob = useCallback((recordId: number, job: ImageGenJobSnapshot) => {
+    setRecords((items) => items.map((item) => {
+      if (item.id !== recordId) return item;
+      return {
+        ...item,
+        status: (job.status || item.status) as ImageGenStatus,
+        cdn_url: job.status === "SUCCESS" ? job.imageUrl || job.cdnUrl || item.cdn_url : item.cdn_url,
+        reserved_cdn_url: job.reservedCdnUrl || item.reserved_cdn_url,
+        error_message: job.errorMessage ?? item.error_message,
+        size: job.size || item.size,
+        quality: job.quality || item.quality,
+        model: job.model || item.model,
+      };
+    }));
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -470,28 +490,24 @@ export default function ImageGenHistory({
 
                   {/* 缩略图 */}
                   <div className="aspect-square bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
-                    {url ? (
-                      <img
-                        src={url}
-                        alt={record.prompt.slice(0, 20)}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : record.status === "PENDING" || record.status === "PROCESSING" ? (
-                      <div className="text-center p-2">
-                        <Spin size="small" />
-                        <p className="text-xs text-gray-400 mt-2">
-                          {statusInfo.label}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-center p-2">
-                        <CloseCircleOutlined className="text-2xl text-red-300" />
-                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                          {record.error_message?.slice(0, 50) || "生成失败"}
-                        </p>
-                      </div>
-                    )}
+                    <ImageGenJobImage
+                      job={{
+                        jobId: record.job_id,
+                        status: record.status,
+                        imageUrl: url,
+                        reservedCdnUrl: record.reserved_cdn_url,
+                        errorMessage: record.error_message,
+                        model: record.model,
+                        size: record.size,
+                        quality: record.quality,
+                      }}
+                      imageUrl={url}
+                      alt={record.prompt.slice(0, 20)}
+                      preview={false}
+                      optimizationType={ImageOptimizationType.SMALL_THUMBNAIL}
+                      className="h-full w-full"
+                      onJobChange={(job) => updateRecordFromJob(record.id, job)}
+                    />
                   </div>
 
                   {/* 底部信息 */}
@@ -508,12 +524,15 @@ export default function ImageGenHistory({
                         <div className="flex gap-1 mb-1 overflow-hidden">
                           {refUrls.map((refUrl, idx) => (
                             <Tooltip key={idx} title={`参考图 ${idx + 1}`}>
-                              <img
-                                src={refUrl}
-                                alt={`参考图 ${idx + 1}`}
-                                className="w-6 h-6 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
-                                loading="lazy"
-                              />
+                              <div className="h-6 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-600">
+                                <ImageGenJobImage
+                                  imageUrl={refUrl}
+                                  alt={`参考图 ${idx + 1}`}
+                                  preview={false}
+                                  optimizationType={ImageOptimizationType.SMALL_THUMBNAIL}
+                                  className="h-full w-full"
+                                />
+                              </div>
                             </Tooltip>
                           ))}
                           <span className="text-[10px] text-gray-400 self-center">
