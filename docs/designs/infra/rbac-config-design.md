@@ -429,6 +429,15 @@ function hasDataPermission(user: AuthUser, code: string, resourceOwnerId?: numbe
 
 格式：`{module}:{action}`
 
+权限码相关数据分为数据库配置和代码引用两层：
+
+| 维度 | 来源 | 说明 |
+|------|------|------|
+| 权限码全集与展示配置 | `tb_permission` | 权限管理页、角色授权弹窗、模块筛选、名称、类型、状态、排序均以此为准 |
+| 角色授权 | `tb_role_permission` | 某个角色真正拥有的权限和 `data_scope`，保存角色权限时全量替换该表记录 |
+| 代码引用 | `src/constants/permissions.ts` | 仅导出权限码字符串常量，供 API 权限检查和 descriptor 引用，不维护全集、模块标签或分组 |
+| 接口绑定 | `tb_api_registry.permission_code` | API/MCP 入口需要的权限码，由 `ApiDescriptor` 同步到接口注册表 |
+
 | 模块 | 权限码 | 显示名 | 类型 | 说明 |
 |------|--------|--------|------|------|
 | **post** | `post:view` | 查看文章 | api | 查看文章详情/列表 |
@@ -1240,9 +1249,14 @@ export async function resolveUserPermissions(user: {
 
   // 回退到旧逻辑（仅当用户没有 tb_user_role 记录时）
   if (user.role === 'admin') {
+    const permissions = await prisma.tbPermission.findMany({
+      where: { status: 1 },
+      select: { code: true },
+    });
+    const permissionCodes = permissions.map(p => p.code);
     return {
-      permissions: ALL_PERMISSION_CODES,
-      dataScopes: Object.fromEntries(ALL_PERMISSION_CODES.map(c => [c, 'all'])),
+      permissions: permissionCodes,
+      dataScopes: Object.fromEntries(permissionCodes.map(c => [c, 'all'])),
     };
   }
 
@@ -1413,6 +1427,7 @@ export async function resolveUserPermissions(user: {
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-07-09 | 1.2.0 | 权限配置源收敛：`tb_permission` 负责权限管理展示，`tb_role_permission` 负责角色授权，`src/constants/permissions.ts` 仅保留代码引用常量 |
 | 2026-05-16 | 1.1.0 | 文档修正：Source of Truth 从 `API_REGISTRY` 改为 `ApiDescriptor` 自描述 + `sync:api-registry` 脚本同步 |
 | 2026-05-15 | 1.0.0 | ✅ 实施完成：7 个阶段全部落地，21 个权限码、2 个内置角色、MCP 自动注册、前端权限控制、管理界面均已实现 |
 | 2026-05-15 | 0.3.0 | 安全加固 + 设计修正：MCP 数据权限检查、handler 注册表替代 switch-case、Source of Truth 明确、兼容层逻辑修复、数据库约束完善、权限刷新机制、实施路线增加测试和回滚方案 |

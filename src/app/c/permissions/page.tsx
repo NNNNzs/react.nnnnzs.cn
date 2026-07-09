@@ -25,27 +25,28 @@ interface PermissionItem {
   sort_order: number;
 }
 
-const MODULE_LABELS: Record<string, string> = {
-  post: "文章",
-  comment: "评论",
-  collection: "合集",
-  config: "配置",
-  user: "用户",
-};
-
 const TYPE_LABELS: Record<string, string> = {
   api: "API",
   menu: "菜单",
   button: "按钮",
 };
 
-const MODULE_COLORS: Record<string, string> = {
-  post: "blue",
-  comment: "green",
-  collection: "purple",
-  config: "orange",
-  user: "red",
-};
+const MODULE_TAG_COLORS = [
+  "blue",
+  "green",
+  "purple",
+  "orange",
+  "red",
+  "cyan",
+  "geekblue",
+  "magenta",
+  "gold",
+];
+
+function getModuleColor(module: string) {
+  const hash = [...module].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return MODULE_TAG_COLORS[hash % MODULE_TAG_COLORS.length];
+}
 
 function PermissionsPageContent() {
   const { isMobile } = useBreakpoint();
@@ -139,7 +140,7 @@ function PermissionsPageContent() {
             options={[
               { label: "全部模块", value: "all" },
               ...modules.map(m => ({
-                label: MODULE_LABELS[m] || m,
+                label: m,
                 value: m,
               })),
             ]}
@@ -162,9 +163,7 @@ function PermissionsPageContent() {
                   size="small"
                   title={
                     <div className="flex items-center gap-2">
-                      <Tag color={MODULE_COLORS[module] || "default"}>
-                        {MODULE_LABELS[module] || module}
-                      </Tag>
+                      <Tag color={getModuleColor(module)}>{module}</Tag>
                       <span className="text-sm text-gray-500">
                         {filteredGrouped[module].length} 个权限
                       </span>

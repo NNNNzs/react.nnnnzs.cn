@@ -14,6 +14,7 @@ import {
   ReadOutlined,
   ToolOutlined,
 } from "@ant-design/icons";
+import { CONTENT_VIEW } from "@/constants/permissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -48,7 +49,7 @@ function getSelectedKey(pathname: string) {
 export default function CreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, hasPermission } = useAuth();
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
   const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -106,6 +107,13 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [loading, pathname, router, user]);
+
+  useEffect(() => {
+    if (!loading && user && !hasPermission(CONTENT_VIEW)) {
+      message.warning('您没有权限访问内容创作中台');
+      router.push('/');
+    }
+  }, [loading, user, hasPermission, router, message]);
 
   useEffect(() => {
     const prefetchRoutes = async () => {

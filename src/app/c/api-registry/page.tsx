@@ -29,7 +29,6 @@ import {
 import axios from "axios";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { MODULE_LABELS, MODULE_COLORS } from "@/constants/permissions";
 import {
   AdminActionButton,
   AdminPageHeader,
@@ -45,6 +44,23 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: "red",
   PATCH: "purple",
 };
+
+const MODULE_TAG_COLORS = [
+  "blue",
+  "green",
+  "purple",
+  "orange",
+  "red",
+  "cyan",
+  "geekblue",
+  "magenta",
+  "gold",
+];
+
+function getModuleColor(module: string) {
+  const hash = [...module].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return MODULE_TAG_COLORS[hash % MODULE_TAG_COLORS.length];
+}
 
 function useUrlState() {
   const searchParams = useSearchParams();
@@ -304,9 +320,7 @@ function ApiRegistryPageContent() {
       key: "module",
       width: 80,
       render: (module: string) => (
-        <Tag color={MODULE_COLORS[module] || "default"}>
-          {MODULE_LABELS[module] || module}
-        </Tag>
+        <Tag color={getModuleColor(module)}>{module}</Tag>
       ),
     },
     {
@@ -382,9 +396,7 @@ function ApiRegistryPageContent() {
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-base">{record.name}</span>
         <Space>
-          <Tag color={MODULE_COLORS[record.module] || "default"}>
-            {MODULE_LABELS[record.module] || record.module}
-          </Tag>
+          <Tag color={getModuleColor(record.module)}>{record.module}</Tag>
           {record.mcp_enabled === 1 && <Tag color="blue">MCP</Tag>}
         </Space>
       </div>
@@ -449,7 +461,7 @@ function ApiRegistryPageContent() {
               onChange={(value) => updateQueryParams({ module: value || "", page: 1 })}
               style={isMobile ? { width: "50%" } : { width: 140 }}
               options={modules.map((m) => ({
-                label: MODULE_LABELS[m] || m,
+                label: m,
                 value: m,
               }))}
             />

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_EDIT } from '@/constants/permissions';
 import { updateContentImageAsset } from '@/services/content-creation';
+import { getPrisma } from '@/lib/prisma';
 import { validationErrorResponse } from '../../_utils';
 
 interface RouteContext {
@@ -17,7 +19,7 @@ const updateAssetSchema = z.object({
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -26,6 +28,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const assetId = Number(id);
     if (!Number.isInteger(assetId) || assetId <= 0) {
       return NextResponse.json(errorResponse('无效的素材 ID'), { status: 400 });
+    }
+
+    const prisma = await getPrisma();
+    const existing = await prisma.contentAsset.findFirst({
+      where: { id: assetId, type: 'image' },
+      select: { created_by: true },
+    });
+    if (!existing) {
+      return NextResponse.json(errorResponse('图片素材不存在'), { status: 404 });
+    }
+    if (!hasDataPermission(check.user, CONTENT_EDIT, existing.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const validation = updateAssetSchema.safeParse(await request.json());

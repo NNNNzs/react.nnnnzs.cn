@@ -9,7 +9,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_EDIT } from '@/constants/permissions';
+import { getContentDraft } from '@/services/content-creation';
 import { createSSEResponse } from '@/lib/sse';
 import { createAgentStream } from '@/services/ai/create-agent';
 import { validationErrorResponse } from '../../../_utils';
@@ -34,7 +36,7 @@ const chatSchema = z.object({
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -43,6 +45,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const draftId = Number(id);
     if (!Number.isInteger(draftId) || draftId <= 0) {
       return NextResponse.json(errorResponse('草稿 ID 无效'), { status: 400 });
+    }
+
+    const draft = await getContentDraft(draftId);
+    if (!draft) {
+      return NextResponse.json(errorResponse('草稿不存在'), { status: 404 });
+    }
+
+    if (!hasDataPermission(check.user, CONTENT_EDIT, draft.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const validation = chatSchema.safeParse(await request.json());

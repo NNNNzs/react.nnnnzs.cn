@@ -11,6 +11,7 @@ import {
   updateAiTemplate,
 } from '@/services/ai-template';
 import type { Prisma } from '@/generated/prisma-client/client';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +48,24 @@ function validationErrorResponse(error: z.ZodError) {
     { status: 400 },
   );
 }
+
+export const getDescriptor: ApiDescriptor = {
+  code: 'ai_lab_prompts_get',
+  name: 'AI Lab Prompt 模板详情',
+  description: '查询单个 Prompt/Skill 模板详情及版本列表',
+  module: 'ai_lab',
+  method: 'GET',
+  permissionCode: CONFIG_VIEW,
+};
+
+export const updateDescriptor: ApiDescriptor = {
+  code: 'ai_lab_prompts_update',
+  name: 'AI Lab Prompt 模板更新',
+  description: '更新 Prompt/Skill 模板元数据或启用指定版本',
+  module: 'ai_lab',
+  method: 'PATCH',
+  permissionCode: CONFIG_EDIT,
+};
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {

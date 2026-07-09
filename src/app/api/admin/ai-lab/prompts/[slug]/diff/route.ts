@@ -3,12 +3,22 @@ import { CONFIG_VIEW } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
 import { diffAiTemplateVersions } from '@/services/ai-template';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 export const runtime = 'nodejs';
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }
+
+export const descriptor: ApiDescriptor = {
+  code: 'ai_lab_prompts_diff',
+  name: 'AI Lab Prompt 版本对比',
+  description: '对比两个版本的模板正文差异',
+  module: 'ai_lab',
+  method: 'GET',
+  permissionCode: CONFIG_VIEW,
+};
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {

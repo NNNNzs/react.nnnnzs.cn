@@ -4,6 +4,7 @@ import { CONFIG_VIEW } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
 import { compilePromptTemplate, renderAiTemplate } from '@/services/ai-template';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,15 @@ function validationErrorResponse(error: z.ZodError) {
     { status: 400 },
   );
 }
+
+export const descriptor: ApiDescriptor = {
+  code: 'ai_lab_prompts_render',
+  name: 'AI Lab Prompt 渲染',
+  description: '渲染指定版本的 Prompt 模板，支持变量替换和 @mention 编译',
+  module: 'ai_lab',
+  method: 'POST',
+  permissionCode: CONFIG_VIEW,
+};
 
 export async function POST(request: NextRequest) {
   try {

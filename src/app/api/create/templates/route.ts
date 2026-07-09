@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW, CONTENT_CREATE } from '@/constants/permissions';
 import {
   CONTENT_TEMPLATE_SCENARIOS,
   CONTENT_TEMPLATE_STATUSES,
@@ -34,12 +35,13 @@ function asInputJson(value: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
     const searchParams = request.nextUrl.searchParams;
+    const scopeAll = hasDataPermission(check.user, CONTENT_VIEW);
     const result = await listContentTemplates({
       pageNum: getNumberParam(searchParams.get('pageNum')),
       pageSize: getNumberParam(searchParams.get('pageSize')),
@@ -47,6 +49,7 @@ export async function GET(request: NextRequest) {
       status: getStringParam(searchParams.get('status')),
       type: getStringParam(searchParams.get('type')),
       scenario: getStringParam(searchParams.get('scenario')),
+      userId: scopeAll ? undefined : check.user.id,
     });
 
     return NextResponse.json(successResponse(result), {
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

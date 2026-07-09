@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_EDIT } from '@/constants/permissions';
 import {
   addContentDraftImage,
   removeContentDraftImage,
   updateContentDraftImages,
+  getContentDraft,
 } from '@/services/content-creation';
 import { getStringParam, validationErrorResponse } from '../../../_utils';
 
@@ -33,7 +35,7 @@ async function readDraftId(context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -41,6 +43,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const draftId = await readDraftId(context);
     if (!draftId) {
       return NextResponse.json(errorResponse('无效的草稿 ID'), { status: 400 });
+    }
+
+    const owner = await getContentDraft(draftId);
+    if (!owner) {
+      return NextResponse.json(errorResponse('草稿不存在'), { status: 404 });
+    }
+
+    if (!hasDataPermission(check.user, CONTENT_EDIT, owner.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const validation = addDraftImageSchema.safeParse(await request.json());
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -75,6 +86,15 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const draftId = await readDraftId(context);
     if (!draftId) {
       return NextResponse.json(errorResponse('无效的草稿 ID'), { status: 400 });
+    }
+
+    const owner = await getContentDraft(draftId);
+    if (!owner) {
+      return NextResponse.json(errorResponse('草稿不存在'), { status: 404 });
+    }
+
+    if (!hasDataPermission(check.user, CONTENT_EDIT, owner.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const imageId = getStringParam(request.nextUrl.searchParams.get('imageId'));
@@ -100,7 +120,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -108,6 +128,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const draftId = await readDraftId(context);
     if (!draftId) {
       return NextResponse.json(errorResponse('无效的草稿 ID'), { status: 400 });
+    }
+
+    const owner = await getContentDraft(draftId);
+    if (!owner) {
+      return NextResponse.json(errorResponse('草稿不存在'), { status: 404 });
+    }
+
+    if (!hasDataPermission(check.user, CONTENT_EDIT, owner.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const validation = updateDraftImagesSchema.safeParse(await request.json());

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission } from '@/lib/permission';
+import { CONTENT_CREATE } from '@/constants/permissions';
 import { generateTopicsFromPost } from '@/services/content-creation';
 import { validationErrorResponse } from '../../_utils';
 
@@ -12,7 +13,7 @@ const generateTopicsSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

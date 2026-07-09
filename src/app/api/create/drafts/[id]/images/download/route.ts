@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW } from '@/constants/permissions';
 import { createStoredZip, type StoredZipEntry } from '@/lib/zip';
 import { getContentDraft, type DraftImageItem } from '@/services/content-creation';
 
@@ -125,7 +126,7 @@ function createManifest(draft: NonNullable<Awaited<ReturnType<typeof getContentD
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -139,6 +140,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!draft) {
       return NextResponse.json(errorResponse('草稿不存在'), { status: 404 });
     }
+
+    if (!hasDataPermission(check.user, CONTENT_VIEW, draft.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
+    }
+
     if (draft.selected_images.length === 0) {
       return NextResponse.json(errorResponse('草稿暂无图片可下载'), { status: 400 });
     }

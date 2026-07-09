@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW, CONTENT_CREATE } from '@/constants/permissions';
 import {
   CONTENT_DRAFT_STATUSES,
   CONTENT_DRAFT_TYPES,
@@ -22,18 +23,20 @@ const createDraftSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
     const searchParams = request.nextUrl.searchParams;
+    const scopeAll = hasDataPermission(check.user, CONTENT_VIEW);
     const result = await listContentDrafts({
       pageNum: getNumberParam(searchParams.get('pageNum')),
       pageSize: getNumberParam(searchParams.get('pageSize')),
       query: getStringParam(searchParams.get('query')),
       status: getStringParam(searchParams.get('status')),
       type: getStringParam(searchParams.get('type')),
+      userId: scopeAll ? undefined : check.user.id,
     });
 
     return NextResponse.json(successResponse(result), {
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

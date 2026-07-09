@@ -8,7 +8,6 @@
 
 import { prisma } from '@/lib/prisma';
 import {
-  ALL_PERMISSION_CODES,
   POST_VIEW, POST_CREATE, POST_EDIT, POST_HIDE,
 } from '@/constants/permissions';
 
@@ -103,9 +102,14 @@ export async function resolveUserPermissions(user: {
 
   // 回退到旧逻辑（仅当用户没有 tb_user_role 记录时）
   if (user.role === 'admin') {
+    const permissions = await prisma.tbPermission.findMany({
+      where: { status: 1 },
+      select: { code: true },
+    });
+    const permissionCodes = permissions.map(p => p.code);
     return {
-      permissions: ALL_PERMISSION_CODES,
-      dataScopes: Object.fromEntries(ALL_PERMISSION_CODES.map(c => [c, 'all'])),
+      permissions: permissionCodes,
+      dataScopes: Object.fromEntries(permissionCodes.map(c => [c, 'all'])),
     };
   }
 

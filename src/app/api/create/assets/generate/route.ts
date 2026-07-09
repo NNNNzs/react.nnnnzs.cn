@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { IMAGE_VIEW } from '@/constants/permissions';
+import { CONTENT_EDIT } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
 import { createImageGenerationJob } from '@/services/image-gen-job';
@@ -32,7 +32,7 @@ function uniqueStrings(values: string[]) {
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requirePermission(request, IMAGE_VIEW);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

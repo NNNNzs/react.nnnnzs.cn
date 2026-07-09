@@ -61,12 +61,14 @@ interface PageParams {
 
 export interface TopicQueryParams extends PageParams {
   sourcePostId?: number;
+  userId?: number;
 }
 
 export interface DraftQueryParams extends PageParams {
   platform?: string;
   type?: string;
   topicId?: number;
+  userId?: number;
 }
 
 export interface AssetQueryParams extends PageParams {
@@ -77,11 +79,13 @@ export interface AssetQueryParams extends PageParams {
   favorite?: boolean;
   draftId?: number;
   topicId?: number;
+  userId?: number;
 }
 
 export interface TemplateQueryParams extends PageParams {
   type?: string;
   scenario?: string;
+  userId?: number;
 }
 
 export interface CreateTopicInput {
@@ -549,6 +553,10 @@ function buildTopicWhere(params: TopicQueryParams): Prisma.ContentTopicWhereInpu
     ];
   }
 
+  if (params.userId) {
+    where.created_by = params.userId;
+  }
+
   return where;
 }
 
@@ -576,6 +584,10 @@ function buildDraftWhere(params: DraftQueryParams): Prisma.ContentDraftWhereInpu
     ];
   }
 
+  if (params.userId) {
+    where.created_by = params.userId;
+  }
+
   return where;
 }
 
@@ -599,6 +611,9 @@ function buildAssetWhere(params: AssetQueryParams): Prisma.ContentAssetWhereInpu
   }
   if (params.topicId) {
     where.topic_id = params.topicId;
+  }
+  if (params.userId) {
+    andFilters.push({ created_by: params.userId });
   }
   if (query) {
     where.OR = [
@@ -632,6 +647,13 @@ function buildTemplateWhere(params: TemplateQueryParams): Prisma.ContentTemplate
       { scenario: { contains: query } },
       { content: { contains: query } },
       { source_path: { contains: query } },
+    ];
+  }
+
+  if (params.userId) {
+    where.OR = [
+      { created_by: params.userId },
+      { created_by: null },
     ];
   }
 
@@ -1260,8 +1282,9 @@ export async function importXhsPromptTemplates(createdBy?: number | null) {
   return { created, updated };
 }
 
-export async function getContentCreationOverview() {
+export async function getContentCreationOverview(userId?: number | null) {
   const prisma = await getPrisma();
+  const userFilter = userId ? { created_by: userId } : {};
 
   const [
     draftTotal,
@@ -1273,12 +1296,13 @@ export async function getContentCreationOverview() {
     latestAssets,
     latestTopics,
   ] = await Promise.all([
-    prisma.contentDraft.count(),
-    prisma.contentDraft.count({ where: { status: 'READY' } }),
-    prisma.contentAsset.count({ where: { type: 'image' } }),
-    prisma.contentTopic.count(),
-    prisma.contentTopic.count({ where: { status: { in: ['PLANNED', 'DRAFTING'] } } }),
+    prisma.contentDraft.count({ where: userFilter }),
+    prisma.contentDraft.count({ where: { ...userFilter, status: 'READY' } }),
+    prisma.contentAsset.count({ where: { ...userFilter, type: 'image' } }),
+    prisma.contentTopic.count({ where: userFilter }),
+    prisma.contentTopic.count({ where: { ...userFilter, status: { in: ['PLANNED', 'DRAFTING'] } } }),
     prisma.contentDraft.findMany({
+      where: userFilter,
       orderBy: { updated_at: 'desc' },
       take: 5,
       select: {
@@ -1291,7 +1315,7 @@ export async function getContentCreationOverview() {
       },
     }),
     prisma.contentAsset.findMany({
-      where: { type: 'image' },
+      where: { ...userFilter, type: 'image' },
       orderBy: { created_at: 'desc' },
       take: 5,
       select: {
@@ -1304,6 +1328,7 @@ export async function getContentCreationOverview() {
       },
     }),
     prisma.contentTopic.findMany({
+      where: userFilter,
       orderBy: [
         { priority: 'desc' },
         { updated_at: 'desc' },

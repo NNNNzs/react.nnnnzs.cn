@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW, CONTENT_EDIT, CONTENT_DELETE } from '@/constants/permissions';
 import {
   CONTENT_TEMPLATE_SCENARIOS,
   CONTENT_TEMPLATE_STATUSES,
@@ -41,7 +42,7 @@ async function readTemplateId(context: RouteContext) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -54,6 +55,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const template = await getContentTemplate(templateId);
     if (!template) {
       return NextResponse.json(errorResponse('模板不存在'), { status: 404 });
+    }
+
+    // 系统模板（created_by=null）所有人可读；个人模板需要归属校验
+    if (template.created_by !== null && !hasDataPermission(check.user, CONTENT_VIEW, template.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     return NextResponse.json(successResponse(template), {
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -83,6 +89,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const existing = await getContentTemplate(templateId);
     if (!existing) {
       return NextResponse.json(errorResponse('模板不存在'), { status: 404 });
+    }
+
+    // 系统模板（created_by=null）仅管理员(all scope)可编辑；个人模板需要归属校验
+    if (!hasDataPermission(check.user, CONTENT_EDIT, existing.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const validation = updateTemplateSchema.safeParse(await request.json());
@@ -113,7 +124,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_DELETE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
@@ -126,6 +137,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const existing = await getContentTemplate(templateId);
     if (!existing) {
       return NextResponse.json(errorResponse('模板不存在'), { status: 404 });
+    }
+
+    // 系统模板（created_by=null）仅管理员(all scope)可删除；个人模板需要归属校验
+    if (!hasDataPermission(check.user, CONTENT_DELETE, existing.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
     const result = await archiveContentTemplate(templateId);

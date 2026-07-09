@@ -52,7 +52,9 @@ Layer 3: 服务层过滤（最后一道防线）
 
 ### 权限码规范
 
-权限码格式：`{module}:{action}`，统一定义在 `src/constants/permissions.ts`。
+权限码格式：`{module}:{action}`。
+
+权限码的后台配置源是 `tb_permission`：权限管理页、角色授权弹窗、模块筛选、权限名称、类型、状态和排序都从数据库读取。`src/constants/permissions.ts` 只保留代码编译期引用的字符串常量，用于 `requirePermission`、`hasDataPermission` 和 `ApiDescriptor.permissionCode`，避免魔法字符串；它不维护后台展示配置、权限全集或模块分组。
 
 | 模块 | 权限码 | 说明 |
 |------|--------|------|
@@ -77,8 +79,13 @@ Layer 3: 服务层过滤（最后一道防线）
 | | `vector:view` | 向量检索 |
 | | `tts:view` | 语音合成 |
 | | `image:view` | AI 图片生成 |
+| | `file:upload` | 文件上传 |
 | **聊天记录** | `chat:log:view` | 查看聊天记录 |
 | | `chat:log:delete` | 删除聊天记录 |
+| **内容创作** | `content:view` | 查看创作中台 |
+| | `content:create` | 创建内容 |
+| | `content:edit` | 编辑内容 |
+| | `content:delete` | 删除内容 |
 
 ### 数据权限（data_scope）
 
@@ -88,6 +95,8 @@ Layer 3: 服务层过滤（最后一道防线）
 |----|------|------|
 | `all` | 可操作所有数据 | 管理员编辑所有文章 |
 | `self` | 仅可操作自己的数据 | 普通用户编辑自己的文章 |
+
+角色授权的真实来源是 `tb_role_permission`。角色管理页展示某个角色已绑定的权限和数据范围，保存时全量替换该角色在 `tb_role_permission` 中的记录；未绑定的权限即使存在于 `tb_permission`，也不代表角色拥有该权限。
 
 ### 内置角色
 
@@ -228,7 +237,7 @@ export async function POST(request: NextRequest) {
 
 | 文件 | 用途 |
 |------|------|
-| `src/constants/permissions.ts` | 权限码常量定义（**唯一来源**） |
+| `src/constants/permissions.ts` | 权限码字符串常量（仅供代码引用，不参与后台展示配置） |
 | `src/lib/permission.ts` | 权限检查函数 |
 | `src/services/permission.ts` | 权限查询服务（数据库） |
 | `src/types/api-descriptor.ts` | API 接口自描述类型定义 |
@@ -239,6 +248,14 @@ export async function POST(request: NextRequest) {
 ### API 接口自描述
 
 每个 `route.ts` 文件应导出 `descriptor` 常量，定义接口元数据。**descriptor 是元数据的唯一 Source of Truth**，`api-registry.ts` 通过 import 展开使用，不再重复定义。
+
+后台三类配置来源不要混用：
+
+| 页面 | 数据来源 | 说明 |
+|------|----------|------|
+| 权限管理 `/c/permissions` | `tb_permission` | 系统可配置的权限码全集与展示信息 |
+| 角色管理 `/c/roles` | `tb_role` + `tb_role_permission` + `tb_permission` | 角色本身及其已授权权限、数据范围 |
+| 接口管理 `/c/api-registry` | `tb_api_registry` | API 元数据、MCP 开关、接口绑定的权限码 |
 
 ```typescript
 import type { ApiDescriptor } from '@/types/api-descriptor';
@@ -347,17 +364,20 @@ if (hasPermission(COLLECTION_VIEW)) {
 
 在开发新的 API 时，请按照以下清单检查：
 
-- [ ] 是否在 `src/constants/permissions.ts` 中定义了权限码？
+- [ ] 权限码是否已存在于 `tb_permission`（通过 seed、迁移或权限管理维护）？
+- [ ] 代码中需要引用该权限码时，是否在 `src/constants/permissions.ts` 中定义了字符串常量？
 - [ ] 是否使用 `requirePermission` 进行权限检查？
 - [ ] 是否使用权限码常量而非魔法字符串？
 - [ ] 需要数据权限时是否使用了 `hasDataPermission`？
 - [ ] 公开接口是否跳过了权限检查？
 - [ ] 是否返回了正确的 HTTP 状态码？
 - [ ] 是否在 `route.ts` 中导出了 `ApiDescriptor`？
+- [ ] 是否在角色管理中给目标角色授权，确认写入 `tb_role_permission`？
 
 ## 相关文档
 
 - **RBAC 设计文档**: [docs/designs/rbac-config-design.md](../designs/rbac-config-design.md)
-- **权限码常量**: `src/constants/permissions.ts`
+- **权限码配置源**: `tb_permission`
+- **权限码常量**: `src/constants/permissions.ts`（仅代码引用）
 - **权限检查函数**: `src/lib/permission.ts`
 - **权限查询服务**: `src/services/permission.ts`

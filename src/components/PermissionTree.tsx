@@ -9,7 +9,23 @@
 import React, { useMemo } from "react";
 import { Tree, Select, Tag } from "antd";
 import type { TreeDataNode } from "antd";
-import { PERMISSION_MODULES, MODULE_LABELS, MODULE_COLORS } from "@/constants/permissions";
+
+const MODULE_TAG_COLORS = [
+  "blue",
+  "green",
+  "purple",
+  "orange",
+  "red",
+  "cyan",
+  "geekblue",
+  "magenta",
+  "gold",
+];
+
+function getModuleColor(module: string) {
+  const hash = [...module].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return MODULE_TAG_COLORS[hash % MODULE_TAG_COLORS.length];
+}
 
 interface PermissionItem {
   id: number;
@@ -19,6 +35,7 @@ interface PermissionItem {
   type: string;
   description: string | null;
   status: number;
+  sort_order?: number;
 }
 
 interface PermissionTreeProps {
@@ -37,27 +54,34 @@ export default function PermissionTree({
   onDataScopeChange,
 }: PermissionTreeProps) {
   const treeData = useMemo<TreeDataNode[]>(() => {
-    return Object.entries(PERMISSION_MODULES).map(([module, codes]) => ({
-      key: `module_${module}`,
-      title: (
-        <span className="font-medium">
-          <Tag color={MODULE_COLORS[module]}>{MODULE_LABELS[module] || module}</Tag>
-        </span>
-      ),
-      selectable: false,
-      checkable: false,
-      children: codes
-        .map((code) => {
-          const perm = allPermissions.find((p) => p.code === code);
-          if (!perm) return null;
-          return {
-            key: code,
+    const grouped = allPermissions.reduce<Record<string, PermissionItem[]>>((acc, permission) => {
+      const module = permission.module || "unknown";
+      if (!acc[module]) {
+        acc[module] = [];
+      }
+      acc[module].push(permission);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped)
+      .sort(([moduleA], [moduleB]) => moduleA.localeCompare(moduleB))
+      .map(([module, permissions]) => ({
+        key: `module_${module}`,
+        title: (
+          <span className="font-medium">
+            <Tag color={getModuleColor(module)}>{module}</Tag>
+          </span>
+        ),
+        selectable: false,
+        checkable: false,
+        children: [...permissions]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id)
+          .map((perm) => ({
+            key: perm.code,
             title: perm.name,
             isLeaf: true,
-          };
-        })
-        .filter(Boolean) as TreeDataNode[],
-    }));
+          })),
+      }));
   }, [allPermissions]);
 
   const handleCheck = (checked: React.Key[] | { checked: React.Key[]; halfChecked: React.Key[] }) => {

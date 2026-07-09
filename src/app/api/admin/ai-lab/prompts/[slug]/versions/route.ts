@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
 import { createAiTemplateVersion } from '@/services/ai-template';
 import type { Prisma } from '@/generated/prisma-client/client';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,15 @@ function validationErrorResponse(error: z.ZodError) {
     { status: 400 },
   );
 }
+
+export const createDescriptor: ApiDescriptor = {
+  code: 'ai_lab_prompts_create_version',
+  name: 'AI Lab Prompt 创建版本',
+  description: '为指定 Prompt/Skill 模板创建新版本',
+  module: 'ai_lab',
+  method: 'POST',
+  permissionCode: CONFIG_EDIT,
+};
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { errorResponse, successResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission } from '@/lib/permission';
+import { CONTENT_CREATE } from '@/constants/permissions';
 import { importXhsPromptTemplates } from '@/services/content-creation';
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

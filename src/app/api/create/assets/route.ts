@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW, CONTENT_CREATE } from '@/constants/permissions';
 import { listContentAssets, type ContentAssetSource } from '@/services/content-creation';
 import {
   getNumberParam,
@@ -19,11 +20,12 @@ function getBooleanParam(value: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
+    const scopeAll = hasDataPermission(check.user, CONTENT_VIEW);
     const searchParams = request.nextUrl.searchParams;
     const result = await listContentAssets({
       pageNum: getNumberParam(searchParams.get('pageNum')),
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest) {
       favorite: getBooleanParam(searchParams.get('favorite')),
       draftId: getNumberParam(searchParams.get('draftId')),
       topicId: getNumberParam(searchParams.get('topicId')),
+      userId: scopeAll ? undefined : check.user.id,
     });
 
     return NextResponse.json(successResponse(result), {
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

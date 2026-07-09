@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { requireAuth } from '@/lib/permission';
+import { requirePermission, hasDataPermission } from '@/lib/permission';
+import { CONTENT_VIEW, CONTENT_CREATE } from '@/constants/permissions';
 import {
   createContentTopic,
   listContentTopics,
@@ -26,11 +27,12 @@ const createTopicSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
+    const scopeAll = hasDataPermission(check.user, CONTENT_VIEW);
     const searchParams = request.nextUrl.searchParams;
     const result = await listContentTopics({
       pageNum: getNumberParam(searchParams.get('pageNum')),
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
       query: getStringParam(searchParams.get('query')),
       status: getStringParam(searchParams.get('status')),
       sourcePostId: getNumberParam(searchParams.get('sourcePostId')),
+      userId: scopeAll ? undefined : check.user.id,
     });
 
     return NextResponse.json(successResponse(result));
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const check = await requireAuth(request);
+    const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }

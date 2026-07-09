@@ -42,65 +42,8 @@ export const FILE_UPLOAD = 'file:upload';
 export const CHAT_LOG_VIEW = 'chat:log:view';
 export const CHAT_LOG_DELETE = 'chat:log:delete';
 
-// ============ 全部权限码列表 ============
-
-export const ALL_PERMISSION_CODES: string[] = [
-  POST_VIEW,
-  POST_CREATE,
-  POST_EDIT,
-  POST_DELETE,
-  POST_RESTORE,
-  POST_HIDE,
-  POST_VIEW_DELETED,
-  COMMENT_MANAGE,
-  COLLECTION_VIEW,
-  COLLECTION_CREATE,
-  COLLECTION_EDIT,
-  COLLECTION_DELETE,
-  CONFIG_VIEW,
-  CONFIG_EDIT,
-  USER_VIEW,
-  USER_MANAGE,
-  USER_ROLE_ASSIGN,
-  QUEUE_VIEW,
-  VECTOR_VIEW,
-  TTS_VIEW,
-  IMAGE_VIEW,
-  FILE_UPLOAD,
-  CHAT_LOG_VIEW,
-  CHAT_LOG_DELETE,
-];
-
-// ============ 模块标签 ============
-
-export const MODULE_LABELS: Record<string, string> = {
-  post: "文章",
-  comment: "评论",
-  collection: "合集",
-  config: "配置",
-  user: "用户",
-  tool: "工具",
-  chat: "聊天记录",
-};
-
-export const MODULE_COLORS: Record<string, string> = {
-  post: "blue",
-  comment: "green",
-  collection: "purple",
-  config: "orange",
-  user: "red",
-  tool: "cyan",
-  chat: "geekblue",
-};
-
-// ============ 模块分组 ============
-
-export const PERMISSION_MODULES: Record<string, string[]> = {
-  post: [POST_VIEW, POST_CREATE, POST_EDIT, POST_DELETE, POST_RESTORE, POST_HIDE, POST_VIEW_DELETED],
-  comment: [COMMENT_MANAGE],
-  collection: [COLLECTION_VIEW, COLLECTION_CREATE, COLLECTION_EDIT, COLLECTION_DELETE],
-  config: [CONFIG_VIEW, CONFIG_EDIT],
-  user: [USER_VIEW, USER_MANAGE, USER_ROLE_ASSIGN],
-  tool: [QUEUE_VIEW, VECTOR_VIEW, TTS_VIEW, IMAGE_VIEW, FILE_UPLOAD],
-  chat: [CHAT_LOG_VIEW, CHAT_LOG_DELETE],
-};
+// ============ 内容创作模块 ============
+export const CONTENT_VIEW = 'content:view';
+export const CONTENT_CREATE = 'content:create';
+export const CONTENT_EDIT = 'content:edit';
+export const CONTENT_DELETE = 'content:delete';

@@ -32,6 +32,11 @@ import { getDescriptor as aiBindingsGet, updateDescriptor as aiBindingsUpdate } 
 import { descriptor as aiBindingActivate } from '@/app/api/config/ai/bindings/[id]/activate/route';
 import { deleteDescriptor as aiBindingDelete } from '@/app/api/config/ai/bindings/[id]/route';
 import { getDescriptor as aiScenariosGet, createDescriptor as aiScenarioCreate } from '@/app/api/config/ai/scenarios/route';
+// ---- AI Lab Prompt 管理描述符 ----
+import { getDescriptor as aiLabPromptsGet, updateDescriptor as aiLabPromptsUpdate } from '@/app/api/admin/ai-lab/prompts/[slug]/route';
+import { createDescriptor as aiLabPromptsCreateVersion } from '@/app/api/admin/ai-lab/prompts/[slug]/versions/route';
+import { descriptor as aiLabPromptsDiff } from '@/app/api/admin/ai-lab/prompts/[slug]/diff/route';
+import { descriptor as aiLabPromptsRender } from '@/app/api/admin/ai-lab/prompts/render/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -380,6 +385,12 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   // ---- AI 场景管理 ----
   { ...aiScenariosGet, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
   { ...aiScenarioCreate, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
+  // ---- AI Lab Prompt 管理 ----
+  { ...aiLabPromptsGet, apiPath: '/api/admin/ai-lab/prompts/[slug]', mcpEnabled: false },
+  { ...aiLabPromptsUpdate, apiPath: '/api/admin/ai-lab/prompts/[slug]', mcpEnabled: false },
+  { ...aiLabPromptsCreateVersion, apiPath: '/api/admin/ai-lab/prompts/[slug]/versions', mcpEnabled: false },
+  { ...aiLabPromptsDiff, apiPath: '/api/admin/ai-lab/prompts/[slug]/diff', mcpEnabled: false },
+  { ...aiLabPromptsRender, apiPath: '/api/admin/ai-lab/prompts/render', mcpEnabled: false },
 ];
 
 // ============ 运行时查询 ============
