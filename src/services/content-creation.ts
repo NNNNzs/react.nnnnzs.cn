@@ -37,21 +37,6 @@ export type ContentTemplateScenario = typeof CONTENT_TEMPLATE_SCENARIOS[number];
 
 export type ContentAssetSource = 'generated' | 'uploaded';
 
-export interface ContentAssetMetadata {
-  source?: ContentAssetSource;
-  isFavorite?: boolean;
-  prompt?: string;
-  mode?: 'generate' | 'edit';
-  size?: string;
-  quality?: string;
-  jobId?: string;
-  referenceImageUrls?: string[];
-  referenceAssetIds?: number[];
-  originalFilename?: string;
-  mimeType?: string;
-  uploadedAt?: string;
-}
-
 interface PageParams {
   pageNum?: number;
   pageSize?: number;
@@ -158,7 +143,6 @@ export interface CreateAssetInput {
   cos_key?: string | null;
   local_path?: string | null;
   ai_job_id?: number | null;
-  metadata_json?: Prisma.InputJsonValue;
   created_by?: number | null;
 }
 
@@ -178,6 +162,13 @@ export interface CreateUploadedImageAssetInput {
   cos_key?: string | null;
   originalFilename: string;
   mimeType?: string | null;
+  created_by?: number | null;
+}
+
+export interface CreateLinkedImageAssetInput {
+  title?: string | null;
+  group?: string | null;
+  imageUrl: string;
   created_by?: number | null;
 }
 
@@ -328,40 +319,6 @@ function writeDraftImages(value: unknown, images: DraftImageItem[]): Prisma.Inpu
     ...readJsonRecord(value),
     [DRAFT_IMAGES_KEY]: normalizeDraftImages(images),
   });
-}
-
-function readStringArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : undefined;
-}
-
-function readNumberArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is number => Number.isInteger(item) && item > 0)
-    : undefined;
-}
-
-function readContentAssetMetadata(value: unknown): ContentAssetMetadata {
-  if (!isRecord(value)) return {};
-
-  const source = value.source === 'uploaded' ? 'uploaded' : value.source === 'generated' ? 'generated' : undefined;
-  const mode = value.mode === 'edit' ? 'edit' : value.mode === 'generate' ? 'generate' : undefined;
-
-  return {
-    source,
-    isFavorite: typeof value.isFavorite === 'boolean' ? value.isFavorite : undefined,
-    prompt: typeof value.prompt === 'string' ? value.prompt : undefined,
-    mode,
-    size: typeof value.size === 'string' ? value.size : undefined,
-    quality: typeof value.quality === 'string' ? value.quality : undefined,
-    jobId: typeof value.jobId === 'string' ? value.jobId : undefined,
-    referenceImageUrls: readStringArray(value.referenceImageUrls),
-    referenceAssetIds: readNumberArray(value.referenceAssetIds),
-    originalFilename: typeof value.originalFilename === 'string' ? value.originalFilename : undefined,
-    mimeType: typeof value.mimeType === 'string' ? value.mimeType : undefined,
-    uploadedAt: typeof value.uploadedAt === 'string' ? value.uploadedAt : undefined,
-  };
 }
 
 function formatContentImageJob(job: TbAiJob) {
@@ -600,11 +557,13 @@ function buildAssetWhere(params: AssetQueryParams): Prisma.ContentAssetWhereInpu
   if (group) {
     where.usage = group;
   }
-  if (params.source) {
-    andFilters.push({ metadata_json: { path: '$.source', equals: params.source } });
+  if (params.source === 'generated') {
+    andFilters.push({ ai_job_id: { not: null } });
+  } else if (params.source === 'uploaded') {
+    andFilters.push({ ai_job_id: null });
   }
   if (typeof params.favorite === 'boolean') {
-    andFilters.push({ metadata_json: { path: '$.isFavorite', equals: params.favorite } });
+    andFilters.push({ is_favorite: params.favorite });
   }
   if (params.draftId) {
     where.draft_id = params.draftId;
@@ -1014,7 +973,6 @@ export async function listContentAssets(params: AssetQueryParams = {}) {
   const aiJobMap = new Map(aiJobs.map((job) => [job.id, formatContentImageJob(job)] as const));
   const record = assets.map((asset) => ({
     ...asset,
-    asset_metadata: readContentAssetMetadata(asset.metadata_json),
     image_job: asset.ai_job_id ? aiJobMap.get(asset.ai_job_id) ?? null : null,
   }));
 
@@ -1035,7 +993,6 @@ export async function createContentAsset(input: CreateAssetInput) {
       cos_key: toNullableString(input.cos_key),
       local_path: toNullableString(input.local_path),
       ai_job_id: input.ai_job_id ?? null,
-      metadata_json: input.metadata_json,
       created_by: input.created_by ?? null,
     },
   });
@@ -1051,17 +1008,6 @@ export async function createGeneratedContentImageAsset(input: CreateGeneratedIma
     cdn_url: input.job.reservedCdnUrl ?? input.job.imageUrl,
     cos_key: input.job.cosKey,
     ai_job_id: input.job.id,
-    metadata_json: compactJsonRecord({
-      source: 'generated',
-      isFavorite: false,
-      jobId: input.job.jobId,
-      prompt: input.options.prompt,
-      mode: input.options.mode,
-      size: input.options.size,
-      quality: input.options.quality,
-      referenceImageUrls: input.job.referenceImageUrls,
-      referenceAssetIds: input.referenceAssetIds,
-    }),
     created_by: input.created_by,
   });
 }
@@ -1073,13 +1019,16 @@ export async function createUploadedContentImageAsset(input: CreateUploadedImage
     title: cleanString(input.title) ?? input.originalFilename,
     cdn_url: input.cdn_url,
     cos_key: input.cos_key,
-    metadata_json: compactJsonRecord({
-      source: 'uploaded',
-      isFavorite: false,
-      originalFilename: input.originalFilename,
-      mimeType: input.mimeType ?? undefined,
-      uploadedAt: new Date().toISOString(),
-    }),
+    created_by: input.created_by,
+  });
+}
+
+export async function createLinkedContentImageAsset(input: CreateLinkedImageAssetInput) {
+  return createContentAsset({
+    type: 'image',
+    usage: input.group,
+    title: cleanString(input.title) ?? input.imageUrl,
+    cdn_url: input.imageUrl,
     created_by: input.created_by,
   });
 }
@@ -1104,11 +1053,7 @@ export async function updateContentImageAsset(id: number, input: UpdateContentIm
     data.usage = toNullableString(input.group);
   }
   if (typeof input.isFavorite === 'boolean') {
-    const existingMetadata = isRecord(asset.metadata_json) ? asset.metadata_json : {};
-    data.metadata_json = compactJsonRecord({
-      ...existingMetadata,
-      isFavorite: input.isFavorite,
-    });
+    data.is_favorite = input.isFavorite;
   }
 
   if (Object.keys(data).length === 0) {

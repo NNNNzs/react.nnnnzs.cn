@@ -8,8 +8,10 @@
  */
 
 import { tool } from '@langchain/core/tools';
+import { tavily } from '@tavily/core';
 import { z } from 'zod';
 import type { StructuredTool } from '@langchain/core/tools';
+import { getAIConfigValue } from '@/lib/ai-config';
 import { createImageGenerationJob } from '@/services/image-gen-job';
 import { getAiJob } from '@/services/ai-job';
 import { createContentAsset } from '@/services/content-creation';
@@ -55,6 +57,7 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   const getDraft = wrapGetDraft(draftId);
   const searchPosts = wrapSearchPosts();
   const getPostContent = wrapGetPostContent();
+  const webSearch = wrapWebSearch();
   const generateImage = wrapGenerateImage(userId);
   const pollImageJob = wrapPollImageJob(userId);
   const emitDraftPatch = wrapEmitDraftPatch(emitPatch, userId, draftId);
@@ -66,6 +69,7 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
     getDraft,
     searchPosts,
     getPostContent,
+    webSearch,
     generateImage,
     pollImageJob,
     emitDraftPatch,
@@ -192,6 +196,38 @@ function wrapGetPostContent(): StructuredTool {
   );
 }
 
+function wrapWebSearch(): StructuredTool {
+  return tool(
+    async ({ query, searchDepth }) => {
+      try {
+        const apiKey = (await getAIConfigValue('TAVILY_API_KEY'))?.trim();
+        if (!apiKey) {
+          return JSON.stringify({ error: 'TAVILY_API_KEY 未配置' });
+        }
+
+        const client = tavily({ apiKey });
+        const result = await client.search(query, {
+          searchDepth,
+        });
+
+        return JSON.stringify(result);
+      } catch (error) {
+        return JSON.stringify({
+          error: error instanceof Error ? error.message : '网页搜索失败',
+        });
+      }
+    },
+    {
+      name: 'web_search',
+      description: '在网页上搜索最新或外部信息。需要联网检索资料、核实事实、补充当前信息时使用。',
+      schema: z.object({
+        query: z.string().min(1).describe('需要联网搜索的关键词'),
+        searchDepth: z.enum(['basic', 'advanced']).describe('搜索深度，basic 或 advanced'),
+      }),
+    },
+  );
+}
+
 function wrapGenerateImage(userId: number): StructuredTool {
   return tool(
     async ({ prompt, mode, images, size, quality }) => {
@@ -307,9 +343,6 @@ function wrapEmitDraftPatch(
                 usage: img.group ?? null,
                 cdn_url: img.imageUrl,
                 created_by: userId,
-                metadata_json: {
-                  source: 'agent_generated',
-                } as Prisma.InputJsonValue,
               });
               return { ...img, assetId: asset.id };
             }),

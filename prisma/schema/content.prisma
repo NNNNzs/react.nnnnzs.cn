@@ -74,19 +74,19 @@ model ContentDraftSlide {
 
 // 素材库：当前只管理图片；草稿选用图片写入 ContentDraft.generation_snapshot_json.draftImages，不回写 draft_id。
 model ContentAsset {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   draft_id      Int?
   topic_id      Int?
-  type          String   @default("image") @db.VarChar(40)
-  usage         String?  @db.VarChar(60)
-  title         String?  @db.VarChar(255)
-  cdn_url       String?  @db.Text
-  cos_key       String?  @db.VarChar(255)
-  local_path    String?  @db.Text
+  type          String    @default("image") @db.VarChar(40)
+  usage         String?   @db.VarChar(60)
+  title         String?   @db.VarChar(255)
+  cdn_url       String?   @db.Text
+  cos_key       String?   @db.VarChar(255)
+  local_path    String?   @db.Text
   ai_job_id     Int?
-  metadata_json Json?
+  is_favorite   Boolean   @default(false)
   created_by    Int?
-  created_at    DateTime @default(now())
+  created_at    DateTime  @default(now())
 
   draft ContentDraft? @relation(fields: [draft_id], references: [id], onDelete: SetNull)
   topic ContentTopic? @relation(fields: [topic_id], references: [id], onDelete: SetNull)

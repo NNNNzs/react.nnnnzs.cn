@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   Empty,
-  Image,
   Input,
   Modal,
   Segmented,
@@ -31,10 +30,15 @@ import {
   StarOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import ImageGenJobImage, {
+  type ImageGenJobSnapshot,
+} from "@/components/ImageGen/ImageGenJobImage";
+import { ImageOptimizationType } from "@/lib/image";
 
 type AssetSource = "generated" | "uploaded";
 type SourceFilter = "all" | AssetSource;
 type ImageMode = "generate" | "edit";
+type UploadMode = "file" | "url";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -47,18 +51,6 @@ interface PageResult<T> {
   total: number;
   pageNum: number;
   pageSize: number;
-}
-
-interface AssetMetadata {
-  source?: AssetSource;
-  isFavorite?: boolean;
-  prompt?: string;
-  mode?: ImageMode;
-  size?: string;
-  quality?: string;
-  jobId?: string;
-  originalFilename?: string;
-  mimeType?: string;
 }
 
 interface ImageJobView {
@@ -85,8 +77,7 @@ interface ImageAssetRecord {
   usage?: string | null;
   cdn_url?: string | null;
   cos_key?: string | null;
-  metadata_json?: Record<string, unknown> | null;
-  asset_metadata?: AssetMetadata | null;
+  is_favorite?: boolean;
   image_job?: ImageJobView | null;
   created_at: string;
 }
@@ -141,8 +132,6 @@ const STATUS_COLOR: Record<ImageJobView["status"], string> = {
   FAILED: "red",
 };
 
-const FALLBACK_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YxZjVmOSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTRhM2I4IiBmb250LXNpemU9IjE0Ij7lm77niYfliqDovb3lpLHotKU8L3RleHQ+PC9zdmc+";
-
 async function requestJson<T>(url: string, options?: RequestInit) {
   const response = await fetch(url, {
     cache: "no-store",
@@ -186,29 +175,12 @@ function formatDate(value?: string | null) {
   });
 }
 
-function getAssetMetadata(asset: ImageAssetRecord): AssetMetadata {
-  if (asset.asset_metadata) return asset.asset_metadata;
-  const metadata = asset.metadata_json;
-  if (!metadata || typeof metadata !== "object") return {};
-  return {
-    source: metadata.source === "uploaded" ? "uploaded" : metadata.source === "generated" ? "generated" : undefined,
-    isFavorite: typeof metadata.isFavorite === "boolean" ? metadata.isFavorite : undefined,
-    prompt: typeof metadata.prompt === "string" ? metadata.prompt : undefined,
-    mode: metadata.mode === "edit" ? "edit" : metadata.mode === "generate" ? "generate" : undefined,
-    size: typeof metadata.size === "string" ? metadata.size : undefined,
-    quality: typeof metadata.quality === "string" ? metadata.quality : undefined,
-    jobId: typeof metadata.jobId === "string" ? metadata.jobId : undefined,
-    originalFilename: typeof metadata.originalFilename === "string" ? metadata.originalFilename : undefined,
-    mimeType: typeof metadata.mimeType === "string" ? metadata.mimeType : undefined,
-  };
-}
-
 function getAssetSource(asset: ImageAssetRecord): AssetSource {
-  return getAssetMetadata(asset).source ?? (asset.image_job ? "generated" : "uploaded");
+  return asset.image_job ? "generated" : "uploaded";
 }
 
 function isFavorite(asset: ImageAssetRecord) {
-  return getAssetMetadata(asset).isFavorite === true;
+  return asset.is_favorite === true;
 }
 
 function getImageUrl(asset: ImageAssetRecord) {
@@ -217,7 +189,7 @@ function getImageUrl(asset: ImageAssetRecord) {
 }
 
 function getAssetPrompt(asset: ImageAssetRecord) {
-  return asset.image_job?.prompt || getAssetMetadata(asset).prompt || "";
+  return asset.image_job?.prompt || "";
 }
 
 function getAssetTitle(asset: ImageAssetRecord) {
@@ -249,6 +221,7 @@ function AssetCard({
   onAddToDraft,
   onEdit,
   onToggleFavorite,
+  onJobChange,
 }: {
   asset: ImageAssetRecord;
   isReference: boolean;
@@ -256,6 +229,7 @@ function AssetCard({
   onAddToDraft: (asset: ImageAssetRecord) => void;
   onEdit: (asset: ImageAssetRecord) => void;
   onToggleFavorite: (asset: ImageAssetRecord) => void;
+  onJobChange: (assetId: number, job: ImageGenJobSnapshot) => void;
 }) {
   const imageUrl = getImageUrl(asset);
   const source = getAssetSource(asset);
@@ -275,23 +249,25 @@ function AssetCard({
   return (
     <article className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300">
       <div className="relative aspect-[4/5] bg-slate-100">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={title}
-            preview={{ mask: "预览" }}
-            fallback={FALLBACK_IMAGE}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            wrapperStyle={{ width: "100%", height: "100%" }}
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500">
-            <PictureOutlined className="text-3xl" />
-            <span className="text-sm">
-              {asset.image_job ? STATUS_LABEL[asset.image_job.status] : "等待图片"}
-            </span>
-          </div>
-        )}
+        <ImageGenJobImage
+          job={asset.image_job ? {
+            jobId: asset.image_job.jobId,
+            status: asset.image_job.status,
+            ready: asset.image_job.ready,
+            imageUrl,
+            reservedCdnUrl: asset.image_job.reservedCdnUrl,
+            cdnUrl: asset.image_job.cdnUrl,
+            errorMessage: asset.image_job.errorMessage,
+            elapsed: asset.image_job.elapsed,
+            size: asset.image_job.size,
+            quality: asset.image_job.quality,
+          } : null}
+          imageUrl={imageUrl}
+          alt={title}
+          optimizationType={ImageOptimizationType.POST_CARD_COVER}
+          onJobChange={(job) => onJobChange(asset.id, job)}
+          className="h-full w-full"
+        />
         <div className="absolute left-2 top-2 flex flex-wrap gap-1">
           <Tag color={source === "generated" ? "geekblue" : "green"} className="m-0">
             {SOURCE_LABEL[source]}
@@ -386,8 +362,10 @@ export function CreateImageAssetsManager() {
   const [references, setReferences] = useState<ImageAssetRecord[]>([]);
   const [generating, setGenerating] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<UploadMode>("file");
   const [uploading, setUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [externalImageUrl, setExternalImageUrl] = useState("");
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadGroup, setUploadGroup] = useState("");
   const [editingAsset, setEditingAsset] = useState<ImageAssetRecord | null>(null);
@@ -528,27 +506,53 @@ export function CreateImageAssetsManager() {
     },
   };
 
+  const resetUploadForm = () => {
+    setUploadMode("file");
+    setUploadFile(null);
+    setExternalImageUrl("");
+    setUploadTitle("");
+    setUploadGroup("");
+  };
+
   const handleUpload = async () => {
-    if (!uploadFile) {
+    if (uploadMode === "file" && !uploadFile) {
       message.warning("请选择图片");
+      return;
+    }
+    if (uploadMode === "url" && !externalImageUrl.trim()) {
+      message.warning("请输入图片外链");
+      return;
+    }
+    if (uploadMode === "url" && !externalImageUrl.trim().startsWith("https://")) {
+      message.warning("图片外链必须以 https:// 开头");
       return;
     }
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("inputFile", uploadFile);
-      if (uploadTitle.trim()) formData.append("title", uploadTitle.trim());
-      if (uploadGroup.trim()) formData.append("group", uploadGroup.trim());
-      await requestForm<ImageAssetRecord>("/api/create/assets/upload", formData);
-      message.success("图片已上传");
+      if (uploadMode === "url") {
+        await requestJson<ImageAssetRecord>("/api/create/assets", {
+          method: "POST",
+          body: JSON.stringify({
+            image_url: externalImageUrl.trim(),
+            title: uploadTitle.trim() || undefined,
+            group: uploadGroup.trim() || undefined,
+          }),
+        });
+        message.success("图片外链已添加");
+      } else if (uploadFile) {
+        const formData = new FormData();
+        formData.append("inputFile", uploadFile);
+        if (uploadTitle.trim()) formData.append("title", uploadTitle.trim());
+        if (uploadGroup.trim()) formData.append("group", uploadGroup.trim());
+        await requestForm<ImageAssetRecord>("/api/create/assets/upload", formData);
+        message.success("图片已上传");
+      }
       setUploadOpen(false);
-      setUploadFile(null);
-      setUploadTitle("");
-      setUploadGroup("");
+      resetUploadForm();
       await loadAssets();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "上传图片失败");
+      message.error(error instanceof Error ? error.message : "添加图片素材失败");
     } finally {
       setUploading(false);
     }
@@ -589,6 +593,33 @@ export function CreateImageAssetsManager() {
       message.error(error instanceof Error ? error.message : "更新收藏失败");
     }
   };
+
+  const handleAssetJobChange = useCallback((assetId: number, job: ImageGenJobSnapshot) => {
+    setData((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        record: current.record.map((asset) => {
+          if (asset.id !== assetId || !asset.image_job) return asset;
+          return {
+            ...asset,
+            image_job: {
+              ...asset.image_job,
+              status: (job.status || asset.image_job.status) as ImageJobView["status"],
+              ready: job.ready ?? asset.image_job.ready,
+              imageUrl: job.status === "SUCCESS" ? job.imageUrl || job.cdnUrl || asset.image_job.imageUrl : asset.image_job.imageUrl,
+              reservedCdnUrl: job.reservedCdnUrl || asset.image_job.reservedCdnUrl,
+              cdnUrl: job.cdnUrl || asset.image_job.cdnUrl,
+              errorMessage: job.errorMessage ?? asset.image_job.errorMessage,
+              elapsed: job.elapsed || asset.image_job.elapsed,
+              size: job.size || asset.image_job.size,
+              quality: job.quality || asset.image_job.quality,
+            },
+          };
+        }),
+      };
+    });
+  }, []);
 
   const openDraftPicker = (asset: ImageAssetRecord) => {
     if (!getImageUrl(asset)) {
@@ -632,7 +663,7 @@ export function CreateImageAssetsManager() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>
-              上传图片
+              添加素材
             </Button>
             <Button icon={<ReloadOutlined />} onClick={loadAssets}>
               刷新
@@ -693,6 +724,7 @@ export function CreateImageAssetsManager() {
                     onAddToDraft={openDraftPicker}
                     onEdit={openEdit}
                     onToggleFavorite={handleToggleFavorite}
+                    onJobChange={handleAssetJobChange}
                   />
                 ))}
               </div>
@@ -740,13 +772,12 @@ export function CreateImageAssetsManager() {
                             className="relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-white"
                             onClick={() => handleUseAsReference(asset)}
                           >
-                            <Image
-                              src={imageUrl}
+                            <ImageGenJobImage
+                              imageUrl={imageUrl}
                               alt={getAssetTitle(asset)}
                               preview={false}
-                              fallback={FALLBACK_IMAGE}
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              wrapperStyle={{ width: "100%", height: "100%" }}
+                              optimizationType={ImageOptimizationType.SMALL_THUMBNAIL}
+                              className="h-full w-full"
                             />
                           </button>
                         ) : null;
@@ -797,21 +828,43 @@ export function CreateImageAssetsManager() {
       </div>
 
       <Modal
-        title="上传图片"
+        title="添加图片素材"
         open={uploadOpen}
         onOk={handleUpload}
-        onCancel={() => setUploadOpen(false)}
+        onCancel={() => {
+          setUploadOpen(false);
+          resetUploadForm();
+        }}
         confirmLoading={uploading}
-        okText="上传"
+        okText={uploadMode === "url" ? "添加" : "上传"}
         destroyOnHidden
       >
         <div className="flex flex-col gap-4">
-          <Upload.Dragger {...uploadProps}>
-            <p className="ant-upload-drag-icon">
-              <UploadOutlined />
-            </p>
-            <p className="ant-upload-text">选择或拖入图片</p>
-          </Upload.Dragger>
+          <Segmented
+            block
+            value={uploadMode}
+            onChange={(value) => setUploadMode(value as UploadMode)}
+            options={[
+              { label: "上传图片", value: "file" },
+              { label: "图片外链", value: "url" },
+            ]}
+          />
+          {uploadMode === "file" ? (
+            <Upload.Dragger {...uploadProps}>
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined />
+              </p>
+              <p className="ant-upload-text">选择或拖入图片</p>
+            </Upload.Dragger>
+          ) : (
+            <Input
+              value={externalImageUrl}
+              onChange={(event) => setExternalImageUrl(event.target.value)}
+              placeholder="https://example.com/image.png"
+              prefix={<LinkOutlined className="text-slate-400" />}
+              maxLength={5000}
+            />
+          )}
           <Input
             value={uploadTitle}
             onChange={(event) => setUploadTitle(event.target.value)}
@@ -849,7 +902,10 @@ export function CreateImageAssetsManager() {
             maxLength={60}
           />
           {editingAsset?.cdn_url ? (
-            <Input value={editingAsset.cdn_url} disabled addonBefore="CDN" />
+            <Space.Compact className="w-full">
+              <Button disabled>CDN</Button>
+              <Input value={editingAsset.cdn_url} disabled />
+            </Space.Compact>
           ) : null}
         </div>
       </Modal>
