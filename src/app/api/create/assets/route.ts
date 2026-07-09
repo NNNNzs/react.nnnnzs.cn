@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { CONTENT_VIEW, CONTENT_CREATE } from '@/constants/permissions';
-import { listContentAssets, type ContentAssetSource } from '@/services/content-creation';
+import {
+  createLinkedContentImageAsset,
+  listContentAssets,
+  type ContentAssetSource,
+} from '@/services/content-creation';
 import {
   getNumberParam,
   getStringParam,
+  validationErrorResponse,
 } from '../_utils';
+
+const createAssetSchema = z.object({
+  image_url: z.string().trim().url('请输入有效的图片地址').max(5000, '图片地址过长')
+    .refine((value) => value.startsWith('https://'), '图片地址必须以 https:// 开头'),
+  title: z.string().trim().max(255).optional().nullable(),
+  group: z.string().trim().max(60).optional().nullable(),
+});
 
 function getSourceParam(value: string | null): ContentAssetSource | undefined {
   return value === 'generated' || value === 'uploaded' ? value : undefined;
@@ -58,12 +71,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
-    return NextResponse.json(
-      errorResponse('素材库只支持生成图片或上传图片'),
-      { status: 400 },
-    );
+    const validation = createAssetSchema.safeParse(await request.json());
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
+    }
+
+    const data = validation.data;
+    const asset = await createLinkedContentImageAsset({
+      title: data.title,
+      group: data.group,
+      imageUrl: data.image_url,
+      created_by: check.user.id,
+    });
+
+    return NextResponse.json(successResponse(asset, '图片素材已添加'), {
+      status: 201,
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('创建内容素材失败:', error);
-    return NextResponse.json(errorResponse('创建内容素材失败'), { status: 500 });
+    return NextResponse.json(
+      errorResponse(error instanceof Error ? error.message : '创建内容素材失败'),
+      { status: 500 },
+    );
   }
 }
