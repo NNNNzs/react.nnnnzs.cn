@@ -33,6 +33,19 @@ const TAB_ITEMS = [
   },
 ];
 
+const CONFIG_TABS_CLASS_NAME = [
+  "flex-1 min-h-0",
+  "[&_.ant-tabs-nav]:shrink-0",
+  "[&_.ant-tabs-content-holder]:flex-1",
+  "[&_.ant-tabs-content-holder]:min-h-0",
+  "[&_.ant-tabs-content-holder]:overflow-hidden",
+  "[&_.ant-tabs-content]:h-full",
+  "[&_.ant-tabs-content]:min-h-0",
+  "[&_.ant-tabs-tabpane]:h-full",
+  "[&_.ant-tabs-tabpane]:min-h-0",
+  "[&_.ant-tabs-tabpane]:overflow-hidden",
+].join(" ");
+
 function ConfigPageContent() {
   const [activeTab, setActiveTab] = useState("config");
 
@@ -44,7 +57,7 @@ function ConfigPageContent() {
           activeKey={activeTab}
           onChange={setActiveTab}
           items={TAB_ITEMS}
-          className="flex-1 min-h-0 [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:min-h-0 [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full [&_.ant-tabs-tabpane]:overflow-y-auto"
+          className={CONFIG_TABS_CLASS_NAME}
         />
       </div>
     </div>

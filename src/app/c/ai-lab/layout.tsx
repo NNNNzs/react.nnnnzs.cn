@@ -2,8 +2,6 @@
 
 import React, { useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Tag } from "antd";
-import type { MenuProps } from "antd";
 import {
   DashboardOutlined,
   ExperimentOutlined,
@@ -30,6 +28,10 @@ type AiLabNavItem = {
   icon: React.ReactNode;
   phase?: string;
 };
+
+function joinClassNames(...classes: Array<string | undefined | false>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 const AI_LAB_NAV_ITEMS: AiLabNavItem[] = [
   {
@@ -107,64 +109,64 @@ export default function AiLabLayout({ children }: { children: React.ReactNode })
     [canAccess],
   );
 
-  const menuItems: MenuProps["items"] = useMemo(
-    () =>
-      visibleItems.map((item) => ({
-        key: item.path,
-        icon: item.icon,
-        label: (
-          <span className="inline-flex items-center gap-2">
-            {item.label}
-            {item.phase && <Tag color="default" className="mr-0">{item.phase}</Tag>}
-          </span>
-        ),
-      })),
-    [visibleItems],
-  );
+  const activePath = getActivePath(pathname);
 
-  const handleMenuClick: NonNullable<MenuProps["onClick"]> = useCallback(
-    (event) => {
-      router.push(event.key);
+  const handleNavClick = useCallback(
+    (path: string) => {
+      router.push(path);
     },
     [router],
   );
 
   return (
     <div className="flex h-full min-h-0 flex-col text-slate-950">
-      <div className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <ExperimentOutlined className="text-xl text-cyan-700" />
-              <h1 className="m-0 text-xl font-semibold tracking-normal text-slate-950">
-                AI Lab
-              </h1>
-              <Tag color="cyan">LLMOps</Tag>
-            </div>
-            <p className="mt-1 mb-0 text-sm text-slate-500">
-              Run 观测、RAG 检索实验、模型配置和评测闭环的独立后台空间
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-            <span className="rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-800">
-              已拆入 {visibleItems.filter((item) => !item.phase).length} 个入口
-            </span>
-            <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-              规划 {visibleItems.filter((item) => item.phase).length} 个实验模块
+      <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 lg:px-4">
+        <div className="flex min-h-8 flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="flex shrink-0 items-center gap-2">
+            <ExperimentOutlined className="text-base text-cyan-700" />
+            <h1 className="m-0 text-base font-semibold tracking-normal text-slate-950">
+              AI Lab
+            </h1>
+            <span className="rounded border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[11px] leading-4 text-cyan-800">
+              LLMOps
             </span>
           </div>
-        </div>
-        <div className="overflow-x-auto px-2">
-          <Menu
-            mode="horizontal"
-            selectedKeys={[getActivePath(pathname)]}
-            items={menuItems}
-            onClick={handleMenuClick}
-            className="min-w-max border-b-0"
-          />
+          <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <nav
+              aria-label="AI Lab 模块导航"
+              className="flex min-w-max items-center gap-1"
+            >
+              {visibleItems.map((item) => {
+                const isActive = activePath === item.path;
+
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => handleNavClick(item.path)}
+                    className={joinClassNames(
+                      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors",
+                      isActive
+                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                        : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+                    )}
+                  >
+                    <span className="text-[13px] leading-none">{item.icon}</span>
+                    <span>{item.label}</span>
+                    {item.phase ? (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] leading-4 text-slate-500">
+                        {item.phase}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 py-5 lg:px-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 py-3 lg:px-2">
         {children}
       </div>
     </div>

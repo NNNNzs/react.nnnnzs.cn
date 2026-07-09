@@ -40,6 +40,7 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
   const [tableScrollHeight, setTableScrollHeight] = useState<
     number | undefined
   >(undefined);
+  const hasPagination = pagination !== false;
 
   // 桌面端：动态计算表格滚动高度
   useEffect(() => {
@@ -49,8 +50,8 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
       if (tableContainerRef.current) {
         const containerHeight = tableContainerRef.current.clientHeight;
         if (containerHeight > 0) {
-          // 减去分页器（约64px）+ 表格头部（约40px）
-          const height = containerHeight - 104;
+          // 减去表格头部；启用分页时再扣除分页器高度。
+          const height = containerHeight - (hasPagination ? 104 : 40);
           setTableScrollHeight(Math.max(height, 300));
         }
       }
@@ -75,7 +76,7 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
       window.removeEventListener("resize", handleResize);
       clearTimeout(timer);
     };
-  }, [isMobile]);
+  }, [hasPagination, isMobile]);
 
   // 移动端分页简化配置
   const mobilePagination = pagination
@@ -92,10 +93,14 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
     : false;
 
   // 桌面端 scroll 配置：优先用外部传入，否则用自动计算的
-  const desktopScroll = scroll
-    ? scroll
-    : tableScrollHeight
-      ? { y: tableScrollHeight }
+  const desktopScroll: TableProps<T>["scroll"] =
+    scroll || tableScrollHeight
+      ? {
+          ...(scroll ?? {}),
+          ...(tableScrollHeight && scroll?.y === undefined
+            ? { y: tableScrollHeight }
+            : {}),
+        }
       : undefined;
   const records = Array.from(dataSource ?? []);
 
@@ -159,7 +164,10 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
   }
 
   return (
-    <div ref={tableContainerRef} className="flex-1 flex flex-col min-h-0">
+    <div
+      ref={tableContainerRef}
+      className="flex-1 flex flex-col min-h-0 overflow-hidden"
+    >
       <Table<T>
         columns={columns}
         dataSource={dataSource}

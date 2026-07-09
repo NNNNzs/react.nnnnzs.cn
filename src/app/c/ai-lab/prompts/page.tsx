@@ -386,7 +386,7 @@ export default function AiLabPromptsPage() {
     <div className="flex h-full min-h-0 flex-col">
       <AdminPageHeader
         title="Prompts"
-        description="系统级 Prompt / Skill 模板、版本、@ 引用和 LangChain mustache 变量管理"
+        className="mb-2"
         extra={(
           <Space wrap>
             <Button size="small" icon={<DownloadOutlined />} onClick={handleImportLegacy} loading={importing}>
@@ -402,16 +402,17 @@ export default function AiLabPromptsPage() {
         )}
       />
 
-      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
         <Input.Search
           allowClear
-          size="middle"
+          size="small"
           className="w-full max-w-xs"
           placeholder="搜索名称、slug、描述"
           onSearch={setQuery}
         />
         <Select
           allowClear
+          size="small"
           className="w-48"
           placeholder="类型"
           options={TYPE_OPTIONS}
@@ -526,7 +527,7 @@ export default function AiLabPromptsPage() {
           {!detail ? (
             <Empty description="暂无 metadata" />
           ) : (
-            <Space direction="vertical" size="middle" className="w-full">
+            <div className="flex w-full flex-col gap-4">
               <Descriptions size="small" column={1} bordered>
                 <Descriptions.Item label="Slug">@{detail.slug}</Descriptions.Item>
                 <Descriptions.Item label="Key">{detail.key || "-"}</Descriptions.Item>
@@ -567,7 +568,7 @@ export default function AiLabPromptsPage() {
                   {asJsonText(detail.metadata_json)}
                 </pre>
               </div>
-            </Space>
+            </div>
           )}
         </aside>
       </div>

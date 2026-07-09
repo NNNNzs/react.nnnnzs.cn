@@ -427,7 +427,7 @@ function ConfigListTabContent() {
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       {/* 搜索和筛选 */}
       <div
         className={`mb-4 shrink-0 ${

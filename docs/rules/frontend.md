@@ -657,6 +657,7 @@ export default function Error({
 - 列表页和工作台页不要在最外层再包 `container mx-auto`，否则会出现左右留白、双背景或内容宽度不一致。
 - 页面不要为了补偿布局而额外添加顶层 `padding` / `margin`；紧凑间距统一放在页面内部的标题栏、筛选栏、表格区域。
 - 页面根节点保持 `w-full h-full flex flex-col`，内部可滚动区域必须保留 `min-h-0`。
+- 管理后台和内容创作中台的左侧导航统一使用 `src/components/admin/AdminSidebar.tsx`，不要在各 layout 中重复手写 `Sider` / `Drawer` / `Menu` 组合；桌面端侧栏必须支持收起和展开。
 
 ### 标准布局结构
 ```tsx
@@ -774,6 +775,7 @@ import {
 
 ### 参考实现
 - 后台通用标题和表格操作组件：`src/components/admin/AdminPageHeader.tsx`
+- 后台与内容中台通用侧栏组件：`src/components/admin/AdminSidebar.tsx`
 - 文章管理页：`src/app/c/post/page.tsx`
 - 评论管理页：`src/app/c/comments/page.tsx`
 - 队列管理页：`src/app/c/queue/page.tsx`

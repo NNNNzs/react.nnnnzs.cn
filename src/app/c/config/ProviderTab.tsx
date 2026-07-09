@@ -305,7 +305,7 @@ function ProviderTab() {
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 shrink-0 flex items-center justify-between">
         <span className="text-sm text-gray-500">
           管理供应商的 Base URL、API Key 和可用模型

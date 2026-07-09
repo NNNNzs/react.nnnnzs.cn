@@ -371,7 +371,7 @@ export default function TTSPage() {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden">
       <div className="space-y-4">
         <AdminPageHeader
           title="语音合成"

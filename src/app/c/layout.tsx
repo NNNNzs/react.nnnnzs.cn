@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Layout, Menu, message, Drawer } from "antd";
+import { Layout, message } from "antd";
 import type { MenuProps } from "antd";
 import {
   FileTextOutlined,
@@ -18,7 +18,6 @@ import {
   BookOutlined,
   ClusterOutlined,
   MessageOutlined,
-  MenuOutlined,
   SafetyOutlined,
   KeyOutlined,
   ApiOutlined,
@@ -28,6 +27,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import AdminSidebar, {
+  ADMIN_SIDEBAR_COLLAPSED_WIDTH,
+} from "@/components/admin/AdminSidebar";
 import {
   COMMENT_MANAGE,
   COLLECTION_VIEW,
@@ -41,10 +43,11 @@ import {
   CHAT_LOG_VIEW,
 } from "@/constants/permissions";
 
-const { Sider, Content } = Layout;
+const { Content } = Layout;
 
 const MOBILE_BREAKPOINT = 768;
 const ADMIN_LAYOUT_HEIGHT = "h-[calc(100vh-var(--header-height))]";
+const ADMIN_SIDEBAR_WIDTH = 200;
 const AI_LAB_ROUTE = "/c/ai-lab";
 const AI_LAB_PERMISSIONS = [
   CHAT_LOG_VIEW,
@@ -66,11 +69,15 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
   const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const selectedMenuKeys = useMemo(
     () => [pathname.startsWith(AI_LAB_ROUTE) ? AI_LAB_ROUTE : pathname],
     [pathname]
   );
   const sectionTitle = pathname.startsWith(AI_LAB_ROUTE) ? "AI Lab" : "管理后台";
+  const desktopSidebarWidth = sidebarCollapsed
+    ? ADMIN_SIDEBAR_COLLAPSED_WIDTH
+    : ADMIN_SIDEBAR_WIDTH;
 
   const hasAnyPermission = useCallback(
     (permissions: string[]) => permissions.some((permission) => hasPermission(permission)),
@@ -339,47 +346,25 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
-        {/* 移动端顶部菜单切换按钮 */}
-        <div
-          className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 shrink-0"
-        >
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-gray-100 transition-colors"
-            aria-label="打开菜单"
-          >
-            <MenuOutlined className="text-lg" />
-          </button>
-          <span className="font-medium text-gray-700 truncate">
-            {sectionTitle}
-          </span>
-        </div>
+        <AdminSidebar
+          title="管理后台"
+          mobileTitle={sectionTitle}
+          drawerTitle="管理后台"
+          items={menuItems}
+          selectedKeys={selectedMenuKeys}
+          onMenuClick={handleMenuClick}
+          isMobile={isMobile}
+          drawerOpen={drawerOpen}
+          onDrawerOpenChange={setDrawerOpen}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+          width={260}
+        />
 
         {/* 主内容区占满全宽 */}
         <Content className="flex-1 overflow-auto !bg-slate-50 px-3 py-4">
           {children}
         </Content>
-
-        {/* 移动端抽屉菜单 */}
-        <Drawer
-          title="管理后台"
-          placement="left"
-          onClose={() => setDrawerOpen(false)}
-          open={drawerOpen}
-          size={260}
-          rootClassName="admin-light-drawer"
-          styles={{
-            body: { padding: 0 },
-          }}
-        >
-          <Menu
-            mode="inline"
-            selectedKeys={selectedMenuKeys}
-            items={menuItems}
-            onClick={handleMenuClick}
-            className="border-r-0"
-          />
-        </Drawer>
       </Layout>
     );
   }
@@ -387,33 +372,23 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 桌面端：保持原有布局不变
   return (
     <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
-      <Sider
-        width={200}
-        className="admin-light-sider bg-white"
-        theme="light"
-        style={{
-          overflow: "auto",
-          height: "calc(100vh - var(--header-height))",
-          position: "fixed",
-          left: 0,
-          top: "var(--header-height)",
-          bottom: 0,
-        }}
+      <AdminSidebar
+        title="管理后台"
+        shortTitle="后台"
+        items={menuItems}
+        selectedKeys={selectedMenuKeys}
+        onMenuClick={handleMenuClick}
+        isMobile={isMobile}
+        drawerOpen={drawerOpen}
+        onDrawerOpenChange={setDrawerOpen}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        width={ADMIN_SIDEBAR_WIDTH}
+      />
+      <Layout
+        className="h-full min-w-0 !bg-slate-50 transition-[margin-left] duration-200"
+        style={{ marginLeft: desktopSidebarWidth }}
       >
-        <div className="h-16 flex items-center justify-center border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800">
-            管理后台
-          </h2>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={selectedMenuKeys}
-          items={menuItems}
-          onClick={handleMenuClick}
-          className="admin-light-menu h-[calc(100vh-var(--header-height)-64px)] border-r-0"
-        />
-      </Sider>
-      <Layout className="ml-[200px] h-full min-w-0 !bg-slate-50">
         <Content className="h-full min-w-0 overflow-hidden !bg-slate-50 p-4 lg:p-6">
           {children}
         </Content>

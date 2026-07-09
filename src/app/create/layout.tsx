@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Drawer, Layout, Menu, message, Tag } from "antd";
+import { Layout, message } from "antd";
 import type { MenuProps } from "antd";
 import {
   AppstoreOutlined,
@@ -10,7 +10,6 @@ import {
   DashboardOutlined,
   FileTextOutlined,
   FormOutlined,
-  MenuOutlined,
   PictureOutlined,
   ReadOutlined,
   ToolOutlined,
@@ -18,11 +17,15 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import AdminSidebar, {
+  ADMIN_SIDEBAR_COLLAPSED_WIDTH,
+} from "@/components/admin/AdminSidebar";
 
-const { Content, Sider } = Layout;
+const { Content } = Layout;
 
 const MOBILE_BREAKPOINT = 768;
 const CREATE_LAYOUT_HEIGHT = "h-[calc(100vh-var(--header-height))]";
+const CREATE_SIDEBAR_WIDTH = 220;
 
 const createRoutes = [
   "/create",
@@ -49,8 +52,12 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
   const { setHeaderStyle, resetHeaderStyle } = useHeaderStyle();
   const { isMobile } = useBreakpoint(MOBILE_BREAKPOINT);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const selectedMenuKeys = useMemo(() => [getSelectedKey(pathname)], [pathname]);
+  const desktopSidebarWidth = sidebarCollapsed
+    ? ADMIN_SIDEBAR_COLLAPSED_WIDTH
+    : CREATE_SIDEBAR_WIDTH;
 
   const menuItems: MenuProps["items"] = useMemo(
     () => [
@@ -159,81 +166,51 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
   if (isMobile) {
     return (
       <Layout className={`admin-light-shell ${CREATE_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
-        <div className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
-            aria-label="打开内容创作菜单"
-          >
-            <MenuOutlined className="text-lg" />
-          </button>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-slate-800">内容创作中台</div>
-            <div className="text-xs text-slate-500">/create</div>
-          </div>
-        </div>
+        <AdminSidebar
+          title="内容创作"
+          mobileTitle="内容创作中台"
+          mobileSubtitle="/create"
+          mobileMenuAriaLabel="打开内容创作菜单"
+          drawerTitle="内容创作中台"
+          items={menuItems}
+          selectedKeys={selectedMenuKeys}
+          onMenuClick={handleMenuClick}
+          isMobile={isMobile}
+          drawerOpen={drawerOpen}
+          onDrawerOpenChange={setDrawerOpen}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+          width={280}
+        />
 
         <Content className="flex-1 overflow-hidden bg-slate-50 px-3 py-4">
           {children}
         </Content>
-
-        <Drawer
-          title="内容创作中台"
-          placement="left"
-          onClose={() => setDrawerOpen(false)}
-          open={drawerOpen}
-          size={280}
-          rootClassName="admin-light-drawer"
-          styles={{
-            body: { padding: 0 },
-          }}
-        >
-          <Menu
-            mode="inline"
-            selectedKeys={selectedMenuKeys}
-            items={menuItems}
-            onClick={handleMenuClick}
-            className="border-r-0"
-          />
-        </Drawer>
       </Layout>
     );
   }
 
   return (
     <Layout className={`admin-light-shell ${CREATE_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
-      <Sider
-        width={220}
-        className="admin-light-sider bg-white"
-        theme="light"
-        style={{
-          overflow: "auto",
-          height: "calc(100vh - var(--header-height))",
-          position: "fixed",
-          left: 0,
-          top: "var(--header-height)",
-          bottom: 0,
-        }}
+      <AdminSidebar
+        title="内容创作"
+        shortTitle="创作"
+        badge="create"
+        icon={<FormOutlined />}
+        items={menuItems}
+        selectedKeys={selectedMenuKeys}
+        onMenuClick={handleMenuClick}
+        isMobile={isMobile}
+        drawerOpen={drawerOpen}
+        onDrawerOpenChange={setDrawerOpen}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        width={CREATE_SIDEBAR_WIDTH}
+      />
+      <Layout
+        className="h-full min-w-0 bg-slate-50 transition-[margin-left] duration-200"
+        style={{ marginLeft: desktopSidebarWidth }}
       >
-        <div className="flex h-16 items-center justify-center border-b border-slate-200">
-          <div className="min-w-0 text-center">
-            <div className="flex items-center justify-center gap-2 text-base font-semibold text-slate-900">
-              <FormOutlined />
-              <span>内容创作</span>
-            </div>
-            <Tag className="mt-1" color="magenta">create</Tag>
-          </div>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={selectedMenuKeys}
-          items={menuItems}
-          onClick={handleMenuClick}
-          className="admin-light-menu h-[calc(100vh-var(--header-height)-64px)] border-r-0"
-        />
-      </Sider>
-      <Layout className="ml-[220px] h-full bg-slate-50">
         <Content className="h-full overflow-hidden bg-slate-50 px-6 py-8">
           {children}
         </Content>
