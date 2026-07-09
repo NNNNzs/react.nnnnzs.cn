@@ -206,7 +206,6 @@ export default function ChatPage() {
   const { messages, isStreaming, sendMessage, abort, reset, replaceMessages } =
     useAgentStream<unknown>({
       endpoint: "/api/chat",
-      headers: {},
       onFrame: () => {
         // 可以在这里处理原始 SSE 帧（如埋点）
       },
@@ -339,6 +338,7 @@ export default function ChatPage() {
               id: `db-${msg.id}`,
               role: msg.role as "user" | "assistant",
               content: msg.content,
+              tools: [],
               thoughts: msg.metadata?.thoughts || [],
               reactLoops: (msg.metadata?.reactLoops || []).map((loop) => ({
                 ...loop,
@@ -474,27 +474,53 @@ export default function ChatPage() {
    */
   const handleSubmit = useCallback(
     async (text: string) => {
-      if (!text.trim() || isStreaming) {
+      const messageText = text.trim();
+      if (!messageText || isStreaming) {
         return;
       }
 
       // 取消之前的请求
       abort();
+      setContent("");
 
       const history = messages
         .filter((msg) => msg.content)
         .map((msg) => ({
           role: msg.role,
           content: msg.content,
-          thoughts: msg.thoughts,
-          reactLoops: msg.reactLoops,
-          reactTimeline: msg.reactTimeline,
         }));
 
-      await sendMessage(text, history);
-      setContent("");
+      const deviceId = getDeviceId();
+      const requestHeaders: Record<string, string> = {};
+      if (deviceId) {
+        requestHeaders["X-Device-Id"] = deviceId;
+      }
+
+      await sendMessage(messageText, history, {
+        body: {
+          sessionId: activeSessionId || undefined,
+          styleVariant,
+        },
+        headers: requestHeaders,
+        onResponse: (response) => {
+          const newSessionId = response.headers.get("X-Session-Id");
+          if (!newSessionId || activeSessionId) return;
+
+          const parsedSessionId = Number.parseInt(newSessionId, 10);
+          if (Number.isFinite(parsedSessionId)) {
+            setActiveSessionId(parsedSessionId);
+          }
+        },
+      });
+
+      window.setTimeout(() => {
+        loadSessions();
+      }, 300);
+      window.setTimeout(() => {
+        loadSessions();
+      }, 1500);
     },
-    [isStreaming, messages, sendMessage, abort],
+    [isStreaming, messages, sendMessage, abort, activeSessionId, styleVariant, loadSessions],
   );
 
   /**
@@ -535,6 +561,10 @@ export default function ChatPage() {
    * 转换消息为 Bubble.List 需要的格式
    */
   const bubbleItems = useMemo(() => {
+    const latestAssistantMessage = [...messages]
+      .reverse()
+      .find((msg) => msg.role === "assistant");
+
     return messages.map((msg) => {
       return {
         key: msg.id,
@@ -548,14 +578,21 @@ export default function ChatPage() {
               thoughts={msg.thoughts || []}
               reactLoops={msg.reactLoops || []}
               reactTimeline={msg.reactTimeline || []}
-              isLoading={isStreaming && msg.role === "assistant"}
+              isLoading={
+                msg.role === "assistant" &&
+                latestAssistantMessage?.id === msg.id &&
+                (isStreaming || msg.loading === true)
+              }
               variant="default"
               styleCopy={styleCopy}
+              markdownClassName={
+                styleVariant === "night" ? "x-markdown-dark" : "x-markdown-light"
+              }
             />
           ),
       };
     });
-  }, [messages, isStreaming, styleCopy]);
+  }, [messages, isStreaming, styleCopy, styleVariant]);
 
   const activeSession = useMemo(() => {
     if (!activeSessionId) return null;

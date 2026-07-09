@@ -8,6 +8,27 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { getAIConfig } from '@/lib/ai-config';
 
 /**
+ * Ollama 的 OpenAI-compatible API 位于 /v1。
+ * 后台 provider 常会填根地址（如 http://127.0.0.1:11434），这里做一次兼容归一化。
+ */
+function normalizeEmbeddingBaseUrl(baseUrl: string): string {
+  try {
+    const url = new URL(baseUrl);
+    const isOllamaDefaultPort = url.port === '11434';
+    const isRootPath = url.pathname === '' || url.pathname === '/';
+
+    if (isOllamaDefaultPort && isRootPath) {
+      url.pathname = '/v1';
+      return url.toString().replace(/\/$/, '');
+    }
+  } catch {
+    // 非标准 URL 交给 OpenAI SDK 继续报错，避免掩盖配置问题。
+  }
+
+  return baseUrl;
+}
+
+/**
  * 获取嵌入模型实例
  */
 async function getEmbeddingModel(): Promise<OpenAIEmbeddings> {
@@ -24,7 +45,7 @@ async function getEmbeddingModel(): Promise<OpenAIEmbeddings> {
     openAIApiKey: config.api_key, // 同时设置两个参数以确保兼容性
     model: config.model,
     configuration: {
-      baseURL: config.base_url,
+      baseURL: normalizeEmbeddingBaseUrl(config.base_url),
     },
     // 使用配置中的维度，默认 1024
     dimensions: config.dimensions || 1024,

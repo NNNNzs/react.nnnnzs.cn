@@ -39,6 +39,8 @@ export interface AgentMessageContentProps {
   isLoading?: boolean;
   variant?: "default" | "compact" | "drawer";
   styleCopy?: AgentStyleCopy;
+  /** Markdown 根节点 className，用于页面注入主题样式 */
+  markdownClassName?: string;
 }
 
 const DEFAULT_STYLE_COPY: AgentStyleCopy = {
@@ -154,6 +156,7 @@ function TimelineVariant({
   isLoading,
   variant,
   styleCopy,
+  markdownClassName,
 }: {
   content: string;
   thoughts: string[];
@@ -162,6 +165,7 @@ function TimelineVariant({
   isLoading: boolean;
   variant: "default" | "compact";
   styleCopy: AgentStyleCopy;
+  markdownClassName?: string;
 }) {
   const copy = styleCopy;
   const isCompact = variant === "compact";
@@ -235,14 +239,22 @@ function TimelineVariant({
   ));
 
   const effectiveTimeline = orderedTimeline;
+  const markdownClassNames = [
+    isCompact ? "x-markdown-compact" : undefined,
+    markdownClassName,
+  ]
+    .filter(Boolean)
+    .join(" ") || undefined;
 
   return (
     <div>
-      {!hasStreamingContent && !content ? (
-        <div className="flex items-center gap-2 text-gray-400 dark:text-slate-300">
-          <LoadingOutlined spin />
-          <span>{copy.thinking}</span>
-        </div>
+      {!content && effectiveTimeline.length === 0 ? (
+        hasStreamingContent ? (
+          <div className="flex items-center gap-2 text-gray-400 dark:text-slate-300">
+            <LoadingOutlined spin />
+            <span>{copy.thinking}</span>
+          </div>
+        ) : null
       ) : (
         <>
           {effectiveTimeline.map((item, index) => {
@@ -278,7 +290,7 @@ function TimelineVariant({
           })}
 
           {content && (
-            <XMarkdown className={isCompact ? "x-markdown-compact" : undefined}>
+            <XMarkdown className={markdownClassNames}>
               {content}
             </XMarkdown>
           )}
@@ -297,7 +309,16 @@ function TimelineVariant({
  * - drawer: 最简模式（仅内容展示）
  */
 export const AgentMessageContent = React.memo<AgentMessageContentProps>(
-  ({ content, thoughts, reactLoops, reactTimeline, isLoading = false, variant = "default", styleCopy = {} }) => {
+  ({
+    content,
+    thoughts,
+    reactLoops,
+    reactTimeline,
+    isLoading = false,
+    variant = "default",
+    styleCopy = {},
+    markdownClassName,
+  }) => {
     if (variant === "drawer") {
       return <DrawerVariant content={content} />;
     }
@@ -311,6 +332,7 @@ export const AgentMessageContent = React.memo<AgentMessageContentProps>(
         isLoading={isLoading}
         variant={variant}
         styleCopy={{ ...DEFAULT_STYLE_COPY, ...styleCopy }}
+        markdownClassName={markdownClassName}
       />
     );
   },

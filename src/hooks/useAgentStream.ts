@@ -22,6 +22,18 @@ export interface UseAgentStreamOptions<TContext = unknown> {
 }
 
 /**
+ * 单次发送消息时的附加选项
+ */
+export interface UseAgentStreamSendOptions {
+  /** 合并到请求体的业务字段，如 sessionId、styleVariant */
+  body?: Record<string, unknown>;
+  /** 合并到请求头的业务字段，如 X-Device-Id */
+  headers?: Record<string, string>;
+  /** fetch 成功后回调，便于读取响应头 */
+  onResponse?: (response: Response) => void;
+}
+
+/**
  * useAgentStream 返回值
  */
 export interface UseAgentStreamResult {
@@ -30,7 +42,11 @@ export interface UseAgentStreamResult {
   /** 是否正在流式输出 */
   isStreaming: boolean;
   /** 发送消息（history 只传 role + content 即可） */
-  sendMessage: (text: string, history: Array<Pick<AgentMessage, 'role' | 'content'>>) => Promise<void>;
+  sendMessage: (
+    text: string,
+    history: Array<Pick<AgentMessage, 'role' | 'content'>>,
+    options?: UseAgentStreamSendOptions,
+  ) => Promise<void>;
   /** 中断当前请求 */
   abort: () => void;
   /** 清空消息 */
@@ -69,7 +85,11 @@ export function useAgentStream<TContext = unknown>({
   const sendingRef = useRef(false);
 
   const sendMessage = useCallback(
-    async (text: string, history: Array<Pick<AgentMessage, 'role' | 'content'>>) => {
+    async (
+      text: string,
+      history: Array<Pick<AgentMessage, 'role' | 'content'>>,
+      options: UseAgentStreamSendOptions = {},
+    ) => {
       if (!text.trim() || sendingRef.current) return;
       sendingRef.current = true;
 
@@ -84,6 +104,10 @@ export function useAgentStream<TContext = unknown>({
         id: nextId(),
         role: "assistant",
         content: "",
+        thoughts: [],
+        reactLoops: [],
+        reactTimeline: [],
+        loading: true,
         tools: [],
       };
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
@@ -100,6 +124,7 @@ export function useAgentStream<TContext = unknown>({
             .filter((m) => m.content)
             .slice(-10)
             .map((m) => ({ role: m.role, content: m.content })),
+          ...options.body,
         };
 
         const response = await fetch(endpoint, {
@@ -107,6 +132,7 @@ export function useAgentStream<TContext = unknown>({
           headers: {
             "Content-Type": "application/json",
             ...headers,
+            ...options.headers,
           },
           body: JSON.stringify(body),
           signal: controller.signal,
@@ -116,6 +142,8 @@ export function useAgentStream<TContext = unknown>({
           const errText = await response.text().catch(() => "请求失败");
           throw new Error(errText);
         }
+
+        options.onResponse?.(response);
 
         // 解析 SSE 流
         await parseSSEStream(
@@ -191,6 +219,7 @@ export function useAgentStream<TContext = unknown>({
                     }
                     return {
                       ...msg,
+                      loading: true,
                       reactTimeline,
                       tools: [
                         ...msg.tools,
@@ -227,6 +256,7 @@ export function useAgentStream<TContext = unknown>({
                     });
                     return {
                       ...msg,
+                      loading: true,
                       reactTimeline,
                       tools: msg.tools.map((t) =>
                         t.step === step && t.status === "running"
@@ -243,7 +273,7 @@ export function useAgentStream<TContext = unknown>({
                       item.type === "think" ? { ...item, isStreaming: false } : item,
                     );
                     reactTimeline.push({ type: "think", content: "", isStreaming: true });
-                    return { ...msg, thoughts, reactTimeline };
+                    return { ...msg, loading: true, thoughts, reactTimeline };
                   }
 
                   case "think_chunk": {
@@ -275,27 +305,40 @@ export function useAgentStream<TContext = unknown>({
                         isStreaming: true,
                       });
                     }
-                    return { ...msg, thoughts, reactTimeline };
+                    return { ...msg, loading: true, thoughts, reactTimeline };
                   }
 
                   case "think_end": {
                     const reactTimeline = (msg.reactTimeline || []).map((item) =>
                       item.type === "think" ? { ...item, isStreaming: false } : item,
                     );
-                    return { ...msg, reactTimeline };
+                    return { ...msg, loading: true, reactTimeline };
                   }
 
                   // --- 正文内容 ---
                   case "token":
                   case "content_chunk": {
                     const { content: chunk } = data as { content: string };
-                    return { ...msg, content: msg.content + chunk };
+                    return { ...msg, loading: true, content: msg.content + chunk };
                   }
 
                   // --- 业务 Patch（如 draft_patch） ---
                   case "patch": {
                     onPatch?.(data as TContext);
-                    return { ...msg, hasPatch: true };
+                    return { ...msg, loading: true, hasPatch: true };
+                  }
+
+                  case "done": {
+                    return { ...msg, loading: false };
+                  }
+
+                  case "error": {
+                    const { message } = data as { message?: string };
+                    return {
+                      ...msg,
+                      loading: false,
+                      content: msg.content || `请求失败：${message || "未知错误"}`,
+                    };
                   }
 
                   default:
@@ -320,6 +363,34 @@ export function useAgentStream<TContext = unknown>({
           );
         }
       } finally {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsg.id
+              ? {
+                  ...msg,
+                  loading: false,
+                  reactTimeline: (msg.reactTimeline || []).map((item) =>
+                    item.type === "think"
+                      ? { ...item, isStreaming: false }
+                      : {
+                          ...item,
+                          steps: item.steps.map((step) => ({
+                            ...step,
+                            isStreaming: false,
+                          })),
+                        },
+                  ),
+                  reactLoops: (msg.reactLoops || []).map((loop) => ({
+                    ...loop,
+                    steps: loop.steps.map((step) => ({
+                      ...step,
+                      isStreaming: false,
+                    })),
+                  })),
+                }
+              : msg,
+          ),
+        );
         sendingRef.current = false;
         setIsStreaming(false);
         abortRef.current = null;
