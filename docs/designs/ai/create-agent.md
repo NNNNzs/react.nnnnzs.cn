@@ -21,7 +21,7 @@ API：/api/create/drafts/[id]/chat (SSE 路由)
   ↓ createAgentStream()
 Agent：src/services/ai/create-agent/ (LangGraph createReactAgent)
   ↓ streamEvents + encodeSSE
-Tools：src/services/ai/tools/create-tools/ (7 个工具)
+Tools：src/services/ai/tools/create-tools/ (10 个工具)
   ↓ 闭包工厂注入 draftId/userId/emitPatch
 基础设施：src/lib/sse.ts (公用 SSE) + createOpenAIModel (create_agent scenario)
 ```
@@ -34,7 +34,7 @@ Tools：src/services/ai/tools/create-tools/ (7 个工具)
 | 模型配置 scenario | `chat` | `create_agent`（新增） |
 | System prompt | 文件系统 `chat-agent-system-prompt.md` | 数据库 `content_templates` 表（`scenario=content_agent`） |
 | 流式协议 | 自定义 XML 标签（`text/plain`） | **标准 SSE（`text/event-stream`）** |
-| 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 文生图+轮询 / 博客检索 |
+| 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 文生图+轮询 / 博客检索 / 网页搜索 |
 | 写业务数据 | 不写 | **不直接写**，由前端确认并应用 `patch` |
 
 ### 2.3 草稿回填架构（方案 B）
@@ -88,7 +88,7 @@ sequenceDiagram
 | `src/services/content-creation.ts` | `content_agent` system prompt seed |
 | `src/services/ai/create-agent/prompt.ts` | 从 content_templates 加载 system prompt |
 | `src/services/ai/create-agent/create-agent.ts` | LangGraph Agent + SSE 编码 |
-| `src/services/ai/tools/create-tools/` | 7 个工具 + `buildCreateTools` 工厂 |
+| `src/services/ai/tools/create-tools/` | 10 个工具 + `buildCreateTools` 工厂 |
 | `src/services/ai/tools/create-tools/draft-patch.ts` | DraftPatch 共享类型 |
 | `src/app/api/create/drafts/[id]/chat/route.ts` | SSE API 路由 |
 | `src/app/create/_components/useCreateAgent.ts` | 前端 SSE 消费 hook |
@@ -100,10 +100,13 @@ sequenceDiagram
 
 | 工具 | 类型 | 作用 |
 |------|------|------|
+| `list_prompt_skills` | 只读 | 查询可用 Prompt / Skill 模板 metadata |
+| `load_prompt_skill_template` | 只读 | 按 slug 读取完整 Prompt / Skill 模板正文 |
 | `read_prompt_template` | 只读 | 读模板提示词（如 blog_to_xhs_note） |
 | `get_draft` | 只读 | 读当前草稿标题/正文/slide/已选图 |
 | `search_posts` | 只读 | 关键词检索博客文章（复用 searchPostsMetaTool） |
 | `get_post_content` | 只读 | 按 ID 读博客全文 |
+| `web_search` | 只读 | 用 Tavily 联网搜索最新或外部网页信息 |
 | `generate_image` | 后端任务 | 提交文生图异步任务，返回 jobId |
 | `poll_image_job` | 只读 | 轮询任务状态，SUCCESS 返回 cdnUrl |
 | `emit_draft_patch` | 伪工具 | 把草稿建议推到前端待确认队列（不写库） |

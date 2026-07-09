@@ -4,7 +4,7 @@
 
 ## 📋 当前计划
 
-- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（SSE 公用基础设施、create-agent 后端（LangGraph + 7 工具）、前端 Drawer 对话面板 + patch 填表单已落地；下一步做会话持久化、TTS 工具、chat-agent 迁移 SSE）
+- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（SSE 公用基础设施、create-agent 后端（LangGraph + 10 工具）、前端 Drawer 对话面板 + patch 填表单已落地；下一步做会话持久化、TTS 工具、chat-agent 迁移 SSE）
 - [模板管理与内容 Agent 建设](./content-template-agent.md) — 🔄 进行中（旧 `content_templates` 已升级迁移到 AI Lab 系统级 Prompt / Skill Template；下一步做模板驱动草稿生成）
 - [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（阶段 0-3 部分完成：草稿库、素材库、选题库模型/API/列表页已落地，AI 可从博客文章生成选题；下一步做选题/博客到图文草稿生成）
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（三视图布局基准已落地，文章列表赛博日志流原型已补充；昼夜双风格已提升为站点级语义系统，下一步家具模型补强 + 文案工具落地）

@@ -28,7 +28,7 @@
 - [x] `src/lib/ai-scenarios.ts`：注册 `create_agent` scenario 元数据
 - [x] `src/services/content-creation.ts`：`XhsPromptTemplateSeed` 支持内置 `content`；新增 `content_agent` system prompt seed
 - [x] `src/services/ai/create-agent/`：`prompt.ts`（从模板加载）、`create-agent.ts`（LangGraph + SSE 编码）、`index.ts`
-- [x] `src/services/ai/tools/create-tools/`：`read_prompt_template`、`get_draft`、`search_posts`、`get_post_content`、`generate_image`、`poll_image_job`、`emit_draft_patch`；`buildCreateTools` 闭包工厂；`draft-patch.ts` 共享类型
+- [x] `src/services/ai/tools/create-tools/`：`read_prompt_template`、`get_draft`、`search_posts`、`get_post_content`、`web_search`、`generate_image`、`poll_image_job`、`emit_draft_patch`；`buildCreateTools` 闭包工厂；`draft-patch.ts` 共享类型
 - [x] `src/app/api/create/drafts/[id]/chat/route.ts`：SSE 路由，`requireAuth`
 - [x] `src/hooks/useAgentStream.ts`：通用 Agent SSE 事件消费（tool / think / content / patch）
 - [x] `src/hooks/useAssistantAgent.ts`：业务助手场景封装（endpoint / typed patch / send options）
@@ -66,7 +66,7 @@
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
 4. 场景：文案建议、`emit_draft_patch` 后出现查看对比入口、点击后打开确认弹窗、确认后应用表单（不保存刷新可逆）、顶部「保存」按钮落库、文生图全链路、博客检索、断流停止
-5. 工具调用验收：`load_prompt_skill_template` 能按 slug 读取完整 Skill，`search_posts` 能返回检索结果或空结果，`emit_draft_patch` 成功后只代表前端收到待确认建议，不代表表单已应用或数据库已保存
+5. 工具调用验收：`load_prompt_skill_template` 能按 slug 读取完整 Skill，`search_posts` 能返回检索结果或空结果，`web_search` 能用 Tavily 返回网页搜索结果，`emit_draft_patch` 成功后只代表前端收到待确认建议，不代表表单已应用或数据库已保存
 6. `pnpm typecheck` / `pnpm lint` 通过
 
 ## 六、非目标 / 后置
