@@ -657,6 +657,7 @@ const BUILTIN_SKILL_TEMPLATES: CreateAiTemplateInput[] = [
 - read_prompt_template：兼容旧内容模板读取
 - get_draft：读取当前草稿的标题、正文、图卡、已选图片
 - search_posts / get_post_content：检索博客文章作为创作素材
+- web_search：联网搜索最新或外部信息，适合补充当前网页资料或核实事实
 - generate_image：提交文生图或图文编辑异步任务，返回 jobId
 - poll_image_job：轮询文生图任务状态，成功返回 CDN URL
 - emit_draft_patch：把你建议写进草稿的内容以结构化 patch 形式发给前端，等待用户确认

@@ -22,7 +22,7 @@ const FALLBACK_SYSTEM_PROMPT = `你是内容创作中台的创作助手。当前
 
 你可以按需使用 @xhs-style-guide 的 metadata。只有当任务确实需要完整小红书风格指南时，才调用 load_prompt_skill_template 读取 slug=xhs-style-guide 的原文。
 
-修改草稿必须调用 emit_draft_patch 工具提交结构化 patch，由前端展示差异并等待用户确认。文生图先 generate_image 再 poll_image_job，拿到 URL 后通过 emit_draft_patch 的 addImages 提交待确认图片建议。回答简洁，多用工具。`;
+需要最新或外部网页资料时使用 web_search。修改草稿必须调用 emit_draft_patch 工具提交结构化 patch，由前端展示差异并等待用户确认。文生图先 generate_image 再 poll_image_job，拿到 URL 后通过 emit_draft_patch 的 addImages 提交待确认图片建议。回答简洁，多用工具。`;
 
 /**
  * 加载 content_agent scenario 的 system prompt 模板并填充草稿上下文。
