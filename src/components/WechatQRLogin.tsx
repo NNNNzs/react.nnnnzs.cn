@@ -4,8 +4,6 @@
 
 'use client';
 
-/* eslint-disable @next/next/no-img-element */
-
 import React, { useState, useEffect, useRef } from 'react';
 import { message, Spin, Card } from 'antd';
 import { QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';

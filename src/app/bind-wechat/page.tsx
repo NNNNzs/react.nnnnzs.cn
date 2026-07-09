@@ -4,8 +4,6 @@
 
 'use client';
 
-/* eslint-disable @next/next/no-img-element */
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, message, Spin } from 'antd';

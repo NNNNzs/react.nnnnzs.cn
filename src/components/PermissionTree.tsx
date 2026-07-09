@@ -55,21 +55,21 @@ export default function PermissionTree({
 }: PermissionTreeProps) {
   const treeData = useMemo<TreeDataNode[]>(() => {
     const grouped = allPermissions.reduce<Record<string, PermissionItem[]>>((acc, permission) => {
-      const module = permission.module || "unknown";
-      if (!acc[module]) {
-        acc[module] = [];
+      const moduleName = permission.module || "unknown";
+      if (!acc[moduleName]) {
+        acc[moduleName] = [];
       }
-      acc[module].push(permission);
+      acc[moduleName].push(permission);
       return acc;
     }, {});
 
     return Object.entries(grouped)
       .sort(([moduleA], [moduleB]) => moduleA.localeCompare(moduleB))
-      .map(([module, permissions]) => ({
-        key: `module_${module}`,
+      .map(([moduleName, permissions]) => ({
+        key: `module_${moduleName}`,
         title: (
           <span className="font-medium">
-            <Tag color={getModuleColor(module)}>{module}</Tag>
+            <Tag color={getModuleColor(moduleName)}>{moduleName}</Tag>
           </span>
         ),
         selectable: false,

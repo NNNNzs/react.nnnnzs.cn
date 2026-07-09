@@ -113,7 +113,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
       message.warning('您没有权限访问内容创作中台');
       router.push('/');
     }
-  }, [loading, user, hasPermission, router, message]);
+  }, [loading, user, hasPermission, router]);
 
   useEffect(() => {
     const prefetchRoutes = async () => {

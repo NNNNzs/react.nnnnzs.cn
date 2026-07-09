@@ -310,7 +310,6 @@ function CollectionBookUnit({
                 isVideoUrl(mediaUrl) ? (
                   <video src={mediaUrl} className="h-full w-full object-cover" autoPlay muted loop playsInline />
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
                 )
               ) : (

@@ -8,8 +8,6 @@
 
 'use client';
 
-/* eslint-disable @next/next/no-img-element */
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from 'antd';
 import {
