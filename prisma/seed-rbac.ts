@@ -273,6 +273,28 @@ const seedApiRegistry: ApiRegistrySeed[] = [
       required: ['mode', 'prompt'],
     },
   },
+  {
+    code: 'image_recognize',
+    name: 'AI图片识别',
+    description: '使用 image_recognition 场景的多模态模型识别图片并返回中文描述',
+    module: 'image',
+    api_path: '/api/image-gen/recognize',
+    api_method: 'POST',
+    mcp_enabled: true,
+    mcp_tool_name: 'recognize_image',
+    permission_code: 'image:view',
+    input_schema: {
+      type: 'object',
+      properties: {
+        imageUrl: { type: 'string', description: '图片 URL，支持 http(s) URL 或 data URL' },
+        base64: { type: 'string', description: '图片 base64 内容，支持原始 base64 或 data URL' },
+        mimeType: { type: 'string', description: 'base64 图片 MIME 类型，默认 image/png' },
+        prompt: { type: 'string', description: '识图提示词，默认详细描述图片内容' },
+        detail: { type: 'string', description: '图片解析精度：low、high、auto，默认 low' },
+        maxTokens: { type: 'number', description: '最大输出 token，默认 800，范围 1-4000' },
+      },
+    },
+  },
   // ---- 合集模块（仅 API，不暴露 MCP）----
   {
     code: 'collection_create',

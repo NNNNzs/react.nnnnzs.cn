@@ -11,6 +11,7 @@ export type AiScenarioKey =
   | 'description'
   | 'embedding'
   | 'image_gen'
+  | 'image_recognition'
   | 'tts'
   | 'create_agent';
 
@@ -67,6 +68,12 @@ export const AI_SCENARIOS: readonly AiScenarioMeta[] = [
     label: '图片生成',
     description: '后台图片生成、图片任务重试和 MCP 图片生成',
     optionalFields: ['api_mode'],
+  },
+  {
+    key: 'image_recognition',
+    label: '图片识别',
+    description: '识图接口 /api/image-gen/recognize 和 MCP 识图工具',
+    optionalFields: ['temperature', 'max_tokens'],
   },
   {
     key: 'tts',

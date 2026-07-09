@@ -78,7 +78,7 @@ Layer 3: 服务层过滤（最后一道防线）
 | **工具** | `queue:view` | 队列监控 |
 | | `vector:view` | 向量检索 |
 | | `tts:view` | 语音合成 |
-| | `image:view` | AI 图片生成 |
+| | `image:view` | AI 图片生成/编辑/识图 |
 | | `file:upload` | 文件上传 |
 | **聊天记录** | `chat:log:view` | 查看聊天记录 |
 | | `chat:log:delete` | 删除聊天记录 |

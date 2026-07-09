@@ -21,6 +21,7 @@ import { getDescriptor as postGetRoute, updateDescriptor as postUpdateRoute, del
 import { descriptor as postListRoute } from '@/app/api/post/list/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
 import { descriptor as imageEditRoute } from '@/app/api/image-gen/edit/route';
+import { descriptor as imageRecognizeRoute } from '@/app/api/image-gen/recognize/route';
 import { descriptor as ttsSynthesizeRoute } from '@/app/api/tts/synthesize/route';
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
 import { updateDescriptor as collectionUpdateRoute, deleteDescriptor as collectionDeleteRoute } from '@/app/api/collection/[id]/route';
@@ -275,6 +276,27 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         },
         userId: user.id,
         source: 'MCP',
+      });
+    },
+  },
+  // ---- 图片识别模块 ----
+  {
+    ...imageRecognizeRoute,
+    apiPath: '/api/image-gen/recognize',
+    mcpEnabled: true,
+    mcpToolName: 'recognize_image',
+    handler: async (args) => {
+      const { recognizeImage } = await import('@/services/image-recognition');
+      const detail = ['low', 'high', 'auto'].includes(String(args.detail))
+        ? String(args.detail) as 'low' | 'high' | 'auto'
+        : undefined;
+      return recognizeImage({
+        imageUrl: args.imageUrl as string | undefined,
+        base64: args.base64 as string | undefined,
+        mimeType: args.mimeType as string | undefined,
+        prompt: args.prompt as string | undefined,
+        detail,
+        maxTokens: args.maxTokens as number | undefined,
       });
     },
   },
