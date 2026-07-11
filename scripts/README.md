@@ -8,6 +8,7 @@
 scripts/
 ├── deploy/           # 部署相关脚本
 │   ├── deploy.sh          # 服务器快速部署脚本
+│   ├── deploy-local.sh    # Apple 芯片 Mac -> x86 服务器的 tar 应急部署脚本
 │   ├── build-docker.sh    # 本地 Docker 镜像构建脚本
 │   ├── push-docker.sh     # Docker 镜像推送到远程仓库
 │   └── setup-secrets.sh   # GitHub Secrets 配置助手
@@ -63,6 +64,21 @@ scripts/
 ### 2. deploy.sh - 快速部署脚本
 
 **用途**: 在服务器上快速部署和管理 Docker 容器
+
+### deploy-local.sh - 本地应急部署
+
+不等待 GitHub Actions，在 Apple 芯片 Mac 上构建 `linux/amd64` 镜像，导出 tar，通过 SSH/SCP 传到服务器，加载后强制重建服务并清理镜像。成功或失败退出时都会清理本地和服务器临时 tar。
+
+```bash
+# 一次性完整部署
+./scripts/deploy/deploy-local.sh all
+
+# tar 已生成时，仅重试上传或服务器部署，不重新打包
+./scripts/deploy/deploy-local.sh upload
+./scripts/deploy/deploy-local.sh deploy
+```
+
+在项目根目录 `.env` 中配置 `DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_PORT`（可选，默认 22）、`DEPLOY_DIR`，以及构建需要的 `DATABASE_URL`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_DB`。默认镜像标签为 `latest`，如需覆盖可配置 `IMAGE_TAG`。如需同步首页部署状态，再配置 `DEPLOY_WEBHOOK_SECRET`（可选覆盖 `WEBHOOK_SECRET`）。脚本会生成部署 JSON，并在镜像中生成现有的 `public/version.json`；CDN 刷新不纳入本地应急流程。构建产物保存在已忽略的 `.deploy/`，不会在成功后自动删除；确认无需重试时运行 `./scripts/deploy/deploy-local.sh clean`。要求 Docker Desktop 已启动，服务器项目目录中存在 `docker-compose.prod.yml` 和 `.env`。可追加 `--no-cache` 完全重建。
 
 **功能**:
 - ✅ 一键部署最新版本
