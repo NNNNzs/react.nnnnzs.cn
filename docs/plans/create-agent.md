@@ -50,15 +50,16 @@
 | `error` | `{ message }` | 异常 |
 | `done` | `{}` | 结束 |
 
-## 四、后续选题中心助手接入规划
+## 四、选题 Agent 接入规划
 
-选题中心不再复制草稿详情的事件处理，只新增一个薄业务层：
+完整设计见：[选题库 Topic Agent 设计](../designs/ai/topic-agent.md)。本计划只记录与草稿 Agent 的复用边界：
 
-1. 后端新增 `/api/create/topics/[id]/chat` 或列表级 `/api/create/topics/chat`，继续输出统一 SSE 事件：`meta`、`think_*`、`tool_start`、`tool_end`、`content_chunk`、`patch`、`done`、`error`。
-2. 定义 `TopicPatch`，例如 `{ title?, description?, pillar?, series?, priority?, sourceNote?, draftDirection? }`，并在页面实现 `applyTopicPatch`，只负责把 patch 合并到选题表单或详情 state。
-3. 前端新增 `useTopicAgent`，内部调用 `useAssistantAgent<TopicPatch>`，配置 endpoint 和必要的 `body`，例如 topicId、sourcePostId、当前筛选条件。
-4. 选题页面直接复用 `AgentAssistantPanel`，只替换标题、快捷提示、空状态文案和 patch 提醒。
-5. 选题 patch 默认也走人工确认：收到 patch 后显示「查看对比」入口，用户点击后用 `ContentDiffViewer` 展示「当前选题字段 JSON / 文案」与「AI 建议」差异，再由用户确认应用。
+1. 后端新增 `/api/create/topics/chat`，已有选题详情场景再增加 `/api/create/topics/[id]/chat`，继续输出统一 SSE 事件。
+2. 定义独立的 `TopicPatch`：`title`、来源信息、`originalIdea`、`coreAngle`、`keyPoints` 和 `status`，不复用草稿 patch 的正文、图片字段。
+3. 新增 `useTopicAgent`，内部调用 `useAssistantAgent<TopicPatch>`，只配置 topic endpoint、上下文和快捷提示。
+4. 选题页面直接复用 `AgentAssistantPanel`、`useAgentStream` 和 `ContentDiffViewer`，不复制 Drawer、消息和流事件处理。
+5. Topic Agent 使用独立的 `topic_agent` scenario 和工具集，重点接入已有选题检索、博客检索、网页搜索、来源读取和 `emit_topic_patch`。
+6. 选题确认保存后，平台草稿仍由草稿库创作 Agent 按 `选题 + 平台 + 模板` 继续生成。
 
 ## 五、验证
 
@@ -66,7 +67,7 @@
 2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
 4. 场景：文案建议、`emit_draft_patch` 后出现查看对比入口、点击后打开确认弹窗、确认后应用表单（不保存刷新可逆）、顶部「保存」按钮落库、文生图全链路、博客检索、断流停止
-5. 工具调用验收：`load_prompt_skill_template` 能按 slug 读取完整 Skill，`search_posts` 能返回检索结果或空结果，`web_search` 能用 Tavily 返回网页搜索结果，`emit_draft_patch` 成功后只代表前端收到待确认建议，不代表表单已应用或数据库已保存
+5. 工具调用验收：草稿 Agent 的模板、博客、网页和图片工具链正常；Topic Agent 的选题检索、来源读取、网页搜索和 `emit_topic_patch` 成功后只代表前端收到待确认建议，不代表选题已应用或数据库已保存
 6. `pnpm typecheck` / `pnpm lint` 通过
 
 ## 六、非目标 / 后置
@@ -75,5 +76,5 @@
 - TTS 旁白工具（复用 `synthesize_speech`）
 - 小红书自动发布（沿用「只备素材，手动发布」）
 - chat-agent 迁移到 SSE（独立后续任务）
-- content 中台 RBAC 权限码（第一期仅 `requireAuth`）
+- 更细的 content 中台 RBAC 权限拆分（当前已使用 `CONTENT_VIEW` / `CONTENT_CREATE`）
 - content 抽取逻辑复用 chat-agent 的 `extractTextContent`（需先抽公共模块）
