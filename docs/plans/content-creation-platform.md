@@ -29,19 +29,20 @@
 第一阶段目标：
 
 1. `/create` 使用独立 layout 和导航，不挂在 `/c` 菜单下。
-2. 复用当前登录态、AI 配置、队列、图片生成、TTS 和 COS 能力；内容中台 RBAC 权限后置，当前仅要求登录。
+2. 复用当前登录态、AI 配置、联网搜索、队列、图片生成、TTS 和 COS 能力；当前 `/create` 已使用内容访问和创建权限。
 3. Prisma schema 采用分文件组织，内容中台模型集中到独立 schema 文件中。
-4. 从博客文章生成小红书图文草稿，并保存为结构化数据。
+4. 从选题按平台生成结构化草稿；第一批支持小红书图文、知乎 Markdown、抖音短视频脚本和博客长文。
 5. 图片素材先通过生成、编辑和上传进入素材库；TTS、Remotion 渲染后续单独设计，不急于自动发布。
 6. `xhs` 项目保留为本地模板、Remotion worker、历史草稿和实验工作区。
 
 当前执行优先级：
 
-1. 草稿库：内容创作主工作区。
-2. 素材库：只做图片素材，统一承接生成图、编辑图和上传图。
-3. 选题库：先支持 AI 基于博客文章拆题。
-4. 发布日历、复盘数据、模板管理后置。
-5. Remotion 和视频相关能力优先级很低，第一阶段只保留轻量字段和低优先级资产类型。
+1. 选题库：支持用户提供文章、网站、博客或想法，由 AI 整理、去重并保存创作意图。
+2. 多平台草稿：同一个选题可以按平台生成小红书图文、知乎 Markdown、抖音短视频脚本和博客文章。
+3. 草稿库：承载不同平台的内容编辑和人工确认。
+4. 素材库：只做图片素材，统一承接生成图、编辑图和上传图。
+5. 发布日历、复盘数据、模板管理后置。
+6. Remotion 和视频相关能力优先级很低，第一阶段只保留轻量字段和低优先级资产类型。
 
 非目标：
 
@@ -69,7 +70,7 @@
 | 工作台 | `/create` 或 `/create/dashboard` | 本周选题、待生成素材、待发布、最近复盘 |
 | 草稿库 | `/create/drafts` | 草稿列表、简化新建、状态筛选和删除 |
 | 素材库 | `/create/assets` | 图片生成、图片编辑、上传图片、收藏、分组、母图复用 |
-| 选题库 | `/create/topics` | 选题池、来源博客、平台、栏目、优先级 |
+| 选题库 | `/create/topics` | 记录来源、原始想法、核心角度、去重信息和使用状态 |
 | 草稿详情 | `/create/drafts/[id]` | 编辑标题、正文、类型、状态、选用图片、图片备注、图片排序和打包下载 |
 | 发布日历 | `/create/calendar` | 周计划、发布时间、平台、发布状态 |
 | 复盘数据 | `/create/review` | 收藏、点赞、评论、私信、博客回流 |
@@ -79,11 +80,11 @@
 
 - `/create` 已搭建独立 layout、独立侧边栏和占位页。
 - 入口已放入 `src/components/HeaderUserMenu.tsx`，位于“管理后台”下方，并以新标签页打开。
-- `/create` 当前只做登录守卫，不检查 `content:view` 或其他内容中台权限码。
+- `/create` 使用 `CONTENT_VIEW` 访问权限；创建选题和 AI 生成选题使用 `CONTENT_CREATE`。
 - `/create/drafts`、`/create/assets`、`/create/topics` 已切换为真实列表页，并接入 `/api/create/*`。
 - `/create/drafts/[id]` 已支持草稿图片备注、拖拽排序和一键打包下载；图片使用记录仍保存为草稿内快照。
 - `/create/templates` 已切换为真实模板管理页，支持模板 CRUD、筛选和导入 `xhs/prompts`；`content_templates` schema 与 Prisma Client 已生成，数据库结构同步待执行。
-- `/create/topics` 已支持输入博客文章 ID，让 AI 基于博客内容生成并入库选题。
+- `/create/topics` 已支持输入博客文章 ID，让 AI 基于博客内容生成并入库选题；后续扩展文章 URL、网站和手动想法入口。
 
 ### 3.2 整体流程
 
@@ -197,20 +198,23 @@ src/generated/content-prisma-client
 
 ### `content_topics`
 
-选题池，承接 `xhs/content/topic-bank.md` 和博客文章反哺。
+选题库是草稿库的创作意图来源，不是发布排期表。它承接用户主动发现的文章、网站、博客和个人想法，并在入库前辅助去重。
 
 - `id`
 - `title`
-- `description`
-- `pillar`：内容支柱，如 AI 应用工程、RAG、Agent、NAS
-- `series`：栏目，如 能跑起来系列、踩坑复盘系列
-- `status`：`IDEA` / `PLANNED` / `DRAFTING` / `PUBLISHED` / `ARCHIVED`
-- `priority`
+- `source_type`
+- `source_url`
 - `source_post_id`
-- `source_note`
+- `original_idea`
+- `core_angle`
+- `key_points`
+- `dedup_key`
+- `status`：`IDEA` / `USED` / `ARCHIVED`
 - `created_by`
 - `created_at`
 - `updated_at`
+
+`pillar`、`series`、`priority` 等字段不是第一阶段必需字段，可以作为后续可选标签。平台的内容形式、产出要求和图片要求不放在选题表中，由模板和草稿生成配置负责。
 
 ### `content_drafts`
 
@@ -219,14 +223,14 @@ src/generated/content-prisma-client
 - `id`
 - `topic_id`
 - `source_post_id`
-- `platform`：`xhs` / `douyin` / `wechat_video` / `blog`
-- `type`：`note` / `short_video` / `checklist` / `faq`
+- `platform`：`xhs` / `zhihu` / `douyin` / `blog`
+- `type`：`note` / `markdown` / `short_video` / `article`
 - `title`
 - `hook`
 - `body`
 - `tags_json`
 - `status`：`DRAFT` / `ASSET_PENDING` / `READY` / `PUBLISHED` / `ARCHIVED`
-- `template_id`
+- `template_id`：平台输出模板版本
 - `generation_snapshot_json`
 - `generation_snapshot_json.draftImages`：草稿选用图片列表，只保存素材使用快照，不回写素材归属；单项包含 `assetId`、`imageUrl`、`title`、`group`、`sortOrder`、`remark` 和 `addedAt`
 - `created_by`
@@ -364,20 +368,21 @@ prompt、视觉模板、账号定位、TTS 风格、Agent 上下文和发布 che
 1. [x] 新增 `content_topics`、`content_drafts`、`content_draft_slides`。
 2. [x] 支持 AI 从博客文章生成选题并入库。
 3. [x] 支持简化创建草稿，只填写标题、类型和状态。
-4. [ ] 支持从选题一键生成小红书图文草稿。
+4. [ ] 支持从选题选择平台并生成对应草稿。
 5. [x] 支持在草稿编辑页编辑标题、正文、类型和状态。
 6. [x] 支持删除草稿。
 7. [x] 支持草稿从素材库追加图片，素材本身可重复使用。
 8. [x] 草稿库、素材库、选题库列表页接入真实 API。
 9. [ ] 支持导入 `xhs/content/topic-bank.md` 的初始选题。
 
-### 阶段 4：博客转小红书生成
+### 阶段 4：选题到多平台草稿生成
 
-1. [ ] 导入 `xhs/prompts/blog-to-xhs-note.md` 为模板记录。
-2. [ ] 新增“从博客生成小红书草稿”接口。
-3. [ ] 生成结果结构化保存到 `content_drafts` 和 `content_draft_slides`。
-4. [ ] 记录使用的模板版本、模型、输入文章和生成快照。
-5. [ ] 支持失败重试和人工覆盖。
+1. [ ] 导入小红书图文、知乎 Markdown、抖音短视频等模板记录。
+2. [ ] 新增“从选题生成平台草稿”接口。
+3. [ ] 根据平台结构保存到 `content_drafts` 和 `content_draft_slides`。
+4. [ ] 记录选题内容快照、模板版本、模型和输入来源。
+5. [ ] 支持同一选题创建多个平台草稿。
+6. [ ] 支持失败重试和人工覆盖。
 
 ### 阶段 5：素材任务与现有 AI 能力打通
 
@@ -440,8 +445,10 @@ Prisma 阶段：
 
 - [x] `/create` layout 中已实现登录守卫。
 - [ ] 未登录访问 `/create` 会跳转登录的浏览器验证。
-- [x] `/create` 当前不检查 `content:view` 权限。
+- [x] `/create` 页面和内容 API 使用内容权限检查。
 - [x] 可以通过 AI 从博客文章创建选题。
+- [ ] 可以通过文章 URL、网站或手动想法创建选题。
+- [ ] 选题入库前可以检查并提示重复内容。
 - [x] 可以简化创建草稿，不填写选题 ID 和来源博客。
 - [x] 可以在草稿编辑页编辑正文、类型和状态。
 - [x] 草稿支持删除。
@@ -449,7 +456,8 @@ Prisma 阶段：
 - [x] 可以收藏、分组和改名图片素材。
 - [x] 已完成图片可以作为图文编辑母图。
 - [x] 素材库图片可以添加到 `DRAFT` 状态草稿，且素材可以重复使用。
-- [ ] 可以从选题创建小红书草稿。
+- [ ] 可以从选题选择平台并创建对应草稿。
+- [ ] 同一个选题可以创建小红书、知乎、抖音和博客等多个平台草稿。
 - [ ] 可以生成并保存 slides。
 - [x] 草稿详情可以展示并移除已选图片。
 - [ ] 发布记录和复盘数据能在工作台汇总。

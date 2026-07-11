@@ -143,6 +143,7 @@ AI 助手调用 `emit_draft_patch` 后，前端会显示「查看对比」入口
 
 ## 七、后置规划
 
+- **Topic Agent**：选题库复用本助手的 Drawer、SSE、patch 确认和差异预览，只替换业务 prompt、工具集和 `TopicPatch`；详见[选题库 Topic Agent 设计](./topic-agent.md)
 - **会话持久化**：`content_agent_sessions` + `content_agent_messages` 表
 - **TTS 旁白工具**：复用 `synthesize_speech` 异步任务
 - **chat-agent 迁移 SSE**：复用 `src/lib/sse.ts`

@@ -10,7 +10,8 @@ docs/designs/
 │   ├── ai-config-profiles.md    # AI Provider 配置管理
 │   ├── ai-lab.md                # AI Lab / LLM 学习实验台
 │   ├── image-gen.md             # AI 图片生成
-│   └── tts-page.md              # TTS 语音合成
+│   ├── tts-page.md              # TTS 语音合成
+│   └── topic-agent.md           # 选题库 Topic Agent
 ├── chat/                        # 聊天系统
 │   └── rag-chat.md              # Agent 聊天系统（RAG 检索工具）
 ├── features/                    # 业务功能
@@ -55,6 +56,7 @@ docs/designs/
 | [TTS 语音合成](ai/tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](ai/image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
 | [草稿库创作 Agent 助手](ai/create-agent.md) | LangGraph ReAct Agent + SSE 多事件流 + 草稿回填（方案 B） | ✅ 已落地 |
+| [选题库 Topic Agent](ai/topic-agent.md) | 复用创作助手组件的选题整理、去重和 TopicPatch 确认流程 | 📋 设计中 |
 
 ### 聊天系统
 
@@ -78,7 +80,7 @@ docs/designs/
 |------|------|------|
 | [博客合集功能](features/collection-design.md) | 文章合集管理 | ✅ 已实施 |
 | [评论系统](features/comment-system-design.md) | 评论功能设计 | ✅ 已实施 |
-| [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；当前只做登录守卫，内容权限后置 | 🔄 进行中 |
+| [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；支持选题 Agent 和多平台草稿 | 🔄 进行中 |
 | [实体变更日志](features/entity-change-design.md) | 数据变更追踪 | ✅ 已实施 |
 | [统计系统](features/analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
 

@@ -39,6 +39,7 @@
 - **[语音合成](docs/designs/ai/tts-page.md)** - MiMo TTS 语音合成
 - **[AI 图片生成](docs/designs/ai/image-gen.md)** - GPT Image 2 文生图/图文编辑
 - **[草稿库创作 Agent 助手](docs/designs/ai/create-agent.md)** - LangGraph ReAct Agent + SSE 多事件流 + draft_patch 草稿回填
+- **[选题库 Topic Agent](docs/designs/ai/topic-agent.md)** - 复用创作助手组件的选题整理、去重和 TopicPatch 确认流程
 
 #### 聊天系统
 - **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
