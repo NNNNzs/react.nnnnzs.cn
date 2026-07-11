@@ -69,10 +69,10 @@ export const HOMEPAGE_THEME_PRESETS: Record<HomepageSceneVariant, HomepageThemeP
       floorMetalness: 0.35,
     },
     postProcessing: {
-      bloomThreshold: 0.06,
-      bloomSmoothing: 0.85,
-      bloomIntensity: 2.4,
-      vignetteDarkness: 0.8,
+      bloomThreshold: 0.48,
+      bloomSmoothing: 0.62,
+      bloomIntensity: 0.68,
+      vignetteDarkness: 0.22,
     },
     camera: {
       position: [-2.85, 2.2, 2.9],

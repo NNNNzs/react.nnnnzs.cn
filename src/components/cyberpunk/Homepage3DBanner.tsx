@@ -1,4 +1,3 @@
 'use client';
 
-export { default } from './CyberpunkBanner';
-
+export { default } from './LoadedSceneBanner';

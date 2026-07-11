@@ -19,31 +19,8 @@ interface HomePageClientProps {
 // 滚动位置缓存键名
 const SCROLL_CACHE_KEY = 'home_scroll_position';
 
-function Homepage3DBannerFallback() {
-  return (
-    <div className="relative h-screen overflow-hidden bg-[#f8fafc] dark:bg-[#050611]">
-      <div className="cyberpunk-static-fallback" />
-      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-        <div className="cyberpunk-hero-atmosphere" />
-        <div className="absolute left-4 right-4 top-[14vh] max-w-5xl md:left-10 lg:left-16">
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-sky-900/65 dark:text-cyan-100/65">
-            <span className="cyberpunk-kicker">NEON NOMAD / LOADING</span>
-            <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
-            <span>VISUAL MODE</span>
-          </div>
-          <h1 className="cyberpunk-hero-title">NNNNzs</h1>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
-            Neon Nomad Navigating Night Zones. 记录技术、工具、运维、AI 与生活里的长期思考。
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const Homepage3DBanner = dynamic(() => import('@/components/cyberpunk/Homepage3DBanner'), {
   ssr: false,
-  loading: () => <Homepage3DBannerFallback />,
 });
 
 /**
