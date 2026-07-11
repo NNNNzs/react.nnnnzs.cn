@@ -3,7 +3,7 @@
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { DownOutlined } from '@ant-design/icons';
-import { Html, OrbitControls, useGLTF } from '@react-three/drei';
+import { Html, PointerLockControls, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
@@ -48,11 +48,20 @@ const DEFAULT_FOCUS: FocusPreset = {
   fov: 68,
 };
 
+// Invisible camera boundaries: keep the free camera inside the east wall and north/back wall.
+// Leave a small breathing gap so the lens does not clip into the GLB wall geometry.
+const CAMERA_BOUNDS = {
+  eastX: 3.25,
+  backZ: -3.25,
+  floorY: 0.35,
+} as const;
+
 const FOCUS_PRESETS: Record<Exclude<FocusKey, 'default'>, FocusPreset> = {
-  desk: { key: 'desk', label: '工作区', rootName: 'desk_root', position: [-2.04, 1.55, -0.62], target: [-2.16, 1.24, -2.42], marker: [-1.85, 1.4, -1.9], fov: 36 },
-  living: { key: 'living', label: '文章终端', rootName: 'article_terminal_root', position: [2.0, 2.0, 2.45], target: [-0.28, 0.86, 0.72], marker: [-0.28, 1.4, 0.72], fov: 42 },
-  bookshelf: { key: 'bookshelf', label: '书架', rootName: 'bookshelf_root', position: [1.0, 1.9, -0.7], target: [3.3, 1.35, -2.52], marker: [3.15, 2.22, -2.52], fov: 42 },
-  server: { key: 'server', label: '服务器', rootName: 'server_rack_root', position: [-2.25, 1.62, -0.64], target: [-0.42, 1.02, -2.04], marker: [-0.42, 1.68, -2.04], fov: 40 },
+  // 聚焦镜头从各家具的可交互正面取位，避免从侧后方看模型导致内容和命中面被遮挡。
+  desk: { key: 'desk', label: '工作区', rootName: 'desk_root', position: [-2.16, 2.08, -0.1], target: [-2.16, 1.24, -2.38], marker: [-1.85, 1.4, -1.9], fov: 40 },
+  living: { key: 'living', label: '文章终端', rootName: 'article_terminal_root', position: [-0.28, 1.72, 2.62], target: [-0.28, 0.96, 0.3], marker: [-0.28, 1.4, 0.72], fov: 38 },
+  bookshelf: { key: 'bookshelf', label: '书架', rootName: 'bookshelf_root', position: [0.82, 1.56, -2.05], target: [3.08, 1.36, -2.05], marker: [3.15, 2.22, -2.52], fov: 46 },
+  server: { key: 'server', label: '服务器', rootName: 'server_rack_root', position: [-0.42, 1.48, 0.22], target: [-0.42, 1.02, -1.78], marker: [-0.42, 1.68, -2.04], fov: 44 },
   sleep: { key: 'sleep', label: '睡眠区', rootName: 'bed_root', position: [-0.55, 1.75, 2.65], target: [2.56, 0.72, 0.66], marker: [2.56, 1.05, 0.66], fov: 44 },
 };
 
@@ -431,6 +440,125 @@ function CameraFlight({ focus }: { focus: FocusPreset }) {
   return null;
 }
 
+function RendererStatsLogger({ onFpsUpdate }: { onFpsUpdate?: (fps: number) => void }) {
+  const frameTimes = useRef<number[]>([]);
+  const lastUpdateRef = useRef(0);
+
+  useFrame(() => {
+    const now = performance.now();
+    frameTimes.current.push(now);
+    while (frameTimes.current.length > 0 && frameTimes.current[0] < now - 1000) {
+      frameTimes.current.shift();
+    }
+
+    if (onFpsUpdate && now - lastUpdateRef.current >= 250) {
+      lastUpdateRef.current = now;
+      onFpsUpdate(frameTimes.current.length);
+    }
+  });
+
+  return null;
+}
+
+function KeyboardCameraControls({
+  enabled,
+  onActivate,
+}: {
+  enabled: boolean;
+  onActivate: () => void;
+}) {
+  const { camera } = useThree();
+  const pressedKeys = useRef(new Set<string>());
+  const movement = useMemo(() => new THREE.Vector3(), []);
+  const forward = useMemo(() => new THREE.Vector3(), []);
+  const right = useMemo(() => new THREE.Vector3(), []);
+  const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+
+  useEffect(() => {
+    const isInputTarget = (event: KeyboardEvent) => {
+      const targetElement = event.target;
+      return targetElement instanceof Element
+        && Boolean(targetElement.closest('button, a, input, textarea, select, [contenteditable="true"]'));
+    };
+    const supportedKeys = new Set(['w', 'a', 's', 'd', 'q', 'e', ' ', 'control', 'shift']);
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (!supportedKeys.has(key) || isInputTarget(event)) return;
+      event.preventDefault();
+      pressedKeys.current.add(key);
+      if (!enabled) onActivate();
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      pressedKeys.current.delete(event.key.toLowerCase());
+    };
+    const clearKeys = () => pressedKeys.current.clear();
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearKeys);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearKeys);
+    };
+  }, [enabled, onActivate]);
+
+  useFrame((_, delta) => {
+    if (!enabled) return;
+
+    if (pressedKeys.current.size > 0) {
+      const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
+      const horizontalLength = Math.hypot(cameraDirection.x, cameraDirection.z);
+      if (horizontalLength > 0) {
+        forward.set(cameraDirection.x / horizontalLength, 0, cameraDirection.z / horizontalLength);
+        right.crossVectors(forward, up).normalize();
+
+        const moveSpeed = 2.25 * (pressedKeys.current.has('shift') ? 2.5 : 1) * Math.min(delta, 0.05);
+        movement.set(0, 0, 0);
+        if (pressedKeys.current.has('w')) movement.add(forward);
+        if (pressedKeys.current.has('s')) movement.sub(forward);
+        if (pressedKeys.current.has('d')) movement.add(right);
+        if (pressedKeys.current.has('a')) movement.sub(right);
+        movement.set(
+          movement.x,
+          movement.y + (pressedKeys.current.has(' ') ? 1 : 0) - (pressedKeys.current.has('control') ? 1 : 0),
+          movement.z,
+        );
+        if (movement.lengthSq() > 0) {
+          movement.normalize().multiplyScalar(moveSpeed);
+          camera.position.add(movement);
+        }
+      }
+
+      const rotation = (pressedKeys.current.has('e') ? 1 : 0) - (pressedKeys.current.has('q') ? 1 : 0);
+      if (rotation !== 0) {
+        camera.rotateOnWorldAxis(up, rotation * 1.25 * Math.min(delta, 0.05));
+      }
+    }
+
+    // Pointer-lock yaw/pitch and Q/E world-yaw must never accumulate camera roll.
+    camera.rotation.set(camera.rotation.x, camera.rotation.y, 0, 'YXZ');
+  });
+
+  return null;
+}
+
+function CameraBounds({ enabled }: { enabled: boolean }) {
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (!enabled) return;
+
+    camera.position.set(
+      Math.min(camera.position.x, CAMERA_BOUNDS.eastX),
+      Math.max(camera.position.y, CAMERA_BOUNDS.floorY),
+      Math.max(camera.position.z, CAMERA_BOUNDS.backZ),
+    );
+  });
+
+  return null;
+}
+
 function SceneHotspots({ presets, onSelect }: { presets: Record<FocusKey, FocusPreset>; onSelect: (key: FocusKey) => void }) {
   return (
     <>
@@ -513,6 +641,8 @@ function Scene({
   focusPresets,
   onFocusReady,
   onFocusSelect,
+  onFreeExplore,
+  onFpsUpdate,
   heroVisible,
 }: {
   variant: HomepageSceneVariant;
@@ -527,6 +657,8 @@ function Scene({
   focusPresets: Record<FocusKey, FocusPreset>;
   onFocusReady: (presets: Record<FocusKey, FocusPreset>) => void;
   onFocusSelect: (key: FocusKey) => void;
+  onFreeExplore: () => void;
+  onFpsUpdate?: (fps: number) => void;
   heroVisible: boolean;
 }) {
   const night = variant === 'night';
@@ -547,7 +679,10 @@ function Scene({
       {activeFocus === 'default' && !interactive ? <CameraRig reducedMotion={reducedMotion} /> : null}
       {activeFocus !== 'default' && !interactive ? <CameraFlight focus={focusPresets[activeFocus]} /> : null}
       {activeFocus === 'default' && !interactive ? <SceneHotspots presets={focusPresets} onSelect={onFocusSelect} /> : null}
-      {interactive ? <OrbitControls makeDefault enableDamping enablePan={false} minDistance={2} maxDistance={14} minPolarAngle={0.25} maxPolarAngle={1.5} target={focusPresets[activeFocus].target} /> : null}
+      <KeyboardCameraControls enabled={interactive} onActivate={onFreeExplore} />
+      {interactive ? <PointerLockControls makeDefault enabled selector="[data-fps-canvas]" /> : null}
+      <CameraBounds enabled={interactive} />
+      <RendererStatsLogger onFpsUpdate={onFpsUpdate} />
       {night && !reducedMotion ? <RainEffect count={240} enabled={heroVisible} /> : null}
       <EffectComposer multisampling={8}>
         <Bloom intensity={preset.postProcessing.bloomIntensity} luminanceThreshold={preset.postProcessing.bloomThreshold} luminanceSmoothing={preset.postProcessing.bloomSmoothing} mipmapBlur />
@@ -630,7 +765,7 @@ function HeroInterfaceOverlay({
 
       {interactiveMode ? (
         <div className="absolute bottom-24 left-4 right-4 z-20 mx-auto max-w-sm border border-cyan-300/35 bg-[#050611]/76 px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-cyan-100/78 shadow-[0_0_34px_rgba(34,211,238,0.16)] backdrop-blur md:bottom-8">
-          拖动旋转场景，双指缩放。右键或双击退出。
+          点击场景锁定鼠标；WASD 移动，Shift 加速，Space 上升，Ctrl 下降，QE 旋转。Esc、右键或双击退出。
         </div>
       ) : null}
     </div>
@@ -646,6 +781,7 @@ export default function LoadedSceneBanner({ variant = 'night', posts = [], colle
   const [sceneReady, setSceneReady] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [articleIndex, setArticleIndex] = useState(0);
+  const [fps, setFps] = useState(0);
   const [activeFocus, setActiveFocus] = useState<FocusKey>('default');
   const [interactive, setInteractive] = useState(false);
   const [focusPresets, setFocusPresets] = useState<Record<FocusKey, FocusPreset>>({ default: DEFAULT_FOCUS } as Record<FocusKey, FocusPreset>);
@@ -735,6 +871,17 @@ export default function LoadedSceneBanner({ variant = 'night', posts = [], colle
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, [isDefaultMode, returnToOverview]);
 
+  useEffect(() => {
+    if (isDefaultMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      returnToOverview();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDefaultMode, returnToOverview]);
+
   const scrollToPosts = useCallback(() => {
     window.scrollTo({ top: window.innerHeight, behavior: reducedMotion ? 'auto' : 'smooth' });
   }, [reducedMotion]);
@@ -743,7 +890,7 @@ export default function LoadedSceneBanner({ variant = 'night', posts = [], colle
 
   return (
     <section className={`relative h-screen overflow-hidden ${night ? 'bg-[#050611]' : 'bg-[#f8fafc]'}`} aria-label="首页三维房间">
-      <div className="absolute inset-0 cursor-crosshair transition-opacity duration-1000" style={{ opacity: sceneReady ? 1 : 0, touchAction: interactive ? 'none' : 'pan-y' }}>
+      <div data-fps-canvas className="absolute inset-0 cursor-crosshair transition-opacity duration-1000" style={{ opacity: sceneReady ? 1 : 0, touchAction: interactive ? 'none' : 'pan-y' }}>
         <SceneErrorBoundary>
           <Canvas camera={{ position: DEFAULT_FOCUS.position, fov: DEFAULT_FOCUS.fov, near: 0.1, far: 200 }} dpr={[1, 3]} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}>
             <Scene
@@ -759,11 +906,25 @@ export default function LoadedSceneBanner({ variant = 'night', posts = [], colle
               focusPresets={focusPresets}
               onFocusReady={handleFocusReady}
               onFocusSelect={handleFocusSelect}
+              onFreeExplore={enterFreeExplore}
+              onFpsUpdate={setFps}
               heroVisible={heroVisible}
             />
           </Canvas>
         </SceneErrorBoundary>
       </div>
+
+      {sceneReady ? (
+        <div className="pointer-events-none absolute right-4 top-4 z-20 font-mono text-[11px] tabular-nums">
+          <span className={`inline-block rounded border px-2 py-0.5 ${
+            variant === 'day'
+              ? 'border-sky-500/30 bg-sky-50/70 text-sky-800/80'
+              : 'border-cyan-400/25 bg-[#050611]/60 text-cyan-300/80'
+          }`}>
+            {fps} FPS
+          </span>
+        </div>
+      ) : null}
 
       <HeroInterfaceOverlay
         sceneReady={sceneReady}
