@@ -27,8 +27,6 @@ export interface CreateImageGenLogParams {
   editPrompt?: string;
   editImageUrl?: string;
   editImageUrls?: string[];
-  size?: string;
-  quality?: string;
   model?: string | null;
   originalUrl?: string | null;
   cdnUrl?: string;
@@ -60,8 +58,6 @@ export async function createImageGenLog(params: CreateImageGenLogParams) {
     extJson.edit_image_url = params.editImageUrls[0];
     extJson.edit_image_urls = params.editImageUrls;
   }
-  if (params.size) extJson.size = params.size;
-  if (params.quality) extJson.quality = params.quality;
   extJson.mode = params.editImageUrl || (params.editImageUrls && params.editImageUrls.length > 0) ? 'edit' : 'generate';
 
   return createAiJobLog({

@@ -1,24 +1,20 @@
 /**
- * AI 图片生成页面
- * 路由: /c/image-gen
- * 左侧：生成面板 + 当前结果
- * 右侧：持久化历史记录
+ * AI 图片工作台
+ * 路由: /c/image-gen（/c/ai-lab/image-gen 复用本页）
  */
 
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { Card, Tag, Spin, message } from "antd";
-import { debounce } from "lodash-es";
-import {
-  PictureOutlined,
-  HistoryOutlined,
-} from "@ant-design/icons";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Card, Spin, Tag, message } from "antd";
+import { PictureOutlined } from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { IMAGE_VIEW } from "@/constants/permissions";
 import { useRouter } from "next/navigation";
-import ImageGenPanel from "@/components/ImageGen/ImageGenPanel";
+import ImageGenerationComposer, {
+  type ImageGenerationRequest,
+} from "@/components/ImageGen/ImageGenerationComposer";
 import ImageResultCard from "@/components/ImageGen/ImageResultCard";
 import ImageGenHistory from "@/components/ImageGen/ImageGenHistory";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -27,8 +23,6 @@ import type { ImageGenJobSnapshot } from "@/components/ImageGen/ImageGenJobImage
 interface ResultMeta {
   elapsed?: string;
   model?: string;
-  size?: string;
-  quality?: string;
   prompt?: string;
   jobId?: string;
   status?: string;
@@ -44,16 +38,12 @@ interface ImageGenerationJob {
   errorMessage: string | null;
   elapsed: string | null;
   model: string | null;
-  size: string | null;
-  quality: string | null;
   resourceUri: string;
 }
 
 export default function ImageGenPage() {
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();
-
-  const [generating, setGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<ResultMeta | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -66,48 +56,27 @@ export default function ImageGenPage() {
     }
   }, [user, authLoading, router, hasPermission]);
 
-  const handleGenerate = useCallback(
-    async (params: import("@/components/ImageGen/ImageGenPanel").ImageGenParams) => {
-      if (generating) return;
-      setGenerating(true);
-      setImageUrl(null);
-      setMeta(null);
+  const submitGeneration = useCallback(async (params: ImageGenerationRequest) => {
+    const response = await axios.post("/api/image-gen", params, { timeout: 15000 });
+    if (!response.data?.status || !response.data?.data?.jobId) {
+      throw new Error(response.data?.message || "图片生成任务提交失败");
+    }
+    return response.data.data as ImageGenerationJob;
+  }, []);
 
-      try {
-        const res = await axios.post("/api/image-gen", params, {
-          timeout: 15000,
-        });
-
-        if (res.data?.status && res.data?.data?.jobId) {
-          const job = res.data.data as ImageGenerationJob;
-          setImageUrl(job.status === "SUCCESS" ? job.imageUrl : null);
-          setMeta({
-            elapsed: job.elapsed || undefined,
-            model: job.model || undefined,
-            prompt: params.prompt,
-            size: job.size || params.size,
-            quality: job.quality || params.quality,
-            jobId: job.jobId,
-            status: job.status,
-            resourceUri: job.resourceUri,
-            errorMessage: job.errorMessage,
-          });
-          message.success("图片生成任务已提交");
-        } else {
-          message.error(res.data?.message || "图片生成失败");
-          setGenerating(false);
-        }
-      } catch (error: unknown) {
-        console.error("Image gen error:", error);
-        const msg =
-          (error as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message || "图片生成失败，请检查网络或配置";
-        message.error(msg);
-        setGenerating(false);
-      }
-    },
-    [generating]
-  );
+  const handleQueued = useCallback((result: unknown) => {
+    const job = result as ImageGenerationJob;
+    setImageUrl(job.status === "SUCCESS" ? job.imageUrl : null);
+    setMeta({
+      elapsed: job.elapsed || undefined,
+      model: job.model || undefined,
+      jobId: job.jobId,
+      status: job.status,
+      resourceUri: job.resourceUri,
+      errorMessage: job.errorMessage,
+    });
+    setRefreshTrigger((value) => value + 1);
+  }, []);
 
   const handleJobChange = useCallback((job: ImageGenJobSnapshot) => {
     const jobId = job.jobId;
@@ -116,8 +85,6 @@ export default function ImageGenPage() {
       ...current,
       elapsed: job.elapsed || current?.elapsed,
       model: job.model || current?.model,
-      size: job.size || current?.size,
-      quality: job.quality || current?.quality,
       jobId: job.jobId || current?.jobId,
       status: job.status || current?.status,
       resourceUri: job.resourceUri || current?.resourceUri,
@@ -125,85 +92,47 @@ export default function ImageGenPage() {
     }));
 
     if (!jobId || terminalJobIdsRef.current.has(jobId)) return;
-
     if (job.status === "SUCCESS" && job.imageUrl) {
       terminalJobIdsRef.current.add(jobId);
-      setGenerating(false);
       message.success("图片生成成功");
-      setRefreshTrigger((t) => t + 1);
+      setRefreshTrigger((value) => value + 1);
     } else if (job.status === "FAILED") {
       terminalJobIdsRef.current.add(jobId);
-      setGenerating(false);
       message.error(job.errorMessage || "图片生成失败");
-      setRefreshTrigger((t) => t + 1);
+      setRefreshTrigger((value) => value + 1);
     }
   }, []);
 
-  const debouncedGenerate = useMemo(
-    () => debounce(handleGenerate, 3000, { leading: true, trailing: false }),
-    [handleGenerate]
-  );
-
-  useEffect(() => {
-    return () => {
-      debouncedGenerate.cancel();
-    };
-  }, [debouncedGenerate]);
-
-  const handleHistorySelect = useCallback(
-    (url: string, prompt: string) => {
-      setImageUrl(url);
-      setMeta({ prompt });
-    },
-    []
-  );
+  const handleHistorySelect = useCallback((url: string, prompt: string) => {
+    setImageUrl(url);
+    setMeta({ prompt });
+  }, []);
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
-      </div>
-    );
+    return <div className="flex h-64 items-center justify-center"><Spin size="large" /></div>;
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <AdminPageHeader
-          title="AI 图片生成"
+          className="mb-2"
+          title="AI 图片工作台"
           icon={<PictureOutlined className="text-xl text-blue-500" />}
-          tag={<Tag color="blue">GPT Image 2</Tag>}
+          tag={<Tag color="blue">生成 · 编辑 · 识别</Tag>}
         />
-
-        {/* 左右分栏 */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-          {/* 左侧：生成面板 + 结果 */}
-          <div className="w-full lg:w-1/2 xl:w-[55%] shrink-0 flex flex-col gap-4 lg:overflow-y-auto">
-            <Card title="参数配置" size="small">
-              <ImageGenPanel loading={generating} onGenerate={debouncedGenerate} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+          <div className="flex min-h-0 w-full flex-col gap-3 lg:w-[55%] lg:overflow-y-auto lg:pr-1">
+            <Card title="参数配置" size="small" className="shrink-0">
+              <ImageGenerationComposer onSubmit={submitGeneration} onSuccess={handleQueued} submitLabel="提交队列任务" />
             </Card>
-            <ImageResultCard
-              imageUrl={imageUrl}
-              loading={generating}
-              meta={meta}
-              history={[]}
-              onJobChange={handleJobChange}
-            />
+            <div className="shrink-0">
+              <ImageResultCard imageUrl={imageUrl} loading={false} meta={meta} history={[]} onJobChange={handleJobChange} />
+            </div>
           </div>
-
-          {/* 右侧：历史记录 */}
-          <div className="w-full lg:w-1/2 xl:w-[45%] min-h-0">
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 h-full">
-              <div className="flex items-center gap-2 mb-2">
-                <HistoryOutlined className="text-base text-gray-500" />
-                <span className="text-sm font-medium">生成历史</span>
-              </div>
-              <div className="h-[calc(100%-32px)]">
-                <ImageGenHistory
-                  onSelect={handleHistorySelect}
-                  refreshTrigger={refreshTrigger}
-                />
-              </div>
+          <div className="min-h-0 w-full lg:w-[45%]">
+            <div className="h-full min-h-0 overflow-hidden rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+              <ImageGenHistory onSelect={handleHistorySelect} refreshTrigger={refreshTrigger} />
             </div>
           </div>
         </div>

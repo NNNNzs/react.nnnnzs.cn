@@ -17,8 +17,6 @@ export interface ImageGenJobSnapshot {
   errorMessage?: string | null;
   elapsed?: string | null;
   model?: string | null;
-  size?: string | null;
-  quality?: string | null;
   resourceUri?: string | null;
 }
 

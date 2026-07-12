@@ -23,8 +23,6 @@ interface ImageResultItem {
   imageUrl: string;
   prompt: string;
   mode: "generate" | "edit";
-  size?: string;
-  quality?: string;
   elapsed?: string;
   timestamp: number;
 }
@@ -35,8 +33,6 @@ interface ImageResultCardProps {
   meta: {
     elapsed?: string;
     model?: string;
-    size?: string;
-    quality?: string;
     prompt?: string;
     jobId?: string;
     status?: string;
@@ -147,8 +143,6 @@ export default function ImageResultCard({
                     errorMessage: meta?.errorMessage,
                     elapsed: meta?.elapsed,
                     model: meta?.model,
-                    size: meta?.size,
-                    quality: meta?.quality,
                     resourceUri: meta?.resourceUri,
                   }}
                   imageUrl={resultImageUrl}
@@ -191,8 +185,6 @@ export default function ImageResultCard({
                   )}
                   <div className="flex flex-wrap gap-2">
                     {meta.status && <Tag>{STATUS_LABEL[meta.status] || meta.status}</Tag>}
-                    {meta.size && <Tag>{meta.size}</Tag>}
-                    {meta.quality && <Tag>{meta.quality}</Tag>}
                     {meta.elapsed && (
                       <Tag icon={<ClockCircleOutlined />}>{meta.elapsed}</Tag>
                     )}

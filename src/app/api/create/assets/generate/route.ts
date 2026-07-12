@@ -20,8 +20,6 @@ const generateAssetSchema = z.object({
   image: z.string().max(5000).optional(),
   images: z.array(z.string().min(1).max(5000)).max(10).optional(),
   reference_asset_ids: z.array(z.coerce.number().int().positive()).max(10).optional(),
-  size: z.string().max(40).optional(),
-  quality: z.string().max(20).optional(),
   title: z.string().max(255).optional().nullable(),
   group: z.string().max(60).optional().nullable(),
 });
@@ -64,14 +62,13 @@ export async function POST(request: NextRequest) {
       ...(data.mode === 'edit'
         ? { image: referenceImageUrls[0], images: referenceImageUrls }
         : {}),
-      ...(data.size ? { size: data.size } : {}),
-      ...(data.quality ? { quality: data.quality } : {}),
     };
 
     const job = await createImageGenerationJob({
       options,
       userId: check.user.id,
       source: 'ADMIN',
+      group: data.group || undefined,
     });
 
     const asset = await createGeneratedContentImageAsset({

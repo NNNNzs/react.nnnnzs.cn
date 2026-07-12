@@ -32,6 +32,7 @@ interface CreateImageGenerationJobParams {
   options: ImageGenOptions;
   userId: number;
   source: ImageGenSource;
+  group?: string;
   priority?: number;
 }
 
@@ -40,8 +41,7 @@ export type ImageGenerationRecoverySnapshot = RecoverySnapshot;
 export interface ImageGenerationJobView extends AiJobView {
   // 图片生成特有的字段（从 extJson 提取）
   mode: 'generate' | 'edit';
-  size: string | null;
-  quality: string | null;
+  group: string | null;
   referenceImageUrls: string[];
   imageUrl: string | null;  // 别名，指向 resourceUrl
 }
@@ -85,8 +85,7 @@ function toImageGenerationJobView(job: AiJobView | null): ImageGenerationJobView
     ...job,
     resourceUri: `blog://image-generation-jobs/${job.jobId}`,
     mode: (extJson.mode as 'generate' | 'edit') || 'generate',
-    size: (extJson.size as string) || null,
-    quality: (extJson.quality as string) || null,
+    group: typeof extJson.group === 'string' ? extJson.group : null,
     referenceImageUrls: editImageUrls,
     imageUrl: job.resourceUrl,
   };
@@ -134,8 +133,6 @@ async function processImageGenerationJob(jobId: string) {
     mode: extJson.mode || 'generate',
     prompt: job.prompt,
     ...(editImageUrls.length > 0 ? { images: editImageUrls, image: editImageUrls[0] } : {}),
-    ...(extJson.size ? { size: extJson.size } : {}),
-    ...(extJson.quality ? { quality: extJson.quality } : {}),
   };
 
   try {
@@ -169,8 +166,6 @@ async function processImageGenerationJob(jobId: string) {
       jobId,
       mode: options.mode,
       prompt: options.prompt?.slice(0, 200),
-      size: options.size,
-      quality: options.quality,
       imageCount: editImageUrls.length,
       durationMs,
     });
@@ -227,8 +222,7 @@ export async function createImageGenerationJob(params: CreateImageGenerationJobP
       extJson.edit_image_urls = editImageUrls;
     }
   }
-  if (params.options.size) extJson.size = params.options.size;
-  if (params.options.quality) extJson.quality = params.options.quality;
+  if (params.group?.trim()) extJson.group = params.group.trim();
 
   const log = await prisma.tbAiJob.create({
     data: {

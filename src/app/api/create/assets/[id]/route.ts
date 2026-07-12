@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
-import { CONTENT_EDIT } from '@/constants/permissions';
-import { updateContentImageAsset } from '@/services/content-creation';
+import { CONTENT_DELETE, CONTENT_EDIT } from '@/constants/permissions';
+import { deleteContentImageAsset, updateContentImageAsset } from '@/services/content-creation';
 import { getPrisma } from '@/lib/prisma';
 import { validationErrorResponse } from '../../_utils';
 
@@ -66,5 +66,40 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   } catch (error) {
     console.error('更新图片素材失败:', error);
     return NextResponse.json(errorResponse('更新图片素材失败'), { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const check = await requirePermission(request, CONTENT_DELETE);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
+    }
+
+    const { id } = await context.params;
+    const assetId = Number(id);
+    if (!Number.isInteger(assetId) || assetId <= 0) {
+      return NextResponse.json(errorResponse('无效的素材 ID'), { status: 400 });
+    }
+
+    const prisma = await getPrisma();
+    const existing = await prisma.contentAsset.findFirst({
+      where: { id: assetId, type: 'image' },
+      select: { created_by: true },
+    });
+    if (!existing) {
+      return NextResponse.json(errorResponse('图片素材不存在'), { status: 404 });
+    }
+    if (!hasDataPermission(check.user, CONTENT_DELETE, existing.created_by)) {
+      return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
+    }
+
+    await deleteContentImageAsset(assetId);
+    return NextResponse.json(successResponse(null, '图片素材已删除'), {
+      headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+    });
+  } catch (error) {
+    console.error('删除图片素材失败:', error);
+    return NextResponse.json(errorResponse('删除图片素材失败'), { status: 500 });
   }
 }

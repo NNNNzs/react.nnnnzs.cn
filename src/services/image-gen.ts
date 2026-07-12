@@ -1,7 +1,6 @@
 import { getAIConfigCandidates, type AIConfig } from '@/lib/ai-config';
 
 const VALID_MODES = ['generate', 'edit'] as const;
-const VALID_QUALITIES = ['low', 'medium', 'high', 'auto'] as const;
 const VALID_API_MODES = ['chat_completions', 'images_generations'] as const;
 const IMAGE_URL_REGEX = /!\[image\]\((https?:\/\/[^\s)]+)\)/;
 const MAX_EDIT_IMAGES = 10;
@@ -13,8 +12,6 @@ export interface ImageGenOptions {
   prompt: string;
   image?: string;
   images?: string[];
-  size?: string;
-  quality?: string;
 }
 
 export interface ImageGenResult {
@@ -47,12 +44,6 @@ export function validateImageGenOptions(options: ImageGenOptions): void {
   }
   if (options.mode === 'edit' && imageInputs.length > MAX_EDIT_IMAGES) {
     throw new Error(`编辑模式最多支持 ${MAX_EDIT_IMAGES} 张参考图片`);
-  }
-  if (options.size && options.size !== 'auto' && !/^\d+x\d+$/.test(options.size)) {
-    throw new Error('尺寸格式错误，应为 宽x高，如 1024x1024');
-  }
-  if (options.quality && !VALID_QUALITIES.includes(options.quality as typeof VALID_QUALITIES[number])) {
-    throw new Error(`不支持的质量: ${options.quality}，可选: ${VALID_QUALITIES.join(', ')}`);
   }
 }
 
@@ -175,7 +166,7 @@ async function requestChatCompletions(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { mode, prompt, size, quality } = options;
+  const { mode, prompt } = options;
   const messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }> = [];
 
   if (mode === 'edit') {
@@ -193,17 +184,6 @@ async function requestChatCompletions(params: {
 
   const requestBody: Record<string, unknown> = { model, messages };
 
-  if (size || quality) {
-    const hints: string[] = [];
-    if (size) hints.push(`size: ${size}`);
-    if (quality) hints.push(`quality: ${quality}`);
-    const currentMessages = messages as Array<{ role: string; content: string }>;
-    requestBody.messages = [
-      { role: 'system', content: `Generate image with the following constraints: ${hints.join(', ')}` },
-      ...currentMessages,
-    ];
-  }
-
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -218,8 +198,6 @@ async function requestChatCompletions(params: {
       status: response.status,
       model,
       mode,
-      size,
-      quality,
       response: errorText.slice(0, 1000),
     });
     console.error('图片生成 chat_completions 调用失败:', detail);
@@ -235,8 +213,6 @@ async function requestChatCompletions(params: {
       endpoint,
       model,
       mode,
-      size,
-      quality,
       content: String(content).slice(0, 1000),
     });
     throw new Error('API 返回数据异常，未包含图片');
@@ -252,7 +228,7 @@ async function requestImagesGenerations(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { prompt, size, quality } = options;
+  const { prompt } = options;
 
   const requestBody: Record<string, unknown> = {
     model,
@@ -260,8 +236,6 @@ async function requestImagesGenerations(params: {
     n: 1,
   };
 
-  if (size) requestBody.size = size;
-  if (quality) requestBody.quality = quality;
 
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/generations`;
   const response = await fetch(endpoint, {
@@ -276,8 +250,6 @@ async function requestImagesGenerations(params: {
       endpoint,
       status: response.status,
       model,
-      size,
-      quality,
       response: errorText.slice(0, 1000),
     });
     console.error('图片生成 images_generations 调用失败:', detail);
@@ -288,8 +260,6 @@ async function requestImagesGenerations(params: {
   return parseImageApiResult(result, model, {
     endpoint,
     model,
-    size,
-    quality,
   });
 }
 
@@ -300,14 +270,12 @@ async function requestImagesEdits(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { prompt, size, quality } = options;
+  const { prompt } = options;
   const imageInputs = normalizeImageInputs(options);
   const formData = new FormData();
 
   formData.set('model', model);
   formData.set('prompt', prompt.trim());
-  if (size) formData.set('size', size);
-  if (quality) formData.set('quality', quality);
 
   const blobs = await Promise.all(
     imageInputs.map((input, index) => imageInputToBlob(input, index)),
@@ -330,8 +298,6 @@ async function requestImagesEdits(params: {
       endpoint,
       status: response.status,
       model,
-      size,
-      quality,
       imageCount: imageInputs.length,
       response: errorText.slice(0, 1000),
     });
@@ -343,8 +309,6 @@ async function requestImagesEdits(params: {
   return parseImageApiResult(result, model, {
     endpoint,
     model,
-    size,
-    quality,
     imageCount: imageInputs.length,
   });
 }
@@ -441,8 +405,6 @@ export async function generateImageWithLog(
       editPrompt: options.mode === 'edit' ? options.prompt : undefined,
       editImageUrl: options.mode === 'edit' ? editImageUrls[0] : undefined,
       editImageUrls: options.mode === 'edit' ? editImageUrls : undefined,
-      size: options.size,
-      quality: options.quality,
       model: result.model,
       originalUrl: result.b64Json ? 'b64_json' : result.imageUrl,
       cdnUrl,
@@ -465,8 +427,6 @@ export async function generateImageWithLog(
       mode: options.mode,
       promptLength: options.prompt?.length ?? 0,
       hasImage: Boolean(options.image),
-      size: options.size,
-      quality: options.quality,
       errorMessage,
       durationMs,
     });

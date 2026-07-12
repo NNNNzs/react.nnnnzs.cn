@@ -1,23 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Empty,
   Input,
   Modal,
+  Popconfirm,
   Segmented,
-  Select,
   Skeleton,
   Space,
   Tag,
   Tooltip,
-  Upload,
   message,
 } from "antd";
-import type { UploadProps } from "antd";
 import {
   CopyOutlined,
+  DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
   LinkOutlined,
@@ -25,7 +24,6 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
-  SendOutlined,
   StarFilled,
   StarOutlined,
   UploadOutlined,
@@ -33,12 +31,17 @@ import {
 import ImageGenJobImage, {
   type ImageGenJobSnapshot,
 } from "@/components/ImageGen/ImageGenJobImage";
+import ImageGenerationComposer, {
+  type ImageGenerationComposerHandle,
+  type ImageGenerationRequest,
+  type ImageReference,
+} from "@/components/ImageGen/ImageGenerationComposer";
+import ImageAssetAddModal from "@/components/ImageGen/ImageAssetAddModal";
 import { ImageOptimizationType } from "@/lib/image";
 
 type AssetSource = "generated" | "uploaded";
 type SourceFilter = "all" | AssetSource;
 type ImageMode = "generate" | "edit";
-type UploadMode = "file" | "url";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -64,8 +67,6 @@ interface ImageJobView {
   cosKey: string | null;
   prompt: string;
   mode: ImageMode;
-  size: string | null;
-  quality: string | null;
   elapsed: string | null;
   errorMessage: string | null;
 }
@@ -100,19 +101,6 @@ interface DraftRecord {
   }>;
 }
 
-const SIZE_OPTIONS = [
-  { value: "1024x1024", label: "1024×1024" },
-  { value: "1792x1024", label: "1792×1024" },
-  { value: "1024x1792", label: "1024×1792" },
-];
-
-const QUALITY_OPTIONS = [
-  { value: "high", label: "高质量" },
-  { value: "medium", label: "中等" },
-  { value: "low", label: "草稿" },
-  { value: "auto", label: "自动" },
-];
-
 const SOURCE_LABEL: Record<AssetSource, string> = {
   generated: "生成",
   uploaded: "上传",
@@ -140,21 +128,6 @@ async function requestJson<T>(url: string, options?: RequestInit) {
       "Content-Type": "application/json",
       ...options?.headers,
     },
-  });
-  const payload = await response.json() as ApiResponse<T>;
-
-  if (!response.ok || !payload.status) {
-    throw new Error(payload.message || "请求失败");
-  }
-
-  return payload.data;
-}
-
-async function requestForm<T>(url: string, formData: FormData) {
-  const response = await fetch(url, {
-    method: "POST",
-    cache: "no-store",
-    body: formData,
   });
   const payload = await response.json() as ApiResponse<T>;
 
@@ -216,18 +189,18 @@ function LoadingGrid() {
 
 function AssetCard({
   asset,
-  isReference,
   onUseAsReference,
   onAddToDraft,
   onEdit,
+  onDelete,
   onToggleFavorite,
   onJobChange,
 }: {
   asset: ImageAssetRecord;
-  isReference: boolean;
   onUseAsReference: (asset: ImageAssetRecord) => void;
   onAddToDraft: (asset: ImageAssetRecord) => void;
   onEdit: (asset: ImageAssetRecord) => void;
+  onDelete: (asset: ImageAssetRecord) => void;
   onToggleFavorite: (asset: ImageAssetRecord) => void;
   onJobChange: (assetId: number, job: ImageGenJobSnapshot) => void;
 }) {
@@ -259,8 +232,6 @@ function AssetCard({
             cdnUrl: asset.image_job.cdnUrl,
             errorMessage: asset.image_job.errorMessage,
             elapsed: asset.image_job.elapsed,
-            size: asset.image_job.size,
-            quality: asset.image_job.quality,
           } : null}
           imageUrl={imageUrl}
           alt={title}
@@ -303,17 +274,14 @@ function AssetCard({
 
         <div className="flex flex-wrap gap-1 text-xs">
           {asset.usage ? <Tag className="m-0">{asset.usage}</Tag> : <Tag className="m-0">未分组</Tag>}
-          {asset.image_job?.size ? <Tag className="m-0">{asset.image_job.size}</Tag> : null}
-          {asset.image_job?.quality ? <Tag className="m-0">{asset.image_job.quality}</Tag> : null}
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-2">
           <span className="text-xs text-slate-400">{formatDate(asset.created_at)}</span>
           <Space size={4}>
-            <Tooltip title={isReference ? "移出母图" : "作为母图"}>
+            <Tooltip title="作为参考图">
               <Button
                 size="small"
-                type={isReference ? "primary" : "default"}
                 icon={<PictureOutlined />}
                 disabled={!canReference}
                 onClick={() => onUseAsReference(asset)}
@@ -330,6 +298,18 @@ function AssetCard({
             <Tooltip title="改名/分组">
               <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(asset)} />
             </Tooltip>
+            <Popconfirm
+              title="删除图片素材"
+              description="仅删除素材记录，图片文件不会从 COS 删除。"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => onDelete(asset)}
+            >
+              <Tooltip title="删除素材">
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
             <Tooltip title="复制地址">
               <Button size="small" icon={<CopyOutlined />} disabled={!imageUrl} onClick={handleCopy} />
             </Tooltip>
@@ -354,20 +334,8 @@ export function CreateImageAssetsManager() {
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<PageResult<ImageAssetRecord> | null>(null);
-  const [mode, setMode] = useState<ImageMode>("generate");
-  const [prompt, setPrompt] = useState("");
-  const [size, setSize] = useState("1024x1024");
-  const [quality, setQuality] = useState("high");
-  const [group, setGroup] = useState("");
-  const [references, setReferences] = useState<ImageAssetRecord[]>([]);
-  const [generating, setGenerating] = useState(false);
+  const [referenceAssetIds, setReferenceAssetIds] = useState<number[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState<UploadMode>("file");
-  const [uploading, setUploading] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [externalImageUrl, setExternalImageUrl] = useState("");
-  const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadGroup, setUploadGroup] = useState("");
   const [editingAsset, setEditingAsset] = useState<ImageAssetRecord | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editGroup, setEditGroup] = useState("");
@@ -375,6 +343,7 @@ export function CreateImageAssetsManager() {
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftData, setDraftData] = useState<PageResult<DraftRecord> | null>(null);
   const [targetAsset, setTargetAsset] = useState<ImageAssetRecord | null>(null);
+  const generationComposerRef = useRef<ImageGenerationComposerHandle>(null);
   const records = useMemo(() => data?.record ?? [], [data?.record]);
 
   const loadAssets = useCallback(async () => {
@@ -435,128 +404,36 @@ export function CreateImageAssetsManager() {
     running: records.filter(isRunning).length,
   }), [data?.total, records]);
 
-  const referenceIds = useMemo(() => new Set(references.map((asset) => asset.id)), [references]);
-  const referenceUrls = useMemo(
-    () => references.map(getImageUrl).filter((url): url is string => Boolean(url)),
-    [references],
-  );
-
   const handleUseAsReference = useCallback((asset: ImageAssetRecord) => {
-    if (!getImageUrl(asset)) {
-      message.warning("图片完成后才能作为母图");
+    const imageUrl = getImageUrl(asset);
+    if (!imageUrl) {
+      message.warning("图片完成后才能作为参考图");
       return;
     }
-
-    setMode("edit");
-    setReferences((current) => {
-      if (current.some((item) => item.id === asset.id)) {
-        return current.filter((item) => item.id !== asset.id);
-      }
-      return [...current, asset].slice(-10);
-    });
+    generationComposerRef.current?.addReferenceImages([{
+      url: imageUrl,
+      title: getAssetTitle(asset),
+      assetId: asset.id,
+    }]);
+    message.success("已添加为参考图");
   }, []);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      message.warning("请输入提示词");
-      return;
-    }
-    if (mode === "edit" && referenceUrls.length === 0) {
-      message.warning("图文编辑需要先选择母图");
-      return;
-    }
+  const submitAssetGeneration = useCallback(async (params: ImageGenerationRequest) => (
+    requestJson<GenerateAssetResponse>("/api/create/assets/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        ...params,
+        reference_asset_ids: params.mode === "edit" ? referenceAssetIds : undefined,
+      }),
+    })
+  ), [referenceAssetIds]);
 
-    setGenerating(true);
-    try {
-      await requestJson<GenerateAssetResponse>("/api/create/assets/generate", {
-        method: "POST",
-        body: JSON.stringify({
-          mode,
-          prompt: prompt.trim(),
-          size,
-          quality,
-          group: group.trim() || undefined,
-          images: mode === "edit" ? referenceUrls : undefined,
-          reference_asset_ids: mode === "edit" ? references.map((asset) => asset.id) : undefined,
-        }),
-      });
-      message.success("图片任务已提交");
-      setPrompt("");
-      await loadAssets();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : "提交图片任务失败");
-    } finally {
-      setGenerating(false);
-    }
-  };
+  const handleReferencesChange = useCallback((references: ImageReference[]) => {
+    setReferenceAssetIds(references
+      .map((reference) => reference.assetId)
+      .filter((assetId): assetId is number => typeof assetId === "number"));
+  }, []);
 
-  const uploadProps: UploadProps = {
-    accept: "image/*",
-    maxCount: 1,
-    beforeUpload: (file) => {
-      setUploadFile(file);
-      if (!uploadTitle.trim()) {
-        setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
-      }
-      return false;
-    },
-    onRemove: () => {
-      setUploadFile(null);
-      return true;
-    },
-  };
-
-  const resetUploadForm = () => {
-    setUploadMode("file");
-    setUploadFile(null);
-    setExternalImageUrl("");
-    setUploadTitle("");
-    setUploadGroup("");
-  };
-
-  const handleUpload = async () => {
-    if (uploadMode === "file" && !uploadFile) {
-      message.warning("请选择图片");
-      return;
-    }
-    if (uploadMode === "url" && !externalImageUrl.trim()) {
-      message.warning("请输入图片外链");
-      return;
-    }
-    if (uploadMode === "url" && !externalImageUrl.trim().startsWith("https://")) {
-      message.warning("图片外链必须以 https:// 开头");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      if (uploadMode === "url") {
-        await requestJson<ImageAssetRecord>("/api/create/assets", {
-          method: "POST",
-          body: JSON.stringify({
-            image_url: externalImageUrl.trim(),
-            title: uploadTitle.trim() || undefined,
-            group: uploadGroup.trim() || undefined,
-          }),
-        });
-        message.success("图片外链已添加");
-      } else if (uploadFile) {
-        const formData = new FormData();
-        formData.append("inputFile", uploadFile);
-        if (uploadTitle.trim()) formData.append("title", uploadTitle.trim());
-        if (uploadGroup.trim()) formData.append("group", uploadGroup.trim());
-        await requestForm<ImageAssetRecord>("/api/create/assets/upload", formData);
-        message.success("图片已上传");
-      }
-      setUploadOpen(false);
-      resetUploadForm();
-      await loadAssets();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : "添加图片素材失败");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const openEdit = (asset: ImageAssetRecord) => {
     setEditingAsset(asset);
@@ -594,6 +471,16 @@ export function CreateImageAssetsManager() {
     }
   };
 
+  const handleDeleteAsset = async (asset: ImageAssetRecord) => {
+    try {
+      await requestJson<null>(`/api/create/assets/${asset.id}`, { method: "DELETE" });
+      message.success("图片素材已删除");
+      await loadAssets();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "删除图片素材失败");
+    }
+  };
+
   const handleAssetJobChange = useCallback((assetId: number, job: ImageGenJobSnapshot) => {
     setData((current) => {
       if (!current) return current;
@@ -612,8 +499,6 @@ export function CreateImageAssetsManager() {
               cdnUrl: job.cdnUrl || asset.image_job.cdnUrl,
               errorMessage: job.errorMessage ?? asset.image_job.errorMessage,
               elapsed: job.elapsed || asset.image_job.elapsed,
-              size: job.size || asset.image_job.size,
-              quality: job.quality || asset.image_job.quality,
             },
           };
         }),
@@ -719,10 +604,10 @@ export function CreateImageAssetsManager() {
                   <AssetCard
                     key={asset.id}
                     asset={asset}
-                    isReference={referenceIds.has(asset.id)}
                     onUseAsReference={handleUseAsReference}
                     onAddToDraft={openDraftPicker}
                     onEdit={openEdit}
+                    onDelete={handleDeleteAsset}
                     onToggleFavorite={handleToggleFavorite}
                     onJobChange={handleAssetJobChange}
                   />
@@ -740,145 +625,21 @@ export function CreateImageAssetsManager() {
               <PlusOutlined />
               生成图片
             </div>
-            <div className="flex flex-col gap-4">
-              <Segmented
-                block
-                value={mode}
-                onChange={(value) => setMode(value as ImageMode)}
-                options={[
-                  { label: "文生图", value: "generate" },
-                  { label: "图文编辑", value: "edit" },
-                ]}
-              />
-
-              {mode === "edit" ? (
-                <div className="rounded-md bg-slate-50 p-3">
-                  <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-                    <span>母图</span>
-                    {references.length > 0 ? (
-                      <Button size="small" type="text" onClick={() => setReferences([])}>
-                        清空
-                      </Button>
-                    ) : null}
-                  </div>
-                  {references.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {references.map((asset) => {
-                        const imageUrl = getImageUrl(asset);
-                        return imageUrl ? (
-                          <button
-                            key={asset.id}
-                            type="button"
-                            className="relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-white"
-                            onClick={() => handleUseAsReference(asset)}
-                          >
-                            <ImageGenJobImage
-                              imageUrl={imageUrl}
-                              alt={getAssetTitle(asset)}
-                              preview={false}
-                              optimizationType={ImageOptimizationType.SMALL_THUMBNAIL}
-                              className="h-full w-full"
-                            />
-                          </button>
-                        ) : null;
-                      })}
-                    </div>
-                  ) : (
-                    <div className="rounded-md border border-dashed border-slate-300 py-6 text-center text-xs text-slate-500">
-                      从图片卡片选择母图
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              <Input.TextArea
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder={mode === "edit" ? "输入编辑指令" : "输入图片提示词"}
-                rows={5}
-                maxLength={32000}
-                showCount
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <Select value={size} onChange={setSize} options={SIZE_OPTIONS} />
-                <Select value={quality} onChange={setQuality} options={QUALITY_OPTIONS} />
-              </div>
-
-              <Input
-                value={group}
-                onChange={(event) => setGroup(event.target.value)}
-                placeholder="分组，如封面图/参考母图"
-                maxLength={60}
-              />
-
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                loading={generating}
-                disabled={!prompt.trim() || (mode === "edit" && referenceUrls.length === 0)}
-                onClick={handleGenerate}
-                block
-              >
-                提交队列任务
-              </Button>
-            </div>
+            <ImageGenerationComposer
+              ref={generationComposerRef}
+              onSubmit={submitAssetGeneration}
+              onSuccess={() => { void loadAssets(); }}
+              onReferencesChange={handleReferencesChange}
+            />
           </aside>
         </section>
       </div>
 
-      <Modal
-        title="添加图片素材"
+      <ImageAssetAddModal
         open={uploadOpen}
-        onOk={handleUpload}
-        onCancel={() => {
-          setUploadOpen(false);
-          resetUploadForm();
-        }}
-        confirmLoading={uploading}
-        okText={uploadMode === "url" ? "添加" : "上传"}
-        destroyOnHidden
-      >
-        <div className="flex flex-col gap-4">
-          <Segmented
-            block
-            value={uploadMode}
-            onChange={(value) => setUploadMode(value as UploadMode)}
-            options={[
-              { label: "上传图片", value: "file" },
-              { label: "图片外链", value: "url" },
-            ]}
-          />
-          {uploadMode === "file" ? (
-            <Upload.Dragger {...uploadProps}>
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="ant-upload-text">选择或拖入图片</p>
-            </Upload.Dragger>
-          ) : (
-            <Input
-              value={externalImageUrl}
-              onChange={(event) => setExternalImageUrl(event.target.value)}
-              placeholder="https://example.com/image.png"
-              prefix={<LinkOutlined className="text-slate-400" />}
-              maxLength={5000}
-            />
-          )}
-          <Input
-            value={uploadTitle}
-            onChange={(event) => setUploadTitle(event.target.value)}
-            placeholder="图片名称"
-            maxLength={255}
-          />
-          <Input
-            value={uploadGroup}
-            onChange={(event) => setUploadGroup(event.target.value)}
-            placeholder="分组"
-            maxLength={60}
-          />
-        </div>
-      </Modal>
+        onClose={() => setUploadOpen(false)}
+        onAssetAdded={() => { void loadAssets(); }}
+      />
 
       <Modal
         title="图片信息"

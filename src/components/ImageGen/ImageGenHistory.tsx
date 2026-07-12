@@ -46,8 +46,6 @@ interface LogRecord {
   ext_text: string | null;
   ext_json: string | null;
   job_id: string | null;
-  size: string | null;
-  quality: string | null;
   model: string | null;
   original_url: string | null;
   cdn_url: string | null;
@@ -312,8 +310,6 @@ export default function ImageGenHistory({
         cdn_url: job.status === "SUCCESS" ? job.imageUrl || job.cdnUrl || item.cdn_url : item.cdn_url,
         reserved_cdn_url: job.reservedCdnUrl || item.reserved_cdn_url,
         error_message: job.errorMessage ?? item.error_message,
-        size: job.size || item.size,
-        quality: job.quality || item.quality,
         model: job.model || item.model,
       };
     }));
@@ -498,8 +494,6 @@ export default function ImageGenHistory({
                         reservedCdnUrl: record.reserved_cdn_url,
                         errorMessage: record.error_message,
                         model: record.model,
-                        size: record.size,
-                        quality: record.quality,
                       }}
                       imageUrl={url}
                       alt={record.prompt.slice(0, 20)}

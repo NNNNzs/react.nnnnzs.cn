@@ -110,6 +110,7 @@ export default function AiLabLayout({ children }: { children: React.ReactNode })
   );
 
   const activePath = getActivePath(pathname);
+  const isImageWorkbench = activePath === "/c/ai-lab/image-gen";
 
   const handleNavClick = useCallback(
     (path: string) => {
@@ -166,7 +167,10 @@ export default function AiLabLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 py-3 lg:px-2">
+      <div className={joinClassNames(
+        "min-h-0 flex-1 px-1 lg:px-2",
+        isImageWorkbench ? "overflow-hidden py-2" : "overflow-y-auto py-3",
+      )}>
         {children}
       </div>
     </div>

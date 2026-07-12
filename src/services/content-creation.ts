@@ -333,8 +333,7 @@ function formatContentImageJob(job: TbAiJob) {
   return {
     ...baseJob,
     mode: extJson.mode === 'edit' ? 'edit' : 'generate',
-    size: typeof extJson.size === 'string' ? extJson.size : null,
-    quality: typeof extJson.quality === 'string' ? extJson.quality : null,
+    group: typeof extJson.group === 'string' ? extJson.group : null,
     referenceImageUrls,
     imageUrl: baseJob.resourceUrl,
   };
@@ -1064,6 +1063,17 @@ export async function updateContentImageAsset(id: number, input: UpdateContentIm
     where: { id },
     data,
   });
+}
+
+export async function deleteContentImageAsset(id: number) {
+  const prisma = await getPrisma();
+  const asset = await prisma.contentAsset.findFirst({
+    where: { id, type: 'image' },
+  });
+  if (!asset) return null;
+
+  await prisma.contentAsset.delete({ where: { id } });
+  return asset;
 }
 
 export async function getContentImageAssetsByIds(ids: number[]) {

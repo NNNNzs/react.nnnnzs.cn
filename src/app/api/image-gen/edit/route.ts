@@ -33,8 +33,7 @@ export const descriptor: ApiDescriptor = {
         items: { type: 'string' },
         description: '参考图片 URL 列表，支持多图编辑',
       },
-      size: { type: 'string', description: '图片尺寸，如 1024x1024' },
-      quality: { type: 'string', description: '图片质量：low、medium、high 或 auto' },
+      group: { type: 'string', description: '图片任务分组，仅用于管理和筛选，不传给模型' },
     },
     required: ['prompt'],
   },
@@ -47,15 +46,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
     }
 
-    const body = await request.json() as Omit<ImageGenOptions, 'mode'>;
+    const body = await request.json() as Omit<ImageGenOptions, 'mode'> & { group?: string };
+    const { group, ...options } = body;
 
     const job = await createImageGenerationJob({
       options: {
-        ...body,
+        ...options,
         mode: 'edit',
       },
       userId: check.user.id,
       source: 'ADMIN',
+      group,
     });
 
     return NextResponse.json(

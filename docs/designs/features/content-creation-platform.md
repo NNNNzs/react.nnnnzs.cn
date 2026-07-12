@@ -94,7 +94,9 @@ flowchart TB
 |------|------|------|
 | `/create` | 工作台 | 本周选题、待生成素材、待发布、复盘提醒 |
 | `/create/drafts` | 草稿库 | 管理草稿列表、简化新建、状态筛选和删除 |
-| `/create/assets` | 素材库 | 管理图片素材：生成图、上传图、收藏、分组和母图复用 |
+| `/create/assets` | 素材库 | 管理图片素材：生成图、上传图、收藏、分组、删除和参考图复用 |
+
+素材库的生成区复用 AI 图片工作台的 `ImageGenerationComposer`；素材库只通过 `ImageAssetAddModal` 执行入库。参考图上传属于图片工作台的通用能力，走 `ImageReferenceAddModal` 并只返回 URL，不得隐式创建素材记录。
 | `/create/topics` | 选题库 | 记录用户想法、来源、创作方向和使用状态；支持 AI 从文章、网站和博客整理选题并去重 |
 | `/create/drafts/[id]` | 草稿详情 | 编辑标题、正文、类型、状态、草稿选用图片、图片备注、图片排序和打包下载 |
 | `/create/calendar` | 发布日历 | 管理平台、计划发布时间和发布状态 |

@@ -16,7 +16,6 @@ import { createImageGenerationJob } from '@/services/image-gen-job';
 import { getAiJob } from '@/services/ai-job';
 import { createContentAsset } from '@/services/content-creation';
 import type { AuthUser } from '@/types/auth';
-import type { Prisma } from '@/generated/prisma-client/client';
 import {
   readPromptTemplateTool,
   listPromptSkillsTool,
@@ -230,15 +229,13 @@ function wrapWebSearch(): StructuredTool {
 
 function wrapGenerateImage(userId: number): StructuredTool {
   return tool(
-    async ({ prompt, mode, images, size, quality }) => {
+    async ({ prompt, mode, images }) => {
       try {
         const job = await createImageGenerationJob({
           options: {
             mode: mode ?? 'generate',
             prompt,
             images: images ?? undefined,
-            size: size ?? '1080x1440',
-            quality: quality ?? 'medium',
           },
           userId,
           source: 'ADMIN',
@@ -268,8 +265,6 @@ function wrapGenerateImage(userId: number): StructuredTool {
           .array(z.string())
           .optional()
           .describe('edit 模式的参考图 URL 列表'),
-        size: z.string().optional().describe('尺寸，如 1080x1440（小红书竖图默认）'),
-        quality: z.enum(['low', 'medium', 'high', 'auto']).optional().describe('质量，默认 medium'),
       }),
     },
   );
