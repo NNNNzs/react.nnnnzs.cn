@@ -84,6 +84,18 @@ FACE_GROUP_ID=blog_users
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
+### LangGraph 本地调试（可选）
+```bash
+# 仅 NODE_ENV=development 生效，日志默认写入 logs/langgraph/YYYY-MM-DD.ndjson
+LANGGRAPH_DEBUG=true
+# 默认脱敏所有字符串内容；排查 prompt、工具入参和输出时才临时开启
+LANGGRAPH_DEBUG_CONTENT=true
+# 可选：相对于项目根目录的日志目录
+LANGGRAPH_DEBUG_DIR=logs/langgraph
+```
+
+> 该日志用于本地开发，不会在生产环境写入。日志可能包含私有草稿和用户输入，`LANGGRAPH_DEBUG_CONTENT=true` 使用后应及时关闭并清理 `logs/langgraph/`。
+
 ### Docker 部署配置（可选）
 ```bash
 DOCKER_HUB_TOKEN=your-docker-hub-token

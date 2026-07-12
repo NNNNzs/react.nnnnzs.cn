@@ -22,6 +22,7 @@ import {
   pumpAgentEvents,
   getRecord,
 } from '@/services/ai/agent-stream';
+import { createLangGraphDebugger } from '@/services/ai/langgraph-debugger';
 import { withPhoenixAgentTrace } from '@/lib/phoenix-observability';
 
 export interface CreateAgentMessage {
@@ -93,10 +94,15 @@ export async function createAgentStream(
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const emitter = createSseEmitter(controller, 'create-agent');
+      const debugLogger = createLangGraphDebugger({
+        agentName: 'create-agent',
+        metadata: { draftId, userId },
+      });
 
       // emitPatch：把草稿 patch 作为 patch 帧推到当前流
       // （事件名统一为 patch，前端 useAgentStream 监听 patch）
       const emitPatch = (patch: DraftPatch) => {
+        void debugLogger.log('draft_patch', patch);
         emitter.enqueue('patch', patch);
       };
 
@@ -170,7 +176,7 @@ export async function createAgentStream(
             },
           });
 
-          await pumpAgentEvents(eventStream, emitter, {
+          await pumpAgentEvents(debugLogger.streamEvents(eventStream), emitter, {
             scenario: SCENARIO,
             meta: { draftId },
             extractResult: extractCreateToolResult,

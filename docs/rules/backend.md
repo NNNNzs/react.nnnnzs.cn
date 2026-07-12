@@ -160,6 +160,7 @@ src/services/ai/
 │   ├── stream.ts     # 流式响应处理
 │   └── index.ts      # 统一导出
 ├── chat-agent/       # Chat Agent 编排服务（LangGraph + DeepSeek think）
+├── langgraph-debugger.ts # LangGraph 本地 NDJSON 调试器（开发环境）
 ├── rag/              # 历史兼容目录 + 旧版 RAG helper
 │   ├── langgraph-agent.ts  # 兼容导出，主实现位于 chat-agent/
 │   └── index.ts      # Agent 统一导出

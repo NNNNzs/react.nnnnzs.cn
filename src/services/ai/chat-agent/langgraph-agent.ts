@@ -15,6 +15,7 @@ import {
   createSseEmitter,
   pumpAgentEvents,
 } from '@/services/ai/agent-stream';
+import { createLangGraphDebugger } from '@/services/ai/langgraph-debugger';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
 
 export interface ChatAgentParams {
@@ -54,6 +55,10 @@ export const chatAgentStream = async (
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const emitter = createSseEmitter(controller, 'chat-agent');
+      const debugLogger = createLangGraphDebugger({
+        agentName: 'chat-agent',
+        metadata: { scenario, styleVariant: params.styleVariant ?? null },
+      });
 
       try {
         const systemPrompt = await buildChatAgentSystemPrompt(params);
@@ -66,9 +71,14 @@ export const chatAgentStream = async (
         });
 
         const messages = buildMessages(question, history);
-        const eventStream = agent.streamEvents({ messages }, { version: 'v2' });
+        const eventStream = agent.streamEvents({ messages }, {
+          version: 'v2',
+          runName: 'chat-agent',
+          tags: ['agent', 'chat-agent', scenario],
+          metadata: { scenario, styleVariant: params.styleVariant ?? null },
+        });
 
-        await pumpAgentEvents(eventStream, emitter, { scenario });
+        await pumpAgentEvents(debugLogger.streamEvents(eventStream), emitter, { scenario });
 
         emitter.enqueue('done', {});
         controller.close();

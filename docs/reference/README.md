@@ -38,6 +38,16 @@
 
 ---
 
+#### LangGraph Agent 本地调试
+**文档**: [langgraph-debug.md](./langgraph-debug.md)
+**描述**: Chat、创作和选题 Agent 的本地 NDJSON 事件日志使用说明
+**内容**:
+- 环境变量开关与内容脱敏
+- 运行 ID 和 LangGraph 事件关联
+- 常用筛选与排查命令
+
+---
+
 ### 技术说明
 
 #### 赛博朋克风格元素资料库

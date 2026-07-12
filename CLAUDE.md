@@ -94,6 +94,7 @@
 ### 技术参考文档
 - **[路由结构说明](docs/reference/ROUTES.md)** - 路由设计参考
 - **[队列调试指南](docs/reference/QUEUE-DEBUG-GUIDE.md)** - 向量化队列调试
+- **[LangGraph Agent 本地调试](docs/reference/langgraph-debug.md)** - Chat、创作和选题 Agent 的本地 NDJSON 运行日志
 - **[Prisma 版本说明](docs/reference/PRISMA_VERSION_NOTE.md)** - Prisma 相关技术说明
 - **[MCP 合集使用指南](docs/reference/mcp-collections-guide.md)** - MCP 合集功能使用指南
 - **[Chat Agent 系统提示词模板](docs/reference/chat-agent-system-prompt.md)** - Chat Agent 提示词模板，运行时由 LangChain `PromptTemplate` 注入变量

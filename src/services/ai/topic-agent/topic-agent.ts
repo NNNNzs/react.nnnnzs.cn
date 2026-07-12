@@ -11,6 +11,7 @@ import { buildTopicTools } from '../tools/topic-tools/langchain-tools';
 import { buildTopicAgentSystemPrompt } from './prompt';
 import type { TopicPatch } from './topic-patch';
 import { withPhoenixAgentTrace } from '@/lib/phoenix-observability';
+import { createLangGraphDebugger } from '@/services/ai/langgraph-debugger';
 
 export interface TopicAgentMessage {
   role: 'user' | 'assistant';
@@ -67,7 +68,14 @@ export async function topicAgentStream(
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const emitter = createSseEmitter(controller, 'topic-agent');
-      const emitPatch = (patch: TopicPatch) => emitter.enqueue('patch', patch);
+      const debugLogger = createLangGraphDebugger({
+        agentName: 'topic-agent',
+        metadata: { topicId: topicId ?? null, actorUserId, scopeUserId: scopeUserId ?? null },
+      });
+      const emitPatch = (patch: TopicPatch) => {
+        void debugLogger.log('topic_patch', patch);
+        emitter.enqueue('patch', patch);
+      };
 
       try {
         const topic = topicId ? await getContentTopic(topicId) : null;
@@ -119,7 +127,7 @@ export async function topicAgentStream(
             },
           });
 
-          await pumpAgentEvents(eventStream, emitter, {
+          await pumpAgentEvents(debugLogger.streamEvents(eventStream), emitter, {
             scenario: SCENARIO,
             meta: { topicId: topicId ?? null },
             extractResult: extractTopicToolResult,
