@@ -17,8 +17,10 @@ const MAX_BLOG_CONTENT_LENGTH = 9000;
 const DRAFT_IMAGES_KEY = 'draftImages';
 const XHS_PROMPTS_DIR = process.env.CONTENT_XHS_PROMPTS_DIR || '/Users/nnnnzs/project/xhs/prompts';
 
-export const CONTENT_DRAFT_TYPES = ['note', 'short_video', 'checklist', 'faq'] as const;
+export const CONTENT_DRAFT_TYPES = ['note', 'article', 'short_video', 'checklist', 'faq'] as const;
 export const CONTENT_DRAFT_STATUSES = ['DRAFT', 'ASSET_PENDING', 'READY', 'PUBLISHED', 'ARCHIVED'] as const;
+export const CONTENT_TOPIC_STATUSES = ['IDEA', 'USED', 'ARCHIVED'] as const;
+export const CONTENT_TOPIC_SOURCE_TYPES = ['idea', 'blog', 'url', 'website'] as const;
 export const CONTENT_TEMPLATE_TYPES = ['prompt', 'voice_style', 'visual', 'checklist', 'context'] as const;
 export const CONTENT_TEMPLATE_STATUSES = ['ACTIVE', 'DRAFT', 'ARCHIVED'] as const;
 export const CONTENT_TEMPLATE_SCENARIOS = [
@@ -31,6 +33,8 @@ export const CONTENT_TEMPLATE_SCENARIOS = [
 
 export type ContentDraftType = typeof CONTENT_DRAFT_TYPES[number];
 export type ContentDraftStatus = typeof CONTENT_DRAFT_STATUSES[number];
+export type ContentTopicStatus = typeof CONTENT_TOPIC_STATUSES[number];
+export type ContentTopicSourceType = typeof CONTENT_TOPIC_SOURCE_TYPES[number];
 export type ContentTemplateType = typeof CONTENT_TEMPLATE_TYPES[number];
 export type ContentTemplateStatus = typeof CONTENT_TEMPLATE_STATUSES[number];
 export type ContentTemplateScenario = typeof CONTENT_TEMPLATE_SCENARIOS[number];
@@ -75,6 +79,11 @@ export interface TemplateQueryParams extends PageParams {
 
 export interface CreateTopicInput {
   title: string;
+  source_type?: ContentTopicSourceType | string;
+  source_url?: string | null;
+  original_idea?: string | null;
+  core_angle?: string | null;
+  key_points?: string[] | null;
   description?: string | null;
   pillar?: string | null;
   series?: string | null;
@@ -85,6 +94,8 @@ export interface CreateTopicInput {
   ai_reason?: string | null;
   created_by?: number | null;
 }
+
+export type UpdateTopicInput = Partial<Omit<CreateTopicInput, 'created_by'>>;
 
 export interface CreateDraftSlideInput {
   title?: string | null;
@@ -241,6 +252,21 @@ function toNullableString(value?: string | null) {
   return cleanString(value) ?? null;
 }
 
+function normalizeTopicDedupKey(input: Pick<CreateTopicInput, 'title' | 'source_type' | 'source_url' | 'source_post_id'>): string {
+  const title = input.title.trim().toLocaleLowerCase('zh-CN').replace(/\s+/g, ' ');
+  const source = input.source_post_id
+    ? `post:${input.source_post_id}`
+    : cleanString(input.source_url)?.replace(/^https?:\/\//i, '').replace(/\/$/, '').toLocaleLowerCase('zh-CN')
+      ?? `type:${input.source_type || 'idea'}`;
+  return `${title}|${source}`;
+}
+
+function normalizeTopicSourceType(input: Pick<CreateTopicInput, 'source_type' | 'source_url' | 'source_post_id'>): string {
+  if (input.source_type) return input.source_type;
+  if (input.source_post_id) return 'blog';
+  return input.source_url ? 'url' : 'idea';
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -361,12 +387,9 @@ function extractJsonObject(text: string) {
 
 const aiTopicSchema = z.object({
   title: z.string().min(1).max(80),
-  description: z.string().min(1).max(600).optional(),
-  pillar: z.string().max(80).optional(),
-  series: z.string().max(80).optional(),
-  priority: z.coerce.number().int().min(1).max(5).optional(),
-  reason: z.string().max(800).optional(),
-  draftDirection: z.string().max(800).optional(),
+  originalIdea: z.string().min(1).max(800),
+  coreAngle: z.string().min(1).max(800),
+  keyPoints: z.array(z.string().min(1).max(500)).min(1).max(8),
 });
 
 const aiTopicResponseSchema = z.object({
@@ -501,6 +524,9 @@ function buildTopicWhere(params: TopicQueryParams): Prisma.ContentTopicWhereInpu
   if (query) {
     where.OR = [
       { title: { contains: query } },
+      { original_idea: { contains: query } },
+      { core_angle: { contains: query } },
+      { source_url: { contains: query } },
       { description: { contains: query } },
       { pillar: { contains: query } },
       { series: { contains: query } },
@@ -635,7 +661,6 @@ export async function listContentTopics(params: TopicQueryParams = {}) {
         },
       },
       orderBy: [
-        { priority: 'desc' },
         { updated_at: 'desc' },
       ],
       skip: (pageNum - 1) * pageSize,
@@ -649,10 +674,33 @@ export async function listContentTopics(params: TopicQueryParams = {}) {
 
 export async function createContentTopic(input: CreateTopicInput) {
   const prisma = await getPrisma();
+  const sourceType = normalizeTopicSourceType(input);
+  const dedupKey = normalizeTopicDedupKey({ ...input, source_type: sourceType });
+  const duplicate = await prisma.contentTopic.findFirst({
+    where: {
+      OR: [
+        { dedup_key: dedupKey },
+        ...(input.source_post_id
+          ? [{ title: input.title.trim(), source_post_id: input.source_post_id }]
+          : []),
+      ],
+    },
+    select: { id: true, title: true },
+  });
+
+  if (duplicate) {
+    throw new Error(`相似选题已存在：${duplicate.title}`);
+  }
 
   return prisma.contentTopic.create({
     data: {
       title: input.title.trim(),
+      source_type: sourceType,
+      source_url: toNullableString(input.source_url),
+      original_idea: toNullableString(input.original_idea),
+      core_angle: toNullableString(input.core_angle),
+      key_points: input.key_points?.length ? input.key_points : undefined,
+      dedup_key: dedupKey,
       description: toNullableString(input.description),
       pillar: toNullableString(input.pillar),
       series: toNullableString(input.series),
@@ -664,6 +712,58 @@ export async function createContentTopic(input: CreateTopicInput) {
       created_by: input.created_by ?? null,
     },
   });
+}
+
+export async function getContentTopic(topicId: number) {
+  const prisma = await getPrisma();
+  return prisma.contentTopic.findUnique({
+    where: { id: topicId },
+    include: { _count: { select: { drafts: true, assets: true } } },
+  });
+}
+
+export async function updateContentTopic(topicId: number, input: UpdateTopicInput) {
+  const prisma = await getPrisma();
+  const existing = await getContentTopic(topicId);
+  if (!existing) throw new Error('选题不存在');
+
+  const title = input.title?.trim() || existing.title;
+  const sourceType = normalizeTopicSourceType({
+    source_type: input.source_type ?? existing.source_type,
+    source_url: input.source_url === undefined ? existing.source_url : input.source_url,
+    source_post_id: input.source_post_id === undefined ? existing.source_post_id : input.source_post_id,
+  });
+  const dedupKey = normalizeTopicDedupKey({
+    title,
+    source_type: sourceType,
+    source_url: input.source_url === undefined ? existing.source_url : input.source_url,
+    source_post_id: input.source_post_id === undefined ? existing.source_post_id : input.source_post_id,
+  });
+  const duplicate = await prisma.contentTopic.findFirst({
+    where: { dedup_key: dedupKey, id: { not: topicId } },
+    select: { id: true, title: true },
+  });
+  if (duplicate) throw new Error(`相似选题已存在：${duplicate.title}`);
+
+  return prisma.contentTopic.update({
+    where: { id: topicId },
+    data: {
+      title,
+      source_type: sourceType,
+      source_url: input.source_url === undefined ? undefined : toNullableString(input.source_url),
+      original_idea: input.original_idea === undefined ? undefined : toNullableString(input.original_idea),
+      core_angle: input.core_angle === undefined ? undefined : toNullableString(input.core_angle),
+      key_points: input.key_points === undefined ? undefined : input.key_points ?? Prisma.JsonNull,
+      dedup_key: dedupKey,
+      status: input.status,
+      source_post_id: input.source_post_id,
+    },
+  });
+}
+
+export async function deleteContentTopic(topicId: number) {
+  const prisma = await getPrisma();
+  return prisma.contentTopic.delete({ where: { id: topicId } });
 }
 
 export async function listContentDrafts(params: DraftQueryParams = {}) {
@@ -1255,7 +1355,7 @@ export async function getContentCreationOverview(userId?: number | null) {
     prisma.contentDraft.count({ where: { ...userFilter, status: 'READY' } }),
     prisma.contentAsset.count({ where: { ...userFilter, type: 'image' } }),
     prisma.contentTopic.count({ where: userFilter }),
-    prisma.contentTopic.count({ where: { ...userFilter, status: { in: ['PLANNED', 'DRAFTING'] } } }),
+    prisma.contentTopic.count({ where: { ...userFilter, status: 'IDEA' } }),
     prisma.contentDraft.findMany({
       where: userFilter,
       orderBy: { updated_at: 'desc' },
@@ -1284,17 +1384,14 @@ export async function getContentCreationOverview(userId?: number | null) {
     }),
     prisma.contentTopic.findMany({
       where: userFilter,
-      orderBy: [
-        { priority: 'desc' },
-        { updated_at: 'desc' },
-      ],
+      orderBy: { updated_at: 'desc' },
       take: 5,
       select: {
         id: true,
         title: true,
         status: true,
-        priority: true,
-        series: true,
+        source_type: true,
+        core_angle: true,
         updated_at: true,
       },
     }),
@@ -1328,7 +1425,7 @@ async function invokeTopicAI(input: {
       [
         '你是技术内容创作中台的选题策划助手。',
         '目标账号定位：前端工程师转 AI 应用开发实战。',
-        '小红书是搜索型经验分享和收藏型内容平台，不要原文搬运博客。',
+        '选题是后续多平台草稿共用的创作意图，不要把小红书、知乎、抖音等平台格式写进选题。',
         '每个选题只解决一个明确问题，优先真实踩坑、可复现教程、路线、对比清单、项目复盘。',
         '只输出严格 JSON，不要 Markdown，不要解释。',
       ].join('\n'),
@@ -1336,13 +1433,11 @@ async function invokeTopicAI(input: {
     [
       'human',
       [
-        '请基于下面这篇博客，拆出 {limit} 个适合小红书图文的选题。',
-        'priority 取 1-5，5 表示最值得优先做。',
-        'series 从这些栏目里选一个：能跑起来系列、踩坑复盘系列、项目拆解系列、前端转 AI 系列、NAS 实战系列。',
-        'pillar 从这些内容支柱里选一个：AI 应用工程实战、本地大模型和 NAS 实战、程序员效率工具、个人项目复盘、前端转 AI 应用开发路线。',
+        '请基于下面这篇博客，拆出 {limit} 个可复用的创作选题。',
+        'originalIdea 说明用户为什么值得做这个主题；coreAngle 说明推荐从什么角度讲；keyPoints 是后续草稿应覆盖的关键事实或步骤。',
         '',
         '输出 JSON 格式：',
-        '{"topics":[{"title":"选题标题","description":"为什么值得做以及用户能获得什么","pillar":"内容支柱","series":"栏目","priority":5,"reason":"从博客中提取的依据","draftDirection":"后续草稿角度"}]}',
+        '{"topics":[{"title":"选题标题","originalIdea":"值得做的原因","coreAngle":"推荐创作角度","keyPoints":["关键点一","关键点二"]}]}',
         '',
         '博客标题：{postTitle}',
         '博客描述：{postDescription}',
@@ -1417,13 +1512,12 @@ export async function generateTopicsFromPost(input: GenerateTopicsFromPostInput)
 
     const createdTopic = await createContentTopic({
       title: topic.title,
-      description: topic.description,
-      pillar: topic.pillar,
-      series: topic.series,
-      priority: topic.priority,
+      source_type: 'blog',
+      original_idea: topic.originalIdea,
+      core_angle: topic.coreAngle,
+      key_points: topic.keyPoints,
       source_post_id: post.id,
-      source_note: topic.draftDirection || `来自博客《${post.title || post.id}》`,
-      ai_reason: topic.reason,
+      source_note: `来自博客《${post.title || post.id}》`,
       created_by: input.userId ?? null,
     });
 

@@ -38,6 +38,7 @@ import { getDescriptor as aiLabPromptsGet, updateDescriptor as aiLabPromptsUpdat
 import { createDescriptor as aiLabPromptsCreateVersion } from '@/app/api/admin/ai-lab/prompts/[slug]/versions/route';
 import { descriptor as aiLabPromptsDiff } from '@/app/api/admin/ai-lab/prompts/[slug]/diff/route';
 import { descriptor as aiLabPromptsRender } from '@/app/api/admin/ai-lab/prompts/render/route';
+import { createTopicSchema, descriptor as contentTopicCreateRoute } from '@/app/api/create/topics/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -93,6 +94,24 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       }
 
       return post;
+    },
+  },
+  // ---- 内容创作模块 ----
+  {
+    ...contentTopicCreateRoute,
+    apiPath: '/api/create/topics',
+    mcpEnabled: true,
+    mcpToolName: 'create_content_topic',
+    handler: async (args, user) => {
+      const { createContentTopic } = await import('@/services/content-creation');
+      const validation = createTopicSchema.safeParse(args);
+      if (!validation.success) {
+        throw new Error(validation.error.issues.map((issue) => issue.message).join('；'));
+      }
+      return createContentTopic({
+        ...validation.data,
+        created_by: user.id,
+      });
     },
   },
   {

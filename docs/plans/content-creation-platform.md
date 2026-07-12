@@ -84,7 +84,10 @@
 - `/create/drafts`、`/create/assets`、`/create/topics` 已切换为真实列表页，并接入 `/api/create/*`。
 - `/create/drafts/[id]` 已支持草稿图片备注、拖拽排序和一键打包下载；图片使用记录仍保存为草稿内快照。
 - `/create/templates` 已切换为真实模板管理页，支持模板 CRUD、筛选和导入 `xhs/prompts`；`content_templates` schema 与 Prisma Client 已生成，数据库结构同步待执行。
-- `/create/topics` 已支持输入博客文章 ID，让 AI 基于博客内容生成并入库选题；后续扩展文章 URL、网站和手动想法入口。
+- `/create/topics` 已落地手动创建、编辑、删除和按标题/来源去重；选题以原始想法、核心角度、关键点和来源为主数据，不再要求栏目、内容支柱或优先级。
+- 已支持输入博客文章 ID，让 AI 基于博客内容整理为创作意图并入库；链接、网站和一句想法可以手动记录，Topic Agent 的联网整理仍按 `docs/designs/ai/topic-agent.md` 后续实现。
+- 选题卡可以直接创建小红书、知乎、抖音或博客草稿，并把选题快照写入草稿，后续修改选题不会回写历史草稿。
+- `content_topics` 新字段已写入 Prisma schema，部署或本地联调前仍需由环境所有者执行 `pnpm prisma:push` 同步数据库。
 
 ### 3.2 整体流程
 

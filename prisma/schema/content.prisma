@@ -1,10 +1,17 @@
 // ============ 内容创作中台模型 ============
 
-// 选题池：承接博客文章、xhs 选题库和 AI 选题结果。
+// 选题池：保存创作意图、来源和去重依据；平台正文属于 ContentDraft。
 model ContentTopic {
   id             Int       @id @default(autoincrement())
   title          String    @db.VarChar(255)
+  source_type    String    @default("idea") @db.VarChar(30)
+  source_url     String?   @db.Text
   description    String?   @db.Text
+  original_idea  String?   @db.Text
+  core_angle     String?   @db.Text
+  key_points     Json?
+  dedup_key      String?   @db.VarChar(500)
+  // 以下字段保留到旧数据完成迁移；新选题不再以栏目、优先级或 AI 理由为核心信息。
   pillar         String?   @db.VarChar(80)
   series         String?   @db.VarChar(80)
   status         String    @default("IDEA") @db.VarChar(30)
@@ -21,6 +28,7 @@ model ContentTopic {
 
   @@index([status, priority], name: "idx_topic_status_priority")
   @@index([source_post_id], name: "idx_topic_source_post")
+  @@index([dedup_key], name: "idx_topic_dedup_key")
   @@index([created_at], name: "idx_topic_created_at")
   @@map("content_topics")
 }
