@@ -212,9 +212,9 @@ jobs:
       - name: 发送部署成功通知
         if: success()
         run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署完成","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
 
       - name: 发送部署失败通知
         if: failure()
         run: |
-          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://react.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
+          curl -H "Content-Type:application/json" -X POST -d '{"title":"自动部署","content":"react.nnnnzs.cn部署失败","url":"https://www.nnnnzs.cn"}' "${{ secrets.DEPLOY_NOTIFY_URL }}"
