@@ -2,7 +2,7 @@
 
 > **状态**：🚧 执行中
 > **创建时间**：2026-07-04
-> **最近更新**：2026-07-04
+> **最近更新**：2026-07-12
 > **合集**：大模型学习
 > **长期设计**：[AI Lab / LLM 学习实验台设计](../designs/ai/ai-lab.md)
 
@@ -131,9 +131,11 @@ flowchart TB
 2. [x] `/c/ai-lab/prompts` 从规划占位改为真实管理页，使用 AntD `Mentions` 支持 `@` 引用模板。
 3. [x] 模板变量统一使用 LangChain `mustache`：`{{变量}}`。
 4. [x] 新增 Prompt Skill 工具：`list_prompt_skills` 返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
-6. [ ] 记录每次 Run 使用的 `promptVersion` 和实际加载过的 skill 版本。
-7. [ ] 支持从 eval case 批量 replay 当前 prompt。
-8. [ ] 支持 day/night 风格分别评测，避免夜间表达增强影响事实约束。
+5. [x] Create Agent、Topic Agent、Chat Agent 统一从 AI Lab 读取系统 Prompt；Skill 采用“先 metadata、再按需加载正文”的运行时协议。
+6. [x] Create Agent 支持页面实时上下文注入，并由草稿 `type` 与 Skill `description` 决定小红书图文或知乎 Markdown 风格。
+7. [ ] 记录每次 Run 使用的 `promptVersion` 和实际加载过的 skill 版本。
+8. [ ] 支持从 eval case 批量 replay 当前 prompt。
+9. [ ] 支持 day/night 风格分别评测，避免夜间表达增强影响事实约束。
 
 ### 阶段 5：LangSmith 接入
 

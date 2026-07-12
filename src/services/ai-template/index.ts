@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 import { PromptTemplate, parseTemplate, renderTemplate } from '@langchain/core/prompts';
 import { Prisma } from '@/generated/prisma-client/client';
 import { getPrisma } from '@/lib/prisma';
-import { DRAFT_PLATFORM_PROFILES } from '@/constants/content-drafts';
 
 export const AI_TEMPLATE_TYPES = [
   'prompt',
@@ -486,36 +485,6 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 - 不要把读者已经知道的基础概念解释太久。
 
 当你需要完整风格指南时，先读取本模板原文，再结合具体任务生成内容。`,
-  },
-  {
-    slug: DRAFT_PLATFORM_PROFILES.xhs.templateSlug,
-    key: 'content.topic_to_xhs_note',
-    name: '选题转小红书图文笔记',
-    type: 'prompt',
-    scope: 'content',
-    description: '把结构化选题上下文加工成小红书图文笔记。',
-    aliases: ['选题转小红书', '小红书图文笔记模板'],
-    metadata: {
-      source: 'builtin',
-      platform: 'xhs',
-      draftType: 'note',
-    },
-    content: DRAFT_PLATFORM_PROFILES.xhs.templateContent,
-  },
-  {
-    slug: DRAFT_PLATFORM_PROFILES.zhihu.templateSlug,
-    key: 'content.topic_to_zhihu_article',
-    name: '选题转知乎长文',
-    type: 'prompt',
-    scope: 'content',
-    description: '把结构化选题上下文加工成知乎 Markdown 长文。',
-    aliases: ['选题转知乎', '知乎 Markdown 长文模板'],
-    metadata: {
-      source: 'builtin',
-      platform: 'zhihu',
-      draftType: 'article',
-    },
-    content: DRAFT_PLATFORM_PROFILES.zhihu.templateContent,
   },
   {
     slug: 'chat-agent-day',

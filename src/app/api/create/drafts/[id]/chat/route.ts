@@ -14,6 +14,7 @@ import { CONTENT_EDIT } from '@/constants/permissions';
 import { getContentDraft } from '@/services/content-creation';
 import { createSSEResponse } from '@/lib/sse';
 import { createAgentStream } from '@/services/ai/create-agent';
+import type { CreateAgentPageContext } from '@/types/create-agent';
 import { validationErrorResponse } from '../../../_utils';
 
 interface RouteContext {
@@ -32,6 +33,14 @@ const chatSchema = z.object({
     .max(20, '历史消息过多')
     .optional()
     .default([]),
+  pageContext: z.object({
+    title: z.string().max(255),
+    hook: z.string().max(5000),
+    body: z.string().max(100000),
+    tags: z.array(z.string().max(100)).max(20),
+    type: z.string().max(50),
+    status: z.string().max(30),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -66,6 +75,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       userId: check.user.id,
       message: validation.data.message,
       history: validation.data.history,
+      pageContext: validation.data.pageContext as CreateAgentPageContext | undefined,
     });
 
     return createSSEResponse(stream);

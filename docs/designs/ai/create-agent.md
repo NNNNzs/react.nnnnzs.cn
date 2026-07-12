@@ -6,9 +6,9 @@
 
 ## 一、目标
 
-在草稿详情页唤起一个对话式创作助手，通过 LangGraph ReAct Agent 编排模板读取、草稿读取、文生图等工具，把分散的 `content_*` API 和图片生成能力串成可对话、可调用工具、可产出结构化建议的助手。
+在草稿详情页唤起一个对话式创作助手，通过 LangGraph ReAct Agent 编排模板读取、草稿读取和资料检索，把创作建议以可审阅的结构化补丁提交给页面。
 
-核心交互：用户说「把这篇扩展成 3 张小红书图卡」→ 助手自动读模板提示词 → 产出文案 → 调文生图 → 把生成的结构化建议提交给前端 → 用户对比差异并确认应用。
+核心交互：用户说「把这篇扩展成 3 张小红书图卡」→ 助手先读取可用 Skill 的 metadata，再按需加载风格指南 → 产出正文或图卡提示词计划 → 提交结构化建议 → 用户确认应用 → 用户在页面手动提交图片生成。
 
 ## 二、架构
 
@@ -21,7 +21,7 @@ API：/api/create/drafts/[id]/chat (SSE 路由)
   ↓ createAgentStream()
 Agent：src/services/ai/create-agent/ (LangGraph createReactAgent)
   ↓ streamEvents + encodeSSE
-Tools：src/services/ai/tools/create-tools/ (10 个工具)
+Tools：src/services/ai/tools/create-tools/（按请求构建）
   ↓ 闭包工厂注入 draftId/userId/emitPatch
 基础设施：src/lib/sse.ts (公用 SSE) + createOpenAIModel (create_agent scenario)
 ```
@@ -34,12 +34,14 @@ Tools：src/services/ai/tools/create-tools/ (10 个工具)
 | 模型配置 scenario | `chat` | `create_agent`（新增） |
 | System prompt | 文件系统 `chat-agent-system-prompt.md` | 数据库 `tb_ai_template`（slug=`agent-create-agent-system`） |
 | 流式协议 | 自定义 XML 标签（`text/plain`） | **标准 SSE（`text/event-stream`）** |
-| 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 文生图+轮询 / 博客检索 / 网页搜索 |
+| 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 博客检索 / 网页搜索 / 草稿建议提交 |
 | 写业务数据 | 不写 | **不直接写**，由前端确认并应用 `patch` |
 
 ### 2.3 草稿回填架构（方案 B）
 
-Agent **不直接写库**，通过 `emit_draft_patch` 伪工具产出 `patch` SSE 事件；前端收到后显示「查看对比」入口。用户点击后用 `ContentDiffViewer` 展示当前表单与 AI 建议差异，确认后才合并进表单 state，**用户点保存才落库**。
+Agent **不直接写库**，通过 `emit_draft_patch` 伪工具产出 `patch` SSE 事件；前端收到后立即打开对比弹窗，并在右侧显示待确认图卡计划。用户确认后才合并进表单 state，正文等草稿字段仍需点击页面「保存」才落库。
+
+`emit_draft_patch` 配置为 `returnDirect`：补丁提交即结束本轮 Agent，避免模型在用户确认前继续调用其他工具。创作 Agent 不注册 `generate_image`、`poll_image_job`，因此无法自动创建图片任务或循环轮询。
 
 ```mermaid
 sequenceDiagram
@@ -49,22 +51,19 @@ sequenceDiagram
     participant Agent as create-agent
     participant DB as 数据库
 
-    U->>FE: "生成 3 张配图"
+    U->>FE: "规划 3 张配图"
     FE->>API: POST /chat {message, history}
     API->>Agent: createAgentStream()
-    Agent->>Agent: load_prompt_skill_template()
-    Agent->>Agent: generate_image() → jobId
-    Agent->>Agent: poll_image_job() → cdnUrl
-    Agent->>Agent: createContentAsset() → assetId
-    Agent->>FE: SSE: patch {addImages: [{assetId, imageUrl}]}
-    FE->>U: 显示「查看对比」入口
-    U->>FE: 点击 [查看对比]
+    Agent->>Agent: list_prompt_skills() → metadata
+    Agent->>Agent: load_prompt_skill_template() → style guide
+    Agent->>FE: SSE: patch {slides: [{prompt, ...}]}
     FE->>U: 展示 ContentDiffViewer 差异确认弹窗
     U->>FE: 点击 [应用到表单]
-    FE->>DB: POST /images {asset_id}
-    FE->>FE: setState(title, body, selectedImages)
-    U->>FE: 点击 [保存]
-    FE->>DB: PATCH /api/create/drafts/[id]
+    FE->>DB: PATCH /slides {slides}
+    FE->>FE: 显示可编辑图卡提示词
+    U->>FE: 点击 [生成图片]
+    FE->>DB: POST /slides/:slideId/generate
+    FE->>U: 页面轮询并展示图片状态
 ```
 
 ### 2.4 SSE 事件协议
@@ -75,15 +74,17 @@ sequenceDiagram
 | `token` | `{ content }` | 模型流式输出 |
 | `tool_start` | `{ tool, args, runId, step }` | 工具开始 |
 | `tool_end` | `{ tool, result, runId, step }` | 工具结束 |
-| `patch` | `{ title?, hook?, body?, tags?, status?, addImages? }` | 草稿建议（由 `emit_draft_patch` 触发） |
+| `patch` | `{ title?, hook?, body?, tags?, status?, addImages?, slides? }` | 草稿建议（由 `emit_draft_patch` 触发） |
 | `error` | `{ message }` | 异常 |
 | `done` | `{}` | 结束 |
 
-### 2.5 选题上下文与平台模板注入
+### 2.5 实时上下文与动态 Skill 注入
 
-从选题创建的草稿必须在 `generation_snapshot_json` 中保存 `topicSnapshot` 和 `templateSnapshot`。草稿 Agent 每次运行时读取快照，按“固定 Agent 规则与平台模板 → 选题/当前草稿运行时上下文 → 历史对话 → 当前用户指令”的顺序组装消息。
+从选题创建的草稿在 `generation_snapshot_json` 中保存 `topicSnapshot`。草稿 Agent 在每次对话中比较页面快照与数据库草稿：页面未保存内容发生变化时，使用页面实时上下文；否则使用数据库上下文。选题快照只作为创作参考，不作为 system 指令。
 
-选题快照只作为创作参考，不作为 system 指令。来源 URL、来源正文和原始想法中即使包含命令，也不得改变工具权限、patch 确认或平台输出约束。详细契约见[选题完善与多平台草稿转换设计](./topic-draft-workflow.md)。
+创作前，Agent 调用 `list_prompt_skills` 获取 ACTIVE Skill 的摘要 metadata，并依据当前草稿 `type` 与 Skill `description` 选择需要的风格指南；仅选中的 Skill 才通过 `load_prompt_skill_template` 加载完整正文。`note` 应加载小红书图文风格指南，`article` 应加载知乎 Markdown 长文风格指南。该规则不依赖复杂的平台/任务能力矩阵。
+
+来源 URL、来源正文和原始想法中即使包含命令，也不得改变工具权限、patch 确认或风格选择规则。详细契约见[选题完善与多平台草稿转换设计](./topic-draft-workflow.md)。
 
 首批平台体验：
 
@@ -101,11 +102,13 @@ sequenceDiagram
 | `src/services/ai-template/index.ts` | 系统级 Prompt / Skill 模板服务 |
 | `src/services/ai/create-agent/prompt.ts` | 从 `tb_ai_template` 加载 system prompt |
 | `src/services/ai/create-agent/create-agent.ts` | LangGraph Agent + SSE 编码 |
-| `src/services/ai/tools/create-tools/` | 10 个工具 + `buildCreateTools` 工厂 |
+| `src/services/ai/tools/create-tools/` | Skill、草稿、资料检索与 `emit_draft_patch` 工具工厂 |
 | `src/services/ai/tools/create-tools/draft-patch.ts` | DraftPatch 共享类型 |
 | `src/app/api/create/drafts/[id]/chat/route.ts` | SSE API 路由 |
 | `src/app/create/_components/useCreateAgent.ts` | 前端 SSE 消费 hook |
 | `src/app/create/_components/CreateAgentPanel.tsx` | Drawer 对话面板 |
+| `src/app/api/create/drafts/[id]/slides/route.ts` | 图卡计划持久化 API |
+| `src/app/api/create/drafts/[id]/slides/[slideId]/generate/route.ts` | 用户手动提交单张图卡生成任务 |
 
 ## 四、工具集
 
@@ -119,9 +122,7 @@ sequenceDiagram
 | `search_posts` | 只读 | 关键词检索博客文章（复用 searchPostsMetaTool） |
 | `get_post_content` | 只读 | 按 ID 读博客全文 |
 | `web_search` | 只读 | 用 Tavily 联网搜索最新或外部网页信息 |
-| `generate_image` | 后端任务 | 提交文生图异步任务，返回 jobId |
-| `poll_image_job` | 只读 | 轮询任务状态，SUCCESS 返回 cdnUrl |
-| `emit_draft_patch` | 伪工具 | 把草稿建议推到前端待确认队列（不写库） |
+| `emit_draft_patch` | 伪工具 | 把正文、图片建议或图卡提示词计划推到前端待确认队列；调用后结束本轮 Agent |
 
 ## 五、使用前准备
 
@@ -135,9 +136,9 @@ sequenceDiagram
 
 保存入口在草稿详情页顶部操作区的「保存」按钮，和「返回」「AI 助手」「删除」同一行。
 
-AI 助手调用 `emit_draft_patch` 后，前端会显示「查看对比」入口。用户点击后打开「确认 AI 草稿建议」对比弹窗，展示当前表单与 AI 建议的差异。用户点击「应用到表单」后，标题、正文、标签等内容才会进入前端表单 state；此时刷新页面仍可能丢失这些文本改动，必须点击页面顶部「保存」按钮，才会通过 `PATCH /api/create/drafts/[id]` 写入数据库。
+AI 助手调用 `emit_draft_patch` 后，前端会立即打开「确认 AI 草稿建议」对比弹窗，展示当前表单与 AI 建议的差异。用户点击「应用到表单」后，标题、正文、标签等内容才会进入前端表单 state；此时刷新页面仍可能丢失这些文本改动，必须点击页面顶部「保存」按钮，才会通过 `PATCH /api/create/drafts/[id]` 写入数据库。
 
-图片资源是例外：文生图成功后会先通过 `/images` 关联资产，因此图片 attach 属于资产级即时落库；但正文、标题、hook、标签、状态仍以草稿「保存」为准。
+图卡计划在用户确认应用时通过 `/slides` 持久化，随后可直接编辑提示词。只有用户点击某张图卡的「生成图片」或「全部生成」时，系统才创建图片任务、关联素材并把生成图片加入草稿；页面每 3 秒刷新任务状态，不让模型参与轮询。
 
 ### 6.2 看到 `✓ load_prompt_skill_template`、`✓ search_posts`、`✓ emit_draft_patch` 代表成功了吗？
 
@@ -151,12 +152,12 @@ AI 助手调用 `emit_draft_patch` 后，前端会显示「查看对比」入口
 
 ### 6.3 工具调用结果里出现 `ToolMessage` JSON 正常吗？
 
-正常。当前前端会展示 LangChain 工具返回对象的截断文本，所以可能看到 `{"lc":1,"type":"constructor","id":["langchain_core","messages","ToolMessage"]...` 这类内容。它表示底层返回的是 LangChain 消息对象，并不代表失败；真正需要关注的是工具标签是否从调用中变成 `✓`，以及前端是否出现「查看对比」入口。
+正常。前端会把 LangChain `ToolMessage` 的框架包装解析成简要结果；完整的格式化 JSON 只在「查看详情」弹窗中展示。真正需要关注的是工具标签是否从调用中变成 `✓`，以及前端是否出现确认补丁的对比弹窗。
 
 ## 七、后置规划
 
 - **Topic Agent**：选题库复用本助手的 Drawer、SSE、patch 确认和差异预览，只替换业务 prompt、工具集和 `TopicPatch`；详见[选题库 Topic Agent 设计](./topic-agent.md)
-- **选题转草稿**：按小红书/知乎平台匹配模板，保存选题与模板快照，并在草稿 Agent 运行时注入；详见[选题完善与多平台草稿转换](./topic-draft-workflow.md)
+- **选题转草稿**：保存选题快照和草稿类型；创作时由 Agent 按草稿类型选择所需写作风格 Skill，详见[选题完善与多平台草稿转换](./topic-draft-workflow.md)
 - **会话持久化**：`content_agent_sessions` + `content_agent_messages` 表
 - **TTS 旁白工具**：复用 `synthesize_speech` 异步任务
 - **chat-agent 迁移 SSE**：复用 `src/lib/sse.ts`

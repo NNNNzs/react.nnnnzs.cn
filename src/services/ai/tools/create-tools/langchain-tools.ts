@@ -12,10 +12,7 @@ import { tavily } from '@tavily/core';
 import { z } from 'zod';
 import type { StructuredTool } from '@langchain/core/tools';
 import { getAIConfigValue } from '@/lib/ai-config';
-import { createImageGenerationJob } from '@/services/image-gen-job';
-import { getAiJob } from '@/services/ai-job';
 import { createContentAsset } from '@/services/content-creation';
-import type { AuthUser } from '@/types/auth';
 import {
   listPromptSkillsTool,
   loadPromptSkillTemplateTool,
@@ -32,20 +29,6 @@ export interface BuildCreateToolsParams {
   emitPatch: (patch: DraftPatch) => void;
 }
 
-/** 构造最小 AuthUser，仅用于 getAiJob 归属校验（job 由同 userId 创建） */
-function buildMinimalUser(userId: number): AuthUser {
-  return {
-    id: userId,
-    account: '',
-    nickname: '',
-    avatar: null,
-    role: null,
-    roles: [],
-    permissions: [],
-    dataScopes: {},
-  };
-}
-
 export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool[] {
   const { draftId, userId, emitPatch } = params;
 
@@ -55,8 +38,6 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   const searchPosts = wrapSearchPosts();
   const getPostContent = wrapGetPostContent();
   const webSearch = wrapWebSearch();
-  const generateImage = wrapGenerateImage(userId);
-  const pollImageJob = wrapPollImageJob(userId);
   const emitDraftPatch = wrapEmitDraftPatch(emitPatch, userId, draftId);
 
   return [
@@ -66,8 +47,6 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
     searchPosts,
     getPostContent,
     webSearch,
-    generateImage,
-    pollImageJob,
     emitDraftPatch,
   ];
 }
@@ -203,89 +182,6 @@ function wrapWebSearch(): StructuredTool {
   );
 }
 
-function wrapGenerateImage(userId: number): StructuredTool {
-  return tool(
-    async ({ prompt, mode, images }) => {
-      try {
-        const job = await createImageGenerationJob({
-          options: {
-            mode: mode ?? 'generate',
-            prompt,
-            images: images ?? undefined,
-          },
-          userId,
-          source: 'ADMIN',
-        });
-        return JSON.stringify({
-          jobId: job.jobId,
-          status: job.status,
-          message: `已提交 ${mode ?? 'generate'} 任务，请用 poll_image_job 轮询 jobId=${job.jobId}`,
-        });
-      } catch (error) {
-        return JSON.stringify({
-          error: error instanceof Error ? error.message : '提交文生图任务失败',
-        });
-      }
-    },
-    {
-      name: 'generate_image',
-      description:
-        '提交文生图或图文编辑异步任务，返回 jobId。拿到 jobId 后必须用 poll_image_job 轮询直到成功，再通过 emit_draft_patch 的 addImages 提交待确认图片建议。',
-      schema: z.object({
-        prompt: z.string().min(1).describe('图片提示词，中文大标题 + 2-4 条要点，适合手机阅读'),
-        mode: z
-          .enum(['generate', 'edit'])
-          .optional()
-          .describe('generate 纯文生图；edit 基于参考图编辑（需提供 images）'),
-        images: z
-          .array(z.string())
-          .optional()
-          .describe('edit 模式的参考图 URL 列表'),
-      }),
-    },
-  );
-}
-
-function wrapPollImageJob(userId: number): StructuredTool {
-  const user = buildMinimalUser(userId);
-  return tool(
-    async ({ jobId }) => {
-      try {
-        const job = await getAiJob(jobId, user, 'image-gen');
-        if (!job) {
-          return JSON.stringify({ error: `任务 ${jobId} 不存在或无权访问` });
-        }
-        if (job.status === 'SUCCESS') {
-          return JSON.stringify({
-            status: 'SUCCESS',
-            cdnUrl: job.resourceUrl,
-            message: `图片生成成功：${job.resourceUrl}`,
-          });
-        }
-        if (job.status === 'FAILED') {
-          return JSON.stringify({ status: 'FAILED', error: job.errorMessage });
-        }
-        return JSON.stringify({
-          status: job.status,
-          message: `任务仍在进行中（${job.status}），请继续轮询`,
-        });
-      } catch (error) {
-        return JSON.stringify({
-          error: error instanceof Error ? error.message : '轮询任务失败',
-        });
-      }
-    },
-    {
-      name: 'poll_image_job',
-      description:
-        '轮询文生图任务状态。SUCCESS 返回 cdnUrl；FAILED 返回错误；PENDING/PROCESSING 提示继续轮询。轮询不要超过 30 次。',
-      schema: z.object({
-        jobId: z.string().describe('generate_image 返回的 jobId'),
-      }),
-    },
-  );
-}
-
 /**
  * emit_draft_patch：伪工具。
  * 模型以为在修改草稿，实际只通过 emitPatch 推送结构化 patch 到前端待确认。
@@ -338,6 +234,9 @@ function wrapEmitDraftPatch(
       name: 'emit_draft_patch',
       description:
         '把建议写进草稿的内容以结构化 patch 提交给前端待确认。修改草稿（标题/hook/正文/标签/状态/追加图片）必须用此工具，不要只在对话里贴文本。写权限在用户手里，用户确认应用并点保存才落库。',
+      // 这是创作建议这一轮的终点：补丁交给页面后，必须等用户确认，
+      // 不能把工具结果再交回模型继续调用 generate_image / poll_image_job。
+      returnDirect: true,
       schema: z.object({
         title: z.string().optional().describe('新标题'),
         hook: z.string().optional().describe('钩子文案'),
@@ -357,6 +256,11 @@ function wrapEmitDraftPatch(
           )
           .optional()
           .describe('要追加到草稿的图片'),
+        slides: z.array(z.object({
+          title: z.string().optional().describe('图卡标题'),
+          bullets: z.array(z.string()).optional().describe('图卡要点'),
+          prompt: z.string().min(1).describe('该图卡的图片生成提示词，只做计划，不直接出图'),
+        })).max(12).optional().describe('图文草稿的图卡计划与图片提示词'),
       }),
     },
   );

@@ -18,6 +18,13 @@ export interface DraftPatchImage {
   group?: string;
 }
 
+/** 图文草稿中的一张图卡计划；prompt 在用户确认后持久化到 content_draft_slides。 */
+export interface DraftPatchSlide {
+  title?: string;
+  bullets?: string[];
+  prompt: string;
+}
+
 export interface DraftPatch {
   /** 新标题 */
   title?: string;
@@ -31,4 +38,6 @@ export interface DraftPatch {
   status?: 'DRAFT' | 'ASSET_PENDING' | 'READY' | 'PUBLISHED' | 'ARCHIVED';
   /** 要追加到草稿的图片 */
   addImages?: DraftPatchImage[];
+  /** 图卡文案与图片提示词计划，不会直接触发图片生成。 */
+  slides?: DraftPatchSlide[];
 }

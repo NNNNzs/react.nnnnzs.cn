@@ -1,24 +1,12 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { getAllCollectionsSummary } from '@/services/collection';
 import { getPublicPostCount } from '@/services/post';
 import { getAllTags } from '@/services/tag';
-import { chatStyleVoiceCopy } from '@/config/site-copy/chat';
-import { selectStyleText } from '@/lib/site-style/copy';
 import { parseSiteStyleVariant } from '@/lib/site-style/variant';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
 import {
-  compilePromptTemplate,
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
-
-const CHAT_AGENT_PROMPT_PATH = path.join(
-  process.cwd(),
-  'docs',
-  'reference',
-  'chat-agent-system-prompt.md',
-);
 
 const CHAT_AGENT_TEMPLATE_SLUGS: Record<SiteStyleVariant, string> = {
   day: 'chat-agent-day',
@@ -42,31 +30,12 @@ type PromptContext = {
 const PROMPT_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
 let promptContextCache: { value: PromptContext; expiresAt: number } | null = null;
 
-function convertLegacyFStringToMustache(template: string) {
-  return template
-    .replaceAll('{siteName}', '{{siteName}}')
-    .replaceAll('{baseUrl}', '{{baseUrl}}')
-    .replaceAll('{currentTime}', '{{currentTime}}')
-    .replaceAll('{userInfo}', '{{userInfo}}')
-    .replaceAll('{styleVoiceInstruction}', '{{styleVoiceInstruction}}')
-    .replaceAll('{knowledgeBaseSummary}', '{{knowledgeBaseSummary}}')
-    .replaceAll('{collectionsSummary}', '{{collectionsSummary}}');
-}
-
 async function loadPromptTemplate(styleVariant: SiteStyleVariant) {
-  try {
-    const template = await loadPromptSkillTemplate({
-      slug: CHAT_AGENT_TEMPLATE_SLUGS[styleVariant],
-    });
-    if (template.version.content.trim()) {
-      return template.version.content;
-    }
-  } catch (error) {
-    console.warn(`[chat-agent] 加载 ${CHAT_AGENT_TEMPLATE_SLUGS[styleVariant]} 模板失败，回退到文件模板:`, error);
-  }
-
-  const template = await readFile(CHAT_AGENT_PROMPT_PATH, 'utf8');
-  return convertLegacyFStringToMustache(template);
+  const template = await loadPromptSkillTemplate({
+    slug: CHAT_AGENT_TEMPLATE_SLUGS[styleVariant],
+  });
+  if (!template.version.content.trim()) throw new Error('聊天助手系统模板为空');
+  return template.version.content;
 }
 
 async function getPromptContext(): Promise<PromptContext> {
@@ -135,15 +104,13 @@ export async function buildChatAgentSystemPrompt(
     loadPromptTemplate(styleVariant),
     getPromptContext(),
   ]);
-  const compiled = await compilePromptTemplate(rawTemplate);
-  const template = createMustachePromptTemplate(compiled.content);
+  const template = createMustachePromptTemplate(rawTemplate);
 
   return template.format({
     siteName: params.siteName,
     baseUrl: params.baseUrl,
     currentTime: params.currentTime,
     userInfo: params.userInfo,
-    styleVoiceInstruction: selectStyleText(chatStyleVoiceCopy.systemInstruction, styleVariant),
     knowledgeBaseSummary: formatKnowledgeBaseSummary(context.articleTags, context.articleCount),
     collectionsSummary: formatCollectionsSummary(context.collections),
   });

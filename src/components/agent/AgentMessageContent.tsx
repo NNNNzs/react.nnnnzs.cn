@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from "react";
-import { Collapse } from "antd";
+import { Button, Collapse, Modal } from "antd";
 import XMarkdown from "@ant-design/x-markdown";
 import { BulbOutlined, SearchOutlined, FileTextOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Think } from "@ant-design/x";
@@ -50,6 +50,120 @@ const DEFAULT_STYLE_COPY: AgentStyleCopy = {
   retrievalRoundPrefix: "检索 #",
   retrievalRoundSuffix: "",
 };
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 提取 LangChain 序列化 ToolMessage 中真正的工具结果，避免把框架内部结构展示给用户。
+ */
+function unwrapToolResult(value: string): unknown {
+  let current: unknown = value;
+
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current === "string") {
+      const parsed = parseJson(current);
+      if (parsed === null) return current;
+      current = parsed;
+      continue;
+    }
+
+    const record = asRecord(current);
+    const kwargs = asRecord(record?.kwargs);
+    if (kwargs && "content" in kwargs) {
+      current = kwargs.content;
+      continue;
+    }
+
+    return current;
+  }
+
+  return current;
+}
+
+function formatToolResult(value: unknown): string {
+  if (typeof value === "string") return value;
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function summarizeToolResult(value: unknown): string {
+  if (typeof value === "string") {
+    const text = value.replaceAll(/\s+/g, " ").trim();
+    if (!text) return "工具已完成，未返回内容";
+    return text.length > 96 ? `返回文本（${text.length} 字）` : text;
+  }
+
+  if (Array.isArray(value)) return `返回 ${value.length} 条结果`;
+
+  const record = asRecord(value);
+  if (!record) return "工具已完成";
+
+  if (record.success === false) {
+    return typeof record.error === "string" ? `执行失败：${record.error}` : "工具执行失败";
+  }
+
+  if (typeof record.message === "string") return record.message;
+  if (typeof record.error === "string") return `执行失败：${record.error}`;
+
+  if (Array.isArray(record.data)) return `执行成功，返回 ${record.data.length} 条结果`;
+  if (Array.isArray(record.items)) return `执行成功，返回 ${record.items.length} 条结果`;
+  if (typeof record.count === "number") return `执行成功，共 ${record.count} 条结果`;
+
+  const keys = Object.keys(record);
+  return keys.length > 0 ? `执行成功，包含 ${keys.length} 项数据` : "工具已完成";
+}
+
+/**
+ * 将工具原始结果折叠为可扫描摘要，完整 JSON 仅在用户主动查看时渲染。
+ */
+function ToolResultPreview({ result, toolName }: { result: string; toolName?: string }) {
+  const [open, setOpen] = useState(false);
+  const detail = useMemo(() => unwrapToolResult(result), [result]);
+  const summary = useMemo(() => summarizeToolResult(detail), [detail]);
+  const formattedDetail = useMemo(() => formatToolResult(detail), [detail]);
+
+  return (
+    <>
+      <span>{summary}</span>
+      <Button
+        type="link"
+        size="small"
+        className="!ml-1 !h-auto !px-0 !text-xs"
+        onClick={() => setOpen(true)}
+      >
+        查看详情
+      </Button>
+      <Modal
+        title={toolName ? `工具结果 · ${toolName}` : "工具结果"}
+        open={open}
+        footer={null}
+        onCancel={() => setOpen(false)}
+        width={760}
+        destroyOnHidden
+      >
+        <pre className="max-h-[65vh] overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+          {formattedDetail}
+        </pre>
+      </Modal>
+    </>
+  );
+}
 
 /**
  * Drawer 变体子组件 — 无 Hooks，纯展示
@@ -128,7 +242,9 @@ const ReactStepItem: React.FC<{
           {step.toolName && step.content && (
             <span className="text-gray-400 mx-1">·</span>
           )}
-          {step.content}
+          {step.type === "observation" && step.content ? (
+            <ToolResultPreview result={step.content} toolName={step.toolName} />
+          ) : step.content}
           {step.isStreaming && (
             <span className="inline-block w-1.5 h-4 bg-gray-400 ml-0.5 animate-pulse align-middle dark:bg-slate-300" />
           )}

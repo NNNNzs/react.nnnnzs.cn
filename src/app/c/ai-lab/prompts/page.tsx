@@ -22,6 +22,7 @@ import {
   BranchesOutlined,
   DiffOutlined,
   EditOutlined,
+  MinusCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -30,6 +31,10 @@ import dayjs from "dayjs";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
+import type {
+  AiTemplateCapabilityLoadMode,
+  AiTemplateCapabilityRole,
+} from "@/types/ai-template-capability";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -95,7 +100,7 @@ interface DiffData {
   currentVersion: number;
 }
 
-interface NewTemplateForm {
+interface NewTemplateForm extends CapabilityFormValues {
   slug: string;
   name: string;
   type: string;
@@ -103,6 +108,21 @@ interface NewTemplateForm {
   description?: string;
   aliases?: string;
   content: string;
+}
+
+interface CapabilityReferenceForm {
+  slug: string;
+  role: AiTemplateCapabilityRole;
+  load: AiTemplateCapabilityLoadMode;
+  tasks?: string[];
+}
+
+interface CapabilityFormValues {
+  scenarios?: string[];
+  platforms?: string[];
+  draftTypes?: string[];
+  tasks?: string[];
+  references?: CapabilityReferenceForm[];
 }
 
 const TYPE_OPTIONS = [
@@ -113,6 +133,18 @@ const TYPE_OPTIONS = [
   { label: "Tool Instruction", value: "tool_instruction" },
   { label: "Schema", value: "schema" },
   { label: "Checklist", value: "checklist" },
+];
+
+const CAPABILITY_ROLE_OPTIONS: Array<{ label: string; value: AiTemplateCapabilityRole }> = [
+  { label: "风格", value: "style" },
+  { label: "任务", value: "task" },
+  { label: "上下文", value: "context" },
+  { label: "指令", value: "instruction" },
+];
+
+const CAPABILITY_LOAD_OPTIONS: Array<{ label: string; value: AiTemplateCapabilityLoadMode }> = [
+  { label: "按需加载", value: "on_demand" },
+  { label: "必须加载", value: "always" },
 ];
 
 const STATUS_COLOR = new Map([
@@ -135,6 +167,76 @@ function parseAliases(value?: string) {
     .split(/[,，\n]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return items.length > 0 ? items : undefined;
+}
+
+function capabilityFormValues(metadata: unknown): CapabilityFormValues {
+  const record = asRecord(metadata);
+  const appliesTo = asRecord(record?.appliesTo);
+  const references = Array.isArray(record?.references)
+    ? record.references.flatMap((item) => {
+      const reference = asRecord(item);
+      if (!reference) return [];
+      const slug = typeof reference?.slug === "string" ? reference.slug : "";
+      const role = reference?.role;
+      const load = reference?.load;
+      if (!slug || !["style", "task", "context", "instruction"].includes(String(role))) return [];
+      if (load !== "on_demand" && load !== "always") return [];
+      return [{
+        slug,
+        role: role as AiTemplateCapabilityRole,
+        load: load as AiTemplateCapabilityLoadMode,
+        tasks: asStringArray(reference.tasks),
+      }];
+    })
+    : undefined;
+
+  return {
+    scenarios: asStringArray(appliesTo?.scenarios),
+    platforms: asStringArray(appliesTo?.platforms),
+    draftTypes: asStringArray(appliesTo?.draftTypes),
+    tasks: asStringArray(appliesTo?.tasks),
+    references,
+  };
+}
+
+function buildCapabilityMetadata(base: unknown, values: CapabilityFormValues) {
+  const baseRecord = asRecord(base) || {};
+  const otherMetadata = Object.fromEntries(
+    Object.entries(baseRecord).filter(([key]) => !["appliesTo", "references", "schemaVersion"].includes(key)),
+  );
+  const appliesTo = Object.fromEntries(
+    Object.entries({
+      scenarios: values.scenarios,
+      platforms: values.platforms,
+      draftTypes: values.draftTypes,
+      tasks: values.tasks,
+    }).filter(([, value]) => value && value.length > 0),
+  );
+  const references = (values.references || []).map((reference) => ({
+    slug: reference.slug.trim(),
+    role: reference.role,
+    load: reference.load,
+    ...(reference.tasks?.length ? { tasks: reference.tasks } : {}),
+  }));
+
+  return {
+    ...otherMetadata,
+    schemaVersion: 1,
+    ...(Object.keys(appliesTo).length > 0 ? { appliesTo } : {}),
+    ...(references.length > 0 ? { references } : {}),
+  };
 }
 
 type SortField = "name" | "updated_at" | "created_at" | "current_version";
@@ -169,8 +271,10 @@ export default function AiLabPromptsPage() {
   const [diffData, setDiffData] = useState<DiffData | null>(null);
   const [fromVersion, setFromVersion] = useState<number | null>(null);
   const [toVersion, setToVersion] = useState<number | null>(null);
+  const [activeVersionMetadata, setActiveVersionMetadata] = useState<unknown>(null);
   const [newForm] = Form.useForm<NewTemplateForm>();
   const [editForm] = Form.useForm<NewTemplateForm>();
+  const [capabilityForm] = Form.useForm<CapabilityFormValues>();
 
   const mentionOptions: MentionsOptionProps[] = useMemo(
     () => mentionTemplates.map((item) => ({
@@ -295,13 +399,16 @@ export default function AiLabPromptsPage() {
       const active = sortedVersions.find((item) => item.version === result.data.current_version) || sortedVersions[0];
       setDetail({ ...result.data, versions: sortedVersions });
       setEditorValue(active?.content || "");
+      setActiveVersionMetadata(active?.metadata_json ?? null);
+      capabilityForm.resetFields();
+      capabilityForm.setFieldsValue(capabilityFormValues(active?.metadata_json));
       setChangeNote("");
       setFromVersion(sortedVersions[1]?.version ?? null);
       setToVersion(active?.version ?? null);
     } finally {
       setDetailLoading(false);
     }
-  }, []);
+  }, [capabilityForm]);
 
   useEffect(() => {
     void loadTemplates();
@@ -319,14 +426,29 @@ export default function AiLabPromptsPage() {
 
   const handleCreateTemplate = useCallback(async () => {
     const values = await newForm.validateFields();
+    const {
+      scenarios,
+      platforms,
+      draftTypes,
+      tasks,
+      references,
+      ...templateValues
+    } = values;
     setSaving(true);
     try {
       const response = await fetch("/api/admin/ai-lab/prompts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...values,
-          aliases: parseAliases(values.aliases),
+          ...templateValues,
+          aliases: parseAliases(templateValues.aliases),
+          metadata: buildCapabilityMetadata(null, {
+            scenarios,
+            platforms,
+            draftTypes,
+            tasks,
+            references,
+          }),
         }),
       });
       const result = await response.json() as ApiResponse<TemplateDetail | null>;
@@ -338,7 +460,7 @@ export default function AiLabPromptsPage() {
       setNewOpen(false);
       newForm.resetFields();
       await Promise.all([loadTemplates(), loadMentionTemplates()]);
-      if (values.slug) setSelectedSlug(values.slug);
+      if (templateValues.slug) setSelectedSlug(templateValues.slug);
     } finally {
       setSaving(false);
     }
@@ -394,6 +516,7 @@ export default function AiLabPromptsPage() {
 
   const handleSaveVersion = useCallback(async () => {
     if (!detail) return;
+    const capabilityValues = await capabilityForm.validateFields();
     setSaving(true);
     try {
       const response = await fetch(`/api/admin/ai-lab/prompts/${encodeURIComponent(detail.slug)}/versions`, {
@@ -401,6 +524,7 @@ export default function AiLabPromptsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: editorValue,
+          metadata: buildCapabilityMetadata(activeVersionMetadata, capabilityValues),
           changeNote: changeNote.trim() || undefined,
           activate: true,
         }),
@@ -416,7 +540,7 @@ export default function AiLabPromptsPage() {
     } finally {
       setSaving(false);
     }
-  }, [changeNote, detail, editorValue, loadDetail, loadMentionTemplates, loadTemplates]);
+  }, [activeVersionMetadata, capabilityForm, changeNote, detail, editorValue, loadDetail, loadMentionTemplates, loadTemplates]);
 
   const handleActivateVersion = useCallback(async (version: number) => {
     if (!detail) return;
@@ -680,10 +804,89 @@ export default function AiLabPromptsPage() {
                 </div>
               </div>
 
+              <div className="border-t border-slate-100 pt-4">
+                <Typography.Text strong>版本能力配置</Typography.Text>
+                <Typography.Paragraph type="secondary" className="!mt-1 !mb-3 !text-xs">
+                  所有 Agent 共用：按运行场景和内容条件筛选后，按需加载下方引用的 Prompt / Skill。
+                </Typography.Paragraph>
+                <Form form={capabilityForm} layout="vertical" size="small">
+                  <Form.Item name="scenarios" label="适用场景">
+                    <Select
+                      mode="tags"
+                      tokenSeparators={[",", "，", " "]}
+                      placeholder="chat / topic_agent / create_agent"
+                    />
+                  </Form.Item>
+                  <Form.Item name="platforms" label="适用平台">
+                    <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="xhs / zhihu" />
+                  </Form.Item>
+                  <Form.Item name="draftTypes" label="适用内容类型">
+                    <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="note / article" />
+                  </Form.Item>
+                  <Form.Item name="tasks" label="适用任务">
+                    <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="image_generation" />
+                  </Form.Item>
+                  <Form.List name="references">
+                    {(fields, { add, remove }) => (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Typography.Text strong>引用模板</Typography.Text>
+                          <Button
+                            size="small"
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={() => add({ role: "style", load: "on_demand" })}
+                          >
+                            添加
+                          </Button>
+                        </div>
+                        {fields.map((field) => (
+                          <div key={field.key} className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <div className="flex items-start gap-1.5">
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <Form.Item name={[field.name, "slug"]} rules={[{ required: true, message: "请选择模板" }]} className="!mb-0">
+                                  <Select
+                                    showSearch
+                                    optionFilterProp="label"
+                                    placeholder="选择 Prompt / Skill"
+                                    options={mentionTemplates.map((item) => ({
+                                      value: item.slug,
+                                      label: `${item.name} (@${item.slug})`,
+                                    }))}
+                                  />
+                                </Form.Item>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Form.Item name={[field.name, "role"]} rules={[{ required: true }]} className="!mb-0">
+                                    <Select options={CAPABILITY_ROLE_OPTIONS} />
+                                  </Form.Item>
+                                  <Form.Item name={[field.name, "load"]} rules={[{ required: true }]} className="!mb-0">
+                                    <Select options={CAPABILITY_LOAD_OPTIONS} />
+                                  </Form.Item>
+                                </div>
+                                <Form.Item name={[field.name, "tasks"]} className="!mb-0">
+                                  <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="限定任务（可选）" />
+                                </Form.Item>
+                              </div>
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<MinusCircleOutlined />}
+                                onClick={() => remove(field.name)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Form.List>
+                </Form>
+              </div>
+
               <div>
-                <Typography.Text strong>Metadata JSON</Typography.Text>
+                <Typography.Text strong>当前启用版本 Metadata</Typography.Text>
                 <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100">
-                  {asJsonText(detail.metadata_json)}
+                  {asJsonText(activeVersionMetadata)}
                 </pre>
               </div>
             </div>
@@ -725,6 +928,51 @@ export default function AiLabPromptsPage() {
           <Form.Item name="aliases" label="别名（逗号或换行分隔）">
             <Input.TextArea rows={2} placeholder="小红书风格指南, 小红书写作风格" />
           </Form.Item>
+          <div className="mb-4 rounded-md border border-cyan-100 bg-cyan-50/50 p-3">
+            <Typography.Text strong>版本能力配置（可选）</Typography.Text>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+              <Form.Item name="scenarios" label="适用场景" className="!mb-0">
+                <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="create_agent" />
+              </Form.Item>
+              <Form.Item name="platforms" label="适用平台" className="!mb-0">
+                <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="xhs / zhihu" />
+              </Form.Item>
+              <Form.Item name="draftTypes" label="适用内容类型" className="!mb-0">
+                <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="note / article" />
+              </Form.Item>
+              <Form.Item name="tasks" label="适用任务" className="!mb-0">
+                <Select mode="tags" tokenSeparators={[",", "，", " "]} placeholder="image_generation" />
+              </Form.Item>
+            </div>
+            <Form.List name="references">
+              {(fields, { add, remove }) => (
+                <div className="mt-3 space-y-2">
+                  <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={() => add({ role: "style", load: "on_demand" })}>
+                    添加引用模板
+                  </Button>
+                  {fields.map((field) => (
+                    <div key={field.key} className="flex items-center gap-2">
+                      <Form.Item name={[field.name, "slug"]} rules={[{ required: true, message: "请选择模板" }]} className="!mb-0 flex-1">
+                        <Select
+                          showSearch
+                          optionFilterProp="label"
+                          placeholder="选择 Prompt / Skill"
+                          options={mentionTemplates.map((item) => ({ value: item.slug, label: `${item.name} (@${item.slug})` }))}
+                        />
+                      </Form.Item>
+                      <Form.Item name={[field.name, "role"]} className="!mb-0 w-24">
+                        <Select options={CAPABILITY_ROLE_OPTIONS} />
+                      </Form.Item>
+                      <Form.Item name={[field.name, "load"]} className="!mb-0 w-28">
+                        <Select options={CAPABILITY_LOAD_OPTIONS} />
+                      </Form.Item>
+                      <Button type="text" danger size="small" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Form.List>
+          </div>
           <Form.Item name="content" label="模板正文" rules={[{ required: true }]}>
             <Mentions
               prefix="@"

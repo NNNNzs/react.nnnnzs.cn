@@ -2,7 +2,7 @@
 
 > **状态**：🚧 执行中
 > **创建日期**：2026-07-04
-> **最后更新**：2026-07-04
+> **最后更新**：2026-07-12
 > **相关计划**：[AI Lab / LLM 学习实验台建设计划](../../plans/ai-lab-llm-learning.md)
 > **相关文档**：[Agent 聊天系统](chat/rag-chat.md) | [向量化总览](vector/overview.md) | [语义搜索](search/semantic-search.md) | [AI Provider 配置管理](ai-config-profiles.md)
 
@@ -302,11 +302,11 @@ model TbAiEvalResult {
 
 ### `TbAiTemplate` / `TbAiTemplateVersion`
 
-系统级 Prompt / Skill 模板库。模板主表保存稳定 `slug`、类型、作用域、别名、当前激活版本和 metadata；版本表保存 Markdown 正文、checksum、变更说明和版本 metadata。
+系统级 Prompt / Skill 模板库。模板主表保存稳定 `slug`、类型、作用域、别名、description 和当前激活版本；版本表保存 Markdown 正文、checksum、变更说明和版本 metadata。`description` 是运行时供 Agent 选择 Skill 的摘要，必须直接说明“何时加载、用于什么写作风格”，而不是写复杂能力矩阵。
 
 模板正文统一使用 LangChain `mustache` 语法，也就是 `{{变量}}`。运行时渲染必须通过 `PromptTemplate.fromTemplate(content, { templateFormat: "mustache" })` 或 LangChain `renderTemplate(..., "mustache", values)`，不要自定义字符串替换。
 
-`@slug` / `@中文别名` 是 prompt 编译前的引用语法。编译阶段只解析引用并注入模板 metadata；真正需要完整风格指南或方法论时，由模型调用 `load_prompt_skill_template` 工具按 slug 加载正文。
+`@slug` / `@中文别名` 是系统 Prompt 编辑时的引用语法。运行时遵循“两步加载”：Agent 先调用 `list_prompt_skills` 获取 ACTIVE Skill 的 metadata，再根据当前上下文和 `description` 调用 `load_prompt_skill_template` 加载所需正文。Create Agent、Topic Agent 和 Chat Agent 均从这套模板库读取各自的系统 Prompt；它们可复用同一 Skill，但不共享业务上下文 schema。
 
 ```prisma
 model TbAiTemplate {
@@ -488,12 +488,14 @@ Golden Dataset 管理。
 
 系统级 Prompt / Skill 模板管理。
 
-第一阶段能力：
+当前能力：
 
 - AntD `Mentions` Markdown 编辑器，输入 `@` 从模板列表选择引用。
 - LangChain mustache 变量：`{{draftTitle}}`、`{{topic}}` 等。
 - 模板 metadata 列表、版本列表、diff、active / archived 状态。
 - `list_prompt_skills` 只返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
+- Create Agent 以草稿 `type` 和 Skill `description` 选择风格指南：图文使用小红书风格，长文使用知乎 Markdown 风格。
+- 系统 Prompt、Skill 正文与业务页面上下文分离：模板在 AI Lab 管理，页面实时上下文由业务入口在调用时传入。
 
 后续能力：
 
@@ -700,5 +702,6 @@ sequenceDiagram
 - 新增 AI 运行链路时，必须考虑是否写入 `TbAiLabRun`。
 - 修改 RAG 检索策略时，必须更新 `retrieverVersion` 命名。
 - 修改系统提示词时，必须创建 Prompt 版本快照或更新版本说明。
+- 新增或修改 Skill 时，必须维护清晰的 `description`，说明加载条件和输出风格，确保 Agent 可以只靠 metadata 做按需选择。
 - 新增 Agent 工具时，必须确保工具调用能进入 timeline 和 Run 统计。
 - 完成计划实施后，清理 `docs/plans/ai-lab-llm-learning.md`，保留本文档作为长期设计依据。

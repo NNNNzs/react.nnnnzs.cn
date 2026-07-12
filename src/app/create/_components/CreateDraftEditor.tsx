@@ -62,6 +62,26 @@ interface DraftImageItem {
   addedAt: string;
 }
 
+interface DraftSlideItem {
+  id: number;
+  sort_order: number;
+  title: string | null;
+  bullets_json: string[] | null;
+  prompt: string | null;
+  asset_id: number | null;
+  asset?: {
+    id: number;
+    title: string | null;
+    imageUrl: string | null;
+    job: {
+      jobId: string | null;
+      status: string;
+      imageUrl: string | null;
+      errorMessage: string | null;
+    } | null;
+  } | null;
+}
+
 interface DraftRecord {
   id: number;
   title: string;
@@ -74,6 +94,7 @@ interface DraftRecord {
   template_id?: number | null;
   generation_snapshot_json?: unknown;
   updated_at: string;
+  slides: DraftSlideItem[];
   selected_images: DraftImageItem[];
 }
 
@@ -279,6 +300,15 @@ function buildDraftPatchDiff(params: {
     ));
   }
 
+  if (patch.slides?.length) {
+    fields.push("图卡计划");
+    oldSections.push(formatDiffSection("图卡计划", "（尚未保存图卡计划）"));
+    newSections.push(formatDiffSection(
+      "图卡计划",
+      patch.slides.map((slide, index) => `${index + 1}. ${slide.title || "未命名图卡"}\n${slide.prompt}`),
+    ));
+  }
+
   return {
     oldValue: oldSections.join("\n\n"),
     newValue: newSections.join("\n\n"),
@@ -366,6 +396,15 @@ export function CreateDraftEditor() {
       void loadAssets();
     }
   }, [assetOpen, loadAssets]);
+
+  useEffect(() => {
+    const hasGeneratingSlides = draft?.slides.some((slide) => (
+      slide.asset?.job?.status === "PENDING" || slide.asset?.job?.status === "PROCESSING"
+    ));
+    if (!hasGeneratingSlides) return undefined;
+    const timer = window.setInterval(() => void loadDraft(), 3000);
+    return () => window.clearInterval(timer);
+  }, [draft?.slides, loadDraft]);
 
   const hasChanges = useMemo(() => (
     Boolean(draft)
@@ -455,16 +494,27 @@ export function CreateDraftEditor() {
         }
         message.success(`AI 已追加 ${patch.addImages.length} 张图片`);
       }
+
+      if (patch.slides?.length) {
+        const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}/slides`, {
+          method: "PATCH",
+          body: JSON.stringify({ slides: patch.slides }),
+        });
+        setDraft(result);
+        message.success(`AI 已保存 ${patch.slides.length} 张图卡计划`);
+      }
     },
     [draftId],
   );
 
   /**
    * 收到 emit_draft_patch 后先进入待确认状态，不直接改表单。
+   * 立即打开对比框，确保图卡提示词在用户确认前也是可见的。
    */
   const handleAgentPatch = useCallback((patch: DraftPatch) => {
     setPendingPatch(patch);
-    message.info("收到 AI 草稿建议，可点击查看对比", 2);
+    setPatchOpen(true);
+    message.info("收到 AI 草稿建议，请先确认后再应用", 2);
   }, []);
 
   const handleApplyPendingPatch = useCallback(async () => {
@@ -480,16 +530,20 @@ export function CreateDraftEditor() {
     }
   }, [applyAgentPatch, pendingPatch]);
 
-  const agent = useCreateAgent({ draftId, onPatch: handleAgentPatch });
+  const getAgentPageContext = useCallback(() => ({
+    title,
+    hook,
+    body,
+    tags,
+    type,
+    status,
+  }), [body, hook, status, tags, title, type]);
 
-  const handleGenerateFromTopic = () => {
-    if (!snapshots.topic || agent.isStreaming) return;
-    setAgentOpen(true);
-    const instruction = isZhihuArticle
-      ? "根据来源选题和当前知乎模板生成第一版 Markdown 长文，提交 DraftPatch 等我确认。"
-      : "根据来源选题和当前小红书模板生成第一版图文笔记，提交标题、hook、正文和标签 DraftPatch 等我确认。";
-    void agent.sendMessage(instruction, agent.messages);
-  };
+  const agent = useCreateAgent({
+    draftId,
+    getPageContext: getAgentPageContext,
+    onPatch: handleAgentPatch,
+  });
 
   const handleAddAsset = async (asset: ImageAssetRecord) => {
     const imageUrl = getAssetImageUrl(asset);
@@ -507,6 +561,49 @@ export function CreateDraftEditor() {
       message.success("图片已添加");
     } catch (error) {
       message.error(error instanceof Error ? error.message : "添加图片失败");
+    }
+  };
+
+  const handleGenerateSlide = async (slideId: number) => {
+    try {
+      const result = await requestApi<{ draft: DraftRecord }>(
+        `/api/create/drafts/${draftId}/slides/${slideId}/generate`,
+        { method: "POST" },
+      );
+      setDraft(result.draft);
+      message.success("图卡图片已提交生成");
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "提交图卡图片生成失败");
+    }
+  };
+
+  const handleGenerateAllSlides = async () => {
+    const pendingSlides = draft?.slides.filter((slide) => (
+      Boolean(slide.prompt)
+      && (!slide.asset || slide.asset.job?.status === "FAILED")
+    )) || [];
+    if (pendingSlides.length === 0) return;
+    for (const slide of pendingSlides) {
+      await handleGenerateSlide(slide.id);
+    }
+  };
+
+  const handleSlidePromptBlur = async (slideId: number, prompt: string) => {
+    if (!prompt.trim()) return;
+    const slides = draft?.slides.map((slide) => ({
+      id: slide.id,
+      title: slide.title,
+      bullets: slide.bullets_json,
+      prompt: slide.id === slideId ? prompt : slide.prompt || "",
+    })) || [];
+    try {
+      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}/slides`, {
+        method: "PATCH",
+        body: JSON.stringify({ slides }),
+      });
+      setDraft(result);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "保存图片提示词失败");
     }
   };
 
@@ -685,17 +782,6 @@ export function CreateDraftEditor() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/create/drafts")}>
               返回
             </Button>
-            {snapshots.topic ? (
-              <Button
-                type="primary"
-                ghost
-                icon={<RobotOutlined />}
-                loading={agent.isStreaming}
-                onClick={handleGenerateFromTopic}
-              >
-                AI 根据选题生成初稿
-              </Button>
-            ) : null}
             <Button
               type={agentOpen ? "primary" : "default"}
               icon={<RobotOutlined />}
@@ -806,6 +892,77 @@ export function CreateDraftEditor() {
           </div>
 
           <aside className="rounded-md border border-slate-200 bg-white p-4 xl:sticky xl:top-4 xl:self-start">
+            {pendingPatch?.slides?.length ? (
+              <section className="mb-5 border-b border-amber-200 pb-5">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+                  <FileTextOutlined />
+                  待确认图卡计划
+                  <Button size="small" className="!ml-auto" onClick={() => setPatchOpen(true)}>
+                    查看并应用
+                  </Button>
+                </div>
+                <p className="mb-3 text-xs leading-5 text-amber-800">
+                  这些图片提示词尚未保存，也不会自动提交图片生成；确认建议后可继续编辑并手动生成。
+                </p>
+                <div className="space-y-2">
+                  {pendingPatch.slides.map((slide, index) => (
+                    <article key={`${slide.title ?? "slide"}-${index}`} className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                      <div className="text-sm font-medium text-slate-900">
+                        #{index + 1} {slide.title || "未命名图卡"}
+                      </div>
+                      <div className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                        {slide.prompt}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            {draft.slides.length > 0 ? (
+              <section className="mb-5 border-b border-slate-200 pb-5">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
+                  <FileTextOutlined />
+                  图卡计划
+                  <Button size="small" className="!ml-auto" onClick={() => void handleGenerateAllSlides()}>
+                    全部生成
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {draft.slides.map((slide) => (
+                    <article key={slide.id} className="rounded-md border border-cyan-100 bg-cyan-50/50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 text-sm font-medium text-slate-900">
+                          #{slide.sort_order} {slide.title || "未命名图卡"}
+                        </div>
+                        <Button
+                          size="small"
+                          type="primary"
+                          disabled={!slide.prompt || slide.asset?.job?.status === "PENDING" || slide.asset?.job?.status === "PROCESSING"}
+                          onClick={() => void handleGenerateSlide(slide.id)}
+                        >
+                          {slide.asset?.job?.status === "PENDING" || slide.asset?.job?.status === "PROCESSING" ? "生成中" : "生成图片"}
+                        </Button>
+                      </div>
+                      {slide.bullets_json?.length ? (
+                        <div className="mt-2 text-xs leading-5 text-slate-600">{slide.bullets_json.join(" · ")}</div>
+                      ) : null}
+                      <Input.TextArea
+                        defaultValue={slide.prompt ?? ""}
+                        rows={3}
+                        className="!mt-2 !text-xs"
+                        onBlur={(event) => void handleSlidePromptBlur(slide.id, event.currentTarget.value)}
+                      />
+                      {slide.asset?.job?.status === "FAILED" ? (
+                        <div className="mt-2 text-xs text-red-600">{slide.asset.job.errorMessage || "图片生成失败"}</div>
+                      ) : null}
+                      {slide.asset?.job?.status === "SUCCESS" && slide.asset.imageUrl ? (
+                        <Image className="mt-2" src={slide.asset.imageUrl} alt={slide.title || "图卡"} />
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <PictureOutlined />
