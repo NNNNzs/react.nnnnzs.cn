@@ -10,6 +10,7 @@ import {
 import { buildTopicTools } from '../tools/topic-tools/langchain-tools';
 import { buildTopicAgentSystemPrompt } from './prompt';
 import type { TopicPatch } from './topic-patch';
+import { withPhoenixAgentTrace } from '@/lib/phoenix-observability';
 
 export interface TopicAgentMessage {
   role: 'user' | 'assistant';
@@ -18,6 +19,8 @@ export interface TopicAgentMessage {
 
 export interface TopicAgentStreamParams {
   topicId?: number;
+  /** 实际发起请求的用户；与用于工具数据过滤的 scopeUserId 分离。 */
+  actorUserId: number;
   scopeUserId?: number;
   message: string;
   history?: TopicAgentMessage[];
@@ -54,6 +57,7 @@ export async function topicAgentStream(
 ): Promise<ReadableStream<Uint8Array>> {
   const {
     topicId,
+    actorUserId,
     scopeUserId,
     message,
     history = [],
@@ -91,14 +95,35 @@ export async function topicAgentStream(
           tools,
           prompt: systemPrompt,
         });
-        const eventStream = agent.streamEvents({
-          messages: buildMessages(message, history, topicContext),
-        }, { version: 'v2' });
+        await withPhoenixAgentTrace({
+          name: 'topic-agent',
+          userId: actorUserId,
+          metadata: {
+            scenario: SCENARIO,
+            topicId: topicId ?? null,
+            mode: topic ? 'edit' : 'create',
+            route: topicId ? '/api/create/topics/:id/chat' : '/api/create/topics/chat',
+          },
+        }, async () => {
+          const eventStream = agent.streamEvents({
+            messages: buildMessages(message, history, topicContext),
+          }, {
+            version: 'v2',
+            runName: 'topic-agent',
+            tags: ['agent', 'topic-agent', topic ? 'edit' : 'create'],
+            metadata: {
+              scenario: SCENARIO,
+              topicId: topicId ?? null,
+              actorUserId,
+              mode: topic ? 'edit' : 'create',
+            },
+          });
 
-        await pumpAgentEvents(eventStream, emitter, {
-          scenario: SCENARIO,
-          meta: { topicId: topicId ?? null },
-          extractResult: extractTopicToolResult,
+          await pumpAgentEvents(eventStream, emitter, {
+            scenario: SCENARIO,
+            meta: { topicId: topicId ?? null },
+            extractResult: extractTopicToolResult,
+          });
         });
         emitter.enqueue('done', {});
         controller.close();

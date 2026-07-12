@@ -45,6 +45,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const scopeAll = hasDataPermission(check.user, CONTENT_VIEW);
     const stream = await topicAgentStream({
       topicId,
+      actorUserId: check.user.id,
       scopeUserId: scopeAll ? undefined : check.user.id,
       message: validation.data.message,
       history: validation.data.history,

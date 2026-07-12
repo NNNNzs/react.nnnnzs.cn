@@ -22,6 +22,7 @@ import {
   pumpAgentEvents,
   getRecord,
 } from '@/services/ai/agent-stream';
+import { withPhoenixAgentTrace } from '@/lib/phoenix-observability';
 
 export interface CreateAgentMessage {
   role: 'user' | 'assistant';
@@ -145,12 +146,35 @@ export async function createAgentStream(
         });
 
         const messages = buildMessages(message, history, runtimeContext);
-        const eventStream = agent.streamEvents({ messages }, { version: 'v2' });
+        await withPhoenixAgentTrace({
+          name: 'create-agent',
+          userId,
+          metadata: {
+            scenario: SCENARIO,
+            draftId,
+            platform: draft.platform,
+            draftType: draft.type,
+            route: '/api/create/drafts/:id/chat',
+          },
+        }, async () => {
+          const eventStream = agent.streamEvents({ messages }, {
+            version: 'v2',
+            runName: 'create-agent',
+            tags: ['agent', 'create-agent', draft.platform],
+            metadata: {
+              scenario: SCENARIO,
+              draftId,
+              userId,
+              platform: draft.platform,
+              draftType: draft.type,
+            },
+          });
 
-        await pumpAgentEvents(eventStream, emitter, {
-          scenario: SCENARIO,
-          meta: { draftId },
-          extractResult: extractCreateToolResult,
+          await pumpAgentEvents(eventStream, emitter, {
+            scenario: SCENARIO,
+            meta: { draftId },
+            extractResult: extractCreateToolResult,
+          });
         });
 
         emitter.enqueue('done', {});
