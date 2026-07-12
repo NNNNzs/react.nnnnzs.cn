@@ -1,8 +1,9 @@
 # 选题库 Topic Agent 设计
 
-> 状态：📋 设计中
+> 状态：🔄 第一期代码已落地，待场景绑定与浏览器联调
 > 目标入口：`/create/topics`
 > 关联：`/create` 内容创作中台、草稿库创作 Agent、`content_topics`
+> 下游链路：[选题完善与多平台草稿转换](./topic-draft-workflow.md)
 
 ## 一、定位
 
@@ -121,7 +122,7 @@ interface TopicPatch {
 - 抖音视频时长和分镜要求。
 - 标题、正文、标签等平台草稿正文。
 
-这些内容属于 `ContentTemplate` 和 `ContentDraft`，避免一个选题被某个平台格式绑定。
+这些内容属于系统级 `TbAiTemplate` 和 `ContentDraft`，避免一个选题被某个平台格式绑定。
 
 ## 六、SSE 事件
 
@@ -144,7 +145,7 @@ Topic Agent 复用现有 SSE 协议，不新增另一套前端流式协议：
 Topic Agent 使用独立的 AI scenario 和默认提示词，不复用草稿 Agent 的生成规则：
 
 - scenario 建议为 `topic_agent`。
-- system prompt 可以继续由 `content_templates` 管理，使用 `scenario = 'topic_agent'`。
+- system prompt 由 `tb_ai_template` 管理，使用 slug `agent-topic-agent-system`。
 - 默认提示词强调：尊重用户原始想法、先检查重复、区分事实与推测、保留来源、只输出选题 patch 或解释。
 - 需要创作方法论时，可以读取选题专用模板；不读取小红书图文或图片生成模板。
 
@@ -162,16 +163,18 @@ Agent 必须遵守：
 ```text
 选择选题
   ↓
-选择平台：小红书 / 知乎 / 抖音 / 博客
+选择平台：小红书图文 / 知乎长文
   ↓
-选择或自动匹配 ContentTemplate
+选择或自动匹配系统 Prompt 模板
   ↓
 创建 ContentDraft(topic_id, platform, type, template_id)
   ↓
-进入草稿详情并打开草稿库创作 Agent
+进入草稿详情，用户主动点击“AI 根据选题生成初稿”
 ```
 
 同一 `ContentTopic` 可以关联多个 `ContentDraft`。每个草稿保存选题内容快照、模板版本和模型输入快照，后续修改选题不会改变已经生成的历史草稿。
+
+选题内容不会直接提升为草稿 Agent 的 system 指令。草稿 Agent 使用固定规则和平台模板作为高优先级提示词，把选题快照作为带边界标记的参考上下文注入，避免来源文章或 URL 中的指令污染 Agent。完整的快照结构、平台映射和编辑器设计见[选题完善与多平台草稿转换设计](./topic-draft-workflow.md)。
 
 ## 九、实施顺序
 
@@ -180,7 +183,7 @@ Agent 必须遵守：
 3. 新增 `topic_agent` prompt 和工具工厂，第一期接入博客检索、网页搜索、选题检索和 patch。
 4. 新增 `/api/create/topics/chat`；已有选题详情场景再增加 `/api/create/topics/[id]/chat`。
 5. 在选题页接入 `useTopicAgent` 和 `AgentAssistantPanel`，复用差异确认。
-6. 增加选题到多平台草稿的入口，再由草稿 Agent 负责具体创作。
+6. 接入选题到小红书/知乎草稿的入口，再由草稿 Agent 负责具体创作。
 
 ## 十、非目标
 

@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@/lib/ai';
 import { createAIChain } from '@/lib/ai';
@@ -15,29 +13,16 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const MAX_BLOG_CONTENT_LENGTH = 9000;
 const DRAFT_IMAGES_KEY = 'draftImages';
-const XHS_PROMPTS_DIR = process.env.CONTENT_XHS_PROMPTS_DIR || '/Users/nnnnzs/project/xhs/prompts';
 
 export const CONTENT_DRAFT_TYPES = ['note', 'article', 'short_video', 'checklist', 'faq'] as const;
 export const CONTENT_DRAFT_STATUSES = ['DRAFT', 'ASSET_PENDING', 'READY', 'PUBLISHED', 'ARCHIVED'] as const;
 export const CONTENT_TOPIC_STATUSES = ['IDEA', 'USED', 'ARCHIVED'] as const;
 export const CONTENT_TOPIC_SOURCE_TYPES = ['idea', 'blog', 'url', 'website'] as const;
-export const CONTENT_TEMPLATE_TYPES = ['prompt', 'voice_style', 'visual', 'checklist', 'context'] as const;
-export const CONTENT_TEMPLATE_STATUSES = ['ACTIVE', 'DRAFT', 'ARCHIVED'] as const;
-export const CONTENT_TEMPLATE_SCENARIOS = [
-  'blog_to_xhs_note',
-  'blog_to_short_video',
-  'tts',
-  'image_card',
-  'content_agent',
-] as const;
 
 export type ContentDraftType = typeof CONTENT_DRAFT_TYPES[number];
 export type ContentDraftStatus = typeof CONTENT_DRAFT_STATUSES[number];
 export type ContentTopicStatus = typeof CONTENT_TOPIC_STATUSES[number];
 export type ContentTopicSourceType = typeof CONTENT_TOPIC_SOURCE_TYPES[number];
-export type ContentTemplateType = typeof CONTENT_TEMPLATE_TYPES[number];
-export type ContentTemplateStatus = typeof CONTENT_TEMPLATE_STATUSES[number];
-export type ContentTemplateScenario = typeof CONTENT_TEMPLATE_SCENARIOS[number];
 
 export type ContentAssetSource = 'generated' | 'uploaded';
 
@@ -71,12 +56,6 @@ export interface AssetQueryParams extends PageParams {
   userId?: number;
 }
 
-export interface TemplateQueryParams extends PageParams {
-  type?: string;
-  scenario?: string;
-  userId?: number;
-}
-
 export interface CreateTopicInput {
   title: string;
   source_type?: ContentTopicSourceType | string;
@@ -106,6 +85,7 @@ export interface CreateDraftSlideInput {
 export interface CreateDraftInput {
   topic_id?: number | null;
   source_post_id?: number | null;
+  template_id?: number | null;
   platform?: string;
   type?: ContentDraftType | string;
   title: string;
@@ -189,44 +169,6 @@ export interface UpdateContentImageAssetInput {
   isFavorite?: boolean;
 }
 
-export interface CreateContentTemplateInput {
-  name: string;
-  type: ContentTemplateType | string;
-  scenario: ContentTemplateScenario | string;
-  content: string;
-  variables_json?: Prisma.InputJsonValue | null;
-  output_schema_json?: Prisma.InputJsonValue | null;
-  version?: number;
-  status?: ContentTemplateStatus | string;
-  source_path?: string | null;
-  created_by?: number | null;
-}
-
-export interface UpdateContentTemplateInput {
-  name?: string;
-  type?: ContentTemplateType | string;
-  scenario?: ContentTemplateScenario | string;
-  content?: string;
-  variables_json?: Prisma.InputJsonValue | null;
-  output_schema_json?: Prisma.InputJsonValue | null;
-  version?: number;
-  status?: ContentTemplateStatus | string;
-  source_path?: string | null;
-}
-
-interface XhsPromptTemplateSeed {
-  /** xhs 项目下的文件名；与 content 二选一 */
-  fileName?: string;
-  sourcePath: string;
-  name: string;
-  type: ContentTemplateType;
-  scenario: ContentTemplateScenario;
-  variables: Prisma.InputJsonObject;
-  outputSchema?: Prisma.InputJsonObject;
-  /** 内置模板正文；提供时不再读取 xhs 文件（用于 content_agent 等自有 system prompt） */
-  content?: string;
-}
-
 export interface GenerateTopicsFromPostInput {
   postId: number;
   limit?: number;
@@ -275,11 +217,6 @@ function compactJsonRecord(value: Record<string, unknown>): Prisma.InputJsonObje
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => item !== undefined),
   ) as Prisma.InputJsonObject;
-}
-
-function toPrismaJson(value?: Prisma.InputJsonValue | null) {
-  if (value === undefined) return undefined;
-  return value === null ? Prisma.JsonNull : value;
 }
 
 function readJsonRecord(value: unknown): Record<string, unknown> {
@@ -396,119 +333,6 @@ const aiTopicResponseSchema = z.object({
   topics: z.array(aiTopicSchema).min(1).max(8),
 });
 
-const xhsPromptTemplateSeeds: XhsPromptTemplateSeed[] = [
-  {
-    fileName: 'blog-to-xhs-note.md',
-    sourcePath: 'xhs/prompts/blog-to-xhs-note.md',
-    name: '博客转小红书图文',
-    type: 'prompt',
-    scenario: 'blog_to_xhs_note',
-    variables: {
-      variables: [
-        { name: 'BLOG_CONTENT', label: '博客正文', required: true },
-      ],
-      defaultImageSize: '1080x1440',
-      defaultImageQuality: 'medium',
-    },
-    outputSchema: {
-      type: 'object',
-      required: ['title', 'hook', 'slides', 'body', 'tags', 'remotionProps', 'coverPrompt', 'slidePrompts'],
-      properties: {
-        title: { type: 'string' },
-        hook: { type: 'string' },
-        slides: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['title', 'bullets'],
-            properties: {
-              title: { type: 'string' },
-              bullets: { type: 'array', items: { type: 'string' } },
-            },
-          },
-        },
-        body: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
-        remotionProps: { type: 'object' },
-        coverPrompt: { type: 'string' },
-        slidePrompts: { type: 'array', items: { type: 'string' } },
-      },
-    },
-  },
-  {
-    fileName: 'blog-to-short-video.md',
-    sourcePath: 'xhs/prompts/blog-to-short-video.md',
-    name: '博客转短视频脚本',
-    type: 'prompt',
-    scenario: 'blog_to_short_video',
-    variables: {
-      variables: [
-        { name: 'BLOG_CONTENT', label: '博客正文', required: true },
-      ],
-      durationSeconds: '30-60',
-      targetPlatforms: ['douyin', 'xhs_video', 'wechat_video'],
-    },
-    outputSchema: {
-      type: 'object',
-      required: ['title', 'opening', 'script', 'caption', 'tags', 'remotionProps'],
-      properties: {
-        title: { type: 'string' },
-        opening: { type: 'string' },
-        script: { type: 'array', items: { type: 'string' } },
-        caption: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
-        remotionProps: { type: 'object' },
-      },
-    },
-  },
-  {
-    fileName: 'mimo-tts-style.md',
-    sourcePath: 'xhs/prompts/mimo-tts-style.md',
-    name: 'MiMo TTS 风格',
-    type: 'voice_style',
-    scenario: 'tts',
-    variables: {
-      variants: [
-        { key: 'tutorial', label: '实战教程' },
-        { key: 'debug_review', label: '踩坑复盘' },
-        { key: 'project_review', label: '项目复盘' },
-      ],
-      voiceBrand: '倪同学搞AI',
-    },
-  },
-  {
-    // 创作助手 system prompt，由 create-agent 加载
-    sourcePath: 'builtin/content-agent-system-prompt.md',
-    name: '创作助手 System Prompt',
-    type: 'context',
-    scenario: 'content_agent',
-    variables: { variables: [
-      { name: 'draftTitle', label: '草稿标题', required: false },
-      { name: 'draftType', label: '草稿类型', required: false },
-    ] },
-    content: `你是「倪同学搞AI」内容创作中台的创作助手，服务场景是把博客文章和选题加工成小红书图文 / 短视频脚本草稿。
-
-当前草稿上下文：
-- 标题：{draftTitle}
-- 类型：{draftType}
-
-你可以使用以下工具：
-- read_prompt_template：读取指定场景的提示词模板（如 blog_to_xhs_note），按里面的方法论产出内容
-- get_draft：读取当前草稿的标题、正文、图卡、已选图片
-- search_posts / get_post_content：检索博客文章作为创作素材
-- generate_image：提交文生图或图文编辑异步任务，返回 jobId
-- poll_image_job：轮询文生图任务状态，成功返回 CDN URL
-- emit_draft_patch：把你建议写进草稿的内容以结构化 patch 形式发给前端，等待用户确认
-
-工作原则：
-1. 先理解用户意图，需要方法论时先用 read_prompt_template 读对应模板，再按模板产出。
-2. 修改草稿内容（标题、hook、正文、标签、图卡）时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch。前端会展示差异并等待用户确认，写权限在用户手里，用户确认应用并点保存才落库。
-3. 文生图是异步任务：先 generate_image 拿 jobId，再 poll_image_job 轮询直到成功，拿到 CDN URL 后通过 emit_draft_patch 的 addImages 字段提交待确认图片建议。轮询不要超过 30 次。
-4. 回答简洁，多用工具少用嘴。最终给用户的文字总结要说明你做了什么、建议改哪些字段，提醒用户确认建议并保存。
-5. 风格：倪同学搞AI，前端工程师转 AI 应用开发实战，不讲玄学，只讲能跑起来的东西。小红书文案要有钩子、有要点、口语化。`,
-  },
-];
-
 function buildTopicWhere(params: TopicQueryParams): Prisma.ContentTopicWhereInput {
   const where: Prisma.ContentTopicWhereInput = {};
   const query = cleanString(params.query);
@@ -608,38 +432,6 @@ function buildAssetWhere(params: AssetQueryParams): Prisma.ContentAssetWhereInpu
     ];
   }
   where.AND = andFilters;
-
-  return where;
-}
-
-function buildTemplateWhere(params: TemplateQueryParams): Prisma.ContentTemplateWhereInput {
-  const where: Prisma.ContentTemplateWhereInput = {};
-  const query = cleanString(params.query);
-
-  if (params.status) {
-    where.status = params.status;
-  }
-  if (params.type) {
-    where.type = params.type;
-  }
-  if (params.scenario) {
-    where.scenario = params.scenario;
-  }
-  if (query) {
-    where.OR = [
-      { name: { contains: query } },
-      { scenario: { contains: query } },
-      { content: { contains: query } },
-      { source_path: { contains: query } },
-    ];
-  }
-
-  if (params.userId) {
-    where.OR = [
-      { created_by: params.userId },
-      { created_by: null },
-    ];
-  }
 
   return where;
 }
@@ -796,6 +588,7 @@ export async function createContentDraft(input: CreateDraftInput) {
     data: {
       topic_id: input.topic_id ?? null,
       source_post_id: input.source_post_id ?? null,
+      template_id: input.template_id ?? null,
       platform: input.platform || 'xhs',
       type: input.type || 'note',
       title: input.title.trim(),
@@ -1194,147 +987,6 @@ export async function getContentImageAssetsByIds(ids: number[]) {
       cdn_url: true,
     },
   });
-}
-
-export async function listContentTemplates(params: TemplateQueryParams = {}) {
-  const prisma = await getPrisma();
-  const { pageNum, pageSize } = normalizePage(params);
-  const where = buildTemplateWhere(params);
-
-  const [record, total] = await Promise.all([
-    prisma.contentTemplate.findMany({
-      where,
-      orderBy: { updated_at: 'desc' },
-      skip: (pageNum - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.contentTemplate.count({ where }),
-  ]);
-
-  return { record, total, pageNum, pageSize };
-}
-
-export async function getContentTemplate(id: number) {
-  const prisma = await getPrisma();
-  return prisma.contentTemplate.findUnique({
-    where: { id },
-  });
-}
-
-export async function createContentTemplate(input: CreateContentTemplateInput) {
-  const prisma = await getPrisma();
-
-  return prisma.contentTemplate.create({
-    data: {
-      name: input.name.trim(),
-      type: input.type,
-      scenario: input.scenario,
-      content: input.content,
-      variables_json: toPrismaJson(input.variables_json),
-      output_schema_json: toPrismaJson(input.output_schema_json),
-      version: input.version && input.version > 0 ? Math.round(input.version) : 1,
-      status: input.status || 'ACTIVE',
-      source_path: toNullableString(input.source_path),
-      created_by: input.created_by ?? null,
-    },
-  });
-}
-
-export async function updateContentTemplate(id: number, input: UpdateContentTemplateInput) {
-  const prisma = await getPrisma();
-  const data: Prisma.ContentTemplateUpdateInput = {};
-
-  if (input.name !== undefined) {
-    data.name = input.name.trim();
-  }
-  if (input.type !== undefined) {
-    data.type = input.type;
-  }
-  if (input.scenario !== undefined) {
-    data.scenario = input.scenario;
-  }
-  if (input.content !== undefined) {
-    data.content = input.content;
-  }
-  if (input.variables_json !== undefined) {
-    data.variables_json = toPrismaJson(input.variables_json);
-  }
-  if (input.output_schema_json !== undefined) {
-    data.output_schema_json = toPrismaJson(input.output_schema_json);
-  }
-  if (input.version !== undefined) {
-    data.version = input.version > 0 ? Math.round(input.version) : 1;
-  }
-  if (input.status !== undefined) {
-    data.status = input.status;
-  }
-  if (input.source_path !== undefined) {
-    data.source_path = toNullableString(input.source_path);
-  }
-
-  return prisma.contentTemplate.update({
-    where: { id },
-    data,
-  });
-}
-
-export async function archiveContentTemplate(id: number) {
-  return updateContentTemplate(id, { status: 'ARCHIVED' });
-}
-
-async function readXhsPromptContent(seed: XhsPromptTemplateSeed) {
-  if (seed.content !== undefined) return seed.content;
-  if (!seed.fileName) {
-    throw new Error(`模板 seed 缺少 fileName 和 content：${seed.sourcePath}`);
-  }
-  const filePath = path.join(XHS_PROMPTS_DIR, seed.fileName);
-  return readFile(filePath, 'utf8');
-}
-
-export async function importXhsPromptTemplates(createdBy?: number | null) {
-  const prisma = await getPrisma();
-  const created = [];
-  const updated = [];
-
-  for (const seed of xhsPromptTemplateSeeds) {
-    const content = await readXhsPromptContent(seed);
-    const existing = await prisma.contentTemplate.findFirst({
-      where: { source_path: seed.sourcePath },
-    });
-    const baseData = {
-      name: seed.name,
-      type: seed.type,
-      scenario: seed.scenario,
-      content,
-      variables_json: seed.variables,
-      output_schema_json: seed.outputSchema ?? Prisma.JsonNull,
-      status: 'ACTIVE',
-      source_path: seed.sourcePath,
-    };
-
-    if (existing) {
-      const template = await prisma.contentTemplate.update({
-        where: { id: existing.id },
-        data: {
-          ...baseData,
-          version: existing.version + 1,
-        },
-      });
-      updated.push(template);
-      continue;
-    }
-
-    const template = await prisma.contentTemplate.create({
-      data: {
-        ...baseData,
-        version: 1,
-        created_by: createdBy ?? null,
-      },
-    });
-    created.push(template);
-  }
-
-  return { created, updated };
 }
 
 export async function getContentCreationOverview(userId?: number | null) {

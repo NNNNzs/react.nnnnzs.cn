@@ -6,7 +6,6 @@
  */
 
 import {
-  listContentTemplates,
   getContentDraft,
   type DraftImageItem,
 } from '@/services/content-creation';
@@ -16,13 +15,6 @@ import {
 } from '@/services/ai-template';
 import { getPostById } from '@/services/post';
 import type { Tool, ToolResult } from '../index';
-
-const LEGACY_SCENARIO_TO_SLUG: Record<string, string> = {
-  blog_to_xhs_note: 'xhs-blog-to-note',
-  blog_to_short_video: 'xhs-blog-to-short-video',
-  tts: 'xhs-mimo-tts-style',
-  content_agent: 'agent-create-agent-system',
-};
 
 export const listPromptSkillsTool: Tool = {
   name: 'list_prompt_skills',
@@ -120,87 +112,6 @@ export const loadPromptSkillTemplateTool: Tool = {
       return {
         success: false,
         error: error instanceof Error ? error.message : '加载 Prompt Skill 失败',
-      };
-    }
-  },
-};
-
-/** 读取指定 scenario 的提示词模板正文 */
-export const readPromptTemplateTool: Tool = {
-  name: 'read_prompt_template',
-  description:
-    '读取内容模板库中的提示词正文。当需要按某套方法论（如博客转小红书图文）产出内容时，先读对应模板。',
-  parameters: {
-    scenario: {
-      type: 'string',
-      description:
-        '模板场景：blog_to_xhs_note（博客转小红书图文）、blog_to_short_video（转短视频脚本）、tts（语音风格）、image_card（图卡）、content_agent（助手 system prompt）',
-      required: false,
-    },
-    name: {
-      type: 'string',
-      description: '模板名称关键词（模糊匹配），与 scenario 二选一或组合使用',
-      required: false,
-    },
-  },
-  async execute(args): Promise<ToolResult> {
-    try {
-      const scenario = (args.scenario as string) || undefined;
-      const query = (args.name as string) || undefined;
-      const slug = scenario ? LEGACY_SCENARIO_TO_SLUG[scenario] : undefined;
-
-      if (slug) {
-        const data = await loadPromptSkillTemplate({ slug });
-        return {
-          success: true,
-          data: {
-            templates: [{
-              id: data.template.id,
-              name: data.template.name,
-              scenario,
-              type: data.template.type,
-              content: data.version.content,
-              variables: data.version.metadata_json,
-              outputSchema: data.template.metadata_json,
-              slug: data.template.slug,
-              version: data.version.version,
-            }],
-            message: '找到 1 个模板',
-          },
-        };
-      }
-
-      const { record } = await listContentTemplates({
-        scenario,
-        status: 'ACTIVE',
-        query,
-        pageNum: 1,
-        pageSize: 3,
-      });
-
-      if (record.length === 0) {
-        return { success: false, error: '未找到匹配的模板' };
-      }
-
-      return {
-        success: true,
-        data: {
-          templates: record.map((t) => ({
-            id: t.id,
-            name: t.name,
-            scenario: t.scenario,
-            type: t.type,
-            content: t.content,
-            variables: t.variables_json,
-            outputSchema: t.output_schema_json,
-          })),
-          message: `找到 ${record.length} 个模板`,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : '读取模板失败',
       };
     }
   },

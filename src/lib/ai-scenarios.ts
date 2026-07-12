@@ -13,7 +13,8 @@ export type AiScenarioKey =
   | 'image_gen'
   | 'image_recognition'
   | 'tts'
-  | 'create_agent';
+  | 'create_agent'
+  | 'topic_agent';
 
 /** 场景绑定的可配置字段 */
 export type AiBindingField =
@@ -55,6 +56,12 @@ export const AI_SCENARIOS: readonly AiScenarioMeta[] = [
     key: 'create_agent',
     label: '创作 Agent',
     description: '草稿库创作助手 /create/drafts/[id]，需支持 function calling 的模型',
+    optionalFields: ['temperature', 'max_tokens'],
+  },
+  {
+    key: 'topic_agent',
+    label: '选题 Agent',
+    description: '选题库整理、来源分析、重复检查和 TopicPatch 建议',
     optionalFields: ['temperature', 'max_tokens'],
   },
   {

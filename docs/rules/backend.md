@@ -174,7 +174,7 @@ src/services/ai/
 │   │   └── index.ts          # 业务工具层
 │   └── index.ts              # 工具统一导出
 ├── create-agent/     # 创作助手 Agent（SSE 版，独立于 chat-agent）
-│   ├── prompt.ts      # 从 content_templates 加载 system prompt
+│   ├── prompt.ts      # 从 tb_ai_template 加载 system prompt
 │   ├── create-agent.ts # LangGraph Agent + SSE 编码
 │   └── index.ts       # 导出 createAgentStream
 ├── text/              # AI文本处理服务（使用 Anthropic）

@@ -38,6 +38,7 @@ model ContentDraft {
   id                       Int       @id @default(autoincrement())
   topic_id                 Int?
   source_post_id           Int?
+  template_id              Int?
   platform                 String    @default("xhs") @db.VarChar(40)
   type                     String    @default("note") @db.VarChar(40)
   title                    String    @db.VarChar(255)
@@ -57,6 +58,7 @@ model ContentDraft {
   @@index([status, updated_at], name: "idx_draft_status_updated")
   @@index([topic_id], name: "idx_draft_topic")
   @@index([source_post_id], name: "idx_draft_source_post")
+  @@index([template_id], name: "idx_draft_template")
   @@index([created_by, created_at], name: "idx_draft_user_time")
   @@map("content_drafts")
 }
@@ -104,26 +106,4 @@ model ContentAsset {
   @@index([type, created_at], name: "idx_asset_type_time")
   @@index([ai_job_id], name: "idx_asset_ai_job")
   @@map("content_assets")
-}
-
-// 模板库：承接 xhs prompts、账号定位、TTS 风格和后续 Agent 上下文模板。
-model ContentTemplate {
-  id                 Int      @id @default(autoincrement())
-  name               String   @db.VarChar(255)
-  type               String   @db.VarChar(40)
-  scenario           String   @db.VarChar(80)
-  content            String   @db.LongText
-  variables_json     Json?
-  output_schema_json Json?
-  version            Int      @default(1)
-  status             String   @default("ACTIVE") @db.VarChar(30)
-  source_path        String?  @db.VarChar(255)
-  created_by         Int?
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-
-  @@index([type, scenario, status], name: "idx_template_type_scenario_status")
-  @@index([source_path], name: "idx_template_source_path")
-  @@index([updated_at], name: "idx_template_updated_at")
-  @@map("content_templates")
 }

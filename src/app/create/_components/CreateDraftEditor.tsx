@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import {
   Button,
@@ -32,6 +33,11 @@ import { useCreateAgent } from "./useCreateAgent";
 import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
 import type { DraftPatch } from "@/services/ai/tools/create-tools/draft-patch";
 
+const MarkdownEditor = dynamic(() => import("@/components/MarkdownEditor"), {
+  ssr: false,
+  loading: () => <Skeleton active paragraph={{ rows: 12 }} />,
+});
+
 interface ApiResponse<T> {
   status: boolean;
   message: string;
@@ -59,11 +65,34 @@ interface DraftImageItem {
 interface DraftRecord {
   id: number;
   title: string;
+  hook?: string | null;
   body?: string | null;
+  tags_json?: string[] | null;
+  platform: string;
   type: string;
   status: string;
+  template_id?: number | null;
+  generation_snapshot_json?: unknown;
   updated_at: string;
   selected_images: DraftImageItem[];
+}
+
+interface TopicSnapshot {
+  id?: number;
+  title?: string;
+  originalIdea?: string | null;
+  coreAngle?: string | null;
+  keyPoints?: string[];
+  sourceType?: string;
+  sourceUrl?: string | null;
+  sourcePostId?: number | null;
+}
+
+interface TemplateSnapshot {
+  id?: number | null;
+  slug?: string;
+  name?: string;
+  version?: number;
 }
 
 interface ImageJobView {
@@ -82,6 +111,7 @@ interface ImageAssetRecord {
 
 const DRAFT_TYPE_OPTIONS = [
   { label: "图文笔记", value: "note" },
+  { label: "长文 / Markdown", value: "article" },
   { label: "短视频脚本", value: "short_video" },
   { label: "清单", value: "checklist" },
   { label: "问答", value: "faq" },
@@ -98,6 +128,20 @@ const DRAFT_STATUS_OPTIONS = [
 const typeLabel = new Map(DRAFT_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 const statusLabel = new Map(DRAFT_STATUS_OPTIONS.map((option) => [option.value, option.label]));
 const FALLBACK_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YxZjVmOSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTRhM2I4IiBmb250LXNpemU9IjE0Ij7lm77niYfliqDovb3lpLHotKU8L3RleHQ+PC9zdmc+";
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function readDraftSnapshots(value: unknown) {
+  const snapshot = asRecord(value);
+  return {
+    topic: asRecord(snapshot?.topicSnapshot) as TopicSnapshot | null,
+    template: asRecord(snapshot?.templateSnapshot) as TemplateSnapshot | null,
+  };
+}
 
 async function requestApi<T>(url: string, options?: RequestInit) {
   const response = await fetch(url, {
@@ -177,11 +221,13 @@ function formatDiffSection(label: string, value: unknown) {
 function buildDraftPatchDiff(params: {
   patch: DraftPatch;
   title: string;
+  hook: string;
   body: string;
+  tags: string[];
   status: string;
   selectedImages: DraftImageItem[];
 }): DraftPatchDiff {
-  const { patch, title, body, status, selectedImages } = params;
+  const { patch, title, hook, body, tags, status, selectedImages } = params;
   const oldSections: string[] = [];
   const newSections: string[] = [];
   const fields: string[] = [];
@@ -194,7 +240,7 @@ function buildDraftPatchDiff(params: {
 
   if (patch.hook !== undefined) {
     fields.push("Hook");
-    oldSections.push(formatDiffSection("Hook", "当前草稿页暂未接入 hook 字段"));
+    oldSections.push(formatDiffSection("Hook", hook));
     newSections.push(formatDiffSection("Hook", patch.hook));
   }
 
@@ -212,7 +258,7 @@ function buildDraftPatchDiff(params: {
 
   if (patch.tags !== undefined) {
     fields.push("标签");
-    oldSections.push(formatDiffSection("标签", "当前草稿页暂未接入 tags 字段"));
+    oldSections.push(formatDiffSection("标签", tags));
     newSections.push(formatDiffSection("标签", patch.tags));
   }
 
@@ -248,7 +294,9 @@ export function CreateDraftEditor() {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<DraftRecord | null>(null);
   const [title, setTitle] = useState("");
+  const [hook, setHook] = useState("");
   const [body, setBody] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [type, setType] = useState("note");
   const [status, setStatus] = useState("DRAFT");
   const [assetOpen, setAssetOpen] = useState(false);
@@ -263,11 +311,19 @@ export function CreateDraftEditor() {
   const [patchOpen, setPatchOpen] = useState(false);
   const [patchApplying, setPatchApplying] = useState(false);
   const selectedImages = useMemo(() => normalizeDraftImages(draft?.selected_images ?? []), [draft?.selected_images]);
+  const snapshots = useMemo(
+    () => readDraftSnapshots(draft?.generation_snapshot_json),
+    [draft?.generation_snapshot_json],
+  );
+  const isZhihuArticle = draft?.platform === "zhihu" && type === "article";
+  const availableDraftTypeOptions = draft?.platform === "zhihu"
+    ? DRAFT_TYPE_OPTIONS.filter((option) => option.value === "article")
+    : DRAFT_TYPE_OPTIONS;
   const pendingPatchDiff = useMemo(() => (
     pendingPatch
-      ? buildDraftPatchDiff({ patch: pendingPatch, title, body, status, selectedImages })
+      ? buildDraftPatchDiff({ patch: pendingPatch, title, hook, body, tags, status, selectedImages })
       : null
-  ), [body, pendingPatch, selectedImages, status, title]);
+  ), [body, hook, pendingPatch, selectedImages, status, tags, title]);
 
   const loadDraft = useCallback(async () => {
     if (!Number.isInteger(draftId) || draftId <= 0) return;
@@ -276,7 +332,9 @@ export function CreateDraftEditor() {
       const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}`);
       setDraft(result);
       setTitle(result.title);
+      setHook(result.hook ?? "");
       setBody(result.body ?? "");
+      setTags(Array.isArray(result.tags_json) ? result.tags_json : []);
       setType(result.type);
       setStatus(result.status);
     } catch (error) {
@@ -313,11 +371,13 @@ export function CreateDraftEditor() {
     Boolean(draft)
     && (
       title !== draft?.title
+      || hook !== (draft?.hook ?? "")
       || body !== (draft?.body ?? "")
+      || tags.join("\u0000") !== (draft?.tags_json ?? []).join("\u0000")
       || type !== draft?.type
       || status !== draft?.status
     )
-  ), [body, draft, status, title, type]);
+  ), [body, draft, hook, status, tags, title, type]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -331,14 +391,18 @@ export function CreateDraftEditor() {
         method: "PATCH",
         body: JSON.stringify({
           title: title.trim(),
+          hook,
           body,
+          tags,
           type,
           status,
         }),
       });
       setDraft(result);
       setTitle(result.title);
+      setHook(result.hook ?? "");
       setBody(result.body ?? "");
+      setTags(Array.isArray(result.tags_json) ? result.tags_json : []);
       setType(result.type);
       setStatus(result.status);
       message.success("草稿已保存");
@@ -364,7 +428,9 @@ export function CreateDraftEditor() {
   const applyAgentPatch = useCallback(
     async (patch: DraftPatch) => {
       if (patch.title !== undefined) setTitle(patch.title);
+      if (patch.hook !== undefined) setHook(patch.hook);
       if (patch.body !== undefined) setBody(patch.body);
+      if (patch.tags !== undefined) setTags(patch.tags);
       if (patch.status !== undefined) setStatus(patch.status);
 
       if (patch.addImages?.length) {
@@ -415,6 +481,15 @@ export function CreateDraftEditor() {
   }, [applyAgentPatch, pendingPatch]);
 
   const agent = useCreateAgent({ draftId, onPatch: handleAgentPatch });
+
+  const handleGenerateFromTopic = () => {
+    if (!snapshots.topic || agent.isStreaming) return;
+    setAgentOpen(true);
+    const instruction = isZhihuArticle
+      ? "根据来源选题和当前知乎模板生成第一版 Markdown 长文，提交 DraftPatch 等我确认。"
+      : "根据来源选题和当前小红书模板生成第一版图文笔记，提交标题、hook、正文和标签 DraftPatch 等我确认。";
+    void agent.sendMessage(instruction, agent.messages);
+  };
 
   const handleAddAsset = async (asset: ImageAssetRecord) => {
     const imageUrl = getAssetImageUrl(asset);
@@ -595,6 +670,7 @@ export function CreateDraftEditor() {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <Tag color="blue">{statusLabel.get(status) ?? status}</Tag>
               <Tag>{typeLabel.get(type) ?? type}</Tag>
+              <Tag color="purple">{draft.platform === "zhihu" ? "知乎" : "小红书"}</Tag>
               <Tag color="green">{selectedImages.length} 张图片</Tag>
             </div>
             <Input
@@ -609,6 +685,17 @@ export function CreateDraftEditor() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/create/drafts")}>
               返回
             </Button>
+            {snapshots.topic ? (
+              <Button
+                type="primary"
+                ghost
+                icon={<RobotOutlined />}
+                loading={agent.isStreaming}
+                onClick={handleGenerateFromTopic}
+              >
+                AI 根据选题生成初稿
+              </Button>
+            ) : null}
             <Button
               type={agentOpen ? "primary" : "default"}
               icon={<RobotOutlined />}
@@ -640,10 +727,28 @@ export function CreateDraftEditor() {
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex min-w-0 flex-col gap-4">
+            {snapshots.topic ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50/70 p-4">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">来源选题</span>
+                  {snapshots.template?.name ? <Tag>{snapshots.template.name} v{snapshots.template.version ?? 1}</Tag> : null}
+                </div>
+                <div className="text-base font-semibold text-slate-950">{snapshots.topic.title || `选题 #${snapshots.topic.id}`}</div>
+                {snapshots.topic.coreAngle ? (
+                  <p className="mt-2 text-sm leading-6 text-slate-700">核心角度：{snapshots.topic.coreAngle}</p>
+                ) : null}
+                {snapshots.topic.keyPoints?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {snapshots.topic.keyPoints.map((point) => <Tag key={point}>{point}</Tag>)}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-2">
               <div>
                 <div className="mb-2 text-xs font-medium text-slate-500">类型</div>
-                <Select value={type} onChange={setType} options={DRAFT_TYPE_OPTIONS} className="w-full" />
+                <Select value={type} onChange={setType} options={availableDraftTypeOptions} className="w-full" />
               </div>
               <div>
                 <div className="mb-2 text-xs font-medium text-slate-500">状态</div>
@@ -652,18 +757,51 @@ export function CreateDraftEditor() {
             </div>
 
             <div className="rounded-md border border-slate-200 bg-white p-4">
+              <div className="mb-2 text-xs font-medium text-slate-500">Hook / 开场摘要</div>
+              <Input.TextArea
+                value={hook}
+                onChange={(event) => setHook(event.target.value)}
+                rows={2}
+                maxLength={5000}
+                showCount
+                placeholder={isZhihuArticle ? "用一段话说明文章要回答的问题" : "用一句话抓住读者注意力"}
+              />
+              <div className="mb-2 mt-4 text-xs font-medium text-slate-500">标签</div>
+              <Select
+                mode="tags"
+                value={tags}
+                onChange={setTags}
+                maxCount={20}
+                tokenSeparators={[",", "，", " "]}
+                placeholder="输入标签后回车"
+                className="w-full"
+              />
+            </div>
+
+            <div className="min-h-0 rounded-md border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <FileTextOutlined />
-                正文
+                {isZhihuArticle ? "Markdown 长文" : "正文"}
               </div>
-              <Input.TextArea
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                rows={18}
-                maxLength={100000}
-                showCount
-                placeholder="写正文"
-              />
+              {isZhihuArticle ? (
+                <div className="h-[680px] overflow-hidden rounded border border-slate-200">
+                  <MarkdownEditor
+                    value={body}
+                    onChange={setBody}
+                    placeholder="使用 Markdown 撰写知乎长文..."
+                    className="h-full"
+                  />
+                </div>
+              ) : (
+                <Input.TextArea
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  rows={18}
+                  maxLength={100000}
+                  showCount
+                  placeholder="写正文"
+                />
+              )}
             </div>
           </div>
 
@@ -872,6 +1010,7 @@ export function CreateDraftEditor() {
         onAbort={agent.abort}
         hasPendingPatch={Boolean(pendingPatch)}
         onViewPatch={() => setPatchOpen(true)}
+        platform={draft.platform}
       />
     </div>
   );

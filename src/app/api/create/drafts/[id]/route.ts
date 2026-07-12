@@ -89,6 +89,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!validation.success) {
       return validationErrorResponse(validation.error);
     }
+    if (existing.platform === 'zhihu' && validation.data.type && validation.data.type !== 'article') {
+      return NextResponse.json(errorResponse('知乎草稿必须使用长文 / Markdown 类型'), { status: 400 });
+    }
 
     const draft = await updateContentDraft(draftId, validation.data);
     return NextResponse.json(successResponse(draft, '草稿已保存'), {

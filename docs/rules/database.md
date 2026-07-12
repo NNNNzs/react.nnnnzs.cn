@@ -41,7 +41,7 @@ Schema 使用目录化拆分：
 
 开发环境会在 `global.prisma` 缓存 Prisma Client，减少热更新时重复创建连接。新增模型后，即使已经执行 `pnpm prisma:push` 和 `prisma generate`，正在运行的 dev server 仍可能持有旧 client，表现为新模型 delegate 为 `undefined`，例如 `prisma.contentDraft.findMany` 报 `Cannot read properties of undefined`。
 
-当前 `src/lib/prisma.ts` 会检查内容中台模型 delegate（`contentTopic`、`contentDraft`、`contentDraftSlide`、`contentAsset`、`contentTemplate`），如果全局缓存 client 缺少这些 delegate，会自动创建新的 Prisma Client。若后续新增更多模型且出现类似错误，先确认已重新生成 client，再检查 `global.prisma` 的 delegate 自检是否需要扩展；手动重启 dev server 也可以清掉旧缓存。
+当前 `src/lib/prisma.ts` 会检查内容中台模型 delegate（`contentTopic`、`contentDraft`、`contentDraftSlide`、`contentAsset`）和 AI 模板 delegate（`tbAiTemplate`、`tbAiTemplateVersion`）。如果全局缓存 client 缺少这些 delegate，会自动创建新的 Prisma Client。若后续新增更多模型且出现类似错误，先确认已重新生成 client，再检查 `global.prisma` 的 delegate 自检是否需要扩展；手动重启 dev server 也可以清掉旧缓存。
 
 ### 实体命名规范
 - **表名**: `tb_` 前缀 + 小写 + 下划线（如：`tb_post`, `tb_user`）

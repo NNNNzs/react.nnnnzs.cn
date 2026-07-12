@@ -31,7 +31,6 @@ function hasCurrentModelDelegates(client: PrismaClient | undefined): client is P
     && client.contentDraft
     && client.contentDraftSlide
     && client.contentAsset
-    && client.contentTemplate
     && client.tbAiTemplate
     && client.tbAiTemplateVersion,
   );

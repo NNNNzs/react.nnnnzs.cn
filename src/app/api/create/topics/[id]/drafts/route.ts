@@ -5,22 +5,17 @@ import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { CONTENT_CREATE } from '@/constants/permissions';
 import { createContentDraft, getContentTopic, updateContentTopic } from '@/services/content-creation';
 import { validationErrorResponse } from '../../../_utils';
+import { DRAFT_PLATFORM_PROFILES } from '@/constants/content-drafts';
+import { loadPromptSkillTemplate } from '@/services/ai-template';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-const platformSchema = z.enum(['xhs', 'zhihu', 'douyin', 'blog']);
+const platformSchema = z.enum(['xhs', 'zhihu']);
 const createDraftFromTopicSchema = z.object({
   platform: platformSchema,
 });
-
-const platformDefaults = {
-  xhs: { label: '小红书图文', type: 'note' },
-  zhihu: { label: '知乎文章', type: 'article' },
-  douyin: { label: '抖音短视频脚本', type: 'short_video' },
-  blog: { label: '博客长文', type: 'article' },
-} as const;
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -40,10 +35,42 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const validation = createDraftFromTopicSchema.safeParse(await request.json());
     if (!validation.success) return validationErrorResponse(validation.error);
 
-    const target = platformDefaults[validation.data.platform];
+    const target = DRAFT_PLATFORM_PROFILES[validation.data.platform];
+    let templateSnapshot: {
+      id: number | null;
+      slug: string;
+      name: string;
+      version: number;
+      content: string;
+    };
+    try {
+      const template = await loadPromptSkillTemplate({ slug: target.templateSlug });
+      templateSnapshot = {
+        id: template.template.id,
+        slug: template.template.slug,
+        name: template.template.name,
+        version: template.version.version,
+        content: template.version.content,
+      };
+    } catch (error) {
+      console.warn(`[create] 平台模板 ${target.templateSlug} 未初始化，使用内置模板:`, error);
+      templateSnapshot = {
+        id: null,
+        slug: target.templateSlug,
+        name: `${target.label}默认模板`,
+        version: 1,
+        content: target.templateContent,
+      };
+    }
+
+    const keyPoints = Array.isArray(topic.key_points)
+      ? topic.key_points.filter((item): item is string => typeof item === 'string')
+      : [];
+    const capturedAt = new Date().toISOString();
     const draft = await createContentDraft({
       topic_id: topic.id,
       source_post_id: topic.source_post_id,
+      template_id: templateSnapshot.id,
       platform: validation.data.platform,
       type: target.type,
       title: topic.title,
@@ -57,7 +84,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           sourcePostId: topic.source_post_id,
           originalIdea: topic.original_idea,
           coreAngle: topic.core_angle,
-          keyPoints: topic.key_points,
+          keyPoints,
+          capturedAt,
+        },
+        templateSnapshot,
+        generation: {
+          platform: target.platform,
+          type: target.type,
+          generatedAt: null,
+          model: null,
         },
       },
       created_by: check.user.id,

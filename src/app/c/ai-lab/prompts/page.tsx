@@ -21,7 +21,7 @@ import type { MentionsOptionProps } from "antd/es/mentions";
 import {
   BranchesOutlined,
   DiffOutlined,
-  DownloadOutlined,
+  EditOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -45,7 +45,7 @@ interface TemplateSummary {
   type: string;
   scope: string;
   description: string | null;
-  aliases: string[];
+  aliases: string[] | null;
   metadata_json: unknown;
   current_version: number;
   status: string;
@@ -144,18 +144,20 @@ export default function AiLabPromptsPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
   const [editorValue, setEditorValue] = useState("");
   const [changeNote, setChangeNote] = useState("");
   const [newOpen, setNewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSlug, setEditSlug] = useState<string>("");
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffData, setDiffData] = useState<DiffData | null>(null);
   const [fromVersion, setFromVersion] = useState<number | null>(null);
   const [toVersion, setToVersion] = useState<number | null>(null);
   const [newForm] = Form.useForm<NewTemplateForm>();
+  const [editForm] = Form.useForm<NewTemplateForm>();
 
   const mentionOptions: MentionsOptionProps[] = useMemo(
     () => templates.map((item) => ({
@@ -242,28 +244,6 @@ export default function AiLabPromptsPage() {
     }
   }, [loadDetail, selectedSlug]);
 
-  const handleImportLegacy = useCallback(async () => {
-    setImporting(true);
-    try {
-      const response = await fetch("/api/admin/ai-lab/prompts/import-legacy", {
-        method: "POST",
-      });
-      const result = await response.json() as ApiResponse<{
-        created: unknown[];
-        updated: unknown[];
-        skipped: unknown[];
-      }>;
-      if (!result.status) {
-        message.error(result.message || "导入失败");
-        return;
-      }
-      message.success(`导入完成：新增 ${result.data.created.length}，更新 ${result.data.updated.length}，跳过 ${result.data.skipped.length}`);
-      await loadTemplates();
-    } finally {
-      setImporting(false);
-    }
-  }, [loadTemplates]);
-
   const handleCreateTemplate = useCallback(async () => {
     const values = await newForm.validateFields();
     setSaving(true);
@@ -290,6 +270,54 @@ export default function AiLabPromptsPage() {
       setSaving(false);
     }
   }, [loadTemplates, newForm]);
+
+  const handleOpenEdit = useCallback((slug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const item = templates.find((t) => t.slug === slug);
+    if (!item) return;
+    setEditSlug(slug);
+    editForm.setFieldsValue({
+      slug,
+      name: item.name,
+      type: item.type,
+      scope: item.scope,
+      description: item.description || "",
+      aliases: (item.aliases || []).join(", "),
+    });
+    setEditOpen(true);
+  }, [editForm, templates]);
+
+  const handleUpdateTemplate = useCallback(async () => {
+    const values = await editForm.validateFields();
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/ai-lab/prompts/${encodeURIComponent(editSlug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name,
+          type: values.type,
+          scope: values.scope,
+          description: values.description || null,
+          aliases: parseAliases(values.aliases),
+        }),
+      });
+      const result = await response.json() as ApiResponse<TemplateDetail>;
+      if (!result.status) {
+        message.error(result.message || "更新失败");
+        return;
+      }
+      message.success("模板已更新");
+      setEditOpen(false);
+      editForm.resetFields();
+      await loadTemplates();
+      if (selectedSlug === editSlug) {
+        await loadDetail(editSlug);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [editForm, editSlug, loadDetail, loadTemplates, selectedSlug]);
 
   const handleSaveVersion = useCallback(async () => {
     if (!detail) return;
@@ -384,9 +412,6 @@ export default function AiLabPromptsPage() {
         className="mb-2"
         extra={(
           <Space wrap>
-            <Button size="small" icon={<DownloadOutlined />} onClick={handleImportLegacy} loading={importing}>
-              导入旧模板
-            </Button>
             <Button size="small" color="primary" variant="solid" icon={<PlusOutlined />} onClick={() => setNewOpen(true)}>
               新建
             </Button>
@@ -438,7 +463,13 @@ export default function AiLabPromptsPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium text-slate-950">{item.name}</span>
-                    <Tag className="mr-0" color={STATUS_COLOR.get(item.status)}>{item.status}</Tag>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <EditOutlined
+                        className="cursor-pointer p-0.5 text-xs text-slate-400 hover:text-cyan-600"
+                        onClick={(e) => handleOpenEdit(item.slug, e)}
+                      />
+                      <Tag className="mr-0" color={STATUS_COLOR.get(item.status)}>{item.status}</Tag>
+                    </div>
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                     <span className="truncate">@{item.slug}</span>
@@ -453,7 +484,9 @@ export default function AiLabPromptsPage() {
         <main className="min-h-0 overflow-hidden rounded-md border border-slate-200 bg-white">
           {detailLoading ? (
             <div className="flex h-full min-h-80 items-center justify-center">
-              <Spin tip="加载模板详情..." />
+              <Spin tip="加载模板详情...">
+                <div />
+              </Spin>
             </div>
           ) : !detail ? (
             <Empty className="py-20" description="请选择一个模板" />
@@ -534,8 +567,8 @@ export default function AiLabPromptsPage() {
               <div>
                 <Typography.Text strong>别名</Typography.Text>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {detail.aliases.length > 0
-                    ? detail.aliases.map((alias) => <Tag key={alias}>{alias}</Tag>)
+                  {(detail.aliases ?? []).length > 0
+                    ? detail.aliases!.map((alias) => <Tag key={alias}>{alias}</Tag>)
                     : <Typography.Text type="secondary">暂无</Typography.Text>}
                 </div>
               </div>
@@ -613,11 +646,44 @@ export default function AiLabPromptsPage() {
         </Form>
       </Modal>
 
+      <Modal
+        title="编辑模板信息"
+        open={editOpen}
+        onCancel={() => setEditOpen(false)}
+        onOk={handleUpdateTemplate}
+        confirmLoading={saving}
+        width={820}
+        destroyOnHidden
+      >
+        <Form form={editForm} layout="vertical">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Form.Item name="slug" label="Slug">
+              <Input disabled placeholder="xhs-style-guide" />
+            </Form.Item>
+            <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+              <Input placeholder="小红书风格指南" />
+            </Form.Item>
+            <Form.Item name="type" label="类型" rules={[{ required: true }]}>
+              <Select options={TYPE_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
+              <Input placeholder="system / content / create_agent" />
+            </Form.Item>
+          </div>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="aliases" label="别名（逗号或换行分隔）">
+            <Input.TextArea rows={2} placeholder="小红书风格指南, 小红书写作风格" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       <Drawer
         title={diffData ? `${diffData.name} v${diffData.fromVersion} → v${diffData.toVersion}` : "版本对比"}
         open={diffOpen}
         onClose={() => setDiffOpen(false)}
-        width="88vw"
+        size="large"
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Select

@@ -493,7 +493,6 @@ Golden Dataset 管理。
 - AntD `Mentions` Markdown 编辑器，输入 `@` 从模板列表选择引用。
 - LangChain mustache 变量：`{{draftTitle}}`、`{{topic}}` 等。
 - 模板 metadata 列表、版本列表、diff、active / archived 状态。
-- 旧 `content_templates` 一键导入到 `tb_ai_template` / `tb_ai_template_version`。
 - `list_prompt_skills` 只返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
 
 后续能力：
@@ -522,7 +521,6 @@ Golden Dataset 管理。
 | `/api/admin/ai-lab/prompts/[slug]/versions` | POST | 创建模板版本 |
 | `/api/admin/ai-lab/prompts/[slug]/diff` | GET | 模板版本 diff |
 | `/api/admin/ai-lab/prompts/render` | POST | LangChain mustache 渲染预览 |
-| `/api/admin/ai-lab/prompts/import-legacy` | POST | 从旧 `content_templates` 同步模板 |
 
 ## LangSmith 集成
 

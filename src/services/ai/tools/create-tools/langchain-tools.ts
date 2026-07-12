@@ -17,7 +17,6 @@ import { getAiJob } from '@/services/ai-job';
 import { createContentAsset } from '@/services/content-creation';
 import type { AuthUser } from '@/types/auth';
 import {
-  readPromptTemplateTool,
   listPromptSkillsTool,
   loadPromptSkillTemplateTool,
   createGetDraftTool,
@@ -50,7 +49,6 @@ function buildMinimalUser(userId: number): AuthUser {
 export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool[] {
   const { draftId, userId, emitPatch } = params;
 
-  const readPromptTemplate = wrapReadPromptTemplate();
   const listPromptSkills = wrapListPromptSkills();
   const loadPromptSkillTemplate = wrapLoadPromptSkillTemplate();
   const getDraft = wrapGetDraft(draftId);
@@ -64,7 +62,6 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   return [
     listPromptSkills,
     loadPromptSkillTemplate,
-    readPromptTemplate,
     getDraft,
     searchPosts,
     getPostContent,
@@ -115,27 +112,6 @@ function wrapLoadPromptSkillTemplate(): StructuredTool {
           .record(z.string(), z.unknown())
           .optional()
           .describe('可选 LangChain mustache 渲染变量对象'),
-      }),
-    },
-  );
-}
-
-function wrapReadPromptTemplate(): StructuredTool {
-  return tool(
-    async ({ scenario, name }) => {
-      const result = await readPromptTemplateTool.execute({ scenario, name });
-      return JSON.stringify(result.success ? result.data : { error: result.error });
-    },
-    {
-      name: 'read_prompt_template',
-      description:
-        '兼容旧工具：按旧 scenario 读取提示词正文。新任务优先使用 list_prompt_skills 和 load_prompt_skill_template。',
-      schema: z.object({
-        scenario: z
-          .string()
-          .optional()
-          .describe('模板场景：blog_to_xhs_note / blog_to_short_video / tts / image_card'),
-        name: z.string().optional().describe('模板名称关键词，与 scenario 组合使用'),
       }),
     },
   );

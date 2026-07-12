@@ -204,7 +204,6 @@ src/
 - `/create/assets` - 素材库
 - `/create/calendar` - 发布日历
 - `/create/review` - 复盘数据
-- `/create/templates` - 模板管理
 
 ### API 接口
 - `/api/post/*` - 文章相关接口

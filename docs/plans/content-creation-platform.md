@@ -2,9 +2,10 @@
 
 > **状态**：🔄 进行中
 > **创建时间**：2026-07-07
-> **最近更新**：2026-07-07
+> **最近更新**：2026-07-12
 > **目标入口**：`/create`
 > **关联本地项目**：`/Users/nnnnzs/project/xhs`
+> **当前开发设计**：[选题完善与多平台草稿转换](../designs/ai/topic-draft-workflow.md)
 
 ---
 
@@ -31,14 +32,14 @@
 1. `/create` 使用独立 layout 和导航，不挂在 `/c` 菜单下。
 2. 复用当前登录态、AI 配置、联网搜索、队列、图片生成、TTS 和 COS 能力；当前 `/create` 已使用内容访问和创建权限。
 3. Prisma schema 采用分文件组织，内容中台模型集中到独立 schema 文件中。
-4. 从选题按平台生成结构化草稿；第一批支持小红书图文、知乎 Markdown、抖音短视频脚本和博客长文。
+4. 从选题按平台生成结构化草稿；数据枚举保留小红书、知乎、抖音和博客，当前开发里程碑先完整支持小红书图文和知乎 Markdown 长文。
 5. 图片素材先通过生成、编辑和上传进入素材库；TTS、Remotion 渲染后续单独设计，不急于自动发布。
 6. `xhs` 项目保留为本地模板、Remotion worker、历史草稿和实验工作区。
 
 当前执行优先级：
 
 1. 选题库：支持用户提供文章、网站、博客或想法，由 AI 整理、去重并保存创作意图。
-2. 多平台草稿：同一个选题可以按平台生成小红书图文、知乎 Markdown、抖音短视频脚本和博客文章。
+2. 多平台草稿：同一个选题当前先生成小红书图文和知乎 Markdown 长文；抖音脚本和博客文章后置。
 3. 草稿库：承载不同平台的内容编辑和人工确认。
 4. 素材库：只做图片素材，统一承接生成图、编辑图和上传图。
 5. 发布日历、复盘数据、模板管理后置。
@@ -74,7 +75,6 @@
 | 草稿详情 | `/create/drafts/[id]` | 编辑标题、正文、类型、状态、选用图片、图片备注、图片排序和打包下载 |
 | 发布日历 | `/create/calendar` | 周计划、发布时间、平台、发布状态 |
 | 复盘数据 | `/create/review` | 收藏、点赞、评论、私信、博客回流 |
-| 模板管理 | `/create/templates` | prompt、视觉模板、账号定位、发布 checklist |
 
 当前实现状态：
 
@@ -83,10 +83,10 @@
 - `/create` 使用 `CONTENT_VIEW` 访问权限；创建选题和 AI 生成选题使用 `CONTENT_CREATE`。
 - `/create/drafts`、`/create/assets`、`/create/topics` 已切换为真实列表页，并接入 `/api/create/*`。
 - `/create/drafts/[id]` 已支持草稿图片备注、拖拽排序和一键打包下载；图片使用记录仍保存为草稿内快照。
-- `/create/templates` 已切换为真实模板管理页，支持模板 CRUD、筛选和导入 `xhs/prompts`；`content_templates` schema 与 Prisma Client 已生成，数据库结构同步待执行。
+- 平台输出与 Agent 提示词统一由 `/c/ai-lab/prompts` 管理，草稿保留实际使用模板的版本快照。
 - `/create/topics` 已落地手动创建、编辑、删除和按标题/来源去重；选题以原始想法、核心角度、关键点和来源为主数据，不再要求栏目、内容支柱或优先级。
 - 已支持输入博客文章 ID，让 AI 基于博客内容整理为创作意图并入库；链接、网站和一句想法可以手动记录，Topic Agent 的联网整理仍按 `docs/designs/ai/topic-agent.md` 后续实现。
-- 选题卡可以直接创建小红书、知乎、抖音或博客草稿，并把选题快照写入草稿，后续修改选题不会回写历史草稿。
+- 选题卡可以直接创建小红书、知乎、抖音或博客空草稿，并把选题快照写入草稿，后续修改选题不会回写历史草稿；平台模板匹配和草稿 Agent 上下文注入尚未落地。
 - `content_topics` 新字段已写入 Prisma schema，部署或本地联调前仍需由环境所有者执行 `pnpm prisma:push` 同步数据库。
 
 ### 3.2 整体流程
@@ -94,7 +94,7 @@
 ```mermaid
 flowchart LR
     Blog["博客文章<br/>tb_post"] --> Topic["选题库<br/>content_topics"]
-    XhsDocs["xhs 文档与 prompt"] --> Template["模板库<br/>content_templates"]
+    AiLab["AI Lab Prompts<br/>tb_ai_template"] --> Template["系统模板"]
     Topic --> Draft["草稿库<br/>content_drafts"]
     Blog --> Draft
     Template --> Draft
@@ -221,7 +221,7 @@ src/generated/content-prisma-client
 
 ### `content_drafts`
 
-创作草稿，承载小红书图文、短视频脚本和工具清单。
+创作草稿，当前优先承载小红书图文和知乎 Markdown 长文，短视频脚本及其他类型保留扩展能力。
 
 - `id`
 - `topic_id`
@@ -277,26 +277,6 @@ src/generated/content-prisma-client
 - `created_at`
 
 草稿使用图片时，不修改 `content_assets.draft_id`。素材库中的图片可以被多个草稿重复添加，草稿内的使用记录保存在 `content_drafts.generation_snapshot_json.draftImages`。草稿图片的拖拽顺序写入 `sortOrder`，备注写入 `remark`；打包下载接口按 `sortOrder` 输出图片，并附带 `manifest.json` 保存素材 ID、URL、分组和备注。
-
-### `content_templates`
-
-prompt、视觉模板、账号定位、TTS 风格、Agent 上下文和发布 checklist。
-
-- `id`
-- `name`
-- `type`：`prompt` / `visual` / `checklist` / `voice_style` / `context`
-- `scenario`：`blog_to_xhs_note` / `blog_to_short_video` / `tts` / `image_card` / `content_agent`
-- `content`
-- `variables_json`
-- `output_schema_json`
-- `version`
-- `status`
-- `source_path`
-- `created_by`
-- `created_at`
-- `updated_at`
-
-当前支持从 `xhs/prompts/blog-to-xhs-note.md`、`xhs/prompts/blog-to-short-video.md`、`xhs/prompts/mimo-tts-style.md` 导入模板。导入后的线上模板作为生产主版本，`source_path` 只用于追踪来源和重新同步。
 
 ### `content_publish_records`
 
@@ -371,23 +351,36 @@ prompt、视觉模板、账号定位、TTS 风格、Agent 上下文和发布 che
 1. [x] 新增 `content_topics`、`content_drafts`、`content_draft_slides`。
 2. [x] 支持 AI 从博客文章生成选题并入库。
 3. [x] 支持简化创建草稿，只填写标题、类型和状态。
-4. [ ] 支持从选题选择平台并生成对应草稿。
+4. [x] 支持从选题选择平台并创建带 `topicSnapshot` 的空草稿。
 5. [x] 支持在草稿编辑页编辑标题、正文、类型和状态。
 6. [x] 支持删除草稿。
 7. [x] 支持草稿从素材库追加图片，素材本身可重复使用。
 8. [x] 草稿库、素材库、选题库列表页接入真实 API。
 9. [ ] 支持导入 `xhs/content/topic-bank.md` 的初始选题。
 
-### 阶段 4：选题到多平台草稿生成
+### 阶段 4：Topic Agent
 
-1. [ ] 导入小红书图文、知乎 Markdown、抖音短视频等模板记录。
-2. [ ] 新增“从选题生成平台草稿”接口。
-3. [ ] 根据平台结构保存到 `content_drafts` 和 `content_draft_slides`。
-4. [ ] 记录选题内容快照、模板版本、模型和输入来源。
-5. [ ] 支持同一选题创建多个平台草稿。
-6. [ ] 支持失败重试和人工覆盖。
+1. [x] 新增 `topic_agent` 场景和默认 system prompt；Provider 场景绑定待运行环境配置。
+2. [x] 新增 `TopicPatch`、Zod 校验、`buildTopicTools` 和 `emit_topic_patch`。
+3. [x] 新增 `/api/create/topics/chat` 和 `/api/create/topics/[id]/chat`。
+4. [x] 在选题页复用 `AgentAssistantPanel`、`useAssistantAgent` 和 `ContentDiffViewer`。
+5. [x] 支持从想法/博客/URL 整理选题、完善已有选题和提示重复候选。
+6. [x] 确保 Agent patch 经用户确认并保存后才写数据库。
 
-### 阶段 5：素材任务与现有 AI 能力打通
+### 阶段 5：选题到小红书/知乎草稿生成
+
+1. [x] 抽取共享 `DRAFT_PLATFORM_PROFILES`，当前只在转换 UI 暴露小红书图文和知乎长文。
+2. [x] 增加 `xhs-topic-to-note`、`zhihu-topic-to-article` 内置 AI Template，并提供未初始化时的 fallback。
+3. [x] 给 `content_drafts` 增加可空 `template_id`，保存 `templateSnapshot` 并兼容旧快照；数据库字段待同步。
+4. [x] 扩展现有选题转草稿接口，按平台匹配模板并记录选题/模板快照。
+5. [x] 草稿 Agent 运行时注入选题快照、平台模板和当前人工内容。
+6. [x] 草稿详情增加“AI 根据选题生成初稿”显式入口，继续使用 DraftPatch 确认流程。
+7. [x] 补齐草稿 `hook`、`tags` 的编辑、保存和 DraftPatch 应用。
+8. [x] 知乎 `article` 接入现有 `MarkdownEditor` 双栏编辑/预览，小红书保留图文工作台。
+9. [x] 支持同一选题创建多个平台或同平台不同模板版本草稿。
+10. [x] 保留模型失败后的人工编辑、再次生成和人工覆盖。
+
+### 阶段 6：素材任务与现有 AI 能力打通
 
 1. [x] 新增 `content_assets`。
 2. [x] 素材库改为图片卡片库，不再支持手动登记素材。
@@ -401,7 +394,7 @@ prompt、视觉模板、账号定位、TTS 风格、Agent 上下文和发布 che
 10. [x] 复用现有 `tb_ai_job` 和队列，不新增重复任务系统。
 11. [x] 草稿详情右侧展示草稿选用图片。
 
-### 阶段 6：Remotion worker 协议
+### 阶段 7：Remotion worker 协议
 
 1. [ ] 线上生成 Remotion 渲染参数，并保存到后续独立渲染产物表或扩展后的素材模型。
 2. [ ] 设计本地/NAS worker 拉取任务或读取导出 JSON 的协议。
@@ -409,7 +402,7 @@ prompt、视觉模板、账号定位、TTS 风格、Agent 上下文和发布 che
 4. [ ] worker 完成后上传 COS，并回写素材 URL。
 5. [ ] 第一阶段不要求 worker 常驻线上部署。
 
-### 阶段 7：发布清单和复盘
+### 阶段 8：发布清单和复盘
 
 1. [ ] 新增 `content_publish_records`。
 2. [ ] 草稿 ready 后生成发布 checklist。
@@ -450,7 +443,7 @@ Prisma 阶段：
 - [ ] 未登录访问 `/create` 会跳转登录的浏览器验证。
 - [x] `/create` 页面和内容 API 使用内容权限检查。
 - [x] 可以通过 AI 从博客文章创建选题。
-- [ ] 可以通过文章 URL、网站或手动想法创建选题。
+- [ ] 可以通过 Topic Agent 从文章 URL、网站或手动想法整理并确认选题。
 - [ ] 选题入库前可以检查并提示重复内容。
 - [x] 可以简化创建草稿，不填写选题 ID 和来源博客。
 - [x] 可以在草稿编辑页编辑正文、类型和状态。
@@ -459,12 +452,14 @@ Prisma 阶段：
 - [x] 可以收藏、分组和改名图片素材。
 - [x] 已完成图片可以作为图文编辑母图。
 - [x] 素材库图片可以添加到 `DRAFT` 状态草稿，且素材可以重复使用。
-- [ ] 可以从选题选择平台并创建对应草稿。
-- [ ] 同一个选题可以创建小红书、知乎、抖音和博客等多个平台草稿。
+- [x] 可以从选题选择平台并创建带选题快照的空草稿。
+- [ ] 同一个选题可以使用平台模板生成小红书图文和知乎 Markdown 长文草稿。
+- [ ] 草稿 Agent 可以自动读取选题快照，不要求用户再次复制选题内容。
+- [ ] 知乎长文使用 `MarkdownEditor` 编辑和预览，并保存 Markdown 原文。
 - [ ] 可以生成并保存 slides。
 - [x] 草稿详情可以展示并移除已选图片。
 - [ ] 发布记录和复盘数据能在工作台汇总。
 
 ## 十、备注
 
-阶段 0 到阶段 2 已完成，阶段 3 已先落地数据模型、核心 API、三页列表、草稿编辑页、图片素材库和 AI 从博客选题。下一步优先做“从选题/博客一键生成小红书图文草稿”，再把图片生成结果定向放入草稿工作流；TTS 和 Remotion 另行设计。当前 schema 和 Prisma Client 已生成，实际数据库表需要在目标环境执行 `pnpm prisma:push` 后可用；如果 push/generate 后仍出现 `prisma.contentDraft` 为 `undefined`，原因通常是 dev server 还缓存旧 `global.prisma`，当前代码已做内容中台 delegate 自检，必要时重启 dev server 可彻底清掉旧实例。
+阶段 4 和阶段 5 的代码已落地：Topic Agent、选题/模板快照、草稿运行时上下文、小红书/知乎平台配置、知乎 Markdown 编辑以及 hook/tags 回填均已实现。当前仍需环境所有者执行 `pnpm prisma:push` 同步 `template_id` 字段，在 `/c/config` 为 `topic_agent` 绑定支持 function calling 的模型，并手动启动服务完成浏览器联调；TTS、抖音、博客生成和 Remotion 后置。如果 push/generate 后仍出现 `prisma.contentDraft` 为 `undefined`，优先检查 dev server 的旧 `global.prisma` 缓存。

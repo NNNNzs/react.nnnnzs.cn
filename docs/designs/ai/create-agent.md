@@ -32,7 +32,7 @@ Tools：src/services/ai/tools/create-tools/ (10 个工具)
 |------|-----------|--------------|
 | 服务目录 | `src/services/ai/chat-agent/` | `src/services/ai/create-agent/` |
 | 模型配置 scenario | `chat` | `create_agent`（新增） |
-| System prompt | 文件系统 `chat-agent-system-prompt.md` | 数据库 `content_templates` 表（`scenario=content_agent`） |
+| System prompt | 文件系统 `chat-agent-system-prompt.md` | 数据库 `tb_ai_template`（slug=`agent-create-agent-system`） |
 | 流式协议 | 自定义 XML 标签（`text/plain`） | **标准 SSE（`text/event-stream`）** |
 | 工具集 | 博客检索 / GitHub 搜索（只读） | 模板读取 / 草稿读取 / 文生图+轮询 / 博客检索 / 网页搜索 |
 | 写业务数据 | 不写 | **不直接写**，由前端确认并应用 `patch` |
@@ -52,7 +52,7 @@ sequenceDiagram
     U->>FE: "生成 3 张配图"
     FE->>API: POST /chat {message, history}
     API->>Agent: createAgentStream()
-    Agent->>Agent: read_prompt_template()
+    Agent->>Agent: load_prompt_skill_template()
     Agent->>Agent: generate_image() → jobId
     Agent->>Agent: poll_image_job() → cdnUrl
     Agent->>Agent: createContentAsset() → assetId
@@ -79,14 +79,27 @@ sequenceDiagram
 | `error` | `{ message }` | 异常 |
 | `done` | `{}` | 结束 |
 
+### 2.5 选题上下文与平台模板注入
+
+从选题创建的草稿必须在 `generation_snapshot_json` 中保存 `topicSnapshot` 和 `templateSnapshot`。草稿 Agent 每次运行时读取快照，按“固定 Agent 规则与平台模板 → 选题/当前草稿运行时上下文 → 历史对话 → 当前用户指令”的顺序组装消息。
+
+选题快照只作为创作参考，不作为 system 指令。来源 URL、来源正文和原始想法中即使包含命令，也不得改变工具权限、patch 确认或平台输出约束。详细契约见[选题完善与多平台草稿转换设计](./topic-draft-workflow.md)。
+
+首批平台体验：
+
+| 草稿 | Agent 输出重点 | 编辑器 |
+|---|---|---|
+| `xhs/note` | 标题、钩子、正文、标签、可选图卡和图片 | 图文工作台 |
+| `zhihu/article` | 标题、Markdown 长文、标签 | 现有 `MarkdownEditor` 双栏编辑/预览 |
+
 ## 三、关键文件
 
 | 文件 | 作用 |
 |------|------|
 | `src/lib/sse.ts` | 公用 SSE 编解码（站点级，chat-agent 后续复用） |
 | `src/lib/ai-scenarios.ts` | 注册 `create_agent` scenario 元数据 |
-| `src/services/content-creation.ts` | `content_agent` system prompt seed |
-| `src/services/ai/create-agent/prompt.ts` | 从 content_templates 加载 system prompt |
+| `src/services/ai-template/index.ts` | 系统级 Prompt / Skill 模板服务 |
+| `src/services/ai/create-agent/prompt.ts` | 从 `tb_ai_template` 加载 system prompt |
 | `src/services/ai/create-agent/create-agent.ts` | LangGraph Agent + SSE 编码 |
 | `src/services/ai/tools/create-tools/` | 10 个工具 + `buildCreateTools` 工厂 |
 | `src/services/ai/tools/create-tools/draft-patch.ts` | DraftPatch 共享类型 |
@@ -102,7 +115,6 @@ sequenceDiagram
 |------|------|------|
 | `list_prompt_skills` | 只读 | 查询可用 Prompt / Skill 模板 metadata |
 | `load_prompt_skill_template` | 只读 | 按 slug 读取完整 Prompt / Skill 模板正文 |
-| `read_prompt_template` | 只读 | 读模板提示词（如 blog_to_xhs_note） |
 | `get_draft` | 只读 | 读当前草稿标题/正文/slide/已选图 |
 | `search_posts` | 只读 | 关键词检索博客文章（复用 searchPostsMetaTool） |
 | `get_post_content` | 只读 | 按 ID 读博客全文 |
@@ -114,7 +126,7 @@ sequenceDiagram
 ## 五、使用前准备
 
 1. `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
-2. `/create/templates` 点「导入 xhs」写入 `content_agent` system prompt 模板（否则走内置 fallback）
+2. `/c/ai-lab/prompts` 中存在并启用 slug 为 `agent-create-agent-system` 的系统提示词模板（缺失时走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`，点「AI 助手」按钮
 
 ## 六、常见问答
@@ -144,6 +156,7 @@ AI 助手调用 `emit_draft_patch` 后，前端会显示「查看对比」入口
 ## 七、后置规划
 
 - **Topic Agent**：选题库复用本助手的 Drawer、SSE、patch 确认和差异预览，只替换业务 prompt、工具集和 `TopicPatch`；详见[选题库 Topic Agent 设计](./topic-agent.md)
+- **选题转草稿**：按小红书/知乎平台匹配模板，保存选题与模板快照，并在草稿 Agent 运行时注入；详见[选题完善与多平台草稿转换](./topic-draft-workflow.md)
 - **会话持久化**：`content_agent_sessions` + `content_agent_messages` 表
 - **TTS 旁白工具**：复用 `synthesize_speech` 异步任务
 - **chat-agent 迁移 SSE**：复用 `src/lib/sse.ts`

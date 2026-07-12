@@ -12,7 +12,6 @@ import {
   FormOutlined,
   PictureOutlined,
   ReadOutlined,
-  ToolOutlined,
 } from "@ant-design/icons";
 import { CONTENT_VIEW } from "@/constants/permissions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +34,6 @@ const createRoutes = [
   "/create/topics",
   "/create/calendar",
   "/create/review",
-  "/create/templates",
 ];
 
 function getSelectedKey(pathname: string) {
@@ -91,11 +89,6 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
         key: "/create/review",
         icon: <AppstoreOutlined />,
         label: "复盘数据",
-      },
-      {
-        key: "/create/templates",
-        icon: <ToolOutlined />,
-        label: "模板管理",
       },
     ],
     [],

@@ -27,6 +27,10 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import { BlogSourceSelector } from "./BlogSourceSelector";
+import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
+import { TopicAgentPanel } from "./TopicAgentPanel";
+import { useTopicAgent } from "./useTopicAgent";
+import type { TopicPatch } from "@/services/ai/topic-agent";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -149,11 +153,44 @@ const topicSourceOptions = [
 const topicDraftPlatformOptions = [
   { label: "小红书图文", value: "xhs" },
   { label: "知乎 Markdown", value: "zhihu" },
-  { label: "抖音短视频脚本", value: "douyin" },
-  { label: "博客长文", value: "blog" },
 ];
 
 const topicSourceLabel = new Map(topicSourceOptions.map((option) => [option.value, option.label]));
+
+const topicDiffFields: Array<{
+  key: keyof TopicPatch;
+  label: string;
+  currentKey: keyof TopicRecord;
+}> = [
+  { key: "title", label: "标题", currentKey: "title" },
+  { key: "sourceType", label: "来源类型", currentKey: "source_type" },
+  { key: "sourceUrl", label: "来源链接", currentKey: "source_url" },
+  { key: "sourcePostId", label: "来源博客 ID", currentKey: "source_post_id" },
+  { key: "originalIdea", label: "原始想法", currentKey: "original_idea" },
+  { key: "coreAngle", label: "核心角度", currentKey: "core_angle" },
+  { key: "keyPoints", label: "关键点", currentKey: "key_points" },
+  { key: "status", label: "状态", currentKey: "status" },
+];
+
+function formatTopicDiffValue(value: unknown) {
+  if (Array.isArray(value)) return value.join("\n");
+  if (value === null || value === undefined || value === "") return "（空）";
+  return String(value);
+}
+
+function buildTopicPatchDiff(topic: TopicRecord | null, patch: TopicPatch) {
+  const oldSections: string[] = [];
+  const newSections: string[] = [];
+  for (const field of topicDiffFields) {
+    if (patch[field.key] === undefined) continue;
+    oldSections.push(`## ${field.label}\n${formatTopicDiffValue(topic?.[field.currentKey])}`);
+    newSections.push(`## ${field.label}\n${formatTopicDiffValue(patch[field.key])}`);
+  }
+  return {
+    oldValue: oldSections.join("\n\n") || "（当前没有选题内容）",
+    newValue: newSections.join("\n\n") || "（没有字段变化）",
+  };
+}
 
 const draftStatusOptions = [
   { label: "全部状态", value: "" },
@@ -178,6 +215,10 @@ const draftStatusCreateOptions = draftStatusOptions.filter((option) => option.va
 
 const draftTypeLabel = new Map(draftTypeOptions.map((option) => [option.value, option.label]));
 const draftStatusLabel = new Map(draftStatusOptions.map((option) => [option.value, option.label]));
+const draftPlatformCreateOptions = [
+  { label: "小红书", value: "xhs" },
+  { label: "知乎", value: "zhihu" },
+];
 
 async function requestApi<T>(url: string, options?: RequestInit) {
   const response = await fetch(url, {
@@ -403,12 +444,30 @@ export function CreateTopicsManager() {
   const [createOpen, setCreateOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [topicAgentOpen, setTopicAgentOpen] = useState(false);
+  const [topicAgentTopic, setTopicAgentTopic] = useState<TopicRecord | null>(null);
+  const [pendingTopicPatch, setPendingTopicPatch] = useState<TopicPatch | null>(null);
+  const [topicPatchOpen, setTopicPatchOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<TopicRecord | null>(null);
   const [draftTopic, setDraftTopic] = useState<TopicRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [aiForm] = Form.useForm();
   const [draftForm] = Form.useForm();
+
+  const handleTopicAgentPatch = useCallback((patch: TopicPatch) => {
+    setPendingTopicPatch(patch);
+    message.info("收到 AI 选题建议，可点击查看对比", 2);
+  }, []);
+
+  const topicAgent = useTopicAgent({
+    topicId: topicAgentTopic?.id,
+    onPatch: handleTopicAgentPatch,
+  });
+
+  const topicPatchDiff = useMemo(() => (
+    pendingTopicPatch ? buildTopicPatchDiff(topicAgentTopic, pendingTopicPatch) : null
+  ), [pendingTopicPatch, topicAgentTopic]);
 
   const loadTopics = useCallback(async () => {
     setLoading(true);
@@ -469,6 +528,46 @@ export function CreateTopicsManager() {
     setCreateOpen(true);
   };
 
+  const openTopicAgent = (topic: TopicRecord | null = null) => {
+    topicAgent.reset();
+    setTopicAgentTopic(topic);
+    setPendingTopicPatch(null);
+    setTopicPatchOpen(false);
+    setTopicAgentOpen(true);
+  };
+
+  const applyTopicPatchToForm = () => {
+    if (!pendingTopicPatch) return;
+    const base = topicAgentTopic;
+    setEditingTopic(base);
+    form.setFieldsValue({
+      title: pendingTopicPatch.title ?? base?.title,
+      source_type: pendingTopicPatch.sourceType
+        ?? base?.source_type
+        ?? (base?.source_post_id ? "blog" : "idea"),
+      source_url: pendingTopicPatch.sourceUrl === undefined
+        ? base?.source_url
+        : pendingTopicPatch.sourceUrl,
+      source_post_id: pendingTopicPatch.sourcePostId === undefined
+        ? base?.source_post_id
+        : pendingTopicPatch.sourcePostId,
+      original_idea: pendingTopicPatch.originalIdea === undefined
+        ? base?.original_idea
+        : pendingTopicPatch.originalIdea,
+      core_angle: pendingTopicPatch.coreAngle === undefined
+        ? base?.core_angle
+        : pendingTopicPatch.coreAngle,
+      key_points: (pendingTopicPatch.keyPoints === undefined
+        ? base?.key_points
+        : pendingTopicPatch.keyPoints)?.join("\n"),
+      status: pendingTopicPatch.status ?? base?.status ?? "IDEA",
+    });
+    setTopicPatchOpen(false);
+    setPendingTopicPatch(null);
+    setCreateOpen(true);
+    message.success("AI 建议已应用到表单，请确认后保存");
+  };
+
   const handleDelete = async (topicId: number) => {
     try {
       await requestApi(`/api/create/topics/${topicId}`, { method: "DELETE" });
@@ -494,7 +593,7 @@ export function CreateTopicsManager() {
         method: "POST",
         body: JSON.stringify(values),
       });
-      message.success("草稿已创建，接下来可以选择模板并开始创作");
+      message.success("草稿已创建，已保存选题和平台模板快照");
       setDraftOpen(false);
       setDraftTopic(null);
       await loadTopics();
@@ -537,6 +636,9 @@ export function CreateTopicsManager() {
           description="沉淀创作意图、来源和核心角度；同一个选题可分别进入多个平台草稿。"
           actions={(
             <>
+              <Button type="primary" icon={<RobotOutlined />} onClick={() => openTopicAgent()}>
+                AI 整理选题
+              </Button>
               <Button icon={<RobotOutlined />} onClick={() => setAiOpen(true)}>
                 AI 从博客选题
               </Button>
@@ -589,8 +691,9 @@ export function CreateTopicsManager() {
                       <div className="text-base font-semibold text-slate-900">{formatDate(topic.updated_at)}</div>
                       更新
                     </div>
-                    <div className="col-span-3 flex justify-end gap-1 pt-1">
+                    <div className="col-span-3 flex flex-wrap justify-end gap-1 pt-1">
                       <Button size="small" icon={<FileTextOutlined />} onClick={() => openCreateDraft(topic)}>创建草稿</Button>
+                      <Button size="small" icon={<RobotOutlined />} onClick={() => openTopicAgent(topic)}>AI 完善</Button>
                       <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(topic)}>编辑</Button>
                       <Popconfirm title="删除这个选题？已关联草稿会保留，但不再关联选题。" onConfirm={() => handleDelete(topic.id)}>
                         <Button size="small" color="danger" variant="text" icon={<DeleteOutlined />}>删除</Button>
@@ -661,7 +764,7 @@ export function CreateTopicsManager() {
           <Form.Item name="platform" label="目标平台" rules={[{ required: true }]}>
             <Select options={topicDraftPlatformOptions} />
           </Form.Item>
-          <p className="text-sm leading-6 text-slate-500">会保存当前选题快照。之后修改选题，不会改写这份平台草稿的历史上下文。</p>
+          <p className="text-sm leading-6 text-slate-500">会保存当前选题和平台模板快照。进入草稿后可显式调用 AI 生成初稿，后续修改选题或模板不会改写历史上下文。</p>
         </Form>
       </Modal>
 
@@ -684,6 +787,39 @@ export function CreateTopicsManager() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        title="确认 AI 选题建议"
+        open={topicPatchOpen}
+        onCancel={() => setTopicPatchOpen(false)}
+        onOk={applyTopicPatchToForm}
+        okText="应用到表单"
+        cancelText="暂不应用"
+        width={880}
+        destroyOnHidden
+      >
+        {topicPatchDiff ? (
+          <ContentDiffViewer
+            oldValue={topicPatchDiff.oldValue}
+            newValue={topicPatchDiff.newValue}
+            leftTitle="当前选题"
+            rightTitle="AI 建议"
+            className="max-h-[60vh] overflow-auto"
+          />
+        ) : null}
+      </Modal>
+
+      <TopicAgentPanel
+        open={topicAgentOpen}
+        onClose={() => setTopicAgentOpen(false)}
+        messages={topicAgent.messages}
+        isStreaming={topicAgent.isStreaming}
+        onSend={(text) => topicAgent.sendMessage(text, topicAgent.messages)}
+        onAbort={topicAgent.abort}
+        hasPendingPatch={Boolean(pendingTopicPatch)}
+        onViewPatch={() => setTopicPatchOpen(true)}
+        editingTitle={topicAgentTopic?.title}
+      />
     </div>
   );
 }
@@ -698,6 +834,7 @@ export function CreateDraftsManager() {
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  const createDraftPlatform = Form.useWatch("platform", form);
 
   const loadDrafts = useCallback(async () => {
     setLoading(true);
@@ -849,13 +986,19 @@ export function CreateDraftsManager() {
         confirmLoading={submitting}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" initialValues={{ type: "note", status: "DRAFT" }}>
+        <Form form={form} layout="vertical" initialValues={{ platform: "xhs", type: "note", status: "DRAFT" }}>
           <Form.Item name="title" label="草稿标题" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Form.Item name="platform" label="平台" rules={[{ required: true }]}>
+              <Select
+                options={draftPlatformCreateOptions}
+                onChange={(platform) => form.setFieldValue("type", platform === "zhihu" ? "article" : "note")}
+              />
+            </Form.Item>
             <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={draftTypeCreateOptions} />
+              <Select options={draftTypeCreateOptions} disabled={createDraftPlatform === "zhihu"} />
             </Form.Item>
             <Form.Item name="status" label="状态" rules={[{ required: true }]}>
               <Select options={draftStatusCreateOptions} />

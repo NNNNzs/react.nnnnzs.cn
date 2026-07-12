@@ -17,8 +17,17 @@ import {
 
 const createDraftSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符'),
+  platform: z.enum(['xhs', 'zhihu']).default('xhs'),
   type: z.enum(CONTENT_DRAFT_TYPES).default('note'),
   status: z.enum(CONTENT_DRAFT_STATUSES).default('DRAFT'),
+}).superRefine((value, context) => {
+  if (value.platform === 'zhihu' && value.type !== 'article') {
+    context.addIssue({
+      code: 'custom',
+      path: ['type'],
+      message: '知乎草稿必须使用长文 / Markdown 类型',
+    });
+  }
 });
 
 export async function GET(request: NextRequest) {
@@ -65,7 +74,6 @@ export async function POST(request: NextRequest) {
 
     const result = await createContentDraft({
       ...validation.data,
-      platform: 'xhs',
       created_by: check.user.id,
     });
 

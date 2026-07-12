@@ -40,6 +40,7 @@
 - **[AI 图片生成](docs/designs/ai/image-gen.md)** - GPT Image 2 文生图/图文编辑
 - **[草稿库创作 Agent 助手](docs/designs/ai/create-agent.md)** - LangGraph ReAct Agent + SSE 多事件流 + draft_patch 草稿回填
 - **[选题库 Topic Agent](docs/designs/ai/topic-agent.md)** - 复用创作助手组件的选题整理、去重和 TopicPatch 确认流程
+- **[选题完善与多平台草稿转换](docs/designs/ai/topic-draft-workflow.md)** - Topic Agent、选题上下文注入、小红书图文与知乎 Markdown 草稿链路
 
 #### 聊天系统
 - **[Agent 聊天系统](docs/designs/chat/rag-chat.md)** - 基于 ReAct Agent 的知识问答机器人，RAG 检索作为工具按需调用，并支持聊天记录持久化
@@ -76,9 +77,8 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-- **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（SSE 公用基础设施、create-agent 后端（LangGraph + 7 工具）、前端 Drawer 对话面板 + patch 填表单已落地；下一步做会话持久化、TTS 工具、chat-agent 迁移 SSE）
-- **[模板管理与内容 Agent 建设](docs/plans/content-template-agent.md)** — 🔄 进行中（旧 `content_templates` 已升级迁移到 AI Lab 系统级 Prompt / Skill Template；下一步做模板驱动草稿生成）
-- **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（阶段 0-3 部分完成：草稿库、素材库、选题库模型/API/列表页已落地，AI 可从博客文章生成选题；下一步做选题/博客到图文草稿生成）
+- **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
+- **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
 - **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 🔄 进行中（已完成后台信息架构拆分、Run 观测和系统级 Prompts 管理，后续推进 Run 转 Eval Case、Golden Dataset 与 Replay）
 - **[Prisma 7 升级](docs/plans/prisma-7-upgrade.md)** — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）

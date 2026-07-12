@@ -4,9 +4,8 @@
 
 ## 📋 当前计划
 
-- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（SSE 公用基础设施、create-agent 后端（LangGraph + 10 工具）、前端 Drawer 对话面板 + patch 填表单已落地；下一步做会话持久化、TTS 工具、chat-agent 迁移 SSE）
-- [模板管理与内容 Agent 建设](./content-template-agent.md) — 🔄 进行中（旧 `content_templates` 已升级迁移到 AI Lab 系统级 Prompt / Skill Template；下一步做模板驱动草稿生成）
-- [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（阶段 0-3 部分完成：草稿库、素材库、选题库模型/API/列表页已落地，AI 可从博客文章生成选题；下一步做选题/博客到图文草稿生成）
+- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
+- [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
 - [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成 Run 观测和系统级 Prompts 管理；下一步从 Run 转 Eval Case 并推进 Golden Dataset）
 - [Prisma 7 升级](./prisma-7-upgrade.md) — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）
@@ -79,4 +78,4 @@
 
 ---
 
-**最后更新**: 2026-07-07
+**最后更新**: 2026-07-12
