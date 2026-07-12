@@ -137,8 +137,19 @@ function parseAliases(value?: string) {
     .filter(Boolean);
 }
 
+type SortField = "name" | "updated_at" | "created_at" | "current_version";
+type SortOrder = "asc" | "desc";
+
+const SORT_OPTIONS: Array<{ label: string; field: SortField; order: SortOrder }> = [
+  { label: "名称", field: "name", order: "asc" },
+  { label: "更新时间", field: "updated_at", order: "desc" },
+  { label: "创建时间", field: "created_at", order: "desc" },
+  { label: "版本号", field: "current_version", order: "desc" },
+];
+
 export default function AiLabPromptsPage() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [mentionTemplates, setMentionTemplates] = useState<TemplateSummary[]>([]);
   const [selectedSlug, setSelectedSlug] = useState<string>("");
   const [detail, setDetail] = useState<TemplateDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +157,8 @@ export default function AiLabPromptsPage() {
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [editorValue, setEditorValue] = useState("");
   const [changeNote, setChangeNote] = useState("");
   const [newOpen, setNewOpen] = useState(false);
@@ -160,7 +173,7 @@ export default function AiLabPromptsPage() {
   const [editForm] = Form.useForm<NewTemplateForm>();
 
   const mentionOptions: MentionsOptionProps[] = useMemo(
-    () => templates.map((item) => ({
+    () => mentionTemplates.map((item) => ({
       value: item.slug,
       label: (
         <span className="inline-flex items-center gap-2">
@@ -169,7 +182,7 @@ export default function AiLabPromptsPage() {
         </span>
       ),
     })),
-    [templates],
+    [mentionTemplates],
   );
 
   const versionOptions = useMemo(
@@ -182,6 +195,32 @@ export default function AiLabPromptsPage() {
       })),
     [detail],
   );
+
+  const sortedTemplates = useMemo(() => {
+    const sorted = [...templates].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "name") {
+        cmp = a.name.localeCompare(b.name, "zh-CN");
+      } else if (sortField === "current_version") {
+        cmp = a.current_version - b.current_version;
+      } else {
+        cmp = new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime();
+      }
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [templates, sortField, sortOrder]);
+
+  const handleSortChange = useCallback((value: string) => {
+    const option = SORT_OPTIONS.find((o) => o.field === value);
+    if (!option) return;
+    if (option.field === sortField) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(option.field);
+      setSortOrder(option.order);
+    }
+  }, [sortField]);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -202,13 +241,43 @@ export default function AiLabPromptsPage() {
         return;
       }
       setTemplates(result.data.record || []);
-      if (!selectedSlug && result.data.record?.[0]) {
-        setSelectedSlug(result.data.record[0].slug);
-      }
+      setSelectedSlug((current) => current || result.data.record?.[0]?.slug || "");
     } finally {
       setLoading(false);
     }
-  }, [query, selectedSlug, type]);
+  }, [query, type]);
+
+  const loadMentionTemplates = useCallback(async () => {
+    const pageSize = 100;
+    const records: TemplateSummary[] = [];
+    let pageNum = 1;
+    let total = 0;
+
+    do {
+      const params = new URLSearchParams({
+        pageNum: String(pageNum),
+        pageSize: String(pageSize),
+        status: "ACTIVE",
+      });
+
+      const response = await fetch(`/api/admin/ai-lab/prompts?${params}`, {
+        cache: "no-store",
+      });
+      const result = await response.json() as ApiResponse<TemplateListData>;
+      if (!result.status) {
+        message.error(result.message || "加载提及模板失败");
+        return;
+      }
+
+      const pageRecords = result.data.record || [];
+      records.push(...pageRecords);
+      total = result.data.total || records.length;
+      if (pageRecords.length === 0) break;
+      pageNum += 1;
+    } while (records.length < total);
+
+    setMentionTemplates(records);
+  }, []);
 
   const loadDetail = useCallback(async (slug: string) => {
     if (!slug) return;
@@ -239,6 +308,10 @@ export default function AiLabPromptsPage() {
   }, [loadTemplates]);
 
   useEffect(() => {
+    void loadMentionTemplates();
+  }, [loadMentionTemplates]);
+
+  useEffect(() => {
     if (selectedSlug) {
       void loadDetail(selectedSlug);
     }
@@ -264,12 +337,12 @@ export default function AiLabPromptsPage() {
       message.success("模板已创建");
       setNewOpen(false);
       newForm.resetFields();
-      await loadTemplates();
+      await Promise.all([loadTemplates(), loadMentionTemplates()]);
       if (values.slug) setSelectedSlug(values.slug);
     } finally {
       setSaving(false);
     }
-  }, [loadTemplates, newForm]);
+  }, [loadMentionTemplates, loadTemplates, newForm]);
 
   const handleOpenEdit = useCallback((slug: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -310,14 +383,14 @@ export default function AiLabPromptsPage() {
       message.success("模板已更新");
       setEditOpen(false);
       editForm.resetFields();
-      await loadTemplates();
+      await Promise.all([loadTemplates(), loadMentionTemplates()]);
       if (selectedSlug === editSlug) {
         await loadDetail(editSlug);
       }
     } finally {
       setSaving(false);
     }
-  }, [editForm, editSlug, loadDetail, loadTemplates, selectedSlug]);
+  }, [editForm, editSlug, loadDetail, loadMentionTemplates, loadTemplates, selectedSlug]);
 
   const handleSaveVersion = useCallback(async () => {
     if (!detail) return;
@@ -339,11 +412,11 @@ export default function AiLabPromptsPage() {
       }
       message.success(`已保存 v${result.data.version}`);
       await loadDetail(detail.slug);
-      await loadTemplates();
+      await Promise.all([loadTemplates(), loadMentionTemplates()]);
     } finally {
       setSaving(false);
     }
-  }, [changeNote, detail, editorValue, loadDetail, loadTemplates]);
+  }, [changeNote, detail, editorValue, loadDetail, loadMentionTemplates, loadTemplates]);
 
   const handleActivateVersion = useCallback(async (version: number) => {
     if (!detail) return;
@@ -361,11 +434,11 @@ export default function AiLabPromptsPage() {
       }
       message.success(`已启用 v${version}`);
       await loadDetail(detail.slug);
-      await loadTemplates();
+      await Promise.all([loadTemplates(), loadMentionTemplates()]);
     } finally {
       setSaving(false);
     }
-  }, [detail, loadDetail, loadTemplates]);
+  }, [detail, loadDetail, loadMentionTemplates, loadTemplates]);
 
   const handleLoadDiff = useCallback(async () => {
     if (!detail || !fromVersion || !toVersion) {
@@ -400,9 +473,9 @@ export default function AiLabPromptsPage() {
 
   const mentionedTemplates = useMemo(
     () => currentMentionSlugs
-      .map((slug) => templates.find((item) => item.slug === slug))
+      .map((slug) => mentionTemplates.find((item) => item.slug === slug))
       .filter((item): item is TemplateSummary => Boolean(item)),
-    [currentMentionSlugs, templates],
+    [currentMentionSlugs, mentionTemplates],
   );
 
   return (
@@ -415,7 +488,7 @@ export default function AiLabPromptsPage() {
             <Button size="small" color="primary" variant="solid" icon={<PlusOutlined />} onClick={() => setNewOpen(true)}>
               新建
             </Button>
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => void loadTemplates()}>
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => void Promise.all([loadTemplates(), loadMentionTemplates()])}>
               刷新
             </Button>
           </Space>
@@ -439,6 +512,23 @@ export default function AiLabPromptsPage() {
           value={type || undefined}
           onChange={(value) => setType(value || "")}
         />
+        <Select
+          size="small"
+          className="w-36"
+          value={sortField}
+          options={SORT_OPTIONS.map((o) => ({
+            value: o.field,
+            label: (
+              <span className="inline-flex items-center gap-1">
+                {o.label}
+                {o.field === sortField && (
+                  <span className="text-xs text-slate-400">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                )}
+              </span>
+            ),
+          }))}
+          onChange={handleSortChange}
+        />
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
@@ -451,7 +541,7 @@ export default function AiLabPromptsPage() {
             <Empty className="py-12" description="暂无模板" />
           ) : (
             <div className="divide-y divide-slate-100">
-              {templates.map((item) => (
+              {sortedTemplates.map((item) => (
                 <button
                   key={item.slug}
                   type="button"
