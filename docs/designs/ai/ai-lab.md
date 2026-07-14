@@ -306,7 +306,19 @@ model TbAiEvalResult {
 
 模板正文统一使用 LangChain `mustache` 语法，也就是 `{{变量}}`。运行时渲染必须通过 `PromptTemplate.fromTemplate(content, { templateFormat: "mustache" })` 或 LangChain `renderTemplate(..., "mustache", values)`，不要自定义字符串替换。
 
-`@slug` / `@中文别名` 是系统 Prompt 编辑时的引用语法。运行时遵循“两步加载”：Agent 先调用 `list_prompt_skills` 获取 ACTIVE Skill 的 metadata，再根据当前上下文和 `description` 调用 `load_prompt_skill_template` 加载所需正文。Create Agent、Topic Agent 和 Chat Agent 均从这套模板库读取各自的系统 Prompt；它们可复用同一 Skill，但不共享业务上下文 schema。
+`@slug` 是系统 Prompt 正文里的**技能绑定语法**。三个 Agent（Create / Topic / Chat）构建 system prompt 时统一走「先 mustache 渲染变量，后 `compilePromptTemplate` 解析 `@`」两步：
+
+1. `createMustachePromptTemplate(content).format({...})` 填入 `{{draftTitle}}` / `{{runtimeContext}}` 等运行时变量；
+2. `compilePromptTemplate(rendered)` 用 `MENTION_PATTERN` 扫描正文里的 `@slug`，查库命中后把每个被绑定的 Skill 的 metadata（name / slug / type / version / description / load 方式）自动拼成「## 可按需加载的 Prompt Skills」区块追加到正文末尾。
+
+这样 Agent 一启动就知道有哪些 Skill 可用、各自的 `description`、以及调用 `load_prompt_skill_template(slug=...)` 加载正文。**Skill 是否对某 Agent 可见，完全由该 Agent 模板正文里有没有写对应的 `@slug` 决定**——这就是 Agent 之间的能力边界：Create Agent 模板里写 `@xhs-style-guide @zhihu.style-guide`，Chat Agent 模板里不写，所以 Chat 天然看不到创作类风格 Skill。`load_prompt_skill_template` 是按需加载正文的懒加载工具，`list_prompt_skills` 则用于 Agent 主动探索未绑定的 Skill。
+
+`type` 和 `scope` 是两个正交的分类轴，取值已收敛为固定枚举（见 `AI_TEMPLATE_TYPES` / `AI_TEMPLATE_SCOPES`）：
+
+- **`type` 只有两类**：`prompt`（Agent 启动时注入的 system message，决定「是谁、流程、工具」，带 `{{变量}}`）和 `skill`（运行时按需加载的方法论/风格指南，不进初始上下文）。判断准则：启动时必须带的 → `prompt`；可能用得到、用时再调的 → `skill`。
+- **`scope` 固定取值**：`system`（全站通用）、`chat`、`create_agent`、`topic_agent`、`content`（小红书/知乎等平台通用）。平台相关的风格/图片生成 Skill 统一归 `content`，不要散落到 `system`。
+
+> 历史上曾定义过 `style / context / tool_instruction / schema / checklist` 等 type，以及 `capabilityCatalog` 动态能力目录变量，但均未落地实现，已于 `@提及` 迁移中移除。若未来需要「组合式 prompt」（system + context + style 拼接），优先用 `metadata.role` 标注，而不是新增 type。
 
 ```prisma
 model TbAiTemplate {

@@ -4,6 +4,7 @@ import { getAllTags } from '@/services/tag';
 import { parseSiteStyleVariant } from '@/lib/site-style/variant';
 import type { SiteStyleVariant } from '@/lib/site-style/variant';
 import {
+  compilePromptTemplate,
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
@@ -106,7 +107,7 @@ export async function buildChatAgentSystemPrompt(
   ]);
   const template = createMustachePromptTemplate(rawTemplate);
 
-  return template.format({
+  const rendered = await template.format({
     siteName: params.siteName,
     baseUrl: params.baseUrl,
     currentTime: params.currentTime,
@@ -114,4 +115,8 @@ export async function buildChatAgentSystemPrompt(
     knowledgeBaseSummary: formatKnowledgeBaseSummary(context.articleTags, context.articleCount),
     collectionsSummary: formatCollectionsSummary(context.collections),
   });
+  // chat-agent 模板不写 @ 提及，compile 后 mentions 为空、不拼 skill 区块，
+  // 保证聊天助手看不到创作类 skill。接通是为和 create/topic 行为一致。
+  const compiled = await compilePromptTemplate(rendered);
+  return compiled.content;
 }

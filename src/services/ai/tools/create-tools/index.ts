@@ -28,7 +28,7 @@ export const listPromptSkillsTool: Tool = {
     },
     type: {
       type: 'string',
-      description: '模板类型：prompt / skill / style / context / tool_instruction / schema / checklist',
+      description: '模板类型：prompt / skill',
       required: false,
     },
   },
@@ -76,7 +76,7 @@ export const loadPromptSkillTemplateTool: Tool = {
   parameters: {
     slug: {
       type: 'string',
-      description: '模板 slug，如 xhs-style-guide',
+      description: '模板 slug',
       required: true,
     },
     version: {

@@ -77,6 +77,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
+- **[AI Agent 工具定义与装配统一改造](docs/plans/ai-agent-tools-unification.md)** — 📝 计划中（统一共享工具定义、请求级上下文工厂和 Agent 能力白名单）
 - **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
 - **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）

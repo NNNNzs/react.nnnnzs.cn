@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  AI_TEMPLATE_SCOPES,
+  AI_TEMPLATE_STATUSES,
+  AI_TEMPLATE_TYPES,
+} from '@/constants/ai-template';
 import { CONFIG_EDIT, CONFIG_VIEW } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
 import {
-  AI_TEMPLATE_STATUSES,
-  AI_TEMPLATE_TYPES,
   createAiTemplate,
   listAiTemplates,
 } from '@/services/ai-template';
@@ -58,7 +61,7 @@ const createTemplateSchema = z.object({
   key: z.string().max(120).optional().nullable(),
   name: z.string().min(1).max(200),
   type: z.enum(AI_TEMPLATE_TYPES).optional(),
-  scope: z.string().min(1).max(40).optional(),
+  scope: z.enum(AI_TEMPLATE_SCOPES).optional(),
   description: z.string().max(2000).optional().nullable(),
   aliases: z.array(z.string().min(1).max(120)).optional(),
   metadata: z.unknown().optional().nullable(),

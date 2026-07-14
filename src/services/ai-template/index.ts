@@ -1,22 +1,28 @@
 import crypto from 'node:crypto';
 import { PromptTemplate, parseTemplate, renderTemplate } from '@langchain/core/prompts';
+import {
+  AI_TEMPLATE_SCOPES,
+  AI_TEMPLATE_STATUSES,
+  AI_TEMPLATE_TYPES,
+} from '@/constants/ai-template';
+import type {
+  AiTemplateScope,
+  AiTemplateStatus,
+  AiTemplateType,
+} from '@/constants/ai-template';
 import { Prisma } from '@/generated/prisma-client/client';
 import { getPrisma } from '@/lib/prisma';
 
-export const AI_TEMPLATE_TYPES = [
-  'prompt',
-  'skill',
-  'style',
-  'context',
-  'tool_instruction',
-  'schema',
-  'checklist',
-] as const;
-
-export const AI_TEMPLATE_STATUSES = ['ACTIVE', 'DRAFT', 'ARCHIVED'] as const;
-
-export type AiTemplateType = typeof AI_TEMPLATE_TYPES[number];
-export type AiTemplateStatus = typeof AI_TEMPLATE_STATUSES[number];
+export {
+  AI_TEMPLATE_SCOPES,
+  AI_TEMPLATE_STATUSES,
+  AI_TEMPLATE_TYPES,
+};
+export type {
+  AiTemplateScope,
+  AiTemplateStatus,
+  AiTemplateType,
+};
 
 export interface AiTemplateQuery {
   pageNum?: number;
@@ -31,27 +37,27 @@ export interface CreateAiTemplateInput {
   slug: string;
   key?: string | null;
   name: string;
-  type?: string;
-  scope?: string;
+  type?: AiTemplateType;
+  scope?: AiTemplateScope;
   description?: string | null;
   aliases?: string[];
   metadata?: Prisma.InputJsonValue | null;
   content: string;
   version?: number;
   changeNote?: string | null;
-  status?: string;
+  status?: AiTemplateStatus;
   createdBy?: number | null;
 }
 
 export interface UpdateAiTemplateInput {
   key?: string | null;
   name?: string;
-  type?: string;
-  scope?: string;
+  type?: AiTemplateType;
+  scope?: AiTemplateScope;
   description?: string | null;
   aliases?: string[];
   metadata?: Prisma.InputJsonValue | null;
-  status?: string;
+  status?: AiTemplateStatus;
 }
 
 export interface CreateAiTemplateVersionInput {
@@ -416,7 +422,7 @@ export async function resolveTemplateMentions(content: string) {
 
   const resolved = await Promise.all(uniqueMentions.map(async (mention) => {
     const template = await getAiTemplateBySlug(mention);
-    return template ? formatTemplateSummary(template) : null;
+    return template?.type === 'skill' ? formatTemplateSummary(template) : null;
   }));
 
   return resolved.filter((item): item is ReturnType<typeof formatTemplateSummary> => item !== null);

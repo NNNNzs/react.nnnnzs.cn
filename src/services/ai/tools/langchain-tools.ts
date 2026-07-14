@@ -6,6 +6,7 @@
 
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { AI_TEMPLATE_TYPES } from '@/constants/ai-template';
 import { searchArticlesTool as _searchArticlesTool } from './search-articles';
 import { searchPostsMetaTool as _searchPostsMetaTool } from './search-posts-meta';
 import { searchCollectionTool as _searchCollectionTool } from './search-collection';
@@ -161,7 +162,7 @@ export const lcListPromptSkillsTool = tool(
     schema: z.object({
       query: z.string().optional().describe('模板名称、slug、描述关键词'),
       type: z
-        .enum(['prompt', 'skill', 'style', 'context', 'tool_instruction', 'schema', 'checklist'])
+        .enum(AI_TEMPLATE_TYPES)
         .optional()
         .describe('模板类型筛选'),
     }),
@@ -179,7 +180,7 @@ export const lcLoadPromptSkillTemplateTool = tool(
     description:
       '按 slug 加载 Prompt / Skill 模板完整正文。只有确实需要完整指南、方法论或模板内容时才调用。',
     schema: z.object({
-      slug: z.string().min(1).describe('模板 slug，如 xhs-style-guide'),
+      slug: z.string().min(1).describe('模板 slug'),
       version: z.number().int().positive().optional().describe('指定版本号；不传读取当前激活版本'),
       variables: z
         .record(z.string(), z.unknown())

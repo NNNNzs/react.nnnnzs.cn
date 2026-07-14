@@ -6,6 +6,7 @@
  */
 
 import {
+  compilePromptTemplate,
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
@@ -30,12 +31,17 @@ export async function buildCreateAgentSystemPrompt(
 ): Promise<string> {
   const rawTemplate = await loadSystemPromptTemplate();
   const template = createMustachePromptTemplate(rawTemplate);
-  return template.format({
+  // 先渲染 mustache 变量，再解析正文里的 @slug 提及，把绑定的 skill
+  // metadata 自动拼到末尾。只有模板里写了 @ 的 skill 才会出现在这里，
+  // 因此 chat-agent 模板不写 @ 就天然看不到创作类 skill。
+  const rendered = await template.format({
     draftTitle: params.draftTitle || '（未命名草稿）',
     draftType: params.draftType || 'note',
     contextSource: params.contextSource === 'page' ? '页面实时上下文' : '数据库草稿上下文',
     runtimeContext: params.runtimeContext,
   });
+  const compiled = await compilePromptTemplate(rendered);
+  return compiled.content;
 }
 
 async function loadSystemPromptTemplate(): Promise<string> {

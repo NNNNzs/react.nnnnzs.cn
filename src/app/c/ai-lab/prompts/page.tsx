@@ -31,6 +31,10 @@ import dayjs from "dayjs";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
+import {
+  AI_TEMPLATE_SCOPES,
+  AI_TEMPLATE_TYPES,
+} from "@/constants/ai-template";
 import type {
   AiTemplateCapabilityLoadMode,
   AiTemplateCapabilityRole,
@@ -125,15 +129,26 @@ interface CapabilityFormValues {
   references?: CapabilityReferenceForm[];
 }
 
-const TYPE_OPTIONS = [
-  { label: "Prompt", value: "prompt" },
-  { label: "Skill", value: "skill" },
-  { label: "Style", value: "style" },
-  { label: "Context", value: "context" },
-  { label: "Tool Instruction", value: "tool_instruction" },
-  { label: "Schema", value: "schema" },
-  { label: "Checklist", value: "checklist" },
-];
+const TYPE_LABELS = new Map([
+  ["prompt", "Prompt"],
+  ["skill", "Skill"],
+]);
+const TYPE_OPTIONS = AI_TEMPLATE_TYPES.map((value) => ({
+  label: TYPE_LABELS.get(value) ?? value,
+  value,
+}));
+
+const SCOPE_LABELS = new Map([
+  ["system", "全站通用"],
+  ["chat", "Chat Agent"],
+  ["create_agent", "创作 Agent"],
+  ["topic_agent", "选题 Agent"],
+  ["content", "内容创作通用"],
+]);
+const SCOPE_OPTIONS = AI_TEMPLATE_SCOPES.map((value) => ({
+  label: `${SCOPE_LABELS.get(value) ?? value} (${value})`,
+  value,
+}));
 
 const CAPABILITY_ROLE_OPTIONS: Array<{ label: string; value: AiTemplateCapabilityRole }> = [
   { label: "风格", value: "style" },
@@ -919,7 +934,7 @@ export default function AiLabPromptsPage() {
               <Select options={TYPE_OPTIONS} />
             </Form.Item>
             <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
-              <Input placeholder="system / content / create_agent" />
+              <Select options={SCOPE_OPTIONS} />
             </Form.Item>
           </div>
           <Form.Item name="description" label="描述">
@@ -1005,7 +1020,7 @@ export default function AiLabPromptsPage() {
               <Select options={TYPE_OPTIONS} />
             </Form.Item>
             <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
-              <Input placeholder="system / content / create_agent" />
+              <Select options={SCOPE_OPTIONS} />
             </Form.Item>
           </div>
           <Form.Item name="description" label="描述">
