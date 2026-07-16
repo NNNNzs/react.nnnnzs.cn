@@ -10,6 +10,8 @@ import {
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
+import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 export interface CreateAgentPromptParams {
   /** 当前草稿标题（占位符） */
@@ -29,19 +31,19 @@ export interface CreateAgentPromptParams {
 export async function buildCreateAgentSystemPrompt(
   params: CreateAgentPromptParams,
 ): Promise<string> {
-  const rawTemplate = await loadSystemPromptTemplate();
-  const template = createMustachePromptTemplate(rawTemplate);
-  // 先渲染 mustache 变量，再解析正文里的 @slug 提及，把绑定的 skill
-  // metadata 自动拼到末尾。只有模板里写了 @ 的 skill 才会出现在这里，
-  // 因此 chat-agent 模板不写 @ 就天然看不到创作类 skill。
-  const rendered = await template.format({
+  const rawTemplate = normalizeLegacyAgentToolNames(await loadSystemPromptTemplate());
+  // mentions 必须从原始系统模板解析，运行时草稿和选题内容不能改变 Skill 绑定。
+  const compiled = await compilePromptTemplate(
+    rawTemplate,
+    AGENT_PROMPT_SKILL_POLICIES.create,
+  );
+  const template = createMustachePromptTemplate(compiled.content);
+  return template.format({
     draftTitle: params.draftTitle || '（未命名草稿）',
     draftType: params.draftType || 'note',
     contextSource: params.contextSource === 'page' ? '页面实时上下文' : '数据库草稿上下文',
     runtimeContext: params.runtimeContext,
   });
-  const compiled = await compilePromptTemplate(rendered);
-  return compiled.content;
 }
 
 async function loadSystemPromptTemplate(): Promise<string> {

@@ -115,11 +115,12 @@ src/
 │   │   ├── description/          # 文章描述生成
 │   │   ├── text/                 # 文本处理
 │   │   ├── tools/                # ReAct Agent 工具注册和实现
-│   │   │   ├── search-articles.ts    # 向量语义搜索工具
-│   │   │   ├── search-posts-meta.ts  # 元数据搜索工具
-│   │   │   ├── search-collection.ts  # 合集搜索工具
-│   │   │   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
-│   │   │   └── index.ts              # 工具统一导出
+│   │   │   ├── article-tools.ts      # 共享文章工具定义
+│   │   │   ├── prompt-template-tools.ts # Prompt Skill 工具与 scope 策略
+│   │   │   ├── web-tools.ts          # 共享网页工具定义
+│   │   │   ├── chat-tools.ts         # Chat 能力白名单
+│   │   │   ├── create-tools/         # 草稿请求级工具与装配
+│   │   │   └── topic-tools/          # 选题请求级工具与装配
 │   │   ├── chat-agent/           # Chat Agent 编排服务
 │   │   ├── rag/                  # 历史兼容目录 + 旧版 RAG helper
 │   │   │   ├── agent.ts          # 旧 Agent 系统指令构建（保留兼容）
@@ -183,11 +184,12 @@ prisma/                           # Prisma Schema 定义
 核心业务逻辑，所有数据库操作通过此层进行。
 
 ### `/src/services/ai/tools` - AI 工具系统
-ReAct Agent 的工具注册、定义和实现。当前包含 3 个工具，同时支持自定义格式和 LangChain 格式：
-- `search_articles`: 向量语义搜索
-- `search_posts_meta`: 按时间/热度/分类等维度查询
-- `search_collection`: 指定合集中的文章搜索
-- `langchain-tools.ts`: LangChain `tool()` + zod schema 格式的工具定义（用于 LangGraph Function Calling）
+ReAct Agent 的工具定义按“共享能力、请求级上下文、Agent 能力白名单”分层：
+- `article-tools.ts`: `search_articles`、`search_posts`、`get_post_content` 唯一模型侧定义
+- `prompt-template-tools.ts`: Prompt Skill schema 与 Chat/Create/Topic scope 策略实例
+- `web-tools.ts`: `web_search`、`read_source_url` 唯一模型侧定义
+- `create-tools/`、`topic-tools/`: 只定义当前资源和 patch 等请求级工具，并装配能力白名单
+- `tool-assembly.ts`: 合并工具并拒绝重复名称
 
 ### `/src/lib` - 工具库
 通用的工具函数和配置。其中 `ai-config.ts` 和 `vector-db-config.ts` 负责从数据库 `tb_config` 表读取配置。

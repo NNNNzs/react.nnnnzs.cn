@@ -1,6 +1,6 @@
 /**
  * AI 工具业务接口。
- * Chat Agent 的运行时工具定义位于 `langchain-tools.ts`，这里仅保留
+ * Agent 的运行时工具定义位于 `article-tools.ts` 等共享模块，这里仅保留
  * 可复用的业务工具契约，供具体工具和 LangChain wrapper 共享。
  */
 

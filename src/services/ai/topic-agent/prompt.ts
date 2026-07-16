@@ -3,6 +3,8 @@ import {
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
+import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 export interface TopicAgentPromptParams {
   topicTitle?: string | null;
@@ -13,16 +15,18 @@ export interface TopicAgentPromptParams {
 export async function buildTopicAgentSystemPrompt(
   params: TopicAgentPromptParams,
 ): Promise<string> {
-  const rawTemplate = await loadSystemPromptTemplate();
-  const template = createMustachePromptTemplate(rawTemplate);
-  const rendered = await template.format({
+  const rawTemplate = normalizeLegacyAgentToolNames(await loadSystemPromptTemplate());
+  const compiled = await compilePromptTemplate(
+    rawTemplate,
+    AGENT_PROMPT_SKILL_POLICIES.topic,
+  );
+  const template = createMustachePromptTemplate(compiled.content);
+  return template.format({
     mode: params.mode === 'edit' ? '完善已有选题' : '整理新选题',
     topicTitle: params.topicTitle?.trim() || '（尚未创建）',
     contextSource: '数据库选题上下文',
     runtimeContext: params.runtimeContext,
   });
-  const compiled = await compilePromptTemplate(rendered);
-  return compiled.content;
 }
 
 async function loadSystemPromptTemplate(): Promise<string> {

@@ -84,12 +84,14 @@ topic tools
 
 ## 四、工具集
 
-Topic Agent 使用独立的工具工厂，例如 `buildTopicTools({ topicId, userId, emitPatch })`，每次请求注入当前用户和选题上下文，避免跨用户或跨选题读取数据。
+`buildTopicTools({ topicId, actorUserId, scopeUserId, emitPatch })` 只组合共享工具单例与选题请求级工具。当前选题、操作者和查询数据范围由服务端闭包注入，不暴露给模型。
 
 | 工具 | 类型 | 作用 |
 |---|---|---|
+| `list_prompt_skills` | 只读 | 仅列出 `system/content/topic_agent` 范围内的 ACTIVE Skill metadata |
+| `load_prompt_skill_template` | 只读 | 加载当前 Topic Agent 获准使用的 ACTIVE Skill 正文 |
 | `search_topics` | 只读 | 按标题、来源、核心角度检索已有选题，用于去重 |
-| `get_topic` | 只读 | 读取当前选题及其关联草稿摘要 |
+| `get_current_topic` | 只读 | 读取当前已授权选题及其关联草稿摘要；模型无参数 |
 | `search_posts` | 只读 | 检索博客文章 |
 | `get_post_content` | 只读 | 读取博客文章正文 |
 | `web_search` | 只读 | 搜索用户提供的网站或外部资料 |

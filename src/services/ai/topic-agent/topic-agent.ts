@@ -7,7 +7,7 @@ import {
   getRecord,
   pumpAgentEvents,
 } from '@/services/ai/agent-stream';
-import { buildTopicTools } from '../tools/topic-tools/langchain-tools';
+import { buildTopicTools } from '../tools/topic-tools/build-tools';
 import { buildTopicAgentSystemPrompt } from './prompt';
 import type { TopicPatch } from './topic-patch';
 import { withPhoenixAgentTrace } from '@/lib/phoenix-observability';
@@ -92,7 +92,12 @@ export async function topicAgentStream(
         });
 
         const model = await createOpenAIModel({ scenario: SCENARIO });
-        const tools = buildTopicTools({ topicId, scopeUserId, emitPatch });
+        const tools = buildTopicTools({
+          topicId,
+          actorUserId,
+          scopeUserId,
+          emitPatch,
+        });
         const agent = createReactAgent({
           llm: model.bindTools(tools),
           tools,

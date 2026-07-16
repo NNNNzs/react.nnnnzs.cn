@@ -28,7 +28,7 @@
 - [x] `src/lib/ai-scenarios.ts`：注册 `create_agent` scenario 元数据
 - [x] `src/services/ai-template/index.ts`：提供系统级 Prompt / Skill 模板服务
 - [x] `src/services/ai/create-agent/`：`prompt.ts`（从模板加载）、`create-agent.ts`（LangGraph + SSE 编码）、`index.ts`
-- [x] `src/services/ai/tools/create-tools/`：`list_prompt_skills`、`load_prompt_skill_template`、`get_draft`、`search_posts`、`get_post_content`、`web_search`、`emit_draft_patch`；`buildCreateTools` 闭包工厂；`draft-patch.ts` 共享类型
+- [x] 共享 `article-tools.ts` / `prompt-template-tools.ts` / `web-tools.ts` + `create-tools/` 请求级 `get_current_draft`、`emit_draft_patch` 与 `buildCreateTools` 白名单装配
 - [x] `src/app/api/create/drafts/[id]/chat/route.ts`：SSE 路由，`requireAuth`
 - [x] `src/hooks/useAgentStream.ts`：通用 Agent SSE 事件消费（tool / think / content / patch）
 - [x] `src/hooks/useAssistantAgent.ts`：业务助手场景封装（endpoint / typed patch / send options）

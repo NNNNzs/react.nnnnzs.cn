@@ -102,7 +102,9 @@ sequenceDiagram
 | `src/services/ai-template/index.ts` | 系统级 Prompt / Skill 模板服务 |
 | `src/services/ai/create-agent/prompt.ts` | 从 `tb_ai_template` 加载 system prompt |
 | `src/services/ai/create-agent/create-agent.ts` | LangGraph Agent + SSE 编码 |
-| `src/services/ai/tools/create-tools/` | Skill、草稿、资料检索与 `emit_draft_patch` 工具工厂 |
+| `src/services/ai/tools/article-tools.ts` | Create / Topic / Chat 共享文章工具定义 |
+| `src/services/ai/tools/prompt-template-tools.ts` | Prompt Skill 工具定义与 Agent scope 白名单 |
+| `src/services/ai/tools/create-tools/` | 草稿请求级工具和 Create 能力白名单装配 |
 | `src/services/ai/tools/create-tools/draft-patch.ts` | DraftPatch 共享类型 |
 | `src/app/api/create/drafts/[id]/chat/route.ts` | SSE API 路由 |
 | `src/app/create/_components/useCreateAgent.ts` | 前端 SSE 消费 hook |
@@ -112,14 +114,14 @@ sequenceDiagram
 
 ## 四、工具集
 
-工具用闭包工厂 `buildCreateTools({ draftId, userId, emitPatch })` 按请求构建，避免跨草稿上下文泄漏。
+`buildCreateTools({ draftId, actorUserId, emitPatch })` 只组合共享工具单例与草稿请求级工具。`draftId` 和 `actorUserId` 由 API 路由完成权限校验后通过闭包注入，不暴露给模型。
 
 | 工具 | 类型 | 作用 |
 |------|------|------|
 | `list_prompt_skills` | 只读 | 查询可用 Prompt / Skill 模板 metadata |
 | `load_prompt_skill_template` | 只读 | 按 slug 读取完整 Prompt / Skill 模板正文 |
-| `get_draft` | 只读 | 读当前草稿标题/正文/slide/已选图 |
-| `search_posts` | 只读 | 关键词检索博客文章（复用 searchPostsMetaTool） |
+| `get_current_draft` | 只读 | 读当前已授权草稿标题/正文/slide/已选图；模型无参数 |
+| `search_posts` | 只读 | 按关键词、标签、日期、分类或热度检索博客文章元数据 |
 | `get_post_content` | 只读 | 按 ID 读博客全文 |
 | `web_search` | 只读 | 用 Tavily 联网搜索最新或外部网页信息 |
 | `emit_draft_patch` | 伪工具 | 把正文、图片建议或图卡提示词计划推到前端待确认队列；调用后结束本轮 Agent |

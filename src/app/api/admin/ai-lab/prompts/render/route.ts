@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { CONFIG_VIEW } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission } from '@/lib/permission';
-import { compilePromptTemplate, renderAiTemplate } from '@/services/ai-template';
+import {
+  compilePromptTemplate,
+  createMustachePromptTemplate,
+  getMustacheVariables,
+  loadPromptSkillTemplate,
+} from '@/services/ai-template';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
 export const runtime = 'nodejs';
@@ -43,14 +48,27 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.error);
     }
 
-    const rendered = await renderAiTemplate(validation.data);
+    const loaded = await loadPromptSkillTemplate({
+      slug: validation.data.slug,
+      version: validation.data.version,
+    });
+    const rawContent = loaded.version.rawContent;
     const compiled = validation.data.compileMentions
-      ? await compilePromptTemplate(rendered.content)
+      ? await compilePromptTemplate(rawContent)
       : null;
+    const [content, compiledContent] = await Promise.all([
+      createMustachePromptTemplate(rawContent).format(validation.data.variables ?? {}),
+      createMustachePromptTemplate(compiled?.content ?? rawContent)
+        .format(validation.data.variables ?? {}),
+    ]);
 
     return NextResponse.json(successResponse({
-      ...rendered,
-      compiledContent: compiled?.content ?? rendered.content,
+      slug: loaded.template.slug,
+      version: loaded.version.version,
+      content,
+      variables: getMustacheVariables(rawContent),
+      checksum: loaded.version.checksum,
+      compiledContent,
       mentions: compiled?.mentions ?? [],
     }), {
       headers: {

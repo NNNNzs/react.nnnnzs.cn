@@ -34,7 +34,7 @@ flowchart TB
     subgraph Runtime["运行时"]
         ChatApi["/api/chat"]
         Agent["LangGraph ReAct Agent"]
-        Tools["search_articles / search_posts_meta / search_collection / github_search"]
+        Tools["search_articles / search_posts / search_collection / github_search"]
         Qdrant["Qdrant"]
         LLM["ChatOpenAI-compatible Model"]
     end
@@ -306,12 +306,12 @@ model TbAiEvalResult {
 
 模板正文统一使用 LangChain `mustache` 语法，也就是 `{{变量}}`。运行时渲染必须通过 `PromptTemplate.fromTemplate(content, { templateFormat: "mustache" })` 或 LangChain `renderTemplate(..., "mustache", values)`，不要自定义字符串替换。
 
-`@slug` 是系统 Prompt 正文里的**技能绑定语法**。三个 Agent（Create / Topic / Chat）构建 system prompt 时统一走「先 mustache 渲染变量，后 `compilePromptTemplate` 解析 `@`」两步：
+`@slug` 是系统 Prompt 正文里的**技能绑定语法**。三个 Agent（Create / Topic / Chat）构建 system prompt 时统一走「先解析原始模板的 Skill 绑定，再渲染 mustache 运行时变量」两步：
 
-1. `createMustachePromptTemplate(content).format({...})` 填入 `{{draftTitle}}` / `{{runtimeContext}}` 等运行时变量；
-2. `compilePromptTemplate(rendered)` 用 `MENTION_PATTERN` 扫描正文里的 `@slug`，查库命中后把每个被绑定的 Skill 的 metadata（name / slug / type / version / description / load 方式）自动拼成「## 可按需加载的 Prompt Skills」区块追加到正文末尾。
+1. `compilePromptTemplate(rawTemplate, agentPolicy)` 用 `MENTION_PATTERN` 只扫描数据库系统模板原文里的 `@slug`，并校验 `ACTIVE + skill + Agent scope`；
+2. `createMustachePromptTemplate(compiled.content).format({...})` 再填入 `{{draftTitle}}` / `{{runtimeContext}}` 等运行时变量。
 
-这样 Agent 一启动就知道有哪些 Skill 可用、各自的 `description`、以及调用 `load_prompt_skill_template(slug=...)` 加载正文。**Skill 是否对某 Agent 可见，完全由该 Agent 模板正文里有没有写对应的 `@slug` 决定**——这就是 Agent 之间的能力边界：Create Agent 模板里写 `@xhs-style-guide @zhihu.style-guide`，Chat Agent 模板里不写，所以 Chat 天然看不到创作类风格 Skill。`load_prompt_skill_template` 是按需加载正文的懒加载工具，`list_prompt_skills` 则用于 Agent 主动探索未绑定的 Skill。
+这样草稿、选题、文章或用户资料中的 `@slug` 无法注入新的 Skill。模板提及决定启动时显示的 Skill metadata，Agent scope 白名单决定 `list_prompt_skills` 和 `load_prompt_skill_template` 最终能发现、加载哪些 Skill；两层必须同时满足。`load_prompt_skill_template` 还会拒绝非 `skill`、`DRAFT`、`ARCHIVED` 或不在当前 Agent scope 的模板与版本。
 
 `type` 和 `scope` 是两个正交的分类轴，取值已收敛为固定枚举（见 `AI_TEMPLATE_TYPES` / `AI_TEMPLATE_SCOPES`）：
 
@@ -506,6 +506,7 @@ Golden Dataset 管理。
 - LangChain mustache 变量：`{{draftTitle}}`、`{{topic}}` 等。
 - 模板 metadata 列表、版本列表、diff、active / archived 状态。
 - `list_prompt_skills` 只返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
+- Prompt Skill 工具按 Agent scope 装配：Chat=`system/chat`，Create=`system/content/create_agent`，Topic=`system/content/topic_agent`。
 - Create Agent 以草稿 `type` 和 Skill `description` 选择风格指南：图文使用小红书风格，长文使用知乎 Markdown 风格。
 - 系统 Prompt、Skill 正文与业务页面上下文分离：模板在 AI Lab 管理，页面实时上下文由业务入口在调用时传入。
 

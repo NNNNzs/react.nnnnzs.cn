@@ -165,15 +165,13 @@ src/services/ai/
 │   ├── langgraph-agent.ts  # 兼容导出，主实现位于 chat-agent/
 │   └── index.ts      # Agent 统一导出
 ├── tools/            # ReAct Agent 工具系统
-│   ├── search-articles.ts    # 向量语义搜索工具
-│   ├── search-posts-meta.ts  # 元数据搜索工具
-│   ├── search-collection.ts  # 合集搜索工具
-│   ├── langchain-tools.ts    # LangChain 格式工具定义（Function Calling）
-│   ├── create-tools/         # 创作助手工具集（闭包工厂 buildCreateTools）
-│   │   ├── draft-patch.ts    # DraftPatch 共享类型（后端+前端）
-│   │   ├── langchain-tools.ts # LangChain 包装层（7 个工具）
-│   │   └── index.ts          # 业务工具层
-│   └── index.ts              # 工具统一导出
+│   ├── article-tools.ts      # 共享文章 StructuredTool 定义
+│   ├── prompt-template-tools.ts # Prompt Skill 定义与 scope 策略实例
+│   ├── web-tools.ts          # 共享网页 StructuredTool 定义
+│   ├── chat-tools.ts         # Chat 能力白名单
+│   ├── tool-assembly.ts      # 装配与重复名称检测
+│   ├── create-tools/         # 草稿请求级工具 + Create 白名单
+│   └── topic-tools/          # 选题请求级工具 + Topic 白名单
 ├── create-agent/     # 创作助手 Agent（SSE 版，独立于 chat-agent）
 │   ├── prompt.ts      # 从 tb_ai_template 加载 system prompt
 │   ├── create-agent.ts # LangGraph Agent + SSE 编码
@@ -202,7 +200,7 @@ import { createAIChain, streamFromChain } from '@/lib/ai';
 import { chatAgentStream } from '@/services/ai/chat-agent';
 
 // ✅ 正确：导入 LangChain 格式工具
-import { chatTools } from '@/services/ai/tools/langchain-tools';
+import { chatTools } from '@/services/ai/tools/chat-tools';
 
 // ❌ 错误：不要混用两套工具
 // 不要用 LangChain 调用 Anthropic，不要用官方 SDK 调用 OpenAI

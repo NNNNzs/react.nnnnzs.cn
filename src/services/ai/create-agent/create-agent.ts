@@ -14,7 +14,7 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createOpenAIModel } from '@/lib/ai';
 import { getContentDraft } from '@/services/content-creation';
 import { buildCreateAgentSystemPrompt } from './prompt';
-import { buildCreateTools } from '../tools/create-tools/langchain-tools';
+import { buildCreateTools } from '../tools/create-tools/build-tools';
 import type { DraftPatch } from '../tools/create-tools/draft-patch';
 import type { CreateAgentPageContext } from '@/types/create-agent';
 import {
@@ -163,7 +163,11 @@ export async function createAgentStream(
         });
 
         const model = await createOpenAIModel({ scenario: SCENARIO });
-        const tools = buildCreateTools({ draftId, userId, emitPatch });
+        const tools = buildCreateTools({
+          draftId,
+          actorUserId: userId,
+          emitPatch,
+        });
 
         const agent = createReactAgent({
           llm: model.bindTools(tools),

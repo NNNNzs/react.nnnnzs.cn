@@ -2,7 +2,7 @@
 
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
-> **最后更新**: 2026-06-29
+> **最后更新**: 2026-07-14
 > **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [站点级昼夜风格语义系统](../day-night-style-system.md) | [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)
 
 ## 概述
@@ -73,7 +73,7 @@ flowchart TB
 
     subgraph Tools["工具系统层 services/ai/tools"]
         D1["search_articles（向量语义搜索）"]
-        D2["search_posts_meta（元数据搜索）"]
+        D2["search_posts（元数据搜索）"]
         D3["search_collection（合集搜索）"]
         D4["github_search（GitHub 搜索）"]
     end
@@ -120,7 +120,8 @@ flowchart TB
 | **提示词注入服务** | `src/services/ai/chat-agent/prompt.ts` | 读取提示词模板并注入站点、用户、知识库和合集变量 |
 | **会话标题生成** | `src/services/ai/chat-agent/title.ts` | 第一轮对话完成后根据用户首问和 assistant 回复生成短标题 |
 | **旧版兼容入口** | `src/services/ai/rag/index.ts` | 兼容导出，主入口已迁移到 `src/services/ai/chat-agent` |
-| **LangChain 工具** | `src/services/ai/tools/langchain-tools.ts` | LangChain `tool()` + zod schema 定义 |
+| **Chat 工具白名单** | `src/services/ai/tools/chat-tools.ts` | 组合共享 StructuredTool 与 Chat 专属工具 |
+| **共享文章工具** | `src/services/ai/tools/article-tools.ts` | `search_articles` / `search_posts` / `get_post_content` 唯一定义 |
 | **RAG 检索工具** | `src/services/ai/tools/search-articles.ts` | 向量语义搜索工具，供 Agent 按需调用 |
 | **元数据搜索** | `src/services/ai/tools/search-posts-meta.ts` | 按时间/热度/分类搜索 |
 | **合集搜索** | `src/services/ai/tools/search-collection.ts` | 合集内文章搜索 |
@@ -261,7 +262,7 @@ interface Tool {
   execute: (args: Record<string, unknown>) => Promise<ToolResult>;
 }
 
-// LangChain wrapper 位于 langchain-tools.ts，使用 tool() + zod schema 暴露给 Agent。
+// 模型侧工具在 article-tools.ts 等共享模块中用 tool() + zod schema 唯一定义。
 ```
 
 当前工具：
@@ -269,7 +270,7 @@ interface Tool {
 | 工具 | 说明 | 超时策略 |
 |------|------|----------|
 | `search_articles` | embedding + Qdrant 向量语义搜索 | embedding 8 秒，Qdrant 搜索 8 秒 |
-| `search_posts_meta` | 文章列表结构化查询 | 内部 HTTP 查询 8 秒 |
+| `search_posts` | 文章列表结构化查询 | 内部 HTTP 查询 8 秒 |
 | `search_collection` | 合集内文章搜索 | 数据库查询 |
 | `github_search` | GitHub 仓库、Issue/PR、用户仓库、Star 列表 | GitHub API 10 秒 |
 
@@ -462,7 +463,7 @@ export const myTool: Tool = {
 };
 ```
 
-2. **包装为 LangChain tool**（`src/services/ai/tools/langchain-tools.ts`）：
+2. **包装为 LangChain tool**（共享能力放入 `src/services/ai/tools/*-tools.ts`）：
 
 ```typescript
 import { tool } from '@langchain/core/tools';

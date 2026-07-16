@@ -8,6 +8,8 @@ import {
   createMustachePromptTemplate,
   loadPromptSkillTemplate,
 } from '@/services/ai-template';
+import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 const CHAT_AGENT_TEMPLATE_SLUGS: Record<SiteStyleVariant, string> = {
   day: 'chat-agent-day',
@@ -105,9 +107,13 @@ export async function buildChatAgentSystemPrompt(
     loadPromptTemplate(styleVariant),
     getPromptContext(),
   ]);
-  const template = createMustachePromptTemplate(rawTemplate);
+  const compiled = await compilePromptTemplate(
+    normalizeLegacyAgentToolNames(rawTemplate),
+    AGENT_PROMPT_SKILL_POLICIES.chat,
+  );
+  const template = createMustachePromptTemplate(compiled.content);
 
-  const rendered = await template.format({
+  return template.format({
     siteName: params.siteName,
     baseUrl: params.baseUrl,
     currentTime: params.currentTime,
@@ -115,8 +121,4 @@ export async function buildChatAgentSystemPrompt(
     knowledgeBaseSummary: formatKnowledgeBaseSummary(context.articleTags, context.articleCount),
     collectionsSummary: formatCollectionsSummary(context.collections),
   });
-  // chat-agent 模板不写 @ 提及，compile 后 mentions 为空、不拼 skill 区块，
-  // 保证聊天助手看不到创作类 skill。接通是为和 create/topic 行为一致。
-  const compiled = await compilePromptTemplate(rendered);
-  return compiled.content;
 }

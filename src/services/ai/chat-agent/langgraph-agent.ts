@@ -9,7 +9,7 @@
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { createOpenAIModel } from '@/lib/ai';
-import { chatTools } from '@/services/ai/tools/langchain-tools';
+import { chatTools } from '@/services/ai/tools/chat-tools';
 import { buildChatAgentSystemPrompt } from './prompt';
 import {
   createSseEmitter,

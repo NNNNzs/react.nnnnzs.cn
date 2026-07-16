@@ -1,60 +1,54 @@
-# AI 工具系统
+# AI Agent 工具系统
 
-Chat Agent 使用 LangGraph + LangChain 原生 function calling。工具分为两层：
+Chat、Create、Topic Agent 共用同一套 LangChain 工具定义，并把工具能力定义、请求级上下文和 Agent 白名单分成三层。
 
-- `search-*.ts`：业务工具，封装数据库、向量检索、合集查询等可复用逻辑。
-- `langchain-tools.ts`：LangChain `tool()` wrapper，使用 zod schema 暴露给 Agent。
+## 目录分层
 
-## 当前工具
-
-| 工具 | 用途 |
+| 文件 | 职责 |
 | --- | --- |
-| `search_articles` | RAG 检索工具，通过向量相似度搜索相关文章 |
-| `search_posts_meta` | 按时间、标签、分类、热度等维度查询文章列表 |
-| `search_collection` | 在指定文章合集中查找文章 |
-| `github_search` | 搜索 GitHub 仓库、Issue/PR、用户仓库和 Star 列表 |
+| `article-tools.ts` | `search_articles`、`search_posts`、`get_post_content` 唯一定义 |
+| `prompt-template-tools.ts` | Prompt Skill list/load schema 与 Agent scope 策略实例 |
+| `web-tools.ts` | `web_search`、`read_source_url` 唯一定义 |
+| `chat-tools.ts` | Chat 能力白名单，以及 Chat 专属合集/GitHub 工具 |
+| `create-tools/agent-tools.ts` | 注入当前 draft、actor 和 patch 回调的请求级工具 |
+| `create-tools/build-tools.ts` | Create 能力白名单装配 |
+| `topic-tools/agent-tools.ts` | 注入当前 topic、actor、数据范围和 patch 回调的请求级工具 |
+| `topic-tools/build-tools.ts` | Topic 能力白名单装配 |
+| `tool-assembly.ts` | 合并工具组并拒绝重复工具名 |
+| `tool-result.ts` | 统一 JSON 成功/失败序列化 |
 
-## 超时与可观测性
+`search-articles.ts`、`search-posts-meta.ts`、`search-collection.ts` 和 `github-search.ts` 仍是旧业务契约的实现层；它们不直接暴露给模型。模型侧文章元数据工具名统一为 `search_posts`。
 
-- `search_articles` 依赖 embedding 服务和 Qdrant，业务层分别设置 8 秒超时，避免向量链路拖住整条聊天流。
-- `search_posts_meta` 内部请求 `/api/post/query`，设置 8 秒超时。
-- `github_search` 通过 `proxyFetch` 访问 GitHub API，设置 10 秒超时，并复用 `GITHUB_PROXY_URL` / `HTTPS_PROXY` / `HTTP_PROXY`。
-- Chat Agent 会把工具调用的 `toolName`、`startedAt`、`endedAt`、`durationMs` 写入聊天消息 `metadata.reactLoops[].steps[]` 和 `metadata.reactTimeline[].steps[]`，用于后续排查慢工具。
+## 能力白名单
 
-## 添加新工具
+| 工具 | Chat | Create | Topic |
+| --- | --- | --- | --- |
+| `search_articles` | 是 | 否 | 否 |
+| `search_posts` | 是 | 是 | 是 |
+| `get_post_content` | 否 | 是 | 是 |
+| `search_collection` / `github_search` | 是 | 否 | 否 |
+| `list_prompt_skills` / `load_prompt_skill_template` | 是 | 是 | 是 |
+| `web_search` | 否 | 是 | 是 |
+| `read_source_url` | 否 | 否 | 是 |
+| `get_current_draft` / `emit_draft_patch` | 否 | 是 | 否 |
+| `search_topics` / `get_current_topic` / `emit_topic_patch` | 否 | 否 | 是 |
 
-1. 在 `src/services/ai/tools/` 下创建业务工具，例如 `my-tool.ts`。
-2. 实现 `Tool` 接口，返回 `{ success, data?, error? }`。
-3. 在 `langchain-tools.ts` 中用 LangChain `tool()` 包装业务工具，并定义 zod schema。
-4. 将 wrapper 加入 `chatTools` 数组。
-5. 对任何外部网络、向量数据库或内部 HTTP 请求设置业务级超时，避免工具永久等待。
+Prompt Skill 工具虽然共用一份 schema 和执行定义，但按 Agent 绑定静态 scope：Chat 可见 `system/chat`，Create 可见 `system/content/create_agent`，Topic 可见 `system/content/topic_agent`。加载时必须同时满足模板和版本为 `ACTIVE`、类型为 `skill`、scope 获准。
 
-示例：
+## 安全边界
 
-```typescript
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
-import { myTool } from './my-tool';
+- `draftId`、`topicId`、`actorUserId`、`scopeUserId` 只通过服务端闭包注入，不进入模型 schema。
+- `get_current_draft` 和 `get_current_topic` 只能读取 API 路由已经完成数据权限校验的当前资源。
+- `emit_draft_patch` 和 `emit_topic_patch` 只把建议发到前端，用户确认后才应用；草稿 patch 仍保持 `returnDirect`。
+- system prompt 中的 `@slug` 必须先从原始模板解析，再渲染运行时草稿、选题和用户上下文，业务内容不能改变 Skill 绑定。
+- 所有装配必须经过 `assembleAgentTools()`；同一 Agent 出现重复工具名时立即失败。
 
-export const lcMyTool = tool(
-  async ({ keyword }) => {
-    const result = await myTool.execute({ keyword });
-    if (!result.success) return JSON.stringify({ error: result.error });
-    return JSON.stringify(result.data);
-  },
-  {
-    name: 'my_tool',
-    description: '工具用途说明，帮助模型判断何时调用。',
-    schema: z.object({
-      keyword: z.string().describe('查询关键词'),
-    }),
-  },
-);
+## 验证
+
+```bash
+pnpm verify:ai-tools
+pnpm typecheck
+pnpm lint
 ```
 
-## 注意事项
-
-- 新工具优先复用服务层能力，不要在 wrapper 中堆业务逻辑。
-- 参数校验放在 zod schema 和业务工具内部两层处理。
-- 工具结果应尽量返回结构化 JSON，便于 Agent 基于结果继续回答。
-- Chat Agent 主入口位于 `src/services/ai/chat-agent`，不要再新增 JSON-RPC 或手写 ReAct 解析逻辑。
+`verify:ai-tools` 会校验三条 Agent 的实际工具矩阵、共享工具对象复用、当前资源工具零参数、草稿 patch 的 `returnDirect` 和重复名称拒绝行为。

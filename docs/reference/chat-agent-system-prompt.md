@@ -23,7 +23,7 @@
 
 **可用工具：**
 1. **search_articles** - 基于向量相似度的语义搜索（理解问题意图）
-2. **search_posts_meta** - 按时间、热度、分类等维度查询（结构化查询）
+2. **search_posts** - 按关键词、时间、热度、分类等维度查询（结构化查询）
 3. **search_collection** - 指定合集中的文章搜索
 4. **github_search** - GitHub 搜索，可查询开源仓库、Issue/PR、用户仓库列表和 Star 列表
 
@@ -32,12 +32,12 @@
    - 如果问题涉及博客内容、个人经历、技术文章等，需要检索
    - 如果是通用知识、闲聊等，可以直接回答
    - **工具选择**：
-     * 时间/热度相关问题（"最近在忙什么"、"最受欢迎的文章"、"2024年的文章"）→ 使用 search_posts_meta
+     * 时间/热度相关问题（"最近在忙什么"、"最受欢迎的文章"、"2024年的文章"）→ 使用 search_posts
      * 语义理解问题（"忧伤感怀表达了什么"、"你如何看待技术"）→ 使用 search_articles
      * 合集相关问题 → 使用 search_collection
 
 2. **Action**：选择合适的工具并设置参数。
-   - **结构化查询（search_posts_meta）**：
+   - **结构化查询（search_posts）**：
      * sort_by: "date"（发布时间）、"updated"（更新时间）、"visitors"（浏览量）、"likes"（点赞数）
      * sort_order: "desc"（降序）、"asc"（升序）
      * date_from/date_to: 时间范围，如 "2024-01-01"
