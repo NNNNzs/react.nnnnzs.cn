@@ -2,7 +2,7 @@ import { tool } from '@langchain/core/tools';
 import type { StructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
-  listAiTemplates,
+  listActivePromptSkills,
   loadAgentPromptSkillTemplate,
 } from '@/services/ai-template';
 import { AGENT_PROMPT_SKILL_POLICIES } from './prompt-skill-policy';
@@ -15,14 +15,7 @@ function createPromptTemplateTools(agent: PromptSkillAgent): readonly [Structure
   const listPromptSkills = tool(
     async ({ query }) => {
       try {
-        const { record } = await listAiTemplates({
-          query,
-          type: 'skill',
-          status: 'ACTIVE',
-          scopes: policy.allowedScopes,
-          pageNum: 1,
-          pageSize: 20,
-        });
+        const record = await listActivePromptSkills(policy, query);
 
         return serializeToolData({
           templates: record.map((item) => ({

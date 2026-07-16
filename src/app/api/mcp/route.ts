@@ -8,8 +8,8 @@ import { getMcpEnabledEntries } from '@/lib/api-registry';
 import { handleMcpToApi, jsonSchemaToZod } from '@/lib/mcp-adapter';
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
-import { getWritingStyleGuide } from '@/lib/docs-resources';
 import { getPublicOrigin } from '@/lib/mcp-oauth-metadata';
+import { registerPromptSkillResources } from '@/services/mcp/register-prompt-skill-resources';
 import type { AuthUser } from '@/types/auth';
 
 function createMcpAuthErrorResponse(request: NextRequest, requestId: string | number | null) {
@@ -190,29 +190,7 @@ async function createMcpServer(headers: Headers) {
     }
   );
 
-  // Register writing style guide as a resource
-  server.registerResource(
-    "writing_style",
-    "blog://writing_style",
-    {
-      title: "Blog Writing Style Guide",
-      description: "Complete writing style guidelines for blog articles. MUST read before creating or updating articles to ensure the content matches the blog's authentic, conversational tone. Includes guidelines for both technical and personal reflection articles.",
-      mimeType: "text/markdown"
-    },
-    async () => {
-      await ensureAuth();
-      // 动态读取写作风格指南
-      const writingStyleGuide = getWritingStyleGuide();
-
-      return {
-        contents: [{
-          uri: "blog://writing_style",
-          mimeType: "text/markdown",
-          text: writingStyleGuide
-        }]
-      };
-    }
-  );
+  registerPromptSkillResources(server, ensureAuth);
 
   server.registerResource(
     "image_generation_job",

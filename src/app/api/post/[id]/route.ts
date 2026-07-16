@@ -36,6 +36,7 @@ export const getDescriptor: ApiDescriptor = {
 export const updateDescriptor: ApiDescriptor = {
   code: 'post_update',
   name: '更新文章',
+  description: '更新博客文章。大幅改写正文前先读取 blog://skills，根据 metadata 选择相关 Skill；博客文章默认读取 blog://skills/blog-writing-style-guide。',
   module: 'post',
   method: 'PUT',
   permissionCode: POST_EDIT,

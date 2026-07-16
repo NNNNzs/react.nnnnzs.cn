@@ -4,6 +4,7 @@
 
 ## 📋 当前计划
 
+- [MCP Prompt Skills 动态资源改造](./mcp-prompt-skills-resources.md) — 🔄 进行中（动态资源、共享 Skill 服务和数据库 metadata 已完成，待部署后的真实 MCP 客户端联调）
 - [AI Agent 工具定义与装配统一改造](./ai-agent-tools-unification.md) — 🔄 进行中（共享定义、请求级上下文工厂、Agent 白名单和 Prompt Skill scope 已落地；待数据库模板同步与运行联调）
 - [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
 - [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
@@ -79,4 +80,4 @@
 
 ---
 
-**最后更新**: 2026-07-14
+**最后更新**: 2026-07-16

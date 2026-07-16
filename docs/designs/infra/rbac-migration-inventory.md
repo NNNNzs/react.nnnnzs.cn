@@ -203,7 +203,8 @@
 |--------|-----|------|----------|
 | `tags` | `blog://tags` | 所有标签及计数 | 保留手动注册 |
 | `collections` | `blog://collections` | 所有合集信息 | 保留手动注册 |
-| `writing_style` | `blog://writing_style` | 写作风格指南 | 保留手动注册 |
+| `prompt_skills` | `blog://skills` | 全部 ACTIVE Prompt Skill metadata | 动态注册，复用 AI Lab Skill 服务 |
+| `prompt_skill` | `blog://skills/{slug}` | 按 slug 读取当前激活 Skill 正文 | `ResourceTemplate` 动态注册 |
 | 动态 ref docs | `blog://ref/<name>` | 参考文档 | 保留手动注册 |
 
 ---

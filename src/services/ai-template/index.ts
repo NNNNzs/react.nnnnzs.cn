@@ -451,19 +451,79 @@ function isPromptSkillAllowed(
     && (!allowedSlugs || allowedSlugs.includes(template.slug));
 }
 
-export async function loadAgentPromptSkillTemplate(
+export async function listActivePromptSkills(
+  policy: PromptSkillAccessPolicy,
+  query?: string,
+) {
+  const prisma = await getPrisma();
+  const allowedSlugs = policy.allowedSlugs?.map(normalizeTemplateSlug);
+  const normalizedQuery = query?.trim();
+  const templates = await prisma.tbAiTemplate.findMany({
+    where: {
+      type: 'skill',
+      status: 'ACTIVE',
+      scope: { in: [...policy.allowedScopes] },
+      ...(allowedSlugs ? { slug: { in: allowedSlugs } } : {}),
+      ...(normalizedQuery ? {
+        OR: [
+          { slug: { contains: normalizedQuery } },
+          { key: { contains: normalizedQuery } },
+          { name: { contains: normalizedQuery } },
+          { description: { contains: normalizedQuery } },
+        ],
+      } : {}),
+    },
+    orderBy: [
+      { scope: 'asc' },
+      { name: 'asc' },
+    ],
+    include: {
+      versions: {
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          version: true,
+          checksum: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+        },
+      },
+    },
+  });
+
+  return templates.flatMap((template) => {
+    const currentVersion = template.versions.find(
+      (version) => version.version === template.current_version,
+    );
+    if (!currentVersion) return [];
+
+    return [formatTemplateSummary({
+      ...template,
+      versions: [currentVersion],
+    })];
+  });
+}
+
+export async function loadActivePromptSkill(
   input: LoadAgentPromptSkillInput,
 ) {
   const selected = await getAiTemplateVersion(input.slug, input.version);
   if (!selected) throw new Error('Prompt Skill 版本不存在');
   if (!isPromptSkillAllowed(selected.template, input.policy)) {
-    throw new Error('Prompt Skill 不存在或当前 Agent 无权加载');
+    throw new Error('Prompt Skill 不存在或当前调用方无权加载');
   }
   if (selected.version.status !== 'ACTIVE') {
     throw new Error('Prompt Skill 版本未激活');
   }
 
   return formatLoadedPromptTemplate(selected, input.variables);
+}
+
+export async function loadAgentPromptSkillTemplate(
+  input: LoadAgentPromptSkillInput,
+) {
+  return loadActivePromptSkill(input);
 }
 
 export async function resolveTemplateMentions(

@@ -507,6 +507,7 @@ Golden Dataset 管理。
 - 模板 metadata 列表、版本列表、diff、active / archived 状态。
 - `list_prompt_skills` 只返回 metadata，`load_prompt_skill_template` 按 slug 加载完整正文。
 - Prompt Skill 工具按 Agent scope 装配：Chat=`system/chat`，Create=`system/content/create_agent`，Topic=`system/content/topic_agent`。
+- MCP 通过 `blog://skills` 暴露全部 ACTIVE Skill metadata，并通过 `blog://skills/{slug}` 按需读取当前激活版本正文；MCP 与 Agent 工具复用同一套状态、类型和 scope 校验服务。
 - Create Agent 以草稿 `type` 和 Skill `description` 选择风格指南：图文使用小红书风格，长文使用知乎 Markdown 风格。
 - 系统 Prompt、Skill 正文与业务页面上下文分离：模板在 AI Lab 管理，页面实时上下文由业务入口在调用时传入。
 
