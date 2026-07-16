@@ -13,13 +13,46 @@ import {
   getStringParam,
   validationErrorResponse,
 } from '../_utils';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
-const createAssetSchema = z.object({
+export const createAssetSchema = z.object({
   image_url: z.string().trim().url('请输入有效的图片地址').max(5000, '图片地址过长')
     .refine((value) => value.startsWith('https://'), '图片地址必须以 https:// 开头'),
   title: z.string().trim().max(255).optional().nullable(),
   group: z.string().trim().max(60).optional().nullable(),
 });
+
+export const getDescriptor: ApiDescriptor = {
+  code: 'create_assets_list', name: '素材列表', description: '分页查询图片素材，可按关键词、分组、来源、收藏、草稿或选题筛选。',
+  module: 'content', method: 'GET', permissionCode: CONTENT_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pageNum: { type: 'number', description: '页码，默认 1' },
+      pageSize: { type: 'number', description: '每页数量，默认 20，最大 100' },
+      query: { type: 'string', description: '搜索素材名称或图片地址' },
+      group: { type: 'string', description: '素材分组' },
+      source: { type: 'string', description: '来源：generated 或 uploaded' },
+      favorite: { type: 'boolean', description: '是否只看收藏素材' },
+      draftId: { type: 'number', description: '关联草稿 ID' },
+      topicId: { type: 'number', description: '关联选题 ID' },
+    },
+  },
+};
+
+export const createDescriptor: ApiDescriptor = {
+  code: 'create_assets_create', name: '新建素材', description: '把一个已有 HTTPS 图片地址登记为图片素材。文件上传可先调用 upload_file。',
+  module: 'content', method: 'POST', permissionCode: CONTENT_CREATE,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      image_url: { type: 'string', description: 'HTTPS 图片地址' },
+      title: { type: 'string', description: '素材名称' },
+      group: { type: 'string', description: '素材分组' },
+    },
+    required: ['image_url'],
+  },
+};
 
 function getSourceParam(value: string | null): ContentAssetSource | undefined {
   return value === 'generated' || value === 'uploaded' ? value : undefined;

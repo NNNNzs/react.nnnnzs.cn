@@ -118,7 +118,24 @@ async function fetchResourceForPermissionCheck(
       const { getPostById } = await import('@/services/post');
       return getPostById(args.id as number);
     }
-    // 其他需要数据权限检查的接口...
+    case 'create_topics_get':
+    case 'create_topics_update':
+    case 'create_topics_delete': {
+      const { getContentTopic } = await import('@/services/content-creation');
+      return getContentTopic(args.id as number);
+    }
+    case 'create_drafts_get':
+    case 'create_drafts_update':
+    case 'create_drafts_delete': {
+      const { getContentDraft } = await import('@/services/content-creation');
+      return getContentDraft(args.id as number);
+    }
+    case 'create_assets_get':
+    case 'create_assets_update':
+    case 'create_assets_delete': {
+      const { getContentImageAsset } = await import('@/services/content-creation');
+      return getContentImageAsset(args.id as number);
+    }
     default:
       return null;
   }

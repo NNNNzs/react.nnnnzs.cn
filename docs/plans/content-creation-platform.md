@@ -356,6 +356,7 @@ src/generated/content-prisma-client
 6. [x] 支持删除草稿。
 7. [x] 支持草稿从素材库追加图片，素材本身可重复使用。
 8. [x] 草稿库、素材库、选题库列表页接入真实 API。
+9. [x] 选题库、草稿库、素材库通过 MCP 提供完整列表、详情、新建、更新和删除工具，并复用内容权限与数据范围检查。
 9. [ ] 支持导入 `xhs/content/topic-bank.md` 的初始选题。
 
 ### 阶段 4：Topic Agent

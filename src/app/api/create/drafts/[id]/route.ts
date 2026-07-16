@@ -11,12 +11,13 @@ import {
   updateContentDraft,
 } from '@/services/content-creation';
 import { validationErrorResponse } from '../../_utils';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-const updateDraftSchema = z.object({
+export const updateDraftSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符').optional(),
   hook: z.string().max(5000).optional().nullable(),
   body: z.string().max(100000).optional().nullable(),
@@ -24,6 +25,38 @@ const updateDraftSchema = z.object({
   type: z.enum(CONTENT_DRAFT_TYPES).optional(),
   status: z.enum(CONTENT_DRAFT_STATUSES).optional(),
 });
+
+const draftIdInputSchema = { id: { type: 'number', description: '草稿 ID' } };
+
+export const getDescriptor: ApiDescriptor = {
+  code: 'create_drafts_get', name: '草稿详情', description: '按 ID 获取草稿正文、标签、图卡和已选素材。',
+  module: 'content', method: 'GET', permissionCode: CONTENT_VIEW,
+  inputSchema: { type: 'object', properties: draftIdInputSchema, required: ['id'] },
+};
+
+export const updateDescriptor: ApiDescriptor = {
+  code: 'create_drafts_update', name: '更新草稿', description: '更新草稿标题、开头、正文、标签、类型或状态。',
+  module: 'content', method: 'PATCH', permissionCode: CONTENT_EDIT,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      ...draftIdInputSchema,
+      title: { type: 'string', description: '草稿标题' },
+      hook: { type: 'string', description: '开头或钩子文案；传空字符串可清空' },
+      body: { type: 'string', description: '草稿正文；传空字符串可清空' },
+      tags: { type: 'array', items: { type: 'string' }, description: '标签列表' },
+      type: { type: 'string', description: '草稿类型' },
+      status: { type: 'string', description: '草稿状态' },
+    },
+    required: ['id'],
+  },
+};
+
+export const deleteDescriptor: ApiDescriptor = {
+  code: 'create_drafts_delete', name: '删除草稿', description: '按 ID 删除一个草稿。',
+  module: 'content', method: 'DELETE', permissionCode: CONTENT_DELETE,
+  inputSchema: { type: 'object', properties: draftIdInputSchema, required: ['id'] },
+};
 
 async function readDraftId(context: RouteContext) {
   const { id } = await context.params;

@@ -11,12 +11,13 @@ import {
   updateContentTopic,
 } from '@/services/content-creation';
 import { validationErrorResponse } from '../../_utils';
+import type { ApiDescriptor } from '@/types/api-descriptor';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-const updateTopicSchema = z.object({
+export const updateTopicSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255).optional(),
   source_type: z.enum(CONTENT_TOPIC_SOURCE_TYPES).optional(),
   source_url: z.string().url('请输入有效的来源链接').max(5000).optional().nullable().or(z.literal('')),
@@ -26,6 +27,54 @@ const updateTopicSchema = z.object({
   key_points: z.array(z.string().min(1).max(1000)).max(30).optional().nullable(),
   status: z.enum(CONTENT_TOPIC_STATUSES).optional(),
 });
+
+const topicIdInputSchema = {
+  id: { type: 'number', description: '选题 ID' },
+};
+
+export const getDescriptor: ApiDescriptor = {
+  code: 'create_topics_get',
+  name: '选题详情',
+  description: '按 ID 获取一个选题及其草稿、素材数量。',
+  module: 'content',
+  method: 'GET',
+  permissionCode: CONTENT_VIEW,
+  inputSchema: { type: 'object', properties: topicIdInputSchema, required: ['id'] },
+};
+
+export const updateDescriptor: ApiDescriptor = {
+  code: 'create_topics_update',
+  name: '更新选题',
+  description: '更新一个选题的创作意图、来源、核心角度、关键点或状态。',
+  module: 'content',
+  method: 'PATCH',
+  permissionCode: CONTENT_EDIT,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      ...topicIdInputSchema,
+      title: { type: 'string', description: '选题标题' },
+      source_type: { type: 'string', description: '来源类型：idea、blog、url 或 website' },
+      source_url: { type: 'string', description: '文章或网站来源 URL；传空字符串可清空' },
+      source_post_id: { type: 'number', description: '来源博客文章 ID' },
+      original_idea: { type: 'string', description: '原始创作想法' },
+      core_angle: { type: 'string', description: '核心角度' },
+      key_points: { type: 'array', items: { type: 'string' }, description: '关键点列表' },
+      status: { type: 'string', description: '选题状态：IDEA、USED 或 ARCHIVED' },
+    },
+    required: ['id'],
+  },
+};
+
+export const deleteDescriptor: ApiDescriptor = {
+  code: 'create_topics_delete',
+  name: '删除选题',
+  description: '按 ID 删除一个选题。',
+  module: 'content',
+  method: 'DELETE',
+  permissionCode: CONTENT_DELETE,
+  inputSchema: { type: 'object', properties: topicIdInputSchema, required: ['id'] },
+};
 
 async function readTopicId(context: RouteContext) {
   const { id } = await context.params;

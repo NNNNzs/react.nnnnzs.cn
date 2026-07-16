@@ -952,6 +952,30 @@ export async function listContentAssets(params: AssetQueryParams = {}) {
   return { record, total, pageNum, pageSize };
 }
 
+export async function getContentImageAsset(id: number) {
+  const prisma = await getPrisma();
+  const asset = await prisma.contentAsset.findFirst({
+    where: { id, type: 'image' },
+    include: {
+      draft: { select: { id: true, title: true, status: true } },
+      topic: { select: { id: true, title: true } },
+    },
+  });
+
+  if (!asset) return null;
+
+  const aiJob = asset.ai_job_id
+    ? await prisma.tbAiJob.findFirst({
+        where: { id: asset.ai_job_id, type: 'image-gen' },
+      })
+    : null;
+
+  return {
+    ...asset,
+    image_job: aiJob ? formatContentImageJob(aiJob) : null,
+  };
+}
+
 export async function createContentAsset(input: CreateAssetInput) {
   const prisma = await getPrisma();
 
@@ -1019,10 +1043,10 @@ export async function updateContentImageAsset(id: number, input: UpdateContentIm
 
   const data: Prisma.ContentAssetUpdateInput = {};
 
-  if ('title' in input) {
+  if (input.title !== undefined) {
     data.title = toNullableString(input.title);
   }
-  if ('group' in input) {
+  if (input.group !== undefined) {
     data.usage = toNullableString(input.group);
   }
   if (typeof input.isFavorite === 'boolean') {

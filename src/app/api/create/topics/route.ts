@@ -16,8 +16,27 @@ import {
   validationErrorResponse,
 } from '../_utils';
 
+export const getDescriptor: ApiDescriptor = {
+  code: 'create_topics_list',
+  name: '选题列表',
+  description: '分页查询内容创作中台的选题，可按关键词、状态和来源博客筛选。',
+  module: 'content',
+  method: 'GET',
+  permissionCode: CONTENT_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pageNum: { type: 'number', description: '页码，默认 1' },
+      pageSize: { type: 'number', description: '每页数量，默认 20，最大 100' },
+      query: { type: 'string', description: '搜索标题、创作想法、核心角度或来源' },
+      status: { type: 'string', description: '选题状态：IDEA、USED 或 ARCHIVED' },
+      sourcePostId: { type: 'number', description: '来源博客文章 ID' },
+    },
+  },
+};
+
 /** 新建选题 API / MCP 工具的唯一元数据定义。 */
-export const descriptor: ApiDescriptor = {
+export const createDescriptor: ApiDescriptor = {
   // 复用数据库中已存在的 POST /api/create/topics 注册项，避免同一路由重复登记。
   code: 'create_topics_create',
   name: '新建选题',

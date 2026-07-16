@@ -13,6 +13,7 @@
 
 import type { AuthUser } from '@/types/auth';
 import { CONFIG_EDIT, FILE_UPLOAD } from '@/constants/permissions';
+import { hasDataPermission } from '@/lib/permission';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
 // ---- 从 route.ts 导入 descriptor（元数据 Source of Truth）----
@@ -38,7 +39,39 @@ import { getDescriptor as aiLabPromptsGet, updateDescriptor as aiLabPromptsUpdat
 import { createDescriptor as aiLabPromptsCreateVersion } from '@/app/api/admin/ai-lab/prompts/[slug]/versions/route';
 import { descriptor as aiLabPromptsDiff } from '@/app/api/admin/ai-lab/prompts/[slug]/diff/route';
 import { descriptor as aiLabPromptsRender } from '@/app/api/admin/ai-lab/prompts/render/route';
-import { createTopicSchema, descriptor as contentTopicCreateRoute } from '@/app/api/create/topics/route';
+import {
+  createTopicSchema,
+  createDescriptor as contentTopicCreateRoute,
+  getDescriptor as contentTopicListRoute,
+} from '@/app/api/create/topics/route';
+import {
+  deleteDescriptor as contentTopicDeleteRoute,
+  getDescriptor as contentTopicGetRoute,
+  updateDescriptor as contentTopicUpdateRoute,
+  updateTopicSchema,
+} from '@/app/api/create/topics/[id]/route';
+import {
+  createDescriptor as contentDraftCreateRoute,
+  createDraftSchema,
+  getDescriptor as contentDraftListRoute,
+} from '@/app/api/create/drafts/route';
+import {
+  deleteDescriptor as contentDraftDeleteRoute,
+  getDescriptor as contentDraftGetRoute,
+  updateDescriptor as contentDraftUpdateRoute,
+  updateDraftSchema,
+} from '@/app/api/create/drafts/[id]/route';
+import {
+  createAssetSchema,
+  createDescriptor as contentAssetCreateRoute,
+  getDescriptor as contentAssetListRoute,
+} from '@/app/api/create/assets/route';
+import {
+  deleteDescriptor as contentAssetDeleteRoute,
+  getDescriptor as contentAssetGetRoute,
+  updateAssetSchema,
+  updateDescriptor as contentAssetUpdateRoute,
+} from '@/app/api/create/assets/[id]/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -58,6 +91,27 @@ export interface ApiRegistryEntry extends ApiDescriptor {
   handler?: McpHandler;
   /** 数据权限检查时，从资源中提取 owner_id 的函数 */
   getOwnerId?: (resource: unknown) => number | undefined;
+}
+
+function getPositiveId(args: Record<string, unknown>, resourceName: string) {
+  const id = Number(args.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`无效的${resourceName} ID`);
+  }
+  return id;
+}
+
+function getScopedUserId(user: AuthUser, permissionCode: string) {
+  return hasDataPermission(user, permissionCode) ? undefined : user.id;
+}
+
+function parseMcpInput<T>(
+  result: { success: true; data: T } | { success: false; error: { issues: Array<{ message: string }> } },
+): T {
+  if (!result.success) {
+    throw new Error(result.error.issues.map((issue) => issue.message).join('；'));
+  }
+  return result.data;
 }
 
 /**
@@ -96,6 +150,23 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       return post;
     },
   },
+  {
+    ...contentTopicListRoute,
+    apiPath: '/api/create/topics',
+    mcpEnabled: true,
+    mcpToolName: 'list_content_topics',
+    handler: async (args, user) => {
+      const { listContentTopics } = await import('@/services/content-creation');
+      return listContentTopics({
+        pageNum: args.pageNum as number | undefined,
+        pageSize: args.pageSize as number | undefined,
+        query: args.query as string | undefined,
+        status: args.status as string | undefined,
+        sourcePostId: args.sourcePostId as number | undefined,
+        userId: getScopedUserId(user, contentTopicListRoute.permissionCode!),
+      });
+    },
+  },
   // ---- 内容创作模块 ----
   {
     ...contentTopicCreateRoute,
@@ -113,6 +184,190 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         created_by: user.id,
       });
     },
+  },
+  {
+    ...contentTopicGetRoute,
+    apiPath: '/api/create/topics/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'get_content_topic',
+    handler: async (args) => {
+      const { getContentTopic } = await import('@/services/content-creation');
+      return getContentTopic(getPositiveId(args, '选题'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentTopicUpdateRoute,
+    apiPath: '/api/create/topics/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'update_content_topic',
+    handler: async (args) => {
+      const { updateContentTopic } = await import('@/services/content-creation');
+      const id = getPositiveId(args, '选题');
+      const { id: _id, ...input } = args;
+      void _id;
+      return updateContentTopic(id, parseMcpInput(updateTopicSchema.safeParse(input)));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentTopicDeleteRoute,
+    apiPath: '/api/create/topics/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'delete_content_topic',
+    handler: async (args) => {
+      const { deleteContentTopic } = await import('@/services/content-creation');
+      return deleteContentTopic(getPositiveId(args, '选题'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentDraftListRoute,
+    apiPath: '/api/create/drafts',
+    mcpEnabled: true,
+    mcpToolName: 'list_content_drafts',
+    handler: async (args, user) => {
+      const { listContentDrafts } = await import('@/services/content-creation');
+      return listContentDrafts({
+        pageNum: args.pageNum as number | undefined,
+        pageSize: args.pageSize as number | undefined,
+        query: args.query as string | undefined,
+        platform: args.platform as string | undefined,
+        type: args.type as string | undefined,
+        status: args.status as string | undefined,
+        topicId: args.topicId as number | undefined,
+        userId: getScopedUserId(user, contentDraftListRoute.permissionCode!),
+      });
+    },
+  },
+  {
+    ...contentDraftCreateRoute,
+    apiPath: '/api/create/drafts',
+    mcpEnabled: true,
+    mcpToolName: 'create_content_draft',
+    handler: async (args, user) => {
+      const { createContentDraft } = await import('@/services/content-creation');
+      const input = parseMcpInput(createDraftSchema.safeParse(args));
+      return createContentDraft({ ...input, created_by: user.id });
+    },
+  },
+  {
+    ...contentDraftGetRoute,
+    apiPath: '/api/create/drafts/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'get_content_draft',
+    handler: async (args) => {
+      const { getContentDraft } = await import('@/services/content-creation');
+      return getContentDraft(getPositiveId(args, '草稿'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentDraftUpdateRoute,
+    apiPath: '/api/create/drafts/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'update_content_draft',
+    handler: async (args) => {
+      const { updateContentDraft } = await import('@/services/content-creation');
+      const id = getPositiveId(args, '草稿');
+      const { id: _id, ...input } = args;
+      void _id;
+      return updateContentDraft(id, parseMcpInput(updateDraftSchema.safeParse(input)));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentDraftDeleteRoute,
+    apiPath: '/api/create/drafts/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'delete_content_draft',
+    handler: async (args) => {
+      const { deleteContentDraft, getContentDraft } = await import('@/services/content-creation');
+      const id = getPositiveId(args, '草稿');
+      const draft = await getContentDraft(id);
+      if (!draft) return null;
+      await deleteContentDraft(id);
+      return draft;
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentAssetListRoute,
+    apiPath: '/api/create/assets',
+    mcpEnabled: true,
+    mcpToolName: 'list_content_assets',
+    handler: async (args, user) => {
+      const { listContentAssets } = await import('@/services/content-creation');
+      const source = args.source === 'generated' || args.source === 'uploaded' ? args.source : undefined;
+      return listContentAssets({
+        pageNum: args.pageNum as number | undefined,
+        pageSize: args.pageSize as number | undefined,
+        query: args.query as string | undefined,
+        group: args.group as string | undefined,
+        source,
+        favorite: args.favorite as boolean | undefined,
+        draftId: args.draftId as number | undefined,
+        topicId: args.topicId as number | undefined,
+        userId: getScopedUserId(user, contentAssetListRoute.permissionCode!),
+      });
+    },
+  },
+  {
+    ...contentAssetCreateRoute,
+    apiPath: '/api/create/assets',
+    mcpEnabled: true,
+    mcpToolName: 'create_content_asset',
+    handler: async (args, user) => {
+      const { createLinkedContentImageAsset } = await import('@/services/content-creation');
+      const input = parseMcpInput(createAssetSchema.safeParse(args));
+      return createLinkedContentImageAsset({
+        imageUrl: input.image_url,
+        title: input.title,
+        group: input.group,
+        created_by: user.id,
+      });
+    },
+  },
+  {
+    ...contentAssetGetRoute,
+    apiPath: '/api/create/assets/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'get_content_asset',
+    handler: async (args) => {
+      const { getContentImageAsset } = await import('@/services/content-creation');
+      return getContentImageAsset(getPositiveId(args, '素材'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentAssetUpdateRoute,
+    apiPath: '/api/create/assets/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'update_content_asset',
+    handler: async (args) => {
+      const { updateContentImageAsset } = await import('@/services/content-creation');
+      const id = getPositiveId(args, '素材');
+      const { id: _id, ...input } = args;
+      void _id;
+      const parsed = parseMcpInput(updateAssetSchema.safeParse(input));
+      return updateContentImageAsset(id, {
+        title: parsed.title,
+        group: parsed.group,
+        isFavorite: parsed.is_favorite,
+      });
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...contentAssetDeleteRoute,
+    apiPath: '/api/create/assets/[id]',
+    mcpEnabled: true,
+    mcpToolName: 'delete_content_asset',
+    handler: async (args) => {
+      const { deleteContentImageAsset } = await import('@/services/content-creation');
+      return deleteContentImageAsset(getPositiveId(args, '素材'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
   {
     ...postUpdateRoute,

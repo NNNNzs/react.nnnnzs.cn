@@ -216,6 +216,20 @@ flowchart LR
 - 当前阶段：拥有 `CONTENT_VIEW` 的用户可访问 `/create`，拥有 `CONTENT_CREATE` 的用户可创建选题并调用 AI 生成选题。
 - 后续阶段：管理员默认拥有全部内容中台权限，创作者角色按选题、草稿、素材和复盘能力单独授权。
 
+### 6.1 MCP 读写接口
+
+选题库、草稿库和素材库通过现有 `/api/mcp` Streamable HTTP 端点提供完整读写工具。工具继续复用 REST 路由描述符、`src/lib/api-registry.ts` 运行时 handler、API Registry 数据表和 `content:*` 权限，不建立第二套数据访问层。
+
+| 资源 | 列表 | 详情 | 新建 | 更新 | 删除 |
+|------|------|------|------|------|------|
+| 选题 | `list_content_topics` | `get_content_topic` | `create_content_topic` | `update_content_topic` | `delete_content_topic` |
+| 草稿 | `list_content_drafts` | `get_content_draft` | `create_content_draft` | `update_content_draft` | `delete_content_draft` |
+| 素材 | `list_content_assets` | `get_content_asset` | `create_content_asset` | `update_content_asset` | `delete_content_asset` |
+
+列表和详情使用 `content:view`，新建使用 `content:create`，更新使用 `content:edit`，删除使用 `content:delete`。当权限的数据范围不是全部数据时，列表自动限制为当前用户数据，详情、更新和删除在调用 service 前校验 `created_by`。
+
+MCP 新建草稿允许一次传入正文、标签和来源关联，便于外部创作 Agent 完成结构化写入；网页草稿库仍保持最小新建表单，详细内容由草稿详情页继续编辑。素材新建只登记已有 HTTPS 图片地址，上传文件应先调用 `upload_file`，素材更新不允许修改 CDN 地址。
+
 ## 7. Prisma 组织
 
 ### 7.1 schema 文件夹

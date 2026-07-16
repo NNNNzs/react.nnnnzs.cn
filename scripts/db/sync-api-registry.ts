@@ -137,6 +137,7 @@ async function main() {
         cache_tags: api.cacheTags ? api.cacheTags.join(',') : null,
         mcp_available: 1,
         auto_discovered: 1,
+        status: 1,
         synced_at: new Date(),
       };
 
@@ -204,7 +205,7 @@ async function main() {
   // 有 handler 的启用 mcp_available，并恢复之前被禁用的 mcp_enabled
   await prisma.tbApiRegistry.updateMany({
     where: { code: { in: handlerCodes } },
-    data: { mcp_available: 1, mcp_enabled: 1 },
+    data: { mcp_available: 1, mcp_enabled: 1, status: 1 },
   });
 
   // 没有代码 entry 的禁用 mcp_available 并关闭 MCP
