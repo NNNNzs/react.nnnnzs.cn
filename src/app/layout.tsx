@@ -6,6 +6,7 @@ import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
 import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
+import { TaskNotificationProvider } from "@/contexts/TaskNotificationContext";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { getAnalyticsConfig } from "@/lib/analytics-config";
@@ -79,11 +80,12 @@ export default async function RootLayout({
                 }}
               >
                 <body className="antialiased" suppressHydrationWarning>
-                  <Header />
-                  {children}
-                  <DeployStatusIndicator />
-                  <Script id="baidu-analytics" strategy="afterInteractive">
-                    {`
+                  <TaskNotificationProvider>
+                    <Header />
+                    {children}
+                    <DeployStatusIndicator />
+                    <Script id="baidu-analytics" strategy="afterInteractive">
+                      {`
                   var _hmt = _hmt || [];
                   (function() {
                     var hm = document.createElement("script");
@@ -92,9 +94,10 @@ export default async function RootLayout({
                     s.parentNode.insertBefore(hm, s);
                   })();
                   `}
-                  </Script>
-                  <GoogleTagManager gtmId="GTM-PTJQT23X" />
-                  <GoogleAnalytics measurementId={analyticsConfig.measurementId} />
+                    </Script>
+                    <GoogleTagManager gtmId="GTM-PTJQT23X" />
+                    <GoogleAnalytics measurementId={analyticsConfig.measurementId} />
+                  </TaskNotificationProvider>
                 </body>
               </ConfigProvider>
             </AntdRegistry>

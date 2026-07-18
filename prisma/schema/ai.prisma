@@ -93,6 +93,7 @@ model TbAiJob {
 
   @@index([type, user_id, created_at], name: "idx_type_user_time")
   @@index([type, status], name: "idx_type_status")
+  @@index([user_id, status, finished_at, id], name: "idx_user_status_finished")
   @@index([source], name: "idx_source")
   @@index([created_at], name: "idx_created_at")
   @@map("tb_ai_job")

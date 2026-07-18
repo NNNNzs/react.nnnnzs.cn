@@ -32,7 +32,7 @@ import {
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { TTS_VIEW } from "@/constants/permissions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 const { TextArea } = Input;
@@ -120,9 +120,11 @@ const POLL_INTERVAL = 1500;
 
 export default function TTSPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading, hasPermission } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoredJobIdRef = useRef<string | null>(null);
 
   // 表单状态
   const [modelId, setModelId] = useState("mimo-v2.5-tts");
@@ -227,6 +229,66 @@ export default function TTSPage() {
       void poll();
     }, POLL_INTERVAL);
   }, []);
+
+  useEffect(() => {
+    const requestedJobId = searchParams.get("jobId");
+    if (!requestedJobId || authLoading || !user || restoredJobIdRef.current === requestedJobId) return;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedJobId)) {
+      message.warning("无效的 TTS 任务 ID");
+      router.replace("/c/tts");
+      return;
+    }
+
+    restoredJobIdRef.current = requestedJobId;
+    const controller = new AbortController();
+    void fetch(`/api/tts/jobs/${requestedJobId}`, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: { "Cache-Control": "no-store" },
+    })
+      .then(async (response) => {
+        const payload = await response.json() as {
+          status: boolean;
+          message: string;
+          data: {
+            jobId: string;
+            status: TtsJobStatus;
+            audioUrl: string | null;
+            errorMessage: string | null;
+            elapsed?: string;
+            model?: string;
+            voice?: string;
+          };
+        };
+        if (!response.ok || !payload.status) throw new Error(payload.message || "TTS 任务不存在");
+        const job = payload.data;
+        setJobId(job.jobId);
+        setJobStatus(job.status);
+
+        if (job.status === 'SUCCESS') {
+          setAudioSrc(job.audioUrl);
+          setResultInfo({ elapsed: job.elapsed, model: job.model, voice: job.voice });
+          setGenerating(false);
+        } else if (job.status === 'FAILED') {
+          setGenerating(false);
+          message.error(job.errorMessage || "语音合成失败");
+        } else {
+          setGenerating(true);
+          pollJob(job.jobId);
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        restoredJobIdRef.current = null;
+        message.error(error instanceof Error ? error.message : "恢复 TTS 任务失败");
+        router.replace("/c/tts");
+      });
+
+    return () => {
+      controller.abort();
+      if (restoredJobIdRef.current === requestedJobId) restoredJobIdRef.current = null;
+    };
+  }, [authLoading, pollJob, router, searchParams, user]);
 
   // 提交合成任务
   const handleSynthesize = useCallback(async () => {

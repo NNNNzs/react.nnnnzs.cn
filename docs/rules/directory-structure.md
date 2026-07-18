@@ -14,6 +14,7 @@ src/
 │   │   │   └── sessions/         # 当前用户/游客聊天会话 API
 │   │   ├── admin/                # 后台管理 API
 │   │   │   └── chat-logs/        # 聊天记录后台查询/删除 API
+│   │   ├── ai-jobs/              # 当前用户通用 AI 任务通知查询
 │   │   ├── tts/                  # 语音合成 API (TTS)
 │   │   │   └── synthesize/       # 语音合成端点
 │   │   ├── mcp/                  # Model Context Protocol
@@ -71,12 +72,14 @@ src/
 │   ├── ImageGen/                 # AI 图片生成组件（GPT Image 2）
 │   │   ├── ImageGenPanel.tsx     # 图片生成面板（文生图/图文编辑）
 │   │   └── ImageResultCard.tsx   # 图片生成结果卡片
+│   ├── task-notifications/       # 任务通知权限与偏好设置 UI
 │   ├── agent/                    # Agent 对话消息与助手面板
 │   ├── diff/                     # 文本/版本对比组件
 │   └── (shared UI components)    # 其他共享组件
 │
 ├── contexts/                     # React Contexts
 │   ├── AuthContext.tsx           # 认证状态
+│   ├── TaskNotificationContext.tsx # 全局 AI 任务观察和通知分发
 │   ├── CurrentPostContext.tsx    # 当前文章状态
 │   └── HeaderStyleContext.tsx    # 头部样式
 │
@@ -107,6 +110,9 @@ src/
 │   ├── image.ts                  # 腾讯云 CDN 图片压缩
 │   ├── cos.ts                    # 腾讯云 COS 上传
 │   ├── uuid.ts                   # UUID 校验工具（UUID_REGEX / isUuid）
+│   ├── task-notification-storage.ts # 通知偏好、游标与事件去重
+│   ├── task-notification-coordinator.ts # 多标签页主节点选举与同步
+│   ├── task-notification-service-worker.ts # 桌面通知 SW 适配
 │   └── (其他工具函数)
 │
 ├── services/                     # 业务逻辑层
@@ -150,6 +156,7 @@ src/
 │   ├── cos-client.ts             # 腾讯云 COS 共享客户端（getCosClient / getCosBucketConfig）
 │   ├── image-gen.ts              # AI 图片生成 service（GPT Image 2）
 │   ├── image-gen-job.ts          # AI 图片生成异步任务（应用层 UUID jobId + 通用队列）
+│   ├── ai-job-notification.ts    # 当前用户 AI 任务终态游标查询
 │   ├── chat-log.ts               # 聊天会话和消息记录服务
 │   ├── mcpAuth.ts                # MCP OAuth 适配器
 │   ├── token.ts                  # 长期令牌服务

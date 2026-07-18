@@ -11,7 +11,7 @@ import { PictureOutlined } from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { IMAGE_VIEW } from "@/constants/permissions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ImageGenerationComposer, {
   type ImageGenerationRequest,
 } from "@/components/ImageGen/ImageGenerationComposer";
@@ -43,11 +43,13 @@ interface ImageGenerationJob {
 
 export default function ImageGenPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading, hasPermission } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<ResultMeta | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const terminalJobIdsRef = useRef<Set<string>>(new Set());
+  const restoredJobIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && user && !hasPermission(IMAGE_VIEW)) {
@@ -102,6 +104,40 @@ export default function ImageGenPage() {
       setRefreshTrigger((value) => value + 1);
     }
   }, []);
+
+  useEffect(() => {
+    const requestedJobId = searchParams.get("jobId");
+    if (!requestedJobId || authLoading || !user || restoredJobIdRef.current === requestedJobId) return;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedJobId)) {
+      message.warning("无效的图片任务 ID");
+      router.replace("/c/image-gen");
+      return;
+    }
+
+    restoredJobIdRef.current = requestedJobId;
+    const controller = new AbortController();
+    void fetch(`/api/image-gen/jobs/${requestedJobId}`, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: { "Cache-Control": "no-store" },
+    })
+      .then(async (response) => {
+        const payload = await response.json() as { status: boolean; message: string; data: ImageGenerationJob };
+        if (!response.ok || !payload.status) throw new Error(payload.message || "图片任务不存在");
+        handleJobChange(payload.data);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        restoredJobIdRef.current = null;
+        message.error(error instanceof Error ? error.message : "恢复图片任务失败");
+        router.replace("/c/image-gen");
+      });
+
+    return () => {
+      controller.abort();
+      if (restoredJobIdRef.current === requestedJobId) restoredJobIdRef.current = null;
+    };
+  }, [authLoading, handleJobChange, router, searchParams, user]);
 
   const handleHistorySelect = useCallback((url: string, prompt: string) => {
     setImageUrl(url);
