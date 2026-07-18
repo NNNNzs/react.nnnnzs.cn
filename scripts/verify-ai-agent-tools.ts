@@ -45,6 +45,7 @@ assert.deepEqual(toolNames(chatTools), [
   'search_posts',
   'search_collection',
   'github_search',
+  'web_search',
   'list_prompt_skills',
   'load_prompt_skill_template',
 ]);
@@ -74,6 +75,7 @@ assert.equal(findTool(chatTools, 'search_posts'), findTool(createTools, 'search_
 assert.equal(findTool(createTools, 'search_posts'), findTool(topicTools, 'search_posts'));
 assert.equal(findTool(createTools, 'get_post_content'), findTool(topicTools, 'get_post_content'));
 assert.equal(findTool(createTools, 'web_search'), findTool(topicTools, 'web_search'));
+assert.equal(findTool(chatTools, 'web_search'), findTool(createTools, 'web_search'));
 assert.ok(schemaKeys(findTool(chatTools, 'search_posts')).includes('sort_by'));
 assert.deepEqual(schemaKeys(findTool(createTools, 'get_current_draft')), []);
 assert.deepEqual(schemaKeys(findTool(topicTools, 'get_current_topic')), []);

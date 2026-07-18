@@ -37,6 +37,10 @@ export function useDeployStatus(): UseDeployStatusResult {
   });
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      return;
+    }
+
     let isActive = true;
     let abortController: AbortController | null = null;
 
