@@ -355,8 +355,9 @@ function ProviderTab() {
             label="Base URL"
             name="base_url"
             rules={[{ required: true, message: "请输入 Base URL" }]}
+            extra="请填写包含 /v1 的 API 基地址，例如 https://api.openai.com/v1"
           >
-            <Input placeholder="https://api.deepseek.com" />
+            <Input placeholder="https://api.deepseek.com/v1" />
           </Form.Item>
           <Form.Item
             label="API Key"

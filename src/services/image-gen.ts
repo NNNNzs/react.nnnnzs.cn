@@ -184,7 +184,7 @@ async function requestChatCompletions(params: {
 
   const requestBody: Record<string, unknown> = { model, messages };
 
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: createJsonHeaders(apiKey),
@@ -237,7 +237,7 @@ async function requestImagesGenerations(params: {
   };
 
 
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/generations`;
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/images/generations`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: createJsonHeaders(apiKey),
@@ -285,7 +285,7 @@ async function requestImagesEdits(params: {
     formData.append('image[]', item.blob, item.filename);
   }
 
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/images/edits`;
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/images/edits`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: createAuthHeaders(apiKey),

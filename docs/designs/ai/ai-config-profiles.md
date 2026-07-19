@@ -10,7 +10,7 @@
 
 新方案引入 Provider 抽象：
 
-- Provider 只维护一次 `base_url`、`api_key` 和可用模型列表。
+- Provider 只维护一次 `base_url`、`api_key` 和可用模型列表；`base_url` 统一填写包含 `/v1` 的 API 基地址，例如 `https://api.openai.com/v1`。
 - 场景绑定选择一个 Provider、一个模型和场景专属参数。
 - 每个场景激活一条绑定，运行时继续通过 `getAIConfig(scenario)` 读取。
 
