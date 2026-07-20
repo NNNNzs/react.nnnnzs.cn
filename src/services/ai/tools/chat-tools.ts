@@ -7,8 +7,8 @@ import {
   searchPostsLangChainTool,
 } from './article-tools';
 import {
-  chatListPromptSkillsTool,
-  chatLoadPromptSkillTemplateTool,
+  chatListPromptsTool,
+  chatLoadPromptTemplateTool,
 } from './prompt-template-tools';
 import { assembleAgentTools } from './tool-assembly';
 import { serializeToolResult } from './tool-result';
@@ -67,6 +67,6 @@ export const chatTools = assembleAgentTools([
   searchCollectionLangChainTool,
   githubSearchLangChainTool,
   webSearchLangChainTool,
-  chatListPromptSkillsTool,
-  chatLoadPromptSkillTemplateTool,
+  chatListPromptsTool,
+  chatLoadPromptTemplateTool,
 ]);

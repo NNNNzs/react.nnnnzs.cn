@@ -20,7 +20,7 @@ export const runtime = 'nodejs';
 export const listDescriptor: ApiDescriptor = {
   code: 'ai_lab_prompts_list',
   name: 'AI Lab Prompt 模板列表',
-  description: '查询系统级 Prompt / Skill 模板 metadata 列表',
+  description: '查询系统级 Prompt 模板 metadata 列表',
   module: 'ai_lab',
   method: 'GET',
   permissionCode: CONFIG_VIEW,
@@ -40,7 +40,7 @@ export const listDescriptor: ApiDescriptor = {
 export const createDescriptor: ApiDescriptor = {
   code: 'ai_lab_prompts_create',
   name: 'AI Lab Prompt 模板创建',
-  description: '创建系统级 Prompt / Skill 模板及首个版本',
+  description: '创建系统级 Prompt 模板及首个版本',
   module: 'ai_lab',
   method: 'POST',
   permissionCode: CONFIG_EDIT,

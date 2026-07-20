@@ -465,7 +465,7 @@ const seedApiRegistry: ApiRegistrySeed[] = [
   {
     code: 'ai_lab_prompts_get',
     name: 'AI Lab Prompt 详情',
-    description: '查询单个 Prompt/Skill 模板详情及版本列表',
+    description: '查询单个 Prompt 模板详情及版本列表',
     module: 'ai_lab',
     api_path: '/api/admin/ai-lab/prompts/[slug]',
     api_method: 'GET',
@@ -475,7 +475,7 @@ const seedApiRegistry: ApiRegistrySeed[] = [
   {
     code: 'ai_lab_prompts_update',
     name: 'AI Lab Prompt 更新',
-    description: '更新 Prompt/Skill 模板元数据或启用指定版本',
+    description: '更新 Prompt 模板元数据或启用指定版本',
     module: 'ai_lab',
     api_path: '/api/admin/ai-lab/prompts/[slug]',
     api_method: 'PATCH',
@@ -485,7 +485,7 @@ const seedApiRegistry: ApiRegistrySeed[] = [
   {
     code: 'ai_lab_prompts_create_version',
     name: 'AI Lab Prompt 创建版本',
-    description: '为指定 Prompt/Skill 模板创建新版本',
+    description: '为指定 Prompt 模板创建新版本',
     module: 'ai_lab',
     api_path: '/api/admin/ai-lab/prompts/[slug]/versions',
     api_method: 'POST',

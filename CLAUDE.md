@@ -35,7 +35,7 @@
 
 #### AI 系统
 - **[AI Provider 配置管理](docs/designs/ai/ai-config-profiles.md)** - Provider、模型清单和场景绑定配置
-- **[AI Lab / LLM 学习实验台](docs/designs/ai/ai-lab.md)** - Run 观测、RAG 评测、系统级 Prompt / Skill 模板、检索实验与 LangSmith 集成设计
+- **[AI Lab / LLM 学习实验台](docs/designs/ai/ai-lab.md)** - Run 观测、RAG 评测、系统级 Prompt 模板、检索实验与 LangSmith 集成设计
 - **[语音合成](docs/designs/ai/tts-page.md)** - MiMo TTS 语音合成
 - **[AI 图片生成](docs/designs/ai/image-gen.md)** - GPT Image 2 文生图/图文编辑
 - **[草稿库创作 Agent 助手](docs/designs/ai/create-agent.md)** - LangGraph ReAct Agent + SSE 多事件流 + draft_patch 草稿回填
@@ -78,8 +78,8 @@
 
 ### 当前计划
 - **[后台任务桌面通知模块](docs/plans/desktop-task-notifications.md)** — 🔄 进行中（模块代码、静态检查和任务深链验收已完成，待数据库索引同步与通知授权后验收）
-- **[MCP Prompt Skills 动态资源改造](docs/plans/mcp-prompt-skills-resources.md)** — 🔄 进行中（动态资源、共享 Skill 服务和数据库 metadata 已完成，待部署后的真实 MCP 客户端联调）
-- **[AI Agent 工具定义与装配统一改造](docs/plans/ai-agent-tools-unification.md)** — 🔄 进行中（共享定义、请求级上下文工厂、Agent 白名单和 Prompt Skill scope 已落地；待数据库模板同步与运行联调）
+- **[MCP Prompt 动态注册改造](docs/plans/mcp-prompts.md)** — 🔄 进行中（Prompt 原语注册、后台暴露开关和静态检查已完成，待真实 MCP 客户端联调）
+- **[AI Agent 工具定义与装配统一改造](docs/plans/ai-agent-tools-unification.md)** — 🔄 进行中（共享定义、请求级上下文工厂、Agent 白名单和 Prompt scope 已落地；待数据库模板同步与运行联调）
 - **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
 - **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）

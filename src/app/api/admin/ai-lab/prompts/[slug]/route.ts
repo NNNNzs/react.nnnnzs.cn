@@ -55,7 +55,7 @@ function validationErrorResponse(error: z.ZodError) {
 export const getDescriptor: ApiDescriptor = {
   code: 'ai_lab_prompts_get',
   name: 'AI Lab Prompt 模板详情',
-  description: '查询单个 Prompt/Skill 模板详情及版本列表',
+  description: '查询单个 Prompt 模板详情及版本列表',
   module: 'ai_lab',
   method: 'GET',
   permissionCode: CONFIG_VIEW,
@@ -64,7 +64,7 @@ export const getDescriptor: ApiDescriptor = {
 export const updateDescriptor: ApiDescriptor = {
   code: 'ai_lab_prompts_update',
   name: 'AI Lab Prompt 模板更新',
-  description: '更新 Prompt/Skill 模板元数据或启用指定版本',
+  description: '更新 Prompt 模板元数据或启用指定版本',
   module: 'ai_lab',
   method: 'PATCH',
   permissionCode: CONFIG_EDIT,

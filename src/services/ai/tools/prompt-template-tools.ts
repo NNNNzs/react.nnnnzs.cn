@@ -2,20 +2,20 @@ import { tool } from '@langchain/core/tools';
 import type { StructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import {
-  listActivePromptSkills,
-  loadAgentPromptSkillTemplate,
+  listActivePrompts,
+  loadAgentPromptTemplate,
 } from '@/services/ai-template';
-import { AGENT_PROMPT_SKILL_POLICIES } from './prompt-skill-policy';
-import type { PromptSkillAgent } from './prompt-skill-policy';
+import { AGENT_PROMPT_POLICIES } from './prompt-policy';
+import type { PromptAgent } from './prompt-policy';
 import { serializeToolData, serializeToolError } from './tool-result';
 
-function createPromptTemplateTools(agent: PromptSkillAgent): readonly [StructuredTool, StructuredTool] {
-  const policy = AGENT_PROMPT_SKILL_POLICIES[agent];
+function createPromptTemplateTools(agent: PromptAgent): readonly [StructuredTool, StructuredTool] {
+  const policy = AGENT_PROMPT_POLICIES[agent];
 
-  const listPromptSkills = tool(
+  const listPromptsTool = tool(
     async ({ query }) => {
       try {
-        const record = await listActivePromptSkills(policy, query);
+        const record = await listActivePrompts(policy, query);
 
         return serializeToolData({
           templates: record.map((item) => ({
@@ -28,41 +28,41 @@ function createPromptTemplateTools(agent: PromptSkillAgent): readonly [Structure
             aliases: item.aliases,
             currentVersion: item.current_version,
             metadata: item.metadata_json,
-            loadTool: 'load_prompt_skill_template',
+            loadTool: 'load_prompt_template',
           })),
-          message: `找到 ${record.length} 个可用 Skill`,
+          message: `找到 ${record.length} 个可用 Prompt`,
         });
       } catch (error) {
-        return serializeToolError(error, '查询 Prompt Skill 失败');
+        return serializeToolError(error, '查询 Prompt 失败');
       }
     },
     {
-      name: 'list_prompt_skills',
-      description: '列出当前 Agent 获准发现的 ACTIVE Prompt Skill metadata，不返回完整正文。',
+      name: 'list_prompts',
+      description: '列出当前 Agent 获准发现的 ACTIVE Prompt metadata，不返回完整正文。',
       schema: z.object({
-        query: z.string().optional().describe('Skill 名称、slug 或描述关键词'),
+        query: z.string().optional().describe('Prompt 名称、slug 或描述关键词'),
       }),
     },
   );
 
-  const loadPromptSkillTemplate = tool(
+  const loadPromptTemplateTool = tool(
     async ({ slug, version, variables }) => {
       try {
-        return serializeToolData(await loadAgentPromptSkillTemplate({
+        return serializeToolData(await loadAgentPromptTemplate({
           slug,
           version,
           variables,
           policy,
         }));
       } catch (error) {
-        return serializeToolError(error, '加载 Prompt Skill 失败');
+        return serializeToolError(error, '加载 Prompt 失败');
       }
     },
     {
-      name: 'load_prompt_skill_template',
-      description: '按 slug 加载当前 Agent 获准使用的 ACTIVE Prompt Skill 正文。',
+      name: 'load_prompt_template',
+      description: '按 slug 加载当前 Agent 获准使用的 ACTIVE Prompt 正文。',
       schema: z.object({
-        slug: z.string().min(1).describe('Skill slug'),
+        slug: z.string().min(1).describe('Prompt slug'),
         version: z.number().int().positive().optional().describe('指定 ACTIVE 版本号'),
         variables: z
           .record(z.string(), z.unknown())
@@ -72,12 +72,12 @@ function createPromptTemplateTools(agent: PromptSkillAgent): readonly [Structure
     },
   );
 
-  return [listPromptSkills, loadPromptSkillTemplate];
+  return [listPromptsTool, loadPromptTemplateTool];
 }
 
-export const [chatListPromptSkillsTool, chatLoadPromptSkillTemplateTool] =
+export const [chatListPromptsTool, chatLoadPromptTemplateTool] =
   createPromptTemplateTools('chat');
-export const [createListPromptSkillsTool, createLoadPromptSkillTemplateTool] =
+export const [createListPromptsTool, createLoadPromptTemplateTool] =
   createPromptTemplateTools('create');
-export const [topicListPromptSkillsTool, topicLoadPromptSkillTemplateTool] =
+export const [topicListPromptsTool, topicLoadPromptTemplateTool] =
   createPromptTemplateTools('topic');

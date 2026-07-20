@@ -6,9 +6,9 @@ import type { SiteStyleVariant } from '@/lib/site-style/variant';
 import {
   compilePromptTemplate,
   createMustachePromptTemplate,
-  loadPromptSkillTemplate,
+  loadPromptTemplate,
 } from '@/services/ai-template';
-import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { AGENT_PROMPT_POLICIES } from '@/services/ai/tools/prompt-policy';
 import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 const CHAT_AGENT_TEMPLATE_SLUGS: Record<SiteStyleVariant, string> = {
@@ -33,8 +33,8 @@ type PromptContext = {
 const PROMPT_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
 let promptContextCache: { value: PromptContext; expiresAt: number } | null = null;
 
-async function loadPromptTemplate(styleVariant: SiteStyleVariant) {
-  const template = await loadPromptSkillTemplate({
+async function loadChatSystemTemplate(styleVariant: SiteStyleVariant) {
+  const template = await loadPromptTemplate({
     slug: CHAT_AGENT_TEMPLATE_SLUGS[styleVariant],
   });
   if (!template.version.content.trim()) throw new Error('聊天助手系统模板为空');
@@ -104,12 +104,12 @@ export async function buildChatAgentSystemPrompt(
 ): Promise<string> {
   const styleVariant = parseSiteStyleVariant(params.styleVariant);
   const [rawTemplate, context] = await Promise.all([
-    loadPromptTemplate(styleVariant),
+    loadChatSystemTemplate(styleVariant),
     getPromptContext(),
   ]);
   const compiled = await compilePromptTemplate(
     normalizeLegacyAgentToolNames(rawTemplate),
-    AGENT_PROMPT_SKILL_POLICIES.chat,
+    AGENT_PROMPT_POLICIES.chat,
   );
   const template = createMustachePromptTemplate(compiled.content);
 

@@ -7,7 +7,7 @@
 
 ## 一、目标
 
-在草稿详情页唤起一个对话式创作助手：用户说「把这篇扩展成 3 张小红书图卡」，助手按需读取风格 Skill、写文案和图片提示词计划、把结构化建议提交给前端；用户确认后再手动提交图片生成。本质是用 LangGraph ReAct Agent 把实时草稿上下文、AI Lab 模板和可审阅的草稿建议串成创作工作流。
+在草稿详情页唤起一个对话式创作助手：用户说「把这篇扩展成 3 张小红书图卡」，助手按需读取风格 Prompt、写文案和图片提示词计划、把结构化建议提交给前端；用户确认后再手动提交图片生成。本质是用 LangGraph ReAct Agent 把实时草稿上下文、AI Lab 模板和可审阅的草稿建议串成创作工作流。
 
 ## 二、核心设计决策
 
@@ -26,7 +26,7 @@
 
 - [x] `src/lib/sse.ts`：公用 SSE 编解码（`encodeSSE` / `createSSEResponse` / `parseSSEStream`）
 - [x] `src/lib/ai-scenarios.ts`：注册 `create_agent` scenario 元数据
-- [x] `src/services/ai-template/index.ts`：提供系统级 Prompt / Skill 模板服务
+- [x] `src/services/ai-template/index.ts`：提供系统级 Prompt 模板服务
 - [x] `src/services/ai/create-agent/`：`prompt.ts`（从模板加载）、`create-agent.ts`（LangGraph + SSE 编码）、`index.ts`
 - [x] 共享 `article-tools.ts` / `prompt-template-tools.ts` / `web-tools.ts` + `create-tools/` 请求级 `get_current_draft`、`emit_draft_patch` 与 `buildCreateTools` 白名单装配
 - [x] `src/app/api/create/drafts/[id]/chat/route.ts`：SSE 路由，`requireAuth`
@@ -64,11 +64,11 @@
 
 ## 五、选题上下文与知乎 Markdown 接入
 
-1. 草稿创建时保存 `topicSnapshot` 和草稿类型；后续修改选题不回写历史草稿，写作风格由运行时动态 Skill 选择。
+1. 草稿创建时保存 `topicSnapshot` 和草稿类型；后续修改选题不回写历史草稿，写作风格由运行时动态 Prompt 选择。
 2. 草稿 Agent 每次运行时比较页面与数据库草稿；页面有未保存改动时注入实时页面上下文，否则读取数据库上下文，并把选题作为受控参考注入。
 3. 创建草稿不自动调用模型；草稿页只提供创作助手入口，由用户输入指令后触发 chat/SSE 流程。
 4. `xhs/note` 继续使用图文工作台；`zhihu/article` 复用现有 `MarkdownEditor` 编辑和预览 Markdown。
-5. 图文和长文分别由对应的写作风格 Skill 约束输出，继续共用 `DraftPatch`、差异确认和保存语义。
+5. 图文和长文分别由对应的写作风格 Prompt 约束输出，继续共用 `DraftPatch`、差异确认和保存语义。
 
 ## 六、验证
 
@@ -76,9 +76,9 @@
 2. `/c/ai-lab/prompts` 中存在并启用 slug=`agent-create-agent-system` 的系统提示词模板（否则走内置 fallback）
 3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
 4. 场景：文案建议、`emit_draft_patch` 后自动打开确认弹窗、确认后应用表单（不保存刷新可逆）、顶部「保存」按钮落库、图卡提示词持久化、用户点击后图片生成、博客检索、断流停止
-5. 工具调用验收：草稿 Agent 先列出 Skill metadata，再按当前草稿类型加载所需风格指南；`emit_draft_patch` 后本轮必须结束，且不得创建图片任务。Topic Agent 的选题检索、来源读取、网页搜索和 `emit_topic_patch` 成功后只代表前端收到待确认建议，不代表选题已应用或数据库已保存
+5. 工具调用验收：草稿 Agent 先列出 Prompt metadata，再按当前草稿类型加载所需风格指南；`emit_draft_patch` 后本轮必须结束，且不得创建图片任务。Topic Agent 的选题检索、来源读取、网页搜索和 `emit_topic_patch` 成功后只代表前端收到待确认建议，不代表选题已应用或数据库已保存
 6. `pnpm typecheck` / `pnpm lint` 通过
-7. 从同一个选题分别创建图文和长文草稿，验证草稿类型、选题快照、动态风格 Skill 选择和 Topic 状态更新
+7. 从同一个选题分别创建图文和长文草稿，验证草稿类型、选题快照、动态风格 Prompt 选择和 Topic 状态更新
 8. 验证 `zhihu/article` 使用 Markdown 编辑器，Markdown 保存后可原样重新加载
 9. 验证来源选题包含类似命令的文本时不会改变 Agent 工具权限和 patch 确认规则
 

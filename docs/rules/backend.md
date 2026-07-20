@@ -166,7 +166,8 @@ src/services/ai/
 │   └── index.ts      # Agent 统一导出
 ├── tools/            # ReAct Agent 工具系统
 │   ├── article-tools.ts      # 共享文章 StructuredTool 定义
-│   ├── prompt-template-tools.ts # Prompt Skill 定义与 scope 策略实例
+│   ├── prompt-template-tools.ts # Prompt 查询/加载定义与 scope 策略实例
+│   ├── prompt-policy.ts # Chat/Create/Topic Prompt scope 白名单
 │   ├── web-tools.ts          # 共享网页 StructuredTool 定义
 │   ├── chat-tools.ts         # Chat 能力白名单
 │   ├── tool-assembly.ts      # 装配与重复名称检测

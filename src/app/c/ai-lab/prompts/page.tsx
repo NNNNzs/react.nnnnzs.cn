@@ -13,6 +13,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   Tag,
   Typography,
   message,
@@ -30,10 +31,7 @@ import dayjs from "dayjs";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
-import {
-  AI_TEMPLATE_SCOPES,
-  AI_TEMPLATE_TYPES,
-} from "@/constants/ai-template";
+import { AI_TEMPLATE_SCOPES } from "@/constants/ai-template";
 
 interface ApiResponse<T> {
   status: boolean;
@@ -102,21 +100,12 @@ interface DiffData {
 interface NewTemplateForm {
   slug: string;
   name: string;
-  type: string;
   scope: string;
   description?: string;
   aliases?: string;
   content: string;
+  mcpExposed: boolean;
 }
-
-const TYPE_LABELS = new Map([
-  ["prompt", "Prompt"],
-  ["skill", "Skill"],
-]);
-const TYPE_OPTIONS = AI_TEMPLATE_TYPES.map((value) => ({
-  label: TYPE_LABELS.get(value) ?? value,
-  value,
-}));
 
 const SCOPE_LABELS = new Map([
   ["system", "全站通用"],
@@ -152,6 +141,20 @@ function parseAliases(value?: string) {
     .filter(Boolean);
 }
 
+function asMetadataRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function isMcpExposed(value: unknown) {
+  return asMetadataRecord(value).mcpExposed === true;
+}
+
+function withMcpExposed(value: unknown, mcpExposed: boolean) {
+  return { ...asMetadataRecord(value), mcpExposed };
+}
+
 type SortField = "name" | "updated_at" | "created_at" | "current_version";
 type SortOrder = "asc" | "desc";
 
@@ -171,7 +174,6 @@ export default function AiLabPromptsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
-  const [type, setType] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [editorValue, setEditorValue] = useState("");
@@ -246,7 +248,6 @@ export default function AiLabPromptsPage() {
         status: "ACTIVE",
       });
       if (query.trim()) params.set("query", query.trim());
-      if (type) params.set("type", type);
 
       const response = await fetch(`/api/admin/ai-lab/prompts?${params}`, {
         cache: "no-store",
@@ -261,7 +262,7 @@ export default function AiLabPromptsPage() {
     } finally {
       setLoading(false);
     }
-  }, [query, type]);
+  }, [query]);
 
   const loadMentionTemplates = useCallback(async () => {
     const pageSize = 100;
@@ -343,7 +344,9 @@ export default function AiLabPromptsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
+          type: "prompt",
           aliases: parseAliases(values.aliases),
+          metadata: { mcpExposed: values.mcpExposed },
         }),
       });
       const result = await response.json() as ApiResponse<TemplateDetail | null>;
@@ -369,16 +372,21 @@ export default function AiLabPromptsPage() {
     editForm.setFieldsValue({
       slug,
       name: item.name,
-      type: item.type,
       scope: item.scope,
       description: item.description || "",
       aliases: (item.aliases || []).join(", "),
+      mcpExposed: isMcpExposed(item.metadata_json),
     });
     setEditOpen(true);
   }, [editForm, templates]);
 
   const handleUpdateTemplate = useCallback(async () => {
     const values = await editForm.validateFields();
+    const item = templates.find((template) => template.slug === editSlug);
+    if (!item) {
+      message.error("模板不存在或列表已刷新");
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/admin/ai-lab/prompts/${encodeURIComponent(editSlug)}`, {
@@ -386,10 +394,10 @@ export default function AiLabPromptsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: values.name,
-          type: values.type,
           scope: values.scope,
           description: values.description || null,
           aliases: parseAliases(values.aliases),
+          metadata: withMcpExposed(item.metadata_json, values.mcpExposed),
         }),
       });
       const result = await response.json() as ApiResponse<TemplateDetail>;
@@ -407,7 +415,36 @@ export default function AiLabPromptsPage() {
     } finally {
       setSaving(false);
     }
-  }, [editForm, editSlug, loadDetail, loadMentionTemplates, loadTemplates, selectedSlug]);
+  }, [editForm, editSlug, loadDetail, loadMentionTemplates, loadTemplates, selectedSlug, templates]);
+
+  const handleToggleMcpExposed = useCallback(async (mcpExposed: boolean) => {
+    if (!detail) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/ai-lab/prompts/${encodeURIComponent(detail.slug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          metadata: withMcpExposed(detail.metadata_json, mcpExposed),
+        }),
+      });
+      const result = await response.json() as ApiResponse<TemplateDetail>;
+      if (!result.status) {
+        message.error(result.message || "更新 MCP 暴露状态失败");
+        return;
+      }
+      message.success(mcpExposed ? "已启用 MCP Prompt 暴露" : "已关闭 MCP Prompt 暴露");
+      await Promise.all([
+        loadDetail(detail.slug),
+        loadTemplates(),
+        loadMentionTemplates(),
+      ]);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "更新 MCP 暴露状态失败");
+    } finally {
+      setSaving(false);
+    }
+  }, [detail, loadDetail, loadMentionTemplates, loadTemplates]);
 
   const handleSaveVersion = useCallback(async () => {
     if (!detail) return;
@@ -522,15 +559,6 @@ export default function AiLabPromptsPage() {
           onSearch={setQuery}
         />
         <Select
-          allowClear
-          size="small"
-          className="w-48"
-          placeholder="类型"
-          options={TYPE_OPTIONS}
-          value={type || undefined}
-          onChange={(value) => setType(value || "")}
-        />
-        <Select
           size="small"
           className="w-36"
           value={sortField}
@@ -605,7 +633,6 @@ export default function AiLabPromptsPage() {
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
                       <h2 className="m-0 truncate text-base font-semibold text-slate-950">{detail.name}</h2>
-                      <Tag color="cyan">{detail.type}</Tag>
                       <Tag color="blue">v{detail.current_version}</Tag>
                     </div>
                     <p className="mt-1 mb-0 truncate text-xs text-slate-500">@{detail.slug}</p>
@@ -641,7 +668,7 @@ export default function AiLabPromptsPage() {
                     options={mentionOptions}
                     value={editorValue}
                     onChange={setEditorValue}
-                    placeholder="使用 Markdown 编写 Prompt。变量使用 {{draftTitle}}，输入 @ 选择 Prompt Skill。"
+                    placeholder="使用 Markdown 编写 Prompt。变量使用 {{draftTitle}}，输入 @ 选择 Prompt。"
                   />
                 </div>
                 <div className="min-h-0 overflow-y-auto bg-slate-50 px-4 py-3">
@@ -668,6 +695,16 @@ export default function AiLabPromptsPage() {
                 <Descriptions.Item label="Slug">@{detail.slug}</Descriptions.Item>
                 <Descriptions.Item label="Key">{detail.key || "-"}</Descriptions.Item>
                 <Descriptions.Item label="Scope">{detail.scope}</Descriptions.Item>
+                <Descriptions.Item label="MCP 暴露">
+                  <Switch
+                    size="small"
+                    checked={isMcpExposed(detail.metadata_json)}
+                    checkedChildren="开启"
+                    unCheckedChildren="关闭"
+                    loading={saving}
+                    onChange={(checked) => void handleToggleMcpExposed(checked)}
+                  />
+                </Descriptions.Item>
                 <Descriptions.Item label="当前版本">v{detail.current_version}</Descriptions.Item>
                 <Descriptions.Item label="更新时间">{dayjs(detail.updated_at).format("YYYY-MM-DD HH:mm")}</Descriptions.Item>
               </Descriptions>
@@ -710,7 +747,7 @@ export default function AiLabPromptsPage() {
       </div>
 
       <Modal
-        title="新建 Prompt / Skill 模板"
+        title="新建 Prompt 模板"
         open={newOpen}
         onCancel={() => setNewOpen(false)}
         onOk={handleCreateTemplate}
@@ -721,7 +758,7 @@ export default function AiLabPromptsPage() {
         <Form
           form={newForm}
           layout="vertical"
-          initialValues={{ type: "prompt", scope: "system" }}
+          initialValues={{ scope: "system", mcpExposed: false }}
         >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
@@ -730,11 +767,16 @@ export default function AiLabPromptsPage() {
             <Form.Item name="name" label="名称" rules={[{ required: true }]}>
               <Input placeholder="小红书风格指南" />
             </Form.Item>
-            <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={TYPE_OPTIONS} />
-            </Form.Item>
             <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
               <Select options={SCOPE_OPTIONS} />
+            </Form.Item>
+            <Form.Item
+              name="mcpExposed"
+              label="MCP 暴露"
+              valuePropName="checked"
+              tooltip="开启后，当前激活版本会注册为标准 MCP Prompt"
+            >
+              <Switch checkedChildren="开启" unCheckedChildren="关闭" />
             </Form.Item>
           </div>
           <Form.Item name="description" label="描述">
@@ -771,11 +813,16 @@ export default function AiLabPromptsPage() {
             <Form.Item name="name" label="名称" rules={[{ required: true }]}>
               <Input placeholder="小红书风格指南" />
             </Form.Item>
-            <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={TYPE_OPTIONS} />
-            </Form.Item>
             <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
               <Select options={SCOPE_OPTIONS} />
+            </Form.Item>
+            <Form.Item
+              name="mcpExposed"
+              label="MCP 暴露"
+              valuePropName="checked"
+              tooltip="开启后，当前激活版本会注册为标准 MCP Prompt"
+            >
+              <Switch checkedChildren="开启" unCheckedChildren="关闭" />
             </Form.Item>
           </div>
           <Form.Item name="description" label="描述">

@@ -24,5 +24,7 @@ export function normalizeLegacyAgentToolNames(content: string): string {
   return content
     .replace(/\bsearch_posts_meta\b/g, 'search_posts')
     .replace(/\bget_draft\b/g, 'get_current_draft')
-    .replace(/\bget_topic\b/g, 'get_current_topic');
+    .replace(/\bget_topic\b/g, 'get_current_topic')
+    .replace(/\blist_prompt_skills\b/g, 'list_prompts')
+    .replace(/\bload_prompt_skill_template\b/g, 'load_prompt_template');
 }

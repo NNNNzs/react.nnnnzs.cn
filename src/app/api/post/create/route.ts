@@ -16,7 +16,7 @@ import type { ApiDescriptor } from '@/types/api-descriptor';
 export const descriptor: ApiDescriptor = {
   code: 'post_create',
   name: '创建文章',
-  description: '创建新博客文章，支持标签、合集、分类等。创作前先读取 blog://skills，根据 metadata 选择相关 Skill；博客文章默认读取 blog://skills/blog-writing-style-guide。再读取 blog://tags 和 blog://collections 了解现有标签和合集。',
+  description: '创建新博客文章，支持标签、合集、分类等。创作前建议先从 MCP Prompts 选择并应用对应写作规范，再读取 blog://tags 和 blog://collections 了解现有标签和合集。',
   module: 'post',
   method: 'POST',
   permissionCode: POST_CREATE,

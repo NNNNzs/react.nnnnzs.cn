@@ -4,8 +4,8 @@ import {
   searchPostsLangChainTool,
 } from '../article-tools';
 import {
-  topicListPromptSkillsTool,
-  topicLoadPromptSkillTemplateTool,
+  topicListPromptsTool,
+  topicLoadPromptTemplateTool,
 } from '../prompt-template-tools';
 import { assembleAgentTools } from '../tool-assembly';
 import {
@@ -44,7 +44,7 @@ export function buildTopicTools(params: BuildTopicToolsParams): StructuredTool[]
   });
 
   return assembleAgentTools(
-    [topicListPromptSkillsTool, topicLoadPromptSkillTemplateTool],
+    [topicListPromptsTool, topicLoadPromptTemplateTool],
     [
       ...readTools,
       searchPostsLangChainTool,

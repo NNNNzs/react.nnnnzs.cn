@@ -7,7 +7,7 @@ import {
   compilePromptTemplate,
   createMustachePromptTemplate,
   getMustacheVariables,
-  loadPromptSkillTemplate,
+  loadPromptTemplate,
 } from '@/services/ai-template';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.error);
     }
 
-    const loaded = await loadPromptSkillTemplate({
+    const loaded = await loadPromptTemplate({
       slug: validation.data.slug,
       version: validation.data.version,
     });

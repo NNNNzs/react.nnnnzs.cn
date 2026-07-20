@@ -1,4 +1,4 @@
-export const AI_TEMPLATE_TYPES = ['prompt', 'skill'] as const;
+export const AI_TEMPLATE_TYPES = ['prompt'] as const;
 
 export const AI_TEMPLATE_SCOPES = [
   'system',

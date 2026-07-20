@@ -43,7 +43,7 @@
 2. 选题转草稿目前只创建一份带快照的空草稿，没有匹配平台模板，也不会自动把选题上下文提供给草稿 Agent。
 3. `ContentDraft` 当前没有实际的 `template_id` 字段，设计文档与 Prisma schema 存在差异。
 4. 草稿详情正文仍使用 `Input.TextArea`，没有根据 `platform + type` 切换知乎 Markdown 编辑器。
-5. 草稿 Agent 早期主要依靠 `get_current_draft` 和模型自行选择模板，缺少稳定、可审计的“选题快照 + 平台模板 + 当前草稿”运行时上下文契约；现已由页面/数据库上下文来源标记与 Prompt Skill scope 补齐该边界。
+5. 草稿 Agent 早期主要依靠 `get_current_draft` 和模型自行选择模板，缺少稳定、可审计的“选题快照 + 平台模板 + 当前草稿”运行时上下文契约；现已由页面/数据库上下文来源标记与 Prompt scope 补齐该边界。
 6. `DraftPatch` 已声明 `hook` 和 `tags`，但当前草稿编辑页没有对应编辑状态，应用 patch 时也只处理标题、正文、状态和图片。
 
 ## 三、领域边界
@@ -105,7 +105,7 @@ interface TopicPatch {
 | 完善已有选题 | `POST /api/create/topics/[id]/chat` |
 | Agent 场景 | `topic_agent` |
 | 工具工厂 | `buildTopicTools({ topicId?, actorUserId, scopeUserId, emitPatch })` |
-| 核心工具 | `list_prompt_skills`、`load_prompt_skill_template`、`search_topics`、`get_current_topic`、`search_posts`、`get_post_content`、`web_search`、`read_source_url`、`emit_topic_patch` |
+| 核心工具 | `list_prompts`、`load_prompt_template`、`search_topics`、`get_current_topic`、`search_posts`、`get_post_content`、`web_search`、`read_source_url`、`emit_topic_patch` |
 
 第一期去重采用标准化标题、来源 URL/博客 ID 和关键词检索。向量相似度属于后续优化，不阻塞主链路。
 

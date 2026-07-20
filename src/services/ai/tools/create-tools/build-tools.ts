@@ -4,8 +4,8 @@ import {
   searchPostsLangChainTool,
 } from '../article-tools';
 import {
-  createListPromptSkillsTool,
-  createLoadPromptSkillTemplateTool,
+  createListPromptsTool,
+  createLoadPromptTemplateTool,
 } from '../prompt-template-tools';
 import { assembleAgentTools } from '../tool-assembly';
 import { webSearchLangChainTool } from '../web-tools';
@@ -28,7 +28,7 @@ export function buildCreateTools(params: BuildCreateToolsParams): StructuredTool
   };
 
   return assembleAgentTools(
-    [createListPromptSkillsTool, createLoadPromptSkillTemplateTool],
+    [createListPromptsTool, createLoadPromptTemplateTool],
     [
       createGetCurrentDraftTool(context),
       searchPostsLangChainTool,

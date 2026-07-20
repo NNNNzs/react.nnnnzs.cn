@@ -34,7 +34,7 @@ function validationErrorResponse(error: z.ZodError) {
 export const createDescriptor: ApiDescriptor = {
   code: 'ai_lab_prompts_create_version',
   name: 'AI Lab Prompt 创建版本',
-  description: '为指定 Prompt/Skill 模板创建新版本',
+  description: '为指定 Prompt 模板创建新版本',
   module: 'ai_lab',
   method: 'POST',
   permissionCode: CONFIG_EDIT,

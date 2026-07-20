@@ -122,7 +122,8 @@ src/
 │   │   ├── text/                 # 文本处理
 │   │   ├── tools/                # ReAct Agent 工具注册和实现
 │   │   │   ├── article-tools.ts      # 共享文章工具定义
-│   │   │   ├── prompt-template-tools.ts # Prompt Skill 工具与 scope 策略
+│   │   │   ├── prompt-template-tools.ts # Prompt 查询/加载工具与 scope 策略
+│   │   │   ├── prompt-policy.ts      # Chat/Create/Topic Prompt scope 白名单
 │   │   │   ├── web-tools.ts          # 共享网页工具定义
 │   │   │   ├── chat-tools.ts         # Chat 能力白名单
 │   │   │   ├── create-tools/         # 草稿请求级工具与装配
@@ -141,8 +142,8 @@ src/
 │   │   └── text-splitter.ts      # Markdown 文本分块
 │   ├── queue/                    # 通用后台任务队列
 │   │   └── task-queue.ts         # 并发、去重、重试、状态快照
-│   ├── mcp/                      # MCP 资源与能力注册器
-│   │   └── register-prompt-skill-resources.ts # AI Lab Prompt Skill 动态资源
+│   ├── mcp/                      # MCP 资源、Prompt 与能力注册器
+│   │   └── register-mcp-prompts.ts # 按 metadata 动态注册 AI Lab MCP Prompts
 │   ├── post.ts                   # 文章 CRUD 操作
 │   ├── collection.ts             # 合集 CRUD 操作
 │   ├── user.ts                   # 用户操作
@@ -195,14 +196,14 @@ prisma/                           # Prisma Schema 定义
 ### `/src/services/ai/tools` - AI 工具系统
 ReAct Agent 的工具定义按“共享能力、请求级上下文、Agent 能力白名单”分层：
 - `article-tools.ts`: `search_articles`、`search_posts`、`get_post_content` 唯一模型侧定义
-- `prompt-template-tools.ts`: Prompt Skill schema 与 Chat/Create/Topic scope 策略实例
+- `prompt-template-tools.ts`: `list_prompts` / `load_prompt_template` schema 与 Chat/Create/Topic scope 策略实例
 - `web-tools.ts`: `web_search`、`read_source_url` 唯一模型侧定义
 - `create-tools/`、`topic-tools/`: 只定义当前资源和 patch 等请求级工具，并装配能力白名单
 - `tool-assembly.ts`: 合并工具并拒绝重复名称
 
-### `/src/services/mcp` - MCP 资源注册
+### `/src/services/mcp` - MCP 能力注册
 
-负责将业务服务映射为 MCP Resource / ResourceTemplate。Prompt Skill 必须复用 `src/services/ai-template` 的运行时列表与加载校验，通过 `blog://skills` 暴露 metadata，并通过 `blog://skills/{slug}` 按需返回当前激活版本正文；不要在 MCP Route 中复制 Prisma 查询或正文 fallback。
+负责将业务服务映射为 MCP Prompt、Resource / ResourceTemplate。AI Lab 模板统一为 `prompt` 类型；只有模板 `metadata_json.mcpExposed === true`、模板和当前版本均为 `ACTIVE` 时，才通过 `register-mcp-prompts.ts` 注册为标准 MCP Prompt。注册器必须复用 `src/services/ai-template` 的列表与加载校验，不要在 MCP Route 中复制 Prisma 查询或正文 fallback。
 
 ### `/src/lib` - 工具库
 通用的工具函数和配置。其中 `ai-config.ts` 和 `vector-db-config.ts` 负责从数据库 `tb_config` 表读取配置。

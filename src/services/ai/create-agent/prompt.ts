@@ -8,9 +8,9 @@
 import {
   compilePromptTemplate,
   createMustachePromptTemplate,
-  loadPromptSkillTemplate,
+  loadPromptTemplate,
 } from '@/services/ai-template';
-import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { AGENT_PROMPT_POLICIES } from '@/services/ai/tools/prompt-policy';
 import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 export interface CreateAgentPromptParams {
@@ -32,10 +32,10 @@ export async function buildCreateAgentSystemPrompt(
   params: CreateAgentPromptParams,
 ): Promise<string> {
   const rawTemplate = normalizeLegacyAgentToolNames(await loadSystemPromptTemplate());
-  // mentions 必须从原始系统模板解析，运行时草稿和选题内容不能改变 Skill 绑定。
+  // mentions 必须从原始系统模板解析，运行时草稿和选题内容不能改变 Prompt 绑定。
   const compiled = await compilePromptTemplate(
     rawTemplate,
-    AGENT_PROMPT_SKILL_POLICIES.create,
+    AGENT_PROMPT_POLICIES.create,
   );
   const template = createMustachePromptTemplate(compiled.content);
   return template.format({
@@ -47,7 +47,7 @@ export async function buildCreateAgentSystemPrompt(
 }
 
 async function loadSystemPromptTemplate(): Promise<string> {
-  const result = await loadPromptSkillTemplate({
+  const result = await loadPromptTemplate({
     slug: 'agent-create-agent-system',
   });
   if (!result.version.content.trim()) throw new Error('创作助手系统模板为空');

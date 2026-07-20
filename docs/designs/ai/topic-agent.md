@@ -88,8 +88,8 @@ topic tools
 
 | 工具 | 类型 | 作用 |
 |---|---|---|
-| `list_prompt_skills` | 只读 | 仅列出 `system/content/topic_agent` 范围内的 ACTIVE Skill metadata |
-| `load_prompt_skill_template` | 只读 | 加载当前 Topic Agent 获准使用的 ACTIVE Skill 正文 |
+| `list_prompts` | 只读 | 仅列出 `system/content/topic_agent` 范围内的 ACTIVE Prompt metadata |
+| `load_prompt_template` | 只读 | 加载当前 Topic Agent 获准使用的 ACTIVE Prompt 正文 |
 | `search_topics` | 只读 | 按标题、来源、核心角度检索已有选题，用于去重 |
 | `get_current_topic` | 只读 | 读取当前已授权选题及其关联草稿摘要；模型无参数 |
 | `search_posts` | 只读 | 检索博客文章 |

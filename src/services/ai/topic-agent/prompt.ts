@@ -1,9 +1,9 @@
 import {
   compilePromptTemplate,
   createMustachePromptTemplate,
-  loadPromptSkillTemplate,
+  loadPromptTemplate,
 } from '@/services/ai-template';
-import { AGENT_PROMPT_SKILL_POLICIES } from '@/services/ai/tools/prompt-skill-policy';
+import { AGENT_PROMPT_POLICIES } from '@/services/ai/tools/prompt-policy';
 import { normalizeLegacyAgentToolNames } from '@/services/ai/tools/tool-assembly';
 
 export interface TopicAgentPromptParams {
@@ -18,7 +18,7 @@ export async function buildTopicAgentSystemPrompt(
   const rawTemplate = normalizeLegacyAgentToolNames(await loadSystemPromptTemplate());
   const compiled = await compilePromptTemplate(
     rawTemplate,
-    AGENT_PROMPT_SKILL_POLICIES.topic,
+    AGENT_PROMPT_POLICIES.topic,
   );
   const template = createMustachePromptTemplate(compiled.content);
   return template.format({
@@ -30,7 +30,7 @@ export async function buildTopicAgentSystemPrompt(
 }
 
 async function loadSystemPromptTemplate(): Promise<string> {
-  const result = await loadPromptSkillTemplate({
+  const result = await loadPromptTemplate({
     slug: 'agent-topic-agent-system',
   });
   if (!result.version.content.trim()) throw new Error('选题助手系统模板为空');

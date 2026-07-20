@@ -99,14 +99,14 @@ model TbAiJob {
   @@map("tb_ai_job")
 }
 
-// 系统级 AI Prompt / Skill 模板主表
+// 系统级 AI Prompt 模板主表
 // 保存模板身份、别名、当前激活版本和摘要 metadata；正文进入版本表。
 model TbAiTemplate {
   id              Int      @id @default(autoincrement())
   slug            String   @unique @db.VarChar(120)                 // 稳定引用键，如 xhs-style-guide
   key             String?  @unique @db.VarChar(120)                 // 兼容系统内部 key，如 xhs.blog_to_note
   name            String   @db.VarChar(200)
-  type            String   @default("prompt") @db.VarChar(40)       // prompt / skill / style / context / tool_instruction / schema / checklist
+  type            String   @default("prompt") @db.VarChar(40)       // prompt
   scope           String   @default("system") @db.VarChar(40)       // system / content / chat / create_agent
   description     String?  @db.Text
   aliases         Json?                                            // string[]，支持 @中文别名 解析
@@ -125,7 +125,7 @@ model TbAiTemplate {
   @@map("tb_ai_template")
 }
 
-// 系统级 AI Prompt / Skill 模板版本表
+// 系统级 AI Prompt 模板版本表
 // 模板正文统一按 LangChain mustache 解析，即 {{变量}}。
 model TbAiTemplateVersion {
   id            Int      @id @default(autoincrement())

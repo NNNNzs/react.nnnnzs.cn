@@ -46,12 +46,12 @@ assert.deepEqual(toolNames(chatTools), [
   'search_collection',
   'github_search',
   'web_search',
-  'list_prompt_skills',
-  'load_prompt_skill_template',
+  'list_prompts',
+  'load_prompt_template',
 ]);
 assert.deepEqual(toolNames(createTools), [
-  'list_prompt_skills',
-  'load_prompt_skill_template',
+  'list_prompts',
+  'load_prompt_template',
   'get_current_draft',
   'search_posts',
   'get_post_content',
@@ -59,8 +59,8 @@ assert.deepEqual(toolNames(createTools), [
   'emit_draft_patch',
 ]);
 assert.deepEqual(toolNames(topicTools), [
-  'list_prompt_skills',
-  'load_prompt_skill_template',
+  'list_prompts',
+  'load_prompt_template',
   'search_topics',
   'get_current_topic',
   'search_posts',
@@ -86,8 +86,10 @@ assert.throws(
   /Agent 工具名称重复：search_posts/,
 );
 assert.equal(
-  normalizeLegacyAgentToolNames('search_posts_meta get_draft get_topic get_draft_by_id'),
-  'search_posts get_current_draft get_current_topic get_draft_by_id',
+  normalizeLegacyAgentToolNames(
+    'search_posts_meta get_draft get_topic get_draft_by_id list_prompt_skills load_prompt_skill_template',
+  ),
+  'search_posts get_current_draft get_current_topic get_draft_by_id list_prompts load_prompt_template',
 );
 
 console.log('AI Agent 工具装配验证通过');

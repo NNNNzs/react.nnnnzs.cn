@@ -76,13 +76,13 @@ export interface RenderAiTemplateInput {
   variables?: Record<string, unknown>;
 }
 
-export interface PromptSkillAccessPolicy {
+export interface PromptAccessPolicy {
   allowedScopes: readonly AiTemplateScope[];
   allowedSlugs?: readonly string[];
 }
 
-export interface LoadAgentPromptSkillInput extends RenderAiTemplateInput {
-  policy: PromptSkillAccessPolicy;
+export interface LoadAgentPromptInput extends RenderAiTemplateInput {
+  policy: PromptAccessPolicy;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -429,15 +429,15 @@ async function formatLoadedPromptTemplate(
   };
 }
 
-export async function loadPromptSkillTemplate(input: RenderAiTemplateInput) {
+export async function loadPromptTemplate(input: RenderAiTemplateInput) {
   const selected = await getAiTemplateVersion(input.slug, input.version);
   if (!selected) throw new Error('模板版本不存在');
   return formatLoadedPromptTemplate(selected, input.variables);
 }
 
-function isPromptSkillAllowed(
+function isPromptAllowed(
   template: NonNullable<Awaited<ReturnType<typeof getAiTemplateBySlug>>>,
-  policy: PromptSkillAccessPolicy,
+  policy: PromptAccessPolicy,
 ) {
   const allowedSlugs = policy.allowedSlugs?.map(normalizeTemplateSlug);
   const currentVersion = template.versions.find(
@@ -445,14 +445,13 @@ function isPromptSkillAllowed(
   );
 
   return template.status === 'ACTIVE'
-    && template.type === 'skill'
     && currentVersion?.status === 'ACTIVE'
     && policy.allowedScopes.includes(template.scope as AiTemplateScope)
     && (!allowedSlugs || allowedSlugs.includes(template.slug));
 }
 
-export async function listActivePromptSkills(
-  policy: PromptSkillAccessPolicy,
+export async function listActivePrompts(
+  policy: PromptAccessPolicy,
   query?: string,
 ) {
   const prisma = await getPrisma();
@@ -460,7 +459,6 @@ export async function listActivePromptSkills(
   const normalizedQuery = query?.trim();
   const templates = await prisma.tbAiTemplate.findMany({
     where: {
-      type: 'skill',
       status: 'ACTIVE',
       scope: { in: [...policy.allowedScopes] },
       ...(allowedSlugs ? { slug: { in: allowedSlugs } } : {}),
@@ -505,30 +503,30 @@ export async function listActivePromptSkills(
   });
 }
 
-export async function loadActivePromptSkill(
-  input: LoadAgentPromptSkillInput,
+export async function loadActivePrompt(
+  input: LoadAgentPromptInput,
 ) {
   const selected = await getAiTemplateVersion(input.slug, input.version);
-  if (!selected) throw new Error('Prompt Skill 版本不存在');
-  if (!isPromptSkillAllowed(selected.template, input.policy)) {
-    throw new Error('Prompt Skill 不存在或当前调用方无权加载');
+  if (!selected) throw new Error('Prompt 版本不存在');
+  if (!isPromptAllowed(selected.template, input.policy)) {
+    throw new Error('Prompt 不存在或当前调用方无权加载');
   }
   if (selected.version.status !== 'ACTIVE') {
-    throw new Error('Prompt Skill 版本未激活');
+    throw new Error('Prompt 版本未激活');
   }
 
   return formatLoadedPromptTemplate(selected, input.variables);
 }
 
-export async function loadAgentPromptSkillTemplate(
-  input: LoadAgentPromptSkillInput,
+export async function loadAgentPromptTemplate(
+  input: LoadAgentPromptInput,
 ) {
-  return loadActivePromptSkill(input);
+  return loadActivePrompt(input);
 }
 
 export async function resolveTemplateMentions(
   content: string,
-  policy: PromptSkillAccessPolicy = { allowedScopes: AI_TEMPLATE_SCOPES },
+  policy: PromptAccessPolicy = { allowedScopes: AI_TEMPLATE_SCOPES },
 ) {
   const rawMentions = Array.from(content.matchAll(MENTION_PATTERN))
     .map((match) => match[2])
@@ -537,7 +535,7 @@ export async function resolveTemplateMentions(
 
   const resolved = await Promise.all(uniqueMentions.map(async (mention) => {
     const template = await getAiTemplateBySlug(mention);
-    return template && isPromptSkillAllowed(template, policy)
+    return template && isPromptAllowed(template, policy)
       ? formatTemplateSummary(template)
       : null;
   }));
@@ -547,19 +545,19 @@ export async function resolveTemplateMentions(
 
 export async function compilePromptTemplate(
   content: string,
-  policy?: PromptSkillAccessPolicy,
+  policy?: PromptAccessPolicy,
 ) {
   const mentions = await resolveTemplateMentions(content, policy);
   const metadataBlock = mentions.length === 0
     ? ''
     : [
-        '\n\n## 可按需加载的 Prompt Skills',
+        '\n\n## 可按需加载的 Prompts',
         ...mentions.map((item) => [
           `- ${item.name} (@${item.slug})`,
           `  - type: ${item.type}`,
           `  - version: ${item.current_version}`,
           item.description ? `  - description: ${item.description}` : undefined,
-          `  - load tool: load_prompt_skill_template(slug="${item.slug}")`,
+          `  - load tool: load_prompt_template(slug="${item.slug}")`,
         ].filter(Boolean).join('\n')),
       ].join('\n');
 
@@ -574,14 +572,15 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
     slug: 'xhs-style-guide',
     key: 'xhs.style_guide',
     name: '小红书风格指南',
-    type: 'skill',
+    type: 'prompt',
     scope: 'content',
     description: '用于小红书图文和短视频脚本的表达风格、钩子、节奏和禁区指南。',
     aliases: ['小红书风格指南', '小红书写作风格', '小红书风格'],
     metadata: {
       source: 'builtin',
+      mcpExposed: true,
       useWhen: ['生成小红书图文', '改写小红书正文', '规划小红书短视频脚本'],
-      lazyLoadTool: 'load_prompt_skill_template',
+      lazyLoadTool: 'load_prompt_template',
     },
     content: `# 小红书风格指南
 
@@ -646,20 +645,20 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 {{collectionsSummary}}
 
 **你的能力：**
-你有搜索工具可以查询博客文章、文章合集、GitHub 开源项目，也可以按需查询可加载的 Prompt Skill metadata。
+你有搜索工具可以查询博客文章、文章合集、GitHub 开源项目，也可以按需查询可加载的 Prompt metadata。
 
 **可用工具：**
 1. search_articles - 基于向量相似度的语义搜索。
 2. search_posts - 按关键词、时间、热度、分类等维度查询文章。
 3. search_collection - 指定合集中的文章搜索。
 4. github_search - GitHub 搜索。
-5. list_prompt_skills - 查询当前 Agent 可按需加载的 Prompt Skill metadata。
-6. load_prompt_skill_template - 当且仅当确实需要完整指南或模板原文时，按 slug 加载正文。
+5. list_prompts - 查询当前 Agent 可按需加载的 Prompt metadata。
+6. load_prompt_template - 当且仅当确实需要完整指南或模板原文时，按 slug 加载正文。
 
 **思考流程：**
 1. 判断问题是否涉及博客内容、个人经历、技术文章、合集或项目。
 2. 涉及知识库内容时先检索，再回答；通用闲聊可直接回答。
-3. 需要额外风格指南或方法论时，先用 list_prompt_skills 看 metadata，再按需调用 load_prompt_skill_template。
+3. 需要额外风格指南或方法论时，先用 list_prompts 看 metadata，再按需调用 load_prompt_template。
 4. 回答必须基于检索结果和已加载模板，不要编造。
 
 **回答要求：**
@@ -703,20 +702,20 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 {{collectionsSummary}}
 
 **你的能力：**
-你有搜索工具可以扫描博客文章、文章合集、GitHub 开源项目，也可以按需查询可加载的 Prompt Skill metadata。
+你有搜索工具可以扫描博客文章、文章合集、GitHub 开源项目，也可以按需查询可加载的 Prompt metadata。
 
 **可用工具：**
 1. search_articles - 基于向量相似度的语义搜索。
 2. search_posts - 按关键词、时间、热度、分类等维度查询文章。
 3. search_collection - 指定合集中的文章搜索。
 4. github_search - GitHub 搜索。
-5. list_prompt_skills - 查询当前 Agent 可按需加载的 Prompt Skill metadata。
-6. load_prompt_skill_template - 当且仅当确实需要完整指南或模板原文时，按 slug 加载正文。
+5. list_prompts - 查询当前 Agent 可按需加载的 Prompt metadata。
+6. load_prompt_template - 当且仅当确实需要完整指南或模板原文时，按 slug 加载正文。
 
 **思考流程：**
 1. 判断问题是否需要扫描博客内容、个人经历、技术文章、合集或项目。
 2. 涉及知识库内容时先检索，再回答；通用闲聊可直接回答。
-3. 需要额外风格指南或方法论时，先用 list_prompt_skills 看 metadata，再按需调用 load_prompt_skill_template。
+3. 需要额外风格指南或方法论时，先用 list_prompts 看 metadata，再按需调用 load_prompt_template。
 4. 回答必须基于检索结果和已加载模板，不要编造。
 
 **回答要求：**
@@ -744,11 +743,11 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 - 标题：{{draftTitle}}
 - 类型：{{draftType}}
 
-你可以按需使用 @xhs-style-guide 的 metadata。只有当任务确实需要完整小红书风格指南时，才调用 load_prompt_skill_template 读取 slug=xhs-style-guide 的原文。
+你可以按需使用 @xhs-style-guide 的 metadata。只有当任务确实需要完整小红书风格指南时，才调用 load_prompt_template 读取 slug=xhs-style-guide 的原文。
 
 你可以使用以下工具：
-- list_prompt_skills：查询当前 Agent 可用 Prompt Skill metadata
-- load_prompt_skill_template：按 slug 读取完整 Prompt / Skill 模板正文
+- list_prompts：查询当前 Agent 可用 Prompt metadata
+- load_prompt_template：按 slug 读取完整 Prompt 模板正文
 - get_current_draft：读取当前草稿的标题、正文、图卡、已选图片
 - search_posts / get_post_content：检索博客文章作为创作素材
 - web_search：联网搜索最新或外部信息，适合补充当前网页资料或核实事实
@@ -757,7 +756,7 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 - emit_draft_patch：把你建议写进草稿的内容以结构化 patch 形式发给前端，等待用户确认
 
 工作原则：
-1. 先理解用户意图，需要方法论时先用 list_prompt_skills 或 load_prompt_skill_template 读取对应模板。
+1. 先理解用户意图，需要方法论时先用 list_prompts 或 load_prompt_template 读取对应模板。
 2. 修改草稿内容时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch，由前端展示差异并等待用户确认。
 3. 文生图是异步任务：先 generate_image 拿 jobId，再 poll_image_job 轮询直到成功。
 4. 回答简洁，多用工具少用嘴。最终说明做了什么、建议改哪些字段，提醒用户确认建议并保存。
@@ -780,7 +779,7 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 当前模式：{{mode}}
 当前选题：{{topicTitle}}
 
-你可以使用 list_prompt_skills、load_prompt_skill_template、search_topics、get_current_topic、search_posts、get_post_content、web_search、read_source_url 和 emit_topic_patch。
+你可以使用 list_prompts、load_prompt_template、search_topics、get_current_topic、search_posts、get_post_content、web_search、read_source_url 和 emit_topic_patch。
 
 工作规则：
 1. 新建或完善选题前必须使用 search_topics 检查重复；发现相似项时先说明候选，不直接覆盖旧选题。
