@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getTokenFromRequest,
   setAuthCookie,
+  storeToken,
   validateToken,
 } from '@/lib/auth';
 import { updateUser } from '@/services/user';
@@ -90,6 +91,7 @@ export async function PUT(request: NextRequest) {
     });
 
     const result = await updateUser(user.id, updateData);
+    await storeToken(token, result);
 
     return NextResponse.json(successResponse(result, '更新成功'));
   } catch (error) {

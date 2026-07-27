@@ -60,7 +60,10 @@ export async function verifyPassword(
 /**
  * 存储Token到Redis
  */
-export async function storeToken(token: string, user: User): Promise<void> {
+export async function storeToken(
+  token: string,
+  user: User | Omit<User, 'password'>
+): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password, ...userWithoutPassword } = user as User & { password?: string };
   const redisKey = `user:${token}`;
