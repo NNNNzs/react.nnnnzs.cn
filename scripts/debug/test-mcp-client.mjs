@@ -196,7 +196,90 @@ async function testUser(account, tokenArg) {
     console.log();
   }
 
-  // 2. 尝试调用 list_articles（最安全的只读接口）
+  // 2. 验证 Prompt Resource 镜像（不依赖宿主是否支持 MCP Prompt UI）
+  console.log("--- Prompt Resource 镜像 ---");
+  const resourcesResult = await mcpRequest(token, "resources/list");
+  const resourcesData = resourcesResult.data?.result || resourcesResult.data;
+  const promptIndex = resourcesData?.resources?.find((resource) => resource.uri === "blog://prompts");
+  if (!resourcesResult.ok || !promptIndex) {
+    console.error(`  未发现 blog://prompts: ${resourcesResult.error?.message || "resource missing"}`);
+  } else {
+    console.log(`  发现目录资源: ${promptIndex.uri}`);
+
+    const templatesResult = await mcpRequest(token, "resources/templates/list");
+    const templatesData = templatesResult.data?.result || templatesResult.data;
+    const promptTemplate = templatesData?.resourceTemplates?.find(
+      (template) => template.uriTemplate === "blog://prompts/{slug}",
+    );
+    console.log(promptTemplate
+      ? `  发现模板资源: ${promptTemplate.uriTemplate}`
+      : "  未发现 blog://prompts/{slug} 模板资源");
+
+    const indexResult = await mcpRequest(token, "resources/read", { uri: "blog://prompts" });
+    const indexData = indexResult.data?.result || indexResult.data;
+    const indexText = indexData?.contents?.[0]?.text || "";
+    try {
+      const promptIndexData = JSON.parse(indexText);
+      const prompts = promptIndexData.prompts || [];
+      console.log(`  目录包含 ${prompts.length} 个可读取 Prompt`);
+
+      if (prompts.length > 0) {
+        const firstPrompt = prompts[0];
+        const resourcePrompt = await mcpRequest(token, "resources/read", { uri: firstPrompt.uri });
+        const resourcePromptData = resourcePrompt.data?.result || resourcePrompt.data;
+        const resourceContent = resourcePromptData?.contents?.[0]?.text || "";
+        const nativePrompt = await mcpRequest(token, "prompts/get", { name: firstPrompt.slug });
+        const nativePromptData = nativePrompt.data?.result || nativePrompt.data;
+        const nativeContent = nativePromptData?.messages?.[0]?.content?.text || "";
+        console.log(resourceContent === nativeContent
+          ? `  ${firstPrompt.slug} 的 Resource 正文与 prompts/get 一致`
+          : `  ${firstPrompt.slug} 的 Resource 正文与 prompts/get 不一致`);
+      }
+    } catch {
+      console.error("  无法解析 Prompt 目录响应");
+    }
+
+    const missingResult = await mcpRequest(token, "resources/read", { uri: "blog://prompts/__missing__" });
+    console.log(missingResult.ok
+      ? "  不存在 Prompt 的读取未被拒绝"
+      : "  不存在 Prompt 的读取已被拒绝");
+
+    const activeTemplates = await prisma.tbAiTemplate.findMany({
+      where: { status: "ACTIVE" },
+      select: {
+        slug: true,
+        metadata_json: true,
+        current_version: true,
+        versions: {
+          where: { status: "ACTIVE" },
+          select: { version: true },
+        },
+      },
+    });
+    const hiddenPrompt = activeTemplates.find((template) => {
+      const metadata = template.metadata_json;
+      const isExposed = typeof metadata === "object"
+        && metadata !== null
+        && !Array.isArray(metadata)
+        && metadata.mcpExposed === true;
+      const hasCurrentVersion = template.versions.some(
+        (version) => version.version === template.current_version,
+      );
+      return !isExposed && hasCurrentVersion;
+    });
+    if (hiddenPrompt) {
+      const hiddenResult = await mcpRequest(token, "resources/read", {
+        uri: `blog://prompts/${hiddenPrompt.slug}`,
+      });
+      console.log(hiddenResult.ok
+        ? "  未暴露 Prompt 的读取未被拒绝"
+        : "  未暴露 Prompt 的读取已被拒绝");
+    } else {
+      console.log("  没有可用于拒绝测试的未暴露激活 Prompt，已跳过");
+    }
+  }
+
+  // 3. 尝试调用 list_articles（最安全的只读接口）
   const listTool = tools.find((t) => t.name === "list_articles");
   if (listTool) {
     console.log("--- 调用 list_articles ---");
@@ -224,7 +307,7 @@ async function testUser(account, tokenArg) {
     }
   }
 
-  // 3. 尝试调用一个可能没有权限的工具（如 get_article）
+  // 4. 尝试调用一个可能没有权限的工具（如 get_article）
   const getTool = tools.find((t) => t.name === "get_article");
   if (getTool) {
     console.log("\n--- 调用 get_article(id: 1) ---");

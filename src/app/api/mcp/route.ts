@@ -9,7 +9,7 @@ import { handleMcpToApi, jsonSchemaToZod } from '@/lib/mcp-adapter';
 import { getAllTags } from '@/services/tag';
 import { getCollectionList } from '@/services/collection';
 import { getPublicOrigin } from '@/lib/mcp-oauth-metadata';
-import { registerMcpPrompts } from '@/services/mcp/register-mcp-prompts';
+import { registerMcpPromptResources, registerMcpPrompts } from '@/services/mcp/register-mcp-prompts';
 import type { AuthUser } from '@/types/auth';
 
 function createMcpAuthErrorResponse(request: NextRequest, requestId: string | number | null) {
@@ -191,6 +191,7 @@ async function createMcpServer(headers: Headers) {
   );
 
   await registerMcpPrompts(server, ensureAuth);
+  registerMcpPromptResources(server, ensureAuth);
 
   server.registerResource(
     "image_generation_job",
