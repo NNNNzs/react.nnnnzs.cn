@@ -9,6 +9,7 @@ import { BellOutlined, EditOutlined, SettingOutlined, UserOutlined, LogoutOutlin
 import { useAuth } from "@/contexts/AuthContext";
 import { CONTENT_VIEW, USER_MANAGE } from "@/constants/permissions";
 import TaskNotificationSettings from "@/components/task-notifications/TaskNotificationSettings";
+import NotificationBell from "@/components/NotificationBell";
 
 const subscribeToHydration = () => () => {};
 const getClientSnapshot = () => true;
@@ -101,14 +102,17 @@ export default function HeaderUserMenu() {
           // 占位：宽度与登录按钮/头像区接近，避免首屏跳动；与服务端输出一致
           <span className="block h-8 w-24" aria-hidden />
         ) : user ? (
-          <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-            <Space className="cursor-pointer">
-              <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />
-              <span className="text-sm font-medium text-slate-900 dark:text-white">
-                {user.nickname}
-              </span>
-            </Space>
-          </Dropdown>
+          <Space size="small">
+            <NotificationBell />
+            <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+              <Space className="cursor-pointer">
+                <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />
+                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                  {user.nickname}
+                </span>
+              </Space>
+            </Dropdown>
+          </Space>
         ) : (
           <Link
             href={`/login?redirect=${encodeURIComponent(currentUrl)}`}

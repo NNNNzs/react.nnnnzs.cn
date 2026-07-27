@@ -33,12 +33,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { account, password, nickname, mail, phone, emailCode } = body;
+    const { account, password, nickname, mail, phone, emailCode, privacyConsent } = body;
 
     if (!account || !password || !nickname) {
       return NextResponse.json(errorResponse('账号、密码和昵称不能为空'), {
         status: 400,
       });
+    }
+    if (privacyConsent !== true) {
+      return NextResponse.json(errorResponse('请先同意隐私政策'), { status: 400 });
     }
 
     // 邮箱和验证码必须同时提供

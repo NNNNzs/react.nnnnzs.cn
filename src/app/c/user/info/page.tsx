@@ -40,6 +40,7 @@ import GithubBindCard from "@/components/GithubBindCard";
 import FaceRegistrationCard from "@/components/FaceRegistrationCard";
 import LongTermTokenCard from "@/components/LongTermTokenCard";
 import OAuthTokenCard from "@/components/OAuthTokenCard";
+import NotificationSettingsCard from "@/components/NotificationSettingsCard";
 import { isAdmin } from "@/types/role";
 import { RoleDisplayNames } from "@/types/role";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -430,6 +431,11 @@ export default function UserInfoPage() {
           isBound={!!userInfo?.wx_open_id}
           onStatusChange={handleWechatStatusChange}
         />
+      </div>
+
+      {/* GitHub 绑定卡片 */}
+      <div className="mt-6">
+        <NotificationSettingsCard hasMail={!!userInfo?.mail} />
       </div>
 
       {/* GitHub 绑定卡片 */}

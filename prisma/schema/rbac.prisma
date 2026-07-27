@@ -17,6 +17,7 @@ model TbUser {
   work_wechat_id      String?   @db.VarChar(255)
   wx_open_id          String?   @db.VarChar(255) // 微信小程序 openID
   face_person_id      String?   @db.VarChar(64)  // 腾讯云人脸识别 PersonId
+  notification_settings Json?                         // 用户通知渠道与类型配置（null 使用系统默认值）
   status              Int       @default(1)
 
   // 关联关系
@@ -24,6 +25,8 @@ model TbUser {
   longTermTokens     LongTermToken[]     // 长期Token
   collections        TbCollection[]      // 创建的合集
   comments           TbComment[]         // 用户发表的评论
+  receivedNotifications TbNotification[] @relation("NotificationRecipient")
+  actedNotifications    TbNotification[] @relation("NotificationActor")
   createdChangeLogs  TbEntityChangeLog[] @relation("EntityChangeLogCreator") // 创建的变更日志
   chatSessions       TbChatSession[]     // 聊天会话
   aiLabRuns          TbAiLabRun[]        // AI Lab Run 记录

@@ -26,7 +26,8 @@ interface AuthContextType {
     password: string,
     nickname: string,
     mail?: string,
-    emailCode?: string
+    emailCode?: string,
+    privacyConsent?: boolean,
   ) => Promise<void>;
   refreshUser: () => Promise<void>;
   /** 权限码列表 */
@@ -135,13 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 注册
    */
   const register = useCallback(
-    async (account: string, password: string, nickname: string, mail?: string, emailCode?: string) => {
+    async (account: string, password: string, nickname: string, mail?: string, emailCode?: string, privacyConsent?: boolean) => {
       const response = await axios.post("/api/user/register", {
         account,
         password,
         nickname,
         mail,
         emailCode,
+        privacyConsent,
       });
       if (response.data.status) {
         setUser(response.data.data.userInfo);

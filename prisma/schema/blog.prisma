@@ -25,6 +25,7 @@ model TbPost {
   versions          TbPostVersion[]
   collectionPosts   TbCollectionPost[]  // 文章所属的合集（通过中间表）
   comments          TbComment[]         // 文章的评论
+  notifications     TbNotification[]
 
   @@map("tb_post")
 }
@@ -128,12 +129,56 @@ model TbComment {
   user    TbUser     @relation(fields: [user_id], references: [id])
   parent  TbComment? @relation("CommentReplies", fields: [parent_id], references: [id])
   replies TbComment[] @relation("CommentReplies")
+  notifications TbNotification[]
 
   @@index([post_id])
   @@index([user_id])
   @@index([parent_id])
   @@index([created_at])
   @@map("tb_comment")
+}
+
+// 站内通知：评论互动等事件的持久化收件箱记录
+model TbNotification {
+  id                Int      @id @default(autoincrement())
+  type              String   @db.VarChar(50) // COMMENT_ON_POST / COMMENT_REPLY
+  recipient_user_id Int
+  actor_user_id     Int?
+  post_id           Int
+  comment_id        Int
+  title             String   @db.VarChar(255)
+  preview           String   @db.VarChar(500)
+  target_url        String   @db.VarChar(500)
+  read_at           DateTime?
+  created_at        DateTime @default(now())
+
+  recipient TbUser    @relation("NotificationRecipient", fields: [recipient_user_id], references: [id], onDelete: Cascade)
+  actor     TbUser?   @relation("NotificationActor", fields: [actor_user_id], references: [id], onDelete: SetNull)
+  post      TbPost    @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  comment   TbComment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  delivery  TbNotificationDelivery?
+
+  @@unique([recipient_user_id, comment_id])
+  @@index([recipient_user_id, read_at, created_at])
+  @@index([created_at])
+  @@map("tb_notification")
+}
+
+// 通知的外部渠道投递审计；首版仅使用 EMAIL 且同步投递。
+model TbNotificationDelivery {
+  id              Int      @id @default(autoincrement())
+  notification_id Int      @unique
+  channel         String   @db.VarChar(20) @default("EMAIL")
+  status          String   @db.VarChar(20) // SENT / FAILED / SKIPPED
+  error_message   String?  @db.VarChar(500)
+  sent_at         DateTime?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  notification TbNotification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+
+  @@index([status, created_at])
+  @@map("tb_notification_delivery")
 }
 
 // 点赞记录表

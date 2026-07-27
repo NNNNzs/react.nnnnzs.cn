@@ -7,7 +7,7 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Card, Tabs, message } from 'antd';
+import { Form, Input, Button, Card, Tabs, message, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
@@ -138,10 +138,11 @@ function LoginPage() {
     nickname: string;
     email: string;
     emailCode: string;
+    privacyConsent: boolean;
   }) => {
     try {
       setLoading(true);
-      await register(values.account, values.password, values.nickname, values.email, values.emailCode);
+      await register(values.account, values.password, values.nickname, values.email, values.emailCode, values.privacyConsent);
       message.success('注册成功！');
 
       // 跳转到首页
@@ -476,6 +477,10 @@ function LoginPage() {
                     placeholder="确认密码"
                     autoComplete="new-password"
                   />
+                </Form.Item>
+
+                <Form.Item name="privacyConsent" valuePropName="checked" rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('请先同意隐私政策')) }]}>
+                  <Checkbox>我已阅读并同意 <a href="/privacy" target="_blank" rel="noreferrer">《隐私政策》</a></Checkbox>
                 </Form.Item>
 
                 <Form.Item>

@@ -5,6 +5,9 @@
 import { getPrisma } from '@/lib/prisma';
 import type { CommentTreeNode, CreateCommentRequest, UserInfoForComment } from '@/dto/comment.dto';
 import type { TbUser, TbComment } from '@/generated/prisma-client/client';
+import { deliverNotificationEmail } from '@/services/notification-email';
+import { isInboxNotificationEnabled } from '@/services/notification';
+import { truncateNotificationPreview, type NotificationType } from '@/types/notification';
 
 /**
  * 检查用户是否有评论权限
@@ -164,62 +167,91 @@ export async function createComment(
   data: CreateCommentRequest
 ): Promise<CommentTreeNode> {
   const prisma = await getPrisma();
-
-  // 验证文章存在
-  const post = await prisma.tbPost.findUnique({
-    where: { id: data.postId },
-  });
-
-  if (!post) {
-    throw new Error('文章不存在');
-  }
-
-  // 如果是回复，验证父评论存在
-  if (data.parentId) {
-    const parentComment = await prisma.tbComment.findUnique({
-      where: { id: data.parentId },
+  const result = await prisma.$transaction(async (tx) => {
+    const post = await tx.tbPost.findUnique({
+      where: { id: data.postId },
+      select: { id: true, title: true, path: true, created_by: true },
     });
+    if (!post) throw new Error('文章不存在');
 
-    if (!parentComment || parentComment.is_delete === 1) {
+    const parentComment = data.parentId
+      ? await tx.tbComment.findUnique({
+          where: { id: data.parentId },
+          include: { user: { select: { id: true, nickname: true } } },
+        })
+      : null;
+    if (data.parentId && (!parentComment || parentComment.is_delete === 1)) {
       throw new Error('父评论不存在或已删除');
     }
-
-    // 父评论必须属于同一篇文章
-    if (parentComment.post_id !== data.postId) {
+    if (parentComment && parentComment.post_id !== data.postId) {
       throw new Error('父评论不属于该文章');
     }
-  }
 
-  // 创建评论
-  const comment = await prisma.tbComment.create({
-    data: {
-      post_id: data.postId,
-      user_id: userId,
-      parent_id: data.parentId || null,
-      content: data.content,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          nickname: true,
-          avatar: true,
-        },
+    const comment = await tx.tbComment.create({
+      data: { post_id: data.postId, user_id: userId, parent_id: data.parentId || null, content: data.content },
+      include: {
+        user: { select: { id: true, nickname: true, avatar: true } },
+        parent: { include: { user: { select: { id: true, nickname: true } } } },
       },
-      parent: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              nickname: true,
-            },
-          },
+    });
+
+    const recipients = new Map<number, NotificationType>();
+    if (post.created_by && post.created_by !== userId) recipients.set(post.created_by, 'COMMENT_ON_POST');
+    if (parentComment && parentComment.user_id !== userId) recipients.set(parentComment.user_id, 'COMMENT_REPLY');
+
+    const recipientUsers = recipients.size
+      ? await tx.tbUser.findMany({
+          where: { id: { in: [...recipients.keys()] } },
+          select: { id: true, mail: true, notification_settings: true },
+        })
+      : [];
+    const targetUrl = `${post.path || `/post/${post.id}`}#comment-${comment.id}`;
+    const preview = truncateNotificationPreview(comment.content);
+    const deliveries: Array<{
+      notificationId: number;
+      recipientId: number;
+      recipientMail: string | null;
+      recipientSettings: unknown;
+      type: NotificationType;
+      actorName: string;
+      postTitle: string;
+      preview: string;
+      targetUrl: string;
+    }> = [];
+
+    for (const recipient of recipientUsers) {
+      const type = recipients.get(recipient.id);
+      if (!type || !isInboxNotificationEnabled(recipient.notification_settings, type)) continue;
+      const notification = await tx.tbNotification.create({
+        data: {
+          type,
+          recipient_user_id: recipient.id,
+          actor_user_id: userId,
+          post_id: post.id,
+          comment_id: comment.id,
+          title: type === 'COMMENT_REPLY' ? '有人回复了你的评论' : '你的文章收到了新评论',
+          preview,
+          target_url: targetUrl,
         },
-      },
-    },
+      });
+      deliveries.push({
+        notificationId: notification.id,
+        recipientId: recipient.id,
+        recipientMail: recipient.mail,
+        recipientSettings: recipient.notification_settings,
+        type,
+        actorName: comment.user.nickname,
+        postTitle: post.title || '未命名文章',
+        preview,
+        targetUrl,
+      });
+    }
+
+    return { comment, deliveries };
   });
 
-  return commentToTreeNode(comment as typeof comment & { user: TbUser; parent?: (typeof comment & { user: TbUser }) | null });
+  await Promise.all(result.deliveries.map((delivery) => deliverNotificationEmail(delivery)));
+  return commentToTreeNode(result.comment as typeof result.comment & { user: TbUser; parent?: (typeof result.comment & { user: TbUser }) | null });
 }
 
 /**
@@ -241,11 +273,10 @@ export async function deleteComment(commentId: number, userId: number): Promise<
     throw new Error('无权删除此评论');
   }
 
-  // 软删除
-  await prisma.tbComment.update({
-    where: { id: commentId },
-    data: { is_delete: 1 },
-  });
+  await prisma.$transaction([
+    prisma.tbComment.update({ where: { id: commentId }, data: { is_delete: 1 } }),
+    prisma.tbNotification.deleteMany({ where: { comment_id: commentId } }),
+  ]);
 }
 
 /**

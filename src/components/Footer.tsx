@@ -138,6 +138,20 @@ export default function Footer() {
             © {currentYear} 我的博客. All rights reserved.
             <br className="md:hidden" />
             <span className="hidden md:inline"> | </span>
+            <Link
+              href="/privacy"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              隐私政策
+            </Link>
+            <span className="hidden md:inline"> | </span>
+            <Link
+              href="/notification-policy"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              通知策略
+            </Link>
+            <span className="hidden md:inline"> | </span>
             <a
               href="https://beian.miit.gov.cn/"
               target="_blank"

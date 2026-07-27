@@ -38,6 +38,22 @@ async function getGithubUser(accessToken: string) {
   return response.json();
 }
 
+interface GithubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+}
+
+async function getGithubEmail(accessToken: string): Promise<string | null> {
+  const response = await proxyFetch('https://api.github.com/user/emails', {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.github+json' },
+  });
+  if (!response.ok) return null;
+  const emails = await response.json() as GithubEmail[];
+  const verified = emails.filter((item) => item.verified && item.email);
+  return verified.find((item) => item.primary)?.email || verified[0]?.email || null;
+}
+
 /**
  * 交换 GitHub Access Token
  */
@@ -115,6 +131,7 @@ export async function GET(request: NextRequest) {
     
     // 获取 GitHub 用户信息
     const githubUser = await getGithubUser(accessToken);
+    const githubEmail = await getGithubEmail(accessToken);
     
     const prisma = await getPrisma();
     
@@ -150,6 +167,7 @@ export async function GET(request: NextRequest) {
             github_id: String(githubUser.id),
             github_username: githubUser.login,
             github_access_token: accessToken,
+            mail: githubEmail,
             registered_ip: ip,
             registered_time: new Date(),
             status: 1,
@@ -163,6 +181,7 @@ export async function GET(request: NextRequest) {
             github_username: githubUser.login,
             github_access_token: accessToken,
             avatar: githubUser.avatar_url,
+            ...(user.mail ? {} : { mail: githubEmail }),
           },
         });
       }
@@ -230,6 +249,7 @@ export async function GET(request: NextRequest) {
           github_id: String(githubUser.id),
           github_username: githubUser.login,
           github_access_token: accessToken,
+          ...(currentUser.mail ? {} : { mail: githubEmail }),
         },
       });
 
