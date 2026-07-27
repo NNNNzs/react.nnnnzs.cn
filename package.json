@@ -67,6 +67,7 @@
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.2",
+    "feed": "^6.0.0",
     "framer-motion": "^12.38.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.10.1",

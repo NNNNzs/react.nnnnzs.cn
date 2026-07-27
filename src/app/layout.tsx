@@ -45,6 +45,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="alternate" type="application/rss+xml" title="NNNNzs RSS Feed" href="/rss.xml" />
         <script dangerouslySetInnerHTML={{
           __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");var h=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");var links=Array.prototype.slice.call(document.querySelectorAll("link[rel~='icon']"));var byId=document.getElementById("theme-favicon");if(byId&&links.indexOf(byId)===-1){byId.rel="icon";links.push(byId)}if(links.length){links.forEach(function(l){if(!l.type)l.type="image/png";l.href=h});(byId||links[0]).id="theme-favicon"}else{var l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=h;document.head.appendChild(l)}}catch(e){}})();`,
         }} />

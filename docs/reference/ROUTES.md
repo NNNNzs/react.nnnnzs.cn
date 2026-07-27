@@ -7,6 +7,10 @@
 ```
 src/app/
 ├── page.tsx                                    # 首页
+├── sitemap.ts                                 # 站点地图 /sitemap.xml
+├── robots.ts                                  # 爬虫规则 /robots.txt
+├── rss.xml/
+│   └── route.ts                              # RSS 2.0 订阅源 /rss.xml
 ├── login/
 │   └── page.tsx                               # 登录/注册页
 ├── register/
@@ -83,6 +87,14 @@ src/app/
 | `/collections/:slug` | `/collections/[slug]` | 合集详情页 |
 | `/20XX/MM/DD/:title` | `/20[year]/[month]/[date]/[title]` | 文章详情页 |
 | `/chat` | `/chat` | AI 聊天界面 |
+
+### 站点发现端点
+
+| 路由 | 说明 |
+|---|---|
+| `/rss.xml` | RSS 2.0 订阅源，输出公开且未删除的文章 |
+| `/sitemap.xml` | Next.js 动态站点地图 |
+| `/robots.txt` | 搜索引擎爬虫规则 |
 
 ### 后台管理
 
