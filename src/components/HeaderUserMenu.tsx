@@ -7,7 +7,7 @@ import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
 import { BellOutlined, EditOutlined, SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
-import { CONTENT_VIEW, USER_MANAGE } from "@/constants/permissions";
+import { CONTENT_VIEW, IMAGE_VIEW, TTS_VIEW, USER_MANAGE } from "@/constants/permissions";
 import TaskNotificationSettings from "@/components/task-notifications/TaskNotificationSettings";
 import NotificationBell from "@/components/NotificationBell";
 
@@ -64,12 +64,16 @@ export default function HeaderUserMenu() {
       label: <Link href="/c/user/info">个人资料</Link>,
       icon: <UserOutlined />,
     },
-    {
-      key: "task-notifications",
-      label: "任务通知",
-      icon: <BellOutlined />,
-      onClick: () => setNotificationSettingsOpen(true),
-    },
+    ...(hasPermission(IMAGE_VIEW) || hasPermission(TTS_VIEW)
+      ? [
+          {
+            key: "task-notifications",
+            label: "任务通知",
+            icon: <BellOutlined />,
+            onClick: () => setNotificationSettingsOpen(true),
+          },
+        ]
+      : []),
     ...(hasPermission(USER_MANAGE)
       ? [
           {
