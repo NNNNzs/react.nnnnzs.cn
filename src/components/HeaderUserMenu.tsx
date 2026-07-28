@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useMemo, useState, useSyncExternalStore } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Dropdown, Space } from "antd";
 import type { MenuProps } from "antd";
-import { BellOutlined, EditOutlined, SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
+import { EditOutlined, SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
-import { CONTENT_VIEW, IMAGE_VIEW, TTS_VIEW, USER_MANAGE } from "@/constants/permissions";
-import TaskNotificationSettings from "@/components/task-notifications/TaskNotificationSettings";
+import { CONTENT_VIEW, USER_MANAGE } from "@/constants/permissions";
 import NotificationBell from "@/components/NotificationBell";
 
 const subscribeToHydration = () => () => {};
@@ -23,7 +22,6 @@ export default function HeaderUserMenu() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, logout, hasPermission } = useAuth();
-  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
 
   // 防止 hydration mismatch：登录态由客户端异步获取，
   // SSR 时 user 恒为 null。在 mount 完成前渲染稳定占位，
@@ -61,19 +59,9 @@ export default function HeaderUserMenu() {
       : []),
     {
       key: "user",
-      label: <Link href="/c/user/info">个人资料</Link>,
+      label: <Link href="/c/user/info">个人设置</Link>,
       icon: <UserOutlined />,
     },
-    ...(hasPermission(IMAGE_VIEW) || hasPermission(TTS_VIEW)
-      ? [
-          {
-            key: "task-notifications",
-            label: "任务通知",
-            icon: <BellOutlined />,
-            onClick: () => setNotificationSettingsOpen(true),
-          },
-        ]
-      : []),
     ...(hasPermission(USER_MANAGE)
       ? [
           {
@@ -127,12 +115,6 @@ export default function HeaderUserMenu() {
           </Link>
         )}
       </div>
-      {user ? (
-        <TaskNotificationSettings
-          open={notificationSettingsOpen}
-          onClose={() => setNotificationSettingsOpen(false)}
-        />
-      ) : null}
     </>
   );
 }

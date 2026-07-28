@@ -8,10 +8,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getTokenFromRequest,
   setAuthCookie,
-  storeToken,
   validateToken,
 } from '@/lib/auth';
-import { updateUser } from '@/services/user';
+import { getUserById, getUserSecurityState, updateUserProfile } from '@/services/user';
 import type { UpdateUserDto } from '@/dto/user.dto';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 /**
@@ -37,7 +36,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = NextResponse.json(successResponse(user));
+    const currentUser = await getUserById(user.id);
+    if (!currentUser) {
+      return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
+    }
+
+    const security = await getUserSecurityState(user.id);
+    const response = NextResponse.json(successResponse({
+      ...currentUser,
+      has_password: Boolean(security?.password),
+    }), {
+      headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+    });
     setAuthCookie(response, token);
     return response;
   } catch (error) {
@@ -74,26 +84,25 @@ export async function PUT(request: NextRequest) {
 
     const body: UpdateUserDto = await request.json();
 
-    // 用户只能更新自己的信息，不能更新 role 和 status
-    const updateData: UpdateUserDto = {
+    // 邮箱和密码使用专用安全接口，资料接口只接受非敏感字段。
+    const updateData: Pick<UpdateUserDto, 'nickname' | 'phone' | 'avatar'> = {
       nickname: body.nickname,
-      mail: body.mail,
       phone: body.phone,
       avatar: body.avatar,
-      password: body.password,
     };
 
     // 移除 undefined 字段
     Object.keys(updateData).forEach((key) => {
-      if (updateData[key as keyof UpdateUserDto] === undefined) {
-        delete updateData[key as keyof UpdateUserDto];
+      if (updateData[key as keyof typeof updateData] === undefined) {
+        delete updateData[key as keyof typeof updateData];
       }
     });
 
-    const result = await updateUser(user.id, updateData);
-    await storeToken(token, result);
+    const result = await updateUserProfile(user.id, updateData);
 
-    return NextResponse.json(successResponse(result, '更新成功'));
+    return NextResponse.json(successResponse(result, '更新成功'), {
+      headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+    });
   } catch (error) {
     console.error('更新用户信息失败:', error);
     const errorMessage = error instanceof Error ? error.message : '更新用户信息失败';

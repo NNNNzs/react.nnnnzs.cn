@@ -1,22 +1,17 @@
 "use client";
 
 import React from 'react';
-import { Alert, Button, Checkbox, Modal, Space, Switch, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Checkbox, Space, Switch, Tag, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import { useTaskNotifications } from '@/contexts/TaskNotificationContext';
 import type { TaskNotificationJobType } from '@/types/task-notification';
-
-interface TaskNotificationSettingsProps {
-  open: boolean;
-  onClose: () => void;
-}
 
 const TYPE_OPTIONS = [
   { label: '图片生成', value: 'image-gen' },
   { label: '语音合成', value: 'tts' },
 ];
 
-export default function TaskNotificationSettings({ open, onClose }: TaskNotificationSettingsProps) {
+export default function TaskNotificationSettings() {
   const {
     supported,
     permission,
@@ -35,7 +30,7 @@ export default function TaskNotificationSettings({ open, onClose }: TaskNotifica
         : <Tag>不支持</Tag>;
 
   return (
-    <Modal title={<Space><BellOutlined />任务通知</Space>} open={open} onCancel={onClose} footer={null}>
+    <Card title={<Space><BellOutlined />任务通知</Space>}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
@@ -93,6 +88,6 @@ export default function TaskNotificationSettings({ open, onClose }: TaskNotifica
           description="站点仍在浏览器中运行时可以通知；浏览器完全退出后的离线推送暂未启用。"
         />
       </div>
-    </Modal>
+    </Card>
   );
 }

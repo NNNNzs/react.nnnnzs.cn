@@ -1,534 +1,115 @@
-/**
- * 用户信息编辑页面
- * 路由: /c/user/info
- */
+/** 个人设置页面，路由：/c/user/info */
+'use client';
 
-"use client";
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Alert, Avatar, Button, Card, Form, Input, Space, Tabs, Tag, Typography, Upload, message } from 'antd';
+import { ArrowLeftOutlined, EditOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
+import axios from 'axios';
+import type { RcFile } from 'antd/es/upload';
+import { useAuth } from '@/contexts/AuthContext';
+import type { UserInfo } from '@/dto/user.dto';
+import { isAdmin, RoleDisplayNames } from '@/types/role';
+import { IMAGE_VIEW, TTS_VIEW } from '@/constants/permissions';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import MediaUpload from '@/components/MediaUpload';
+import ImageCropper from '@/components/ImageCropper';
+import EmailBindingCard from '@/components/EmailBindingCard';
+import PasswordSettingsCard from '@/components/PasswordSettingsCard';
+import NotificationSettingsCard from '@/components/NotificationSettingsCard';
+import TaskNotificationSettings from '@/components/task-notifications/TaskNotificationSettings';
+import WechatBindCard from '@/components/WechatBindCard';
+import GithubBindCard from '@/components/GithubBindCard';
+import FaceRegistrationCard from '@/components/FaceRegistrationCard';
+import LongTermTokenCard from '@/components/LongTermTokenCard';
+import OAuthTokenCard from '@/components/OAuthTokenCard';
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Card,
-  Form,
-  Input,
-  Button,
-  message,
-  Avatar,
-  Space,
-  Typography,
-  Divider,
-  Upload,
-  Tag,
-  Alert,
-  Modal,
-} from "antd";
-import {
-  UserOutlined,
-  SaveOutlined,
-  ArrowLeftOutlined,
-  EditOutlined,
-  LockOutlined,
-} from "@ant-design/icons";
-import axios from "axios";
-import { useAuth } from "@/contexts/AuthContext";
-import type { UserInfo } from "@/dto/user.dto";
-import type { RcFile } from "antd/es/upload";
-import MediaUpload from "@/components/MediaUpload";
-import ImageCropper from "@/components/ImageCropper";
-import WechatBindCard from "@/components/WechatBindCard";
-import GithubBindCard from "@/components/GithubBindCard";
-import FaceRegistrationCard from "@/components/FaceRegistrationCard";
-import LongTermTokenCard from "@/components/LongTermTokenCard";
-import OAuthTokenCard from "@/components/OAuthTokenCard";
-import NotificationSettingsCard from "@/components/NotificationSettingsCard";
-import { isAdmin } from "@/types/role";
-import { RoleDisplayNames } from "@/types/role";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+type ProfileValues = { nickname: string; phone?: string; avatar?: string };
 
-const { Text } = Typography;
-
-/**
- * 用户信息编辑页面组件
- */
 export default function UserInfoPage() {
   const router = useRouter();
-  const { refreshUser } = useAuth();
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
+  const { refreshUser, hasPermission } = useAuth();
+  const [form] = Form.useForm<ProfileValues>();
+  const avatar = Form.useWatch('avatar', form);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [initialValues, setInitialValues] = useState<ProfileValues | null>(null);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropperVisible, setCropperVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordForm] = Form.useForm();
 
-  /**
-   * 加载用户信息
-   */
-  useEffect(() => {
-    const loadUserInfo = async () => {
-      try {
-        const response = await axios.get("/api/user/info");
-        if (response.data.status) {
-          const data = response.data.data;
-          setUserInfo(data);
-          form.setFieldsValue({
-            nickname: data.nickname,
-            mail: data.mail || "",
-            phone: data.phone || "",
-            avatar: data.avatar || "",
-          });
-        } else {
-          message.error(response.data.message || "获取用户信息失败");
-        }
-      } catch (error) {
-        console.error("加载用户信息失败:", error);
-        message.error("加载用户信息失败");
-      }
-    };
-
-    loadUserInfo();
+  const loadUserInfo = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/user/info', { headers: { 'Cache-Control': 'no-store' } });
+      if (!response.data.status) throw new Error(response.data.message || '获取用户信息失败');
+      const data = response.data.data as UserInfo;
+      const values = { nickname: data.nickname, phone: data.phone || '', avatar: data.avatar || '' };
+      setUserInfo(data);
+      setInitialValues(values);
+      form.setFieldsValue(values);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取用户信息失败');
+    }
   }, [form]);
 
-  /**
-   * 提交表单
-   */
-  const handleSubmit = async () => {
+  useEffect(() => { void loadUserInfo(); }, [loadUserInfo]);
+
+  const refreshSettings = useCallback(async () => {
+    await Promise.all([loadUserInfo(), refreshUser()]);
+  }, [loadUserInfo, refreshUser]);
+
+  const submitProfile = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-
-      const response = await axios.put("/api/user/info", values);
-
-      if (response.data.status) {
-        message.success("更新成功");
-        // 刷新用户信息
-        await refreshUser();
-        // 更新本地状态
-        setUserInfo(response.data.data);
-      } else {
-        message.error(response.data.message || "更新失败");
-      }
+      const response = await axios.put('/api/user/info', values);
+      if (!response.data.status) throw new Error(response.data.message || '保存失败');
+      message.success('基本资料已保存');
+      await refreshSettings();
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        console.error("更新用户信息失败:", error);
-        message.error("更新失败");
-      }
-    } finally {
-      setLoading(false);
-    }
+      message.error(error instanceof Error ? error.message : '保存失败');
+    } finally { setLoading(false); }
   };
 
-  /**
-   * 返回上一页
-   */
-  const handleGoBack = () => {
-    router.back();
-  };
-
-  /**
-   * 处理头像区域快速编辑（点击头像编辑按钮）
-   */
-  const handleFileSelect = (file: RcFile) => {
-    // 验证文件类型
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      message.error("只能上传图片文件！");
-      return false;
-    }
-
-    // 验证文件大小
-    const isLt10M = file.size / 1024 / 1024 < 10;
-    if (!isLt10M) {
-      message.error("图片大小不能超过 10MB！");
-      return false;
-    }
-
+  const selectFile = (file: RcFile) => {
+    if (!file.type.startsWith('image/')) { message.error('只能上传图片文件'); return false; }
+    if (file.size / 1024 / 1024 >= 10) { message.error('图片大小不能超过 10MB'); return false; }
     setSelectedFile(file);
     setCropperVisible(true);
-    return false; // 阻止自动上传
+    return false;
   };
 
-  /**
-   * 确认裁剪后上传（用于头像预览区域的快速编辑）
-   */
-  const handleCropperConfirm = async (blob: Blob) => {
-    setUploading(true);
+  const confirmCrop = async (blob: Blob) => {
     try {
-      // 将 Blob 转换为 File
-      const file = new File([blob], "avatar.png", { type: "image/png" });
-      const formData = new FormData();
-      formData.append("inputFile", file);
-
-      const response = await axios.post<{
-        status: boolean;
-        data: string;
-        message?: string;
-      }>("/api/fs/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.data.status) {
-        const url = response.data.data;
-        form.setFieldsValue({ avatar: url });
-        message.success("头像上传成功");
-      } else {
-        message.error(response.data.message || "上传失败");
-      }
+      setUploading(true);
+      const data = new FormData();
+      data.append('inputFile', new File([blob], 'avatar.png', { type: 'image/png' }));
+      const response = await axios.post('/api/fs/upload', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+      if (!response.data.status) throw new Error(response.data.message || '上传失败');
+      form.setFieldValue('avatar', response.data.data);
+      message.success('头像上传成功，保存基本资料后生效');
     } catch (error) {
-      console.error("头像上传失败:", error);
-      message.error("头像上传失败");
-    } finally {
-      setUploading(false);
-    }
+      message.error(error instanceof Error ? error.message : '头像上传失败');
+    } finally { setUploading(false); }
   };
 
-  /**
-   * 关闭裁剪弹窗
-   */
-  const handleCropperClose = () => {
-    setCropperVisible(false);
-    setSelectedFile(null);
-  };
+  const hasTaskNotifications = hasPermission(IMAGE_VIEW) || hasPermission(TTS_VIEW);
+  const hasVerifiedMail = Boolean(userInfo?.mail && userInfo?.mail_verified_at);
 
-  /**
-   * 微信绑定状态变化回调
-   */
-  const handleWechatStatusChange = async () => {
-    // 重新加载用户信息
-    try {
-      const response = await axios.get("/api/user/info");
-      if (response.data.status) {
-        const data = response.data.data;
-        setUserInfo(data);
-      }
-    } catch (error) {
-      console.error("刷新用户信息失败:", error);
-    }
-  };
-
-  /**
-   * 提交修改密码
-   */
-  const handlePasswordSubmit = async () => {
-    try {
-      const values = await passwordForm.validateFields();
-      if (values.newPassword !== values.confirmPassword) {
-        message.error("两次密码不一致");
-        return;
-      }
-      setPasswordLoading(true);
-      const response = await axios.put("/api/user/info", {
-        password: values.newPassword,
-      });
-      if (response.data.status) {
-        message.success("密码修改成功");
-        setPasswordModalOpen(false);
-        passwordForm.resetFields();
-      } else {
-        message.error(response.data.message || "修改失败");
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        console.error("修改密码失败:", error);
-        message.error("修改密码失败");
-      }
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
-  return (
-    <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
-      <AdminPageHeader
-        title="个人中心"
-        extra={
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={handleGoBack}
-            variant="text"
-            size="small"
-          >
-            返回
-          </Button>
-        }
-      />
-
-      <Card>
+  return <div className="w-full max-w-4xl mx-auto h-full overflow-y-auto">
+    <AdminPageHeader title="个人设置" extra={<Button icon={<ArrowLeftOutlined />} onClick={() => router.back()} variant="text" size="small">返回</Button>} />
+    <Tabs items={[
+      { key: 'profile', label: '基本资料', children: <Card loading={!userInfo}>
         <Space orientation="vertical" size="large" className="w-full">
-          {/* 用户头像预览和上传 */}
-          <div className="flex items-center gap-6 pb-4">
-            <div className="relative">
-              <Avatar
-                size={80}
-                icon={<UserOutlined />}
-                src={form.getFieldValue("avatar") || userInfo?.avatar}
-              />
-              <Upload
-                beforeUpload={handleFileSelect}
-                showUploadList={false}
-                accept="image/*"
-                disabled={uploading}
-              >
-                <Button variant="solid" color="primary"
-                  shape="circle"
-                  icon={<EditOutlined />}
-                  size="small"
-                  className="absolute -bottom-1 -right-1 shadow-md"
-                  loading={uploading}
-                  title="编辑头像"
-                />
-              </Upload>
-            </div>
-            <div>
-              <h2 className="mb-1 text-base font-semibold text-slate-950">
-                {userInfo?.nickname || "未设置昵称"}
-              </h2>
-              <Text type="secondary">账号: {userInfo?.account}</Text>
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* 角色显示和权限说明 */}
-          <div className="mb-6">
-            <Space orientation="vertical" size="middle" className="w-full">
-              <div>
-                <Text type="secondary">账户角色：</Text>
-                <Tag
-                  color={isAdmin(userInfo?.role) ? "red" : "blue"}
-                  icon={<UserOutlined />}
-                  className="ml-2"
-                >
-                  {RoleDisplayNames[userInfo?.role as keyof typeof RoleDisplayNames || "user"] || "未知"}
-                </Tag>
-              </div>
-              {isAdmin(userInfo?.role) ? (
-                <Alert
-                  title="管理员权限"
-                  description="您可以管理所有文章、合集、配置和用户"
-                  type="success"
-                  showIcon
-                />
-              ) : (
-                <Alert
-                  title="普通用户权限"
-                  description="您可以创建和编辑自己的文章"
-                  type="info"
-                  showIcon
-                />
-              )}
-            </Space>
-          </div>
-
-          {/* 用户信息表单 */}
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-              className="w-full"
-            >
-            <Form.Item
-              label="昵称"
-              name="nickname"
-              rules={[
-                { required: true, message: "请输入昵称" },
-                { max: 16, message: "昵称最多16个字符" },
-              ]}
-            >
-              <Input placeholder="请输入昵称" size="middle" autoComplete="nickname" />
-            </Form.Item>
-
-            <Form.Item
-              label="邮箱"
-              name="mail"
-              rules={[
-                { type: "email", message: "请输入有效的邮箱地址" },
-                { max: 30, message: "邮箱最多30个字符" },
-              ]}
-            >
-              <Input placeholder="请输入邮箱（可选）" size="middle" type="email" autoComplete="email" />
-            </Form.Item>
-
-            <Form.Item
-              label="手机号"
-              name="phone"
-              rules={[
-                {
-                  pattern: /^1[3-9]\d{9}$/,
-                  message: "请输入有效的手机号",
-                },
-                { max: 11, message: "手机号最多11位" },
-              ]}
-            >
-              <Input placeholder="请输入手机号（可选）" size="middle" autoComplete="tel" />
-            </Form.Item>
-
-            <Form.Item
-              label="头像URL"
-              name="avatar"
-              rules={[
-                { type: "url", message: "请输入有效的URL地址" },
-                { max: 255, message: "URL最多255个字符" },
-              ]}
-              help="可以上传图片或直接输入图片URL"
-            >
-              <MediaUpload
-                placeholder="请输入头像URL（可选）"
-                defaultAspectRatio={1}
-              />
-            </Form.Item>
-
-            <Form.Item>
-              <Space>
-                <Button variant="solid" color="primary"
-                  htmlType="submit"
-                  icon={<SaveOutlined />}
-                  loading={loading}
-                  size="small"
-                >
-                  保存
-                </Button>
-                <Button onClick={() => form.resetFields()} size="small">
-                  重置
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-
-          {/* 修改密码 */}
-          <Divider />
-          <div className="flex items-center justify-between">
-            <div>
-              <Text strong>修改密码</Text>
-              <br />
-              <Text type="secondary" className="text-sm">定期修改密码以提高账户安全</Text>
-            </div>
-            <Button
-              icon={<LockOutlined />}
-              onClick={() => {
-                passwordForm.resetFields();
-                setPasswordModalOpen(true);
-              }}
-              size="small"
-            >
-              修改密码
-            </Button>
-          </div>
+          <div className="flex items-center gap-6"><div className="relative"><Avatar size={80} icon={<UserOutlined />} src={avatar || userInfo?.avatar} /><Upload beforeUpload={selectFile} showUploadList={false} accept="image/*" disabled={uploading}><Button variant="solid" color="primary" shape="circle" icon={<EditOutlined />} size="small" className="absolute -bottom-1 -right-1 shadow-md" loading={uploading} /></Upload></div><div><Typography.Text strong className="block text-base">{userInfo?.nickname || '未设置昵称'}</Typography.Text><Typography.Text type="secondary">账号：{userInfo?.account}</Typography.Text></div></div>
+          <Form form={form} layout="vertical" onFinish={submitProfile}><Form.Item label="昵称" name="nickname" rules={[{ required: true, message: '请输入昵称' }, { max: 16, message: '昵称最多 16 个字符' }]}><Input autoComplete="nickname" /></Form.Item><Form.Item label="手机号" name="phone" rules={[{ pattern: /^$|^1[3-9]\d{9}$/, message: '请输入有效的手机号' }]}><Input autoComplete="tel" /></Form.Item><Form.Item label="头像" name="avatar" rules={[{ type: 'url', message: '请输入有效的 URL 地址' }, { max: 255, message: 'URL 最多 255 个字符' }]} help="可上传图片或直接输入图片 URL"><MediaUpload placeholder="请输入头像 URL" defaultAspectRatio={1} /></Form.Item><Space><Button color="primary" variant="solid" htmlType="submit" icon={<SaveOutlined />} loading={loading}>保存</Button><Button onClick={() => initialValues && form.setFieldsValue(initialValues)}>重置</Button></Space></Form>
         </Space>
-      </Card>
-
-      {/* 微信绑定卡片 */}
-      <div className="mt-6">
-        <WechatBindCard
-          isBound={!!userInfo?.wx_open_id}
-          onStatusChange={handleWechatStatusChange}
-        />
-      </div>
-
-      {/* GitHub 绑定卡片 */}
-      <div className="mt-6">
-        <NotificationSettingsCard hasMail={!!userInfo?.mail} />
-      </div>
-
-      {/* GitHub 绑定卡片 */}
-      <div className="mt-6">
-        <GithubBindCard
-          isBound={!!userInfo?.github_id}
-          githubUsername={userInfo?.github_username || undefined}
-          onStatusChange={handleWechatStatusChange}
-        />
-      </div>
-
-      {/* 人脸识别注册卡片 */}
-      <div className="mt-6">
-        <FaceRegistrationCard
-          onStatusChange={handleWechatStatusChange}
-        />
-      </div>
-
-      {/* 长期Token管理 */}
-      <div className="mt-6">
-        <LongTermTokenCard userId={userInfo?.id?.toString()} />
-      </div>
-
-      {/* OAuth授权管理 */}
-      <div className="mt-6">
-        <OAuthTokenCard userId={userInfo?.id?.toString()} />
-      </div>
-
-      {/* 修改密码弹窗 */}
-      <Modal
-        title="修改密码"
-        open={passwordModalOpen}
-        onOk={handlePasswordSubmit}
-        onCancel={() => {
-          setPasswordModalOpen(false);
-          passwordForm.resetFields();
-        }}
-        okText="确认修改"
-        cancelText="取消"
-        confirmLoading={passwordLoading}
-        destroyOnHidden
-        forceRender
-      >
-        <Form form={passwordForm} layout="vertical" className="mt-4">
-          <Form.Item
-            label="新密码"
-            name="newPassword"
-            rules={[
-              { required: true, message: "请输入新密码" },
-              { min: 6, message: "密码至少6个字符" },
-              { max: 20, message: "密码最多20个字符" },
-            ]}
-          >
-            <Input.Password
-              placeholder="请输入新密码"
-              autoComplete="new-password"
-            />
-          </Form.Item>
-          <Form.Item
-            label="确认密码"
-            name="confirmPassword"
-            dependencies={["newPassword"]}
-            rules={[
-              { required: true, message: "请确认密码" },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue("newPassword") === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error("两次密码不一致"));
-                },
-              }),
-            ]}
-          >
-            <Input.Password
-              placeholder="请再次输入新密码"
-              autoComplete="new-password"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 头像裁剪弹窗 */}
-      <ImageCropper
-        open={cropperVisible}
-        imageSrc={selectedFile}
-        onClose={handleCropperClose}
-        onConfirm={handleCropperConfirm}
-        defaultAspectRatio={1}
-        minCropBoxWidth={100}
-        minCropBoxHeight={100}
-        title="编辑头像"
-      />
-    </div>
-  );
+      </Card> },
+      { key: 'security', label: '账户与安全', children: <Space orientation="vertical" size="middle" className="w-full"><Card><Space orientation="vertical"><div><Typography.Text type="secondary">账户角色：</Typography.Text><Tag color={isAdmin(userInfo?.role) ? 'red' : 'blue'}>{RoleDisplayNames[userInfo?.role as keyof typeof RoleDisplayNames || 'user'] || '未知'}</Tag></div><Typography.Text type="secondary">账号：{userInfo?.account}</Typography.Text>{isAdmin(userInfo?.role) ? <Alert type="success" showIcon title="管理员权限" description="您可以管理所有文章、合集、配置和用户" /> : null}</Space></Card><EmailBindingCard mail={userInfo?.mail} verifiedAt={userInfo?.mail_verified_at} onStatusChange={refreshSettings} /><PasswordSettingsCard hasPassword={Boolean(userInfo?.has_password)} hasVerifiedMail={hasVerifiedMail} onStatusChange={refreshSettings} /></Space> },
+      { key: 'notifications', label: '通知设置', children: <Space orientation="vertical" size="middle" className="w-full"><NotificationSettingsCard hasVerifiedMail={hasVerifiedMail} />{hasTaskNotifications ? <TaskNotificationSettings /> : null}</Space> },
+      { key: 'login', label: '登录方式', children: <Space orientation="vertical" size="middle" className="w-full"><WechatBindCard isBound={Boolean(userInfo?.wx_open_id)} onStatusChange={refreshSettings} /><GithubBindCard isBound={Boolean(userInfo?.github_id)} githubUsername={userInfo?.github_username || undefined} onStatusChange={refreshSettings} /><FaceRegistrationCard onStatusChange={refreshSettings} /></Space> },
+      { key: 'tokens', label: '开发者凭据', children: <Space orientation="vertical" size="middle" className="w-full"><LongTermTokenCard userId={userInfo?.id?.toString()} /><OAuthTokenCard userId={userInfo?.id?.toString()} /></Space> },
+    ]} />
+    <ImageCropper open={cropperVisible} imageSrc={selectedFile} onClose={() => { setCropperVisible(false); setSelectedFile(null); }} onConfirm={confirmCrop} defaultAspectRatio={1} minCropBoxWidth={100} minCropBoxHeight={100} title="编辑头像" />
+  </div>;
 }

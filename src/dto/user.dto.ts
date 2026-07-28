@@ -26,7 +26,10 @@ export interface RegisterDto {
 /**
  * 用户信息（不包含密码）
  */
-export type UserInfo = Omit<TbUser, 'password'>;
+export type UserInfo = Omit<TbUser, 'password'> & {
+  /** 仅在当前用户个人设置接口中返回，避免暴露密码本身 */
+  has_password?: boolean;
+};
 
 /**
  * 登录响应
@@ -104,4 +107,3 @@ export interface PageQueryRes<T> {
   pageNum: number;
   pageSize: number;
 }
-

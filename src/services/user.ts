@@ -262,3 +262,44 @@ export async function resetUserPassword(
     },
   });
 }
+
+/** 更新用户的基础资料，不包含邮箱和密码等敏感字段 */
+export async function updateUserProfile(
+  id: number,
+  dto: Pick<UpdateUserDto, 'nickname' | 'phone' | 'avatar'>,
+): Promise<UserInfo> {
+  return updateUser(id, dto);
+}
+
+/** 写入已验证的邮箱地址 */
+export async function updateVerifiedUserEmail(id: number, mail: string): Promise<UserInfo> {
+  const prisma = await getPrisma();
+  const user = await prisma.tbUser.update({
+    where: { id },
+    data: { mail, mail_verified_at: new Date() },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password, ...userInfo } = user;
+  return userInfo;
+}
+
+/** 解除邮箱绑定 */
+export async function clearUserEmail(id: number): Promise<UserInfo> {
+  const prisma = await getPrisma();
+  const user = await prisma.tbUser.update({
+    where: { id },
+    data: { mail: null, mail_verified_at: null },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password, ...userInfo } = user;
+  return userInfo;
+}
+
+/** 获取密码与邮箱安全状态，仅供已认证的安全接口使用 */
+export async function getUserSecurityState(id: number) {
+  const prisma = await getPrisma();
+  return prisma.tbUser.findUnique({
+    where: { id },
+    select: { password: true, mail: true, mail_verified_at: true },
+  });
+}

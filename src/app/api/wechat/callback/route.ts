@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         user = await prisma.tbUser.create({
           data: {
             account,
-            password: uuidv4(),
+            password: null,
             nickname: scanData?.nickName || '微信用户',
             avatar: scanData?.avatarUrl || '',
             wx_open_id: openId,

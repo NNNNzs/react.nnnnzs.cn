@@ -43,7 +43,7 @@
 | `/c/collections`、`/c/collections/[id]` | 合集管理与编辑 |
 | `/c/collections/[id]/posts` | 合集文章管理 |
 | `/c/comments` | 评论管理 |
-| `/c/user`、`/c/user/info` | 用户管理与个人信息 |
+| `/c/user`、`/c/user/info` | 用户管理与个人设置 |
 | `/c/config` | 系统配置、AI Provider 与场景绑定 |
 | `/c/roles`、`/c/permissions` | RBAC 管理 |
 | `/c/api-registry` | API 注册表 |

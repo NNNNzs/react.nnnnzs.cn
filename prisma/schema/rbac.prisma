@@ -4,9 +4,10 @@ model TbUser {
   role                String?   @db.VarChar(255) // 兼容字段，过渡期保留，后续废弃
   account             String    @db.VarChar(16)
   avatar              String?   @db.VarChar(255)
-  password            String    @db.VarChar(255)
+  password            String?   @db.VarChar(255) // 快捷登录用户在主动设置前不具备密码登录能力
   nickname            String    @db.VarChar(16)
   mail                String?   @db.VarChar(30)
+  mail_verified_at    DateTime? @db.DateTime(0)
   phone               String?   @db.VarChar(11)
   registered_ip       String?   @db.VarChar(16)
   registered_time     DateTime? @db.DateTime(0)

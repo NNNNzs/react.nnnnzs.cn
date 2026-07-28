@@ -146,7 +146,7 @@ interface TaskNotificationContextValue {
 
 ### 3. 浏览器权限与用户偏好
 
-新增 `TaskNotificationSettings`，入口放在登录用户的头部菜单中，名称为“任务通知”。权限只能在用户点击“开启桌面通知”后调用 `Notification.requestPermission()`。
+新增 `TaskNotificationSettings`，作为“个人设置 → 通知设置”中的嵌入面板展示。权限只能在用户点击“开启桌面通知”后调用 `Notification.requestPermission()`。
 
 首期偏好保存在当前浏览器的 `localStorage`，并按用户 ID 隔离：
 
@@ -244,7 +244,7 @@ sequenceDiagram
 
 1. [x] 新增 `TaskNotificationProvider`、Hook 和本地偏好存储。
 2. [x] 在 `src/app/layout.tsx` 的登录态范围内挂载 Provider。
-3. [x] 在 `HeaderUserMenu` 增加“任务通知”设置入口和权限状态说明。
+3. [x] 在“个人设置 → 通知设置”中展示任务通知设置和权限状态说明。
 4. [x] 实现动态轮询、断网恢复、退避和登录用户切换清理。
 
 ### 阶段三：桌面展示与去重
@@ -259,7 +259,7 @@ sequenceDiagram
 1. [x] 图片生成页支持 `jobId` 深链恢复。
 2. [x] TTS 页支持 `jobId` 深链恢复。
 3. [x] 避免当前页面反馈与全局站内通知重复。
-4. [x] 在头部用户菜单的任务通知设置中展示权限和当前活动任务数。
+4. [x] 在个人设置的任务通知区展示权限和当前活动任务数。
 
 ### 阶段五：文档与验收
 

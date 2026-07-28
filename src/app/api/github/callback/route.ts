@@ -14,7 +14,6 @@ import {
   getTokenFromRequest,
   getBaseUrl,
 } from '@/lib/auth';
-import bcrypt from 'bcryptjs';
 import { proxyFetch } from '@/lib/proxy-fetch';
 
 /**
@@ -145,11 +144,6 @@ export async function GET(request: NextRequest) {
       
       if (!user) {
         // 创建新用户
-        const randomPassword = bcrypt.hashSync(
-          Math.random().toString(36).slice(-8),
-          10
-        );
-
         // 从请求头中解析用户 IP（兼容代理转发）
         const xForwardedFor = request.headers.get('x-forwarded-for');
         const realIp = request.headers.get('x-real-ip');
@@ -163,11 +157,12 @@ export async function GET(request: NextRequest) {
             account: `gh_${githubUser.login}`,
             nickname: githubUser.name || githubUser.login,
             avatar: githubUser.avatar_url,
-            password: randomPassword,
+            password: null,
             github_id: String(githubUser.id),
             github_username: githubUser.login,
             github_access_token: accessToken,
             mail: githubEmail,
+            mail_verified_at: githubEmail ? new Date() : null,
             registered_ip: ip,
             registered_time: new Date(),
             status: 1,
@@ -181,7 +176,7 @@ export async function GET(request: NextRequest) {
             github_username: githubUser.login,
             github_access_token: accessToken,
             avatar: githubUser.avatar_url,
-            ...(user.mail ? {} : { mail: githubEmail }),
+            ...(user.mail ? {} : { mail: githubEmail, mail_verified_at: githubEmail ? new Date() : null }),
           },
         });
       }
@@ -249,7 +244,7 @@ export async function GET(request: NextRequest) {
           github_id: String(githubUser.id),
           github_username: githubUser.login,
           github_access_token: accessToken,
-          ...(currentUser.mail ? {} : { mail: githubEmail }),
+          ...(currentUser.mail ? {} : { mail: githubEmail, mail_verified_at: githubEmail ? new Date() : null }),
         },
       });
 

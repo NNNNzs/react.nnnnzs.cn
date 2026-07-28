@@ -13,8 +13,12 @@ export async function login(account: string, password: string): Promise<{ token:
     return null;
   }
 
+  if (!user.password) {
+    throw new Error('该账号尚未设置登录密码，请使用已绑定的快捷登录方式进入个人设置后初始化密码');
+  }
+
   // 验证密码
-  const isPasswordValid = await verifyPassword(password, user.password || '');
+  const isPasswordValid = await verifyPassword(password, user.password);
   if (!isPasswordValid) {
     return null;
   }
