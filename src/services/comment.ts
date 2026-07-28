@@ -205,7 +205,7 @@ export async function createComment(
           select: { id: true, mail: true, notification_settings: true },
         })
       : [];
-    const targetUrl = `${post.path || `/post/${post.id}`}#comment-${comment.id}`;
+    const targetUrl = post.path || `/post/${post.id}`;
     const preview = truncateNotificationPreview(comment.content);
     const deliveries: Array<{
       notificationId: number;

@@ -60,7 +60,7 @@ export default function NotificationBell() {
   };
 
   const menu = (
-    <div className="w-80 p-2">
+    <div className="w-80 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between px-2 pb-2">
         <Typography.Text strong>通知</Typography.Text>
         <Button type="link" size="small" icon={<CheckOutlined />} onClick={() => void markAllRead()} disabled={!unreadCount}>全部已读</Button>
@@ -83,8 +83,8 @@ export default function NotificationBell() {
   );
 
   return (
-    <Dropdown popupRender={() => menu} trigger={['click']} placement="bottomRight">
-      <button type="button" className="p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="通知">
+    <Dropdown popupRender={() => menu} trigger={['hover']} placement="bottomRight">
+      <button type="button" className="cursor-pointer p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="通知">
         <Badge count={unreadCount} size="small" overflowCount={99}><BellOutlined className="text-lg" /></Badge>
       </button>
     </Dropdown>

@@ -1,5 +1,5 @@
 import { getPrisma } from '@/lib/prisma';
-import { createUnsubscribeToken } from '@/lib/notification-unsubscribe';
+import { createNotificationReadToken, createUnsubscribeToken } from '@/lib/notification-unsubscribe';
 import type { NotificationType } from '@/types/notification';
 import { isEmailNotificationEnabled } from '@/services/notification';
 import { parseNotificationSettings } from '@/types/notification';
@@ -58,6 +58,7 @@ export async function deliverNotificationEmail(input: EmailNotificationInput) {
     const apiKey = apiKeyConfig?.status === 0 ? null : apiKeyConfig?.value?.trim();
     if (!apiKey) throw new Error('未配置邮件服务 API Key');
     const unsubscribeToken = createUnsubscribeToken(input.recipientId, input.type);
+    const readToken = createNotificationReadToken(input.recipientId, input.notificationId, input.targetUrl);
     const response = await fetch(getEmailApiUrl(), {
       method: 'POST',
       headers: {
@@ -73,7 +74,8 @@ export async function deliverNotificationEmail(input: EmailNotificationInput) {
           actorName: input.actorName,
           postTitle: input.postTitle,
           preview: input.preview,
-          targetUrl: `${getSiteUrl()}${input.targetUrl}`,
+          targetUrl: `${getSiteUrl()}/api/notifications/open?token=${encodeURIComponent(readToken)}`,
+          readTrackingPixelUrl: `${getSiteUrl()}/api/notifications/open?token=${encodeURIComponent(readToken)}&mode=pixel`,
           unsubscribeUrl: `${getSiteUrl()}/api/notifications/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`,
         },
       }),
