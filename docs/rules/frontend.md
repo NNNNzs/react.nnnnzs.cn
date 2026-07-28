@@ -6,9 +6,9 @@
 > 本规范定义了 Next.js App Router、React 19、Ant Design 等前端开发标准。
 >
 > **相关功能设计文档**:
-> - [合集功能设计](../designs/collection-design.md) - 文章合集的前端实现
-> - [评论系统设计](../designs/comment-system-design.md) - 评论功能的前端组件
-> - [性能优化计划](../designs/performance-optimization-plan.md) - 前端性能优化实施记录
+> - [合集功能设计](../designs/features/collection-design.md) - 文章合集的前端实现
+> - [评论系统设计](../designs/features/comment-system-design.md) - 评论功能的前端组件
+> - [性能优化计划](../designs/infra/performance-optimization-plan.md) - 前端性能优化实施记录
 
 ## Next.js App Router 约定
 
@@ -1101,7 +1101,7 @@ MediaUpload（对外组件，业务层使用）
 - JavaScript 性能（LOW-MEDIUM）
 
 ### 参考文档
-- [性能优化计划](/docs/designs/performance-optimization-plan.md) - 项目实施记录
+- [性能优化计划](../designs/infra/performance-optimization-plan.md) - 项目实施记录
 - [Vercel React Best Practices](https://github.com/vercel/next.js/tree/canary/packages/react-best-practices)
 
 ### 已优化的组件

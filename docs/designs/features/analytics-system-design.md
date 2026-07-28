@@ -3,8 +3,8 @@
 > **本文档定位**: 技术设计文档 - 说明统计系统的设计方案和实现细节
 >
 > **开发实施规范**详见:
-> - [后端开发规范](../rules/backend.md) - API 路由实现
-> - [数据库开发规范](../rules/database.md) - 点赞记录表设计
+> - [后端开发规范](../../rules/backend.md) - API 路由实现
+> - [数据库开发规范](../../rules/database.md) - 点赞记录表设计
 
 ## 概述
 
@@ -325,7 +325,7 @@ async function cleanupOldRecords() {
 
 | 文件路径 | 修改内容 |
 |---------|---------|
-| `prisma/schema.prisma` | 添加 TbLikeRecord 表 |
+| `prisma/schema/blog.prisma` | `TbLikeRecord` 表 |
 | `src/app/api/post/fav/route.ts` | IP 防刷逻辑 |
 | `src/app/api/collections/[identifier]/likes/route.ts` | IP 防刷逻辑 |
 | `src/app/layout.tsx` | 集成 GoogleAnalytics |

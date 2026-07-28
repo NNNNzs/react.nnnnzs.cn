@@ -480,7 +480,7 @@ sequenceDiagram
 +----------+     +----------+
 
 ❌ 图片格式
-![架构图](./images/architecture.png)
+![架构图]\(path/to/architecture.png)
 
 ✅ Mermaid 格式
 ```mermaid

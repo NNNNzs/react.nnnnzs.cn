@@ -3,7 +3,7 @@
 > **用途**: 为 `NNNNzs` 夜间模式、`/chat` 夜间回答风格、首页 3D 房间和文章日志流提供风格词库与设计母题。
 > **创建日期**: 2026-06-29
 > **最后更新**: 2026-06-29
-> **相关文档**: [站点级昼夜风格语义系统](../designs/day-night-style-system.md) | [首页 3D 昼夜双主题](../designs/homepage-3d-day-night.md)
+> **相关文档**: [站点级昼夜风格语义系统](../designs/homepage/day-night-style-system.md) | [首页 3D 昼夜双主题](../designs/homepage/homepage-3d-day-night.md)
 
 ## 使用原则
 

@@ -11,7 +11,6 @@
 - [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
 - [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成 Run 观测和系统级 Prompts 管理；下一步从 Run 转 Eval Case 并推进 Golden Dataset）
-- [Prisma 7 升级](./prisma-7-upgrade.md) — ✅ 已完成（Prisma 7.8.0、`prisma.config.ts`、MariaDB adapter、生成客户端导入、类型检查、构建与 Dockerfile.prod 验证已落地）
 - [AI Provider 配置管理重构](./ai-provider-config.md) — 🔄 进行中（Provider + 场景绑定代码已落地；待数据迁移与全场景手动验收）
 
 ---
@@ -25,6 +24,7 @@
 - [RAG 系统重构](../designs/archive/rag-system-refactor.md) - 向量化系统简化（已完成）
 - [聊天系统 LangChain/LangGraph 迁移](../designs/archive/chat-langchain-migration.md) - 迁移至 LangGraph 技术栈（2026-05-10 完成）
 - [管理后台移动端适配优化](../designs/archive/admin-mobile-ux.md) - 响应式 Sider/Drawer 切换（commit 6f046a2 完成）
+- [Prisma 7 升级](../designs/archive/prisma-7-upgrade.md) - Prisma 7.8.0、MariaDB adapter 与 multi-file schema 升级
 
 ### 已删除
 
@@ -81,4 +81,4 @@
 
 ---
 
-**最后更新**: 2026-07-16
+**最后更新**: 2026-07-28

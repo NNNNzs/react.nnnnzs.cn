@@ -17,7 +17,7 @@
 
 ## 三视图原型
 
-![赛博朋克首页房间三视图原型](../plans/images/cyberpunk-homepage-layout/room-layout-three-views.png)
+![赛博朋克首页房间三视图原型](../../plans/images/cyberpunk-homepage-layout/room-layout-three-views.png)
 
 这张图是后续调布局、替换模型和校验相机视角的主参考图。
 

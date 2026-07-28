@@ -304,7 +304,7 @@ echo "export MCP_TOKEN=LTK_xxx" >> ~/.bashrc  # 可能泄露
 
 ## 📚 相关文档
 
-- [MCP OAuth 2.0 设计文档](../designs/mcp-oauth-design.md)
+- [MCP OAuth 2.0 设计文档](../designs/infra/mcp-oauth-design.md)
 - [MCP 合集使用指南](./mcp-collections-guide.md)
 - [OAuth 2.0 RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
 - [PKCE RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)

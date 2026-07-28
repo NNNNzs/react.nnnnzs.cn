@@ -20,7 +20,7 @@
 - `/chat` 要切换：回答风格也应根据当前日间/夜间模式注入不同语气。
 - 代码要抽象：后续使用类似 `i18n` 的文案工具维护 `day/night` 两套描述，而不是组件里散落三元表达式。
 
-站点级设计详见：[站点级昼夜风格语义系统](../designs/day-night-style-system.md)。赛博朋克元素资料库详见：[赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md)。
+站点级设计详见：[站点级昼夜风格语义系统](../designs/homepage/day-night-style-system.md)。赛博朋克元素资料库详见：[赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md)。
 
 品牌解释：
 
@@ -281,7 +281,7 @@ fov: 68
 | 上 | `+Y` | 天花板方向 |
 | 下 | `-Y` | 地面方向 |
 
-当前布局基准见 [赛博朋克首页房间布局规范](../designs/cyberpunk-homepage-room-layout.md)，原型参考图为 `docs/plans/images/cyberpunk-homepage-layout/room-layout-three-views.png`。
+当前布局基准见 [赛博朋克首页房间布局规范](../designs/homepage/cyberpunk-homepage-room-layout.md)，原型参考图为 `docs/plans/images/cyberpunk-homepage-layout/room-layout-three-views.png`。
 
 ### 空间分区
 

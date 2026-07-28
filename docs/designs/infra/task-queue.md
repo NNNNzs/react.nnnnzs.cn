@@ -3,7 +3,7 @@
 > **状态**: 已实施
 > **创建日期**: 2026-06-30
 > **实现文件**: `src/services/queue/task-queue.ts`
-> **相关文档**: [向量化队列](vector/queue.md) | [AI 图片生成](image-gen.md)
+> **相关文档**: [向量化队列](../vector/queue.md) | [AI 图片生成](../ai/image-gen.md)
 
 ## 概述
 

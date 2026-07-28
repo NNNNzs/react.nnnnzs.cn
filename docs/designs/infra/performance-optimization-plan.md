@@ -3,8 +3,8 @@
 > **本文档定位**: 技术设计文档 - 说明性能优化的实施方案和最佳实践
 >
 > **开发实施规范**详见:
-> - [前端开发规范](../rules/frontend.md) - React 性能优化规范
-> - [代码风格](../rules/code-style.md) - 性能相关的代码规范
+> - [前端开发规范](../../rules/frontend.md) - React 性能优化规范
+> - [代码风格](../../rules/code-style.md) - 性能相关的代码规范
 >
 > **开发时使用**: `/vercel-react-best-practices` skill
 

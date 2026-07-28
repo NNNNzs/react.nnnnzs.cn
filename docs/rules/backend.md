@@ -5,10 +5,10 @@
 > 本规范定义了 Next.js API 路由、服务层、认证授权等开发标准。
 >
 > **相关功能设计文档**:
-> - [权限系统设计](../designs/permission-design.md) - 多层权限防护架构
-> - [MCP OAuth 2.0 设计](../designs/mcp-oauth-design.md) - OAuth 认证集成
-> - [评论系统设计](../designs/comment-system-design.md) - 评论功能实现
-> - [实体变更日志设计](../designs/entity-change-design.md) - 数据追踪系统
+> - [权限系统设计](../designs/infra/permission-design.md) - 多层权限防护架构
+> - [MCP OAuth 2.0 设计](../designs/infra/mcp-oauth-design.md) - OAuth 认证集成
+> - [评论系统设计](../designs/features/comment-system-design.md) - 评论功能实现
+> - [实体变更日志设计](../designs/features/entity-change-design.md) - 数据追踪系统
 
 ## API 路由规范
 
@@ -1287,7 +1287,7 @@ MCP 服务器已从自定义头部认证升级为标准 OAuth 2.0 Bearer Token �
 
 **认证方式**：使用 `Authorization: Bearer <token>` 标准方式
 **认证适配器**：`src/services/mcpAuth.ts`
-**详细设计**：[MCP OAuth 2.0 认证设计](../designs/mcp-oauth-design.md)
+**详细设计**：[MCP OAuth 2.0 认证设计](../designs/infra/mcp-oauth-design.md)
 
 #### 认证实现
 
@@ -1325,7 +1325,7 @@ const ensureAuth = async () => {
 #### 参考资料
 - [MCP 官方文档](https://modelcontextprotocol.io)
 - [MCP 规范](https://spec.modelcontextprotocol.io)
-- [MCP OAuth 2.0 设计](../designs/mcp-oauth-design.md)
+- [MCP OAuth 2.0 设计](../designs/infra/mcp-oauth-design.md)
 
 ## IP 地址获取规范
 

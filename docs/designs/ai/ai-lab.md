@@ -4,7 +4,7 @@
 > **创建日期**：2026-07-04
 > **最后更新**：2026-07-12
 > **相关计划**：[AI Lab / LLM 学习实验台建设计划](../../plans/ai-lab-llm-learning.md)
-> **相关文档**：[Agent 聊天系统](chat/rag-chat.md) | [向量化总览](vector/overview.md) | [语义搜索](search/semantic-search.md) | [AI Provider 配置管理](ai-config-profiles.md)
+> **相关文档**：[Agent 聊天系统](../chat/rag-chat.md) | [向量化总览](../vector/overview.md) | [语义搜索](../search/semantic-search.md) | [AI Provider 配置管理](ai-config-profiles.md)
 
 ## 概述
 

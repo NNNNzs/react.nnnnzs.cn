@@ -1,579 +1,131 @@
 # 数据库开发规范
 
-> **本文档定位**: 开发者操作手册 - 说明如何正确使用 Prisma 和 MySQL
->
-> 本规范定义了数据库模型定义、迁移、查询优化等开发标准。
->
-> **相关功能设计文档**:
-> - [实体变更日志设计](../designs/entity-change-design.md) - 数据变更追踪系统的数据库设计
-> - [评论系统设计](../designs/comment-system-design.md) - 评论功能的数据库模型
-> - [合集功能设计](../designs/collection-design.md) - 文章合集的数据库设计
-> - [Agent 聊天系统](../designs/chat/rag-chat.md) - 聊天会话和消息记录的数据库设计
+> 本文档是 Prisma 与 MySQL 开发的 source of truth。数据库结构的最终事实来源是 `prisma/schema/*.prisma`。
 
-## 数据库技术栈
+## 技术栈与配置
 
-### 核心技术
-- **ORM**: Prisma 7.8.0
-- **数据库**: MySQL 5.7+
-- **迁移工具**: Prisma db push（同步数据库结构）
+- ORM：Prisma 7.8.0
+- 数据库：MySQL
+- Driver adapter：`@prisma/adapter-mariadb` 7.8.0
+- 结构同步：`prisma db push`
+- Client 封装：`src/lib/prisma.ts`
+- Client 输出：`src/generated/prisma-client`
 
-### 数据库连接配置
+`DATABASE_URL` 由 `prisma.config.ts` 读取。`prisma/schema/base.prisma` 只声明 MySQL provider，不要把 URL 写回 schema。
+
+## Schema 布局
+
+| 文件 | 当前模型 |
+|---|---|
+| `base.prisma` | generator、datasource |
+| `blog.prisma` | `TbPost`、`TbConfig`、`TbPostVersion`、`TbCollection`、`TbCollectionPost`、`TbComment`、`TbNotification`、`TbNotificationDelivery`、`TbLikeRecord`、`TbEntityChangeLog` |
+| `rbac.prisma` | `TbUser`、`LongTermToken`、`TbRole`、`TbPermission`、`TbRolePermission`、`TbUserRole`、`TbApiRegistry` |
+| `ai.prisma` | `TbAiProvider`、`TbAiScenario`、`TbAiScenarioBinding`、`TbAiJob`、`TbAiTemplate`、`TbAiTemplateVersion`、`TbImageGenLogLegacy`、`TbChatSession`、`TbChatMessage`、`TbAiLabRun` |
+| `content.prisma` | `ContentTopic`、`ContentDraft`、`ContentDraftSlide`、`ContentAsset` |
+
+不要在文档或业务代码中假设存在单文件 `prisma/schema.prisma`。图片与 TTS 新任务写入 `TbAiJob`；`TbImageGenLogLegacy` 仅保留旧表兼容，不接收新任务。
+
+## 当前关键数据约定
+
+### 博客与互动
+
+- `TbPost` 使用 `Int` 自增主键，通过 `created_by` 关联 `TbUser`。
+- 向量化状态位于 `TbPost.rag_status`、`rag_error`、`rag_updated_at`。
+- 合集与文章通过 `TbCollectionPost` 多对多关联，`[collection_id, post_id]` 唯一。
+- 评论回复使用 `TbComment.parent_id` 自关联。
+- 通知由 `TbNotification` 持久化，外部投递审计位于 `TbNotificationDelivery`。
+- 点赞防刷记录位于 `TbLikeRecord`，实体审计位于 `TbEntityChangeLog`。
+
+### 用户与 RBAC
+
+- 用户、角色、权限通过 `TbUserRole` 与 `TbRolePermission` 关联。
+- 权限码配置源是 `TbPermission`；API 自描述同步到 `TbApiRegistry`。
+- 长期 Token 使用 `LongTermToken`，不要另建后台 Token 页面专用表。
+
+### AI 与任务
+
+- Provider 与模型清单位于 `TbAiProvider`。
+- 场景绑定位于 `TbAiScenarioBinding`，内置/自定义场景元数据位于 `TbAiScenario`。
+- 通用异步任务位于 `TbAiJob`，`type` 当前包括 `image-gen`、`tts`、`text-gen`。
+- `TbAiJob.job_id` 是对外 UUID；状态为 `PENDING`、`PROCESSING`、`SUCCESS`、`FAILED`。
+- 图片专属参数存入 `ext_json`，生成资源使用 `reserved_cdn_url`、`cos_key`、`cdn_url`。
+- Prompt 模板正文版本化存储在 `TbAiTemplateVersion`，主表只保存身份与当前版本。
+
+### 内容创作中台
+
+- `ContentTopic` 管理选题。
+- `ContentDraft` 管理平台草稿，`ContentDraftSlide` 管理小红书等分页内容。
+- `ContentAsset` 管理上传、外链与 AI 生成素材。
+
+字段、relation、index、default 与物理表名必须直接查看对应 `.prisma` 文件，不在规范中复制可能漂移的完整模型。
+
+## 命名与建模
+
+- Prisma model 沿用现有 `Tb*` 或 `Content*` 风格。
+- 物理表通过 `@@map` 使用 `tb_*` 或 `content_*`。
+- 现有字段使用 snake_case；新字段跟随所在模型风格。
+- 主键默认使用 `Int @id @default(autoincrement())`，除非当前 schema 明确采用其他类型。
+- 时间字段按语义选择 `@default(now())`、`@updatedAt` 或 nullable，不要机械补齐。
+- 软删除只用于已有 `is_delete` 约定的模型，不要假设所有表都有软删除。
+- relation 删除行为必须显式审查；审计记录通常使用 `SetNull`，强所有权子项才使用 `Cascade`。
+- 高频筛选、排序和通知轮询必须有与查询顺序匹配的索引。
+
+## 开发流程
+
+1. 修改 `prisma/schema/` 下的对应模块。
+2. 格式化并验证 schema。
+3. 审查 `db push` 的 destructive change 提示。
+4. 同步开发数据库。
+5. 重新生成 Client。
+6. 更新消费该模型的服务、类型、脚本与文档。
+7. 运行 typecheck。
+
 ```bash
-DATABASE_URL="mysql://user:password@host:port/database"
+npx prisma format
+npx prisma validate
+pnpm prisma:push
+pnpm prisma:generate
+pnpm typecheck
 ```
 
-## 数据模型定义
+项目不使用 `prisma migrate dev` 作为常规结构同步流程。生产环境执行 `db push` 前必须备份数据库。
 
-### Prisma Schema 位置
-- **目录**: `prisma/schema/`
-- **入口配置**: `prisma.config.ts`
-- **生成备份**: `src/generated/prisma-client/schema.prisma`
+## Prisma Client 使用
 
-Schema 使用目录化拆分：
-
-- `base.prisma`: generator / datasource
-- `blog.prisma`: 文章、合集、评论、实体变更日志
-- `rbac.prisma`: 用户、长期 Token、角色权限、接口注册表
-- `ai.prisma`: AI 任务、聊天记录、AI Lab Run
-- `content.prisma`: 内容创作中台 `content_*` 模型
-
-### Prisma Client 运行时缓存
-
-开发环境会在 `global.prisma` 缓存 Prisma Client，减少热更新时重复创建连接。新增模型后，即使已经执行 `pnpm prisma:push` 和 `prisma generate`，正在运行的 dev server 仍可能持有旧 client，表现为新模型 delegate 为 `undefined`，例如 `prisma.contentDraft.findMany` 报 `Cannot read properties of undefined`。
-
-当前 `src/lib/prisma.ts` 会检查内容中台模型 delegate（`contentTopic`、`contentDraft`、`contentDraftSlide`、`contentAsset`）和 AI 模板 delegate（`tbAiTemplate`、`tbAiTemplateVersion`）。如果全局缓存 client 缺少这些 delegate，会自动创建新的 Prisma Client。若后续新增更多模型且出现类似错误，先确认已重新生成 client，再检查 `global.prisma` 的 delegate 自检是否需要扩展；手动重启 dev server 也可以清掉旧缓存。
-
-### 实体命名规范
-- **表名**: `tb_` 前缀 + 小写 + 下划线（如：`tb_post`, `tb_user`）
-- **字段名**: 小写 + 下划线（如：`created_at`, `user_id`）
-- **主键**: `id` (BigInt, Auto Increment)
-- **软删除**: `is_delete` (Int, 0=正常, 1=删除)
-- **时间戳**:
-  - `created_at` (DateTime, @default(now()))
-  - `updated_at` (DateTime, @updatedAt)
-
-### 基础实体模板
-```prisma
-// 示例：文章表
-model TbPost {
-  id         Int       @id @default(autoincrement())
-  path       String    @db.VarChar(255)
-  title      String?   @db.VarChar(255)
-  category   String?   @db.VarChar(255)
-  tags       String?   @db.VarChar(255)  // 存储为逗号分隔的字符串
-  date       DateTime? @db.DateTime(0)
-  updated    DateTime? @db.DateTime(0)
-  cover      String?   @db.VarChar(255)
-  layout     String?   @db.VarChar(255)
-  content    String    @db.Text
-  description String?  @db.VarChar(500)
-  visitors   Int?      @default(0)
-  likes      Int?      @default(0)
-  hide       String?   @default("0") @db.VarChar(255)
-  is_delete  Int       @default(0)
-  created_by  Int?     // 创建人ID
-
-  // 关联关系
-  creator            TbUser?            @relation(fields: [created_by], references: [id])
-  versions           TbPostVersion[]
-  collectionPosts    TbCollectionPost[]
-  comments           TbComment[]
-
-  @@index([is_delete])
-  @@index([category, hide])
-  @@map("tb_post")
-}
-
-// 示例：用户表
-model TbUser {
-  id              Int       @id @default(autoincrement())
-  role            String?   @db.VarChar(255)
-  account         String    @db.VarChar(16)
-  avatar          String?   @db.VarChar(255)
-  password        String    @db.VarChar(255)
-  nickname        String    @db.VarChar(16)
-  mail            String?   @db.VarChar(30)
-  github_id       String?   @db.VarChar(255)
-  github_username String?   @db.VarChar(255)
-  status          Int       @default(1)
-
-  // 关联关系
-  posts             TbPost[]
-  collections       TbCollection[]
-  comments          TbComment[]
-  createdChangeLogs TbEntityChangeLog[] @relation("EntityChangeLogCreator")
-
-  @@unique([account])
-  @@map("tb_user")
-}
-
-// 示例：评论表（支持回复）
-model TbComment {
-  id         Int       @id @default(autoincrement())
-  post_id    Int       // 关联文章ID
-  user_id    Int       // 评论者用户ID
-  parent_id  Int?      // 父评论ID（用于回复），null 表示顶级评论
-  content    String    @db.Text
-  status     Int       @default(1)  // 0=隐藏, 1=显示
-  is_delete  Int       @default(0)
-  like_count Int       @default(0)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-
-  // 关联关系
-  post    TbPost     @relation("PostComments", fields: [post_id], references: [id])
-  user    TbUser     @relation("UserComments", fields: [user_id], references: [id])
-  parent  TbComment? @relation("CommentReplies", fields: [parent_id], references: [id])
-  replies TbComment[] @relation("CommentReplies")
-
-  @@index([post_id, is_delete])
-  @@index([user_id, is_delete])
-  @@index([parent_id])
-  @@index([created_at])
-  @@map("tb_comment")
-}
-
-// 示例：实体变更日志表
-model TbEntityChangeLog {
-  id          Int      @id @default(autoincrement())
-  entity_id   Int      // 实体ID（文章ID、合集ID等）
-  entity_type String   @db.VarChar(50)  // POST, COLLECTION, CATEGORY, TAG 等
-  field_name  String   @db.VarChar(100)
-  old_value   String?  @db.Text
-  new_value   String?  @db.Text
-  value_type  String   @db.VarChar(20)  // string, number, boolean, array, object
-  created_at  DateTime @default(now())
-  created_by  Int?     // 操作人ID（可能为null，如系统操作）
-
-  creator TbUser? @relation("EntityChangeLogCreator", fields: [created_by], references: [id])
-
-  @@index([entity_id, entity_type])
-  @@index([entity_type, created_at])
-  @@index([created_by, created_at])
-  @@map("tb_entity_change_log")
-}
-
-// 示例：点赞记录表（IP 防刷）
-model TbLikeRecord {
-  id          Int      @id @default(autoincrement())
-  target_type String   @db.VarChar(50)  // POST, COLLECTION, COMMENT
-  target_id   Int
-  ip_address  String   @db.VarChar(45)   // IPv4/IPv6
-  created_at  DateTime @default(now())
-
-  @@index([target_type, target_id, ip_address], name: "idx_target_ip")
-  @@index([created_at], name: "idx_created_at")
-  @@map("tb_like_record")
-}
-
-// 示例：聊天会话表（登录用户或游客）
-model TbChatSession {
-  id            Int       @id @default(autoincrement())
-  user_id       Int?
-  device_id     String?   @db.VarChar(36)
-  title         String?   @db.VarChar(255)
-  message_count Int       @default(0)
-  ip_address    String?   @db.VarChar(45)
-  user_agent    String?   @db.Text
-  is_delete     Int       @default(0)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-
-  user     TbUser?         @relation(fields: [user_id], references: [id])
-  messages TbChatMessage[]
-
-  @@index([user_id, created_at], name: "idx_session_user_time")
-  @@index([device_id, created_at], name: "idx_session_device_time")
-  @@index([created_at], name: "idx_session_created_at")
-  @@map("tb_chat_session")
-}
-
-// 示例：聊天消息表
-model TbChatMessage {
-  id         Int      @id @default(autoincrement())
-  session_id Int
-  role       String   @db.VarChar(20)
-  content    String   @db.Text
-  metadata   Json?
-  created_at DateTime @default(now())
-
-  session TbChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
-
-  @@index([session_id, created_at], name: "idx_msg_session_time")
-  @@map("tb_chat_message")
-}
-```
-
-## 数据库迁移规范
-
-### 重要原则
-**✅ 本项目使用 Prisma db push 同步数据库结构**
-
-### 迁移开发流程
-
-#### 1. 修改 Schema
-```bash
-# 1. 修改 prisma/schema/ 下对应模块文件
-vim prisma/schema/blog.prisma
-
-# 2. 同步数据库结构（开发环境）
-pnpm prisma db push
-
-# 3. 生成 Prisma Client
-pnpm prisma generate
-```
-
-#### 2. 开发环境工作流
-```bash
-# 完整的开发流程
-# 1. 修改 Schema
-vim prisma/schema/blog.prisma
-
-# 2. 推送数据库变更（会自动创建/修改表结构）
-pnpm prisma db push
-
-# 3. 生成 Client（如果 Schema 有变更）
-pnpm prisma generate
-
-# 4. 更新代码
-vim src/services/xxx.ts
-```
-
-#### 3. 生产环境部署
-```bash
-# 1. 备份数据库（重要！）
-mysqldump -u root -p production_db > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# 2. 推送数据库变更
-pnpm prisma db push
-
-# 3. 生成 Client
-pnpm prisma generate
-
-# 4. 重启应用
-pm2 restart ecosystem.config.cjs
-```
-
-### Prisma db push 说明
-
-#### 功能
-- 将 Prisma Schema 中的变更直接同步到数据库
-- 自动创建新表、添加字段、创建索引等
-- 适用于快速开发和原型设计
-
-#### 注意事项
-- ⚠️ **生产环境使用前务必备份数据库**
-- ⚠️ 某些复杂变更（如删除字段）可能需要手动处理
-- ⚠️ 不会保留迁移历史，适合小团队或快速迭代项目
-
-#### 常用选项
-```bash
-# 基本推送
-pnpm prisma db push
-
-# 跳过生成 Client（如果只需要同步结构）
-pnpm prisma db push --skip-generate
-
-# 接受数据丢失风险（谨慎使用）
-pnpm prisma db push --accept-data-loss
-```
-
-## 数据库操作规范
-
-### 查询操作
-
-#### 基础查询
-```typescript
-// src/services/user.ts
-import { getPrisma } from '@/lib/prisma'
-
-/**
- * 获取用户信息
- */
-export async function getUserById(id: bigint) {
-  const prisma = await getPrisma()
-
-  return await prisma.tbUser.findUnique({
-    where: { id, is_delete: 0 },
-    select: {
-      id: true,
-      username: true,
-      nickname: true,
-      avatar: true,
-      email: true,
-      role: true,
-      // 不返回 password
-    },
-  })
-}
-```
-
-#### 分页查询
-```typescript
-/**
- * 分页获取文章列表
- */
-export async function getPostList(params: {
-  pageNum?: number
-  pageSize?: number
-  hide?: string
-}) {
-  const { pageNum = 1, pageSize = 10, hide = '0' } = params
-  const prisma = await getPrisma()
-
-  const where = {
-    is_delete: 0,
-    ...(hide !== 'all' && { hide }),
-  }
-
-  const [record, total] = await Promise.all([
-    prisma.tbPost.findMany({
-      where,
-      orderBy: { date: 'desc' },
-      take: pageSize,
-      skip: (pageNum - 1) * pageSize,
-    }),
-    prisma.tbPost.count({ where }),
-  ])
-
-  return { record, total, pageNum, pageSize }
-}
-```
-
-### 插入操作
+业务代码统一复用：
 
 ```typescript
-/**
- * 创建用户
- */
-export async function createUser(data: {
-  username: string
-  password: string
-  nickname?: string
-}) {
-  const prisma = await getPrisma()
-
-  // 检查用户名是否存在
-  const existing = await prisma.tbUser.findUnique({
-    where: { username: data.username },
-  })
-
-  if (existing) {
-    throw new Error('用户名已存在')
-  }
-
-  return await prisma.tbUser.create({
-    data: {
-      username: data.username,
-      password: data.password, // 已加密
-      nickname: data.nickname || data.username,
-      role: 'user',
-    },
-  })
-}
+import { prisma } from '@/lib/prisma';
 ```
 
-### 更新操作
+需要延迟初始化的旧调用可使用 `getPrisma()`，但不要直接 `new PrismaClient()`。开发环境通过 `global.prisma` 复用连接；生成 Client 后若 delegate 仍是旧版本，重启 dev server。
 
-```typescript
-/**
- * 软删除文章
- */
-export async function deletePost(id: bigint) {
-  const prisma = await getPrisma()
+查询规则：
 
-  return await prisma.tbPost.update({
-    where: { id },
-    data: {
-      is_delete: 1,
-      updated_at: new Date(),
-    },
-  })
-}
-```
+- 用 `select` 限定返回字段，避免返回密码、API key、Token 等敏感列。
+- 列表接口必须分页并设置稳定排序。
+- 独立写操作需要原子性时使用 `$transaction`。
+- 避免 N+1；合理使用 relation `include`、聚合或批量查询。
+- 批量写入优先 `createMany` / `updateMany`，同时确认返回值语义。
+- 用户输入不得拼接进 `$queryRawUnsafe` / `$executeRawUnsafe`。
 
-### 事务操作
+## Schema 变更检查
 
-```typescript
-/**
- * 创建文章并更新统计
- */
-export async function createPostWithStats(data: {
-  title: string
-  content: string
-  userId: bigint
-}) {
-  const prisma = await getPrisma()
+- 是否修改了正确的模块文件？
+- model / field 映射是否与现有物理表一致？
+- relation、unique、index 与删除行为是否完整？
+- 是否影响 seed、同步脚本、权限注册或队列恢复？
+- 是否运行 format、validate、generate、typecheck？
+- 是否同步更新 `docs/rules/`、相关设计文档和 README？
+- 生产同步前是否完成备份和 destructive change 审查？
 
-  return await prisma.$transaction(async (tx) => {
-    // 1. 创建文章
-    const post = await tx.tbPost.create({
-      data: {
-        title: data.title,
-        content: data.content,
-        user_id: data.userId,
-      },
-    })
+## 相关文档
 
-    // 2. 更新用户统计
-    await tx.tbUser.update({
-      where: { id: data.userId },
-      data: {
-        post_count: {
-          increment: 1,
-        },
-      },
-    })
+- [Prisma 版本与项目配置](../reference/PRISMA_VERSION_NOTE.md)
+- [实体变更日志设计](../designs/features/entity-change-design.md)
+- [评论系统设计](../designs/features/comment-system-design.md)
+- [合集功能设计](../designs/features/collection-design.md)
+- [后台任务队列系统](../designs/infra/task-queue.md)
+- [Agent 聊天系统](../designs/chat/rag-chat.md)
 
-    return post
-  })
-}
-```
-
-## 性能优化
-
-### 索引策略
-在 Prisma Schema 中定义索引：
-```prisma
-model TbPost {
-  // ... 字段定义
-
-  @@index([is_delete])
-  @@index([category, hide])
-  @@index([date])
-  @@map("tb_post")
-}
-```
-
-### 避免全表扫描
-```typescript
-// ❌ 不好的做法 - 全表模糊查询
-const posts = await prisma.tbPost.findMany({
-  where: {
-    OR: [
-      { title: { contains: keyword } },
-      { content: { contains: keyword } },
-    ],
-  },
-})
-
-// ✅ 好的做法 - 限制查询范围
-const posts = await prisma.tbPost.findMany({
-  where: {
-    is_delete: 0,
-    hide: '0',
-    OR: [
-      { title: { contains: keyword } },
-      { content: { contains: keyword } },
-    ],
-  },
-  take: 20, // 限制结果数量
-  orderBy: { date: 'desc' },
-})
-```
-
-### 批量操作优化
-```typescript
-// ❌ N+1 问题
-for (const id of userIds) {
-  await prisma.tbUser.findUnique({ where: { id } })
-}
-
-// ✅ 批量查询
-await prisma.tbUser.findMany({
-  where: { id: { in: userIds } }
-})
-```
-
-## 安全规范
-
-### 防止 SQL 注入
-- ✅ 使用 Prisma（自动防护）
-- ❌ 不要拼接 SQL 字符串
-
-### 敏感字段保护
-```typescript
-// ✅ 不返回敏感字段
-const user = await prisma.tbUser.findUnique({
-  where: { id },
-  select: {
-    id: true,
-    username: true,
-    nickname: true,
-    avatar: true,
-    // 不返回：password, token 等
-  },
-})
-```
-
-## 常用命令
-
-```bash
-# 生成 Prisma Client
-pnpm prisma generate
-
-# 查看数据库（GUI）
-pnpm prisma studio
-
-# 同步数据库结构（开发环境）
-pnpm prisma db push
-
-# 从数据库同步 Schema（反向工程）
-pnpm prisma db pull
-
-# 验证 Schema 语法
-pnpm prisma validate
-
-# 格式化 Schema
-pnpm prisma format
-```
-
-## 工作流程
-
-### 1. 新功能开发
-```bash
-# 1. 修改 Schema
-vim prisma/schema/blog.prisma
-
-# 2. 同步数据库结构
-pnpm prisma db push
-
-# 3. 生成 Client
-pnpm prisma generate
-
-# 4. 更新代码
-vim src/services/xxx.ts
-```
-
-### 2. 生产部署
-```bash
-# 1. 备份数据库（必须！）
-mysqldump -u root -p prod_db > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# 2. 同步数据库结构
-pnpm prisma db push
-
-# 3. 生成 Client
-pnpm prisma generate
-
-# 4. 重启应用
-pm2 restart ecosystem.config.cjs
-```
-
-### 3. 从现有数据库生成 Schema
-```bash
-# 如果数据库已存在，可以从数据库反向生成 Schema
-pnpm prisma db pull
-
-# 然后生成 Client
-pnpm prisma generate
-```
-
-## 核心原则
-
-1. ✅ **使用 Prisma db push** 同步数据库结构
-2. ✅ **修改 Schema 后立即同步** 避免结构不一致
-3. ✅ **生产环境部署前备份数据库** 防止数据丢失
-4. ✅ **使用索引** 优化查询性能
-5. ✅ **软删除** 保护数据安全
-6. ✅ **敏感字段** 不返回给前端
+最后更新：2026-07-28。

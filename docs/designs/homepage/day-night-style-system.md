@@ -3,7 +3,7 @@
 > **状态**: 🔄 进行中（基础工具定义已落地）
 > **创建日期**: 2026-06-29
 > **最后更新**: 2026-06-29
-> **相关文档**: [首页 3D 昼夜双主题](./homepage-3d-day-night.md) | [赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md) | [Agent 聊天系统](./chat/rag-chat.md)
+> **相关文档**: [首页 3D 昼夜双主题](./homepage-3d-day-night.md) | [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md) | [Agent 聊天系统](../chat/rag-chat.md)
 
 ## 定位
 

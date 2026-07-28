@@ -342,9 +342,9 @@ COMPOSE_FILE="docker-compose.custom.yml"
 
 ## 📚 相关文档
 
-- [Docker 部署完整指南](../docs/DOCKER_DEPLOYMENT.md)
-- [快速开始指南](../docs/QUICK_START.md)
-- [文件清单](../docs/FILES_CREATED.md)
+- [项目部署说明](../CLAUDE.md#部署)
+- [快速开始](../README.md#快速开始)
+- [项目结构](../README.md#项目结构)
 - [主 README](../README.md)
 
 ## 💡 最佳实践

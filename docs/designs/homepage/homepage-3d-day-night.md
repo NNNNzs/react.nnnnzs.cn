@@ -2,7 +2,7 @@
 
 > **最后更新**: 2026-07-11
 > **上级设计**: [站点级昼夜风格语义系统](./day-night-style-system.md)
-> **风格资料**: [赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md)
+> **风格资料**: [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)
 
 ## 背景
 
@@ -42,7 +42,7 @@ const title = selectStyleText(homeCopy.feedTitle, variant);
 
 - `Feed Overview`、`LOG 01`、`SYNC MORE LOGS` 这类终端日志语气可以继续打磨。
 - 日间对应文案需要回到阅读档案、书页、笔记、阳光房间，不要使用夜间词的浅色版。
-- 夜间词库、`Relic`、`Mikoshi`、神龛、记忆芯片等命名候选统一参考 [赛博朋克风格元素资料库](../reference/cyberpunk-style-elements.md)。
+- 夜间词库、`Relic`、`Mikoshi`、神龛、记忆芯片等命名候选统一参考 [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)。
 
 ## 体验叙事
 
@@ -67,7 +67,7 @@ flowchart LR
 
 当前夜间原型图：
 
-![文章列表赛博日志流原型](../plans/images/cyberpunk-homepage-prototypes/article-log-feed-prototype.png)
+![文章列表赛博日志流原型](../../plans/images/cyberpunk-homepage-prototypes/article-log-feed-prototype.png)
 
 夜间列表方向：
 
@@ -385,7 +385,7 @@ Footer
 
 ### 设计感打磨（2026-06-29 P0）
 
-背景：实机评审发现房间「信息量足、设计感不足」，根源是家具全是 `boxGeometry` 方块堆叠 + 到处贴 `NeonStrip` 霓虹灯条。布局本身没问题，本轮只动材质/灯光/圆角，不动布局。完整评审见 [赛博朋克 3D 首页改造计划 · 〇一](../plans/cyberpunk-homepage-3d.md)。
+背景：实机评审发现房间「信息量足、设计感不足」，根源是家具全是 `boxGeometry` 方块堆叠 + 到处贴 `NeonStrip` 霓虹灯条。布局本身没问题，本轮只动材质/灯光/圆角，不动布局。完整评审见 [赛博朋克 3D 首页改造计划 · 〇一](../../plans/cyberpunk-homepage-3d.md)。
 
 已落地的 P0 调整（与本节「视觉规范」「主题 preset」相关的部分）：
 

@@ -3,9 +3,9 @@
 > **本文档定位**: 技术设计文档 - 说明合集功能的设计原理和实现方案
 >
 > **开发实施规范**详见:
-> - [前端开发规范](../rules/frontend.md) - 前端组件和页面实现
-> - [后端开发规范](../rules/backend.md) - API 路由和服务层
-> - [数据库开发规范](../rules/database.md) - 数据模型定义
+> - [前端开发规范](../../rules/frontend.md) - 前端组件和页面实现
+> - [后端开发规范](../../rules/backend.md) - API 路由和服务层
+> - [数据库开发规范](../../rules/database.md) - 数据模型定义
 
 ## 一、需求概述
 
@@ -1038,7 +1038,7 @@ const CollectionSelector: React.FC<Props> = ({ value = [], onChange, disabled })
 
 ### 8.1 Prisma 迁移脚本
 
-在 `prisma/schema.prisma` 中添加新模型后，生成迁移：
+在 `prisma/schema/blog.prisma` 中修改模型后，同步 schema：
 
 ```bash
 # 1. 修改 schema.prisma
@@ -1176,7 +1176,7 @@ initDemoCollection().catch(console.error);
 ## 附录：相关文件清单
 
 ### 数据库
-- `prisma/schema.prisma` - 新增模型
+- `prisma/schema/blog.prisma` - 合集相关模型
 
 ### 服务层
 - `src/services/collection.ts` - 新增（主要业务逻辑）

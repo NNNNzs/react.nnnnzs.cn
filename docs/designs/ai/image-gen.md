@@ -9,7 +9,7 @@
 ## API 信息
 
 - **上游端点:** 支持 `https://www.micuapi.ai/v1/chat/completions` 和 OpenAI 兼容的 `/v1/images/generations`、`/v1/images/edits`
-- **模型:** `gpt-image-2`
+- **模型:** 由 `image_gen` 场景绑定选择，示例使用 `gpt-image-2`
 - **认证方式:** `Authorization: Bearer $API_KEY`
 - **返回格式:** 图片 URL（OSS 托管，非 base64）
 
@@ -141,7 +141,7 @@ MCP 状态查询使用 `ResourceTemplate`，客户端读取工具返回的 `reso
 
 ### POST /api/image-gen
 
-**权限:** 仅 admin，支持 LTK 长期 Token
+**权限:** `image:view`，支持登录态与具备该权限的长期 Token
 
 **请求体:**
 ```typescript
@@ -196,7 +196,7 @@ AI Lab 识图使用与图文编辑一致的“添加识别图”弹窗：本地�
 
 ## 后台队列监控与重试
 
-> 通用队列设计详见：[后台任务队列系统](task-queue.md)
+> 通用队列设计详见：[后台任务队列系统](../infra/task-queue.md)
 
 > 更新日期：2026-07-01
 
@@ -204,7 +204,7 @@ AI Lab 识图使用与图文编辑一致的“添加识别图”弹窗：本地�
 
 ### UUID 来源
 
-`tb_image_gen_log.job_id` 是对外任务 ID，用于 API 查询、MCP resource URI 和队列去重。由业务服务在创建任务前用 `crypto.randomUUID()` 显式生成，连同 `cos_key`、`reserved_cdn_url` 在**单次 `create`** 中一起写入（保证原子性，避免崩溃留下 `cos_key` 为空的 PENDING 行）。schema 的 `@default(uuid())` 仅作为 DB 层兜底。基于该 ID 预分配：
+新任务写入通用表 `tb_ai_job`，并设置 `type='image-gen'`；`tb_image_gen_log` 只通过 `TbImageGenLogLegacy` 保留历史数据。`tb_ai_job.job_id` 是对外任务 ID，用于 API 查询、MCP resource URI 和队列去重。业务服务在创建任务前生成 UUID，并将 `cos_key`、`reserved_cdn_url`、`ext_json` 在单次 `create` 中写入，随后加入内存队列。基于该 ID 预分配：
 
 ```text
 COS Key: /upload/image-gen/{jobId}.png

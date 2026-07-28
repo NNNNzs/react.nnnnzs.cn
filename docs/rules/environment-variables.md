@@ -143,7 +143,7 @@ QDRANT_TIMEOUT=30000
 - `tts.default_model`：默认模型
 - `tts.default_voice`：默认音色
 
-详见：[TTS 功能设计](../designs/tts-page.md)
+详见：[TTS 功能设计](../designs/ai/tts-page.md)
 
 ## 配置文件
 

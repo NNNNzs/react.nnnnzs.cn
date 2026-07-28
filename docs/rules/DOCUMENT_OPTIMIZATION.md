@@ -34,7 +34,7 @@
 - 内容: API 实现标准、代码示例、检查清单
 - 引用: 权限系统设计 (设计原理)
 
-**设计文档**: [权限系统设计](../designs/permission-design.md)
+**设计文档**: [权限系统设计](../designs/infra/permission-design.md)
 - 定位: 技术设计文档
 - 内容: 设计原则、架构原理、技术选型
 - 引用: 权限系统开发规范 (实施标准)
@@ -59,10 +59,10 @@
 - 新增: 引用相关功能设计文档
 
 **相关设计文档:**
-- [权限系统设计](../designs/permission-design.md)
-- [MCP OAuth 2.0 设计](../designs/mcp-oauth-design.md)
-- [评论系统设计](../designs/comment-system-design.md)
-- [实体变更日志设计](../designs/entity-change-design.md)
+- [权限系统设计](../designs/infra/permission-design.md)
+- [MCP OAuth 2.0 设计](../designs/infra/mcp-oauth-design.md)
+- [评论系统设计](../designs/features/comment-system-design.md)
+- [实体变更日志设计](../designs/features/entity-change-design.md)
 
 ### 4. 数据库开发 ✅
 
@@ -72,9 +72,9 @@
 - 新增: 引用相关功能设计文档
 
 **相关设计文档:**
-- [实体变更日志设计](../designs/entity-change-design.md)
-- [评论系统设计](../designs/comment-system-design.md)
-- [合集功能设计](../designs/collection-design.md)
+- [实体变更日志设计](../designs/features/entity-change-design.md)
+- [评论系统设计](../designs/features/comment-system-design.md)
+- [合集功能设计](../designs/features/collection-design.md)
 
 ### 5. 前端开发 ✅
 
@@ -84,30 +84,30 @@
 - 新增: 引用相关功能设计文档
 
 **相关设计文档:**
-- [合集功能设计](../designs/collection-design.md)
-- [评论系统设计](../designs/comment-system-design.md)
-- [性能优化计划](../designs/performance-optimization-plan.md)
+- [合集功能设计](../designs/features/collection-design.md)
+- [评论系统设计](../designs/features/comment-system-design.md)
+- [性能优化计划](../designs/infra/performance-optimization-plan.md)
 
 ### 6. 功能设计文档 ✅
 
 所有功能设计文档都添加了反向引用:
 
-**合集功能** ([collection-design.md](../designs/collection-design.md))
+**合集功能** ([collection-design.md](../designs/features/collection-design.md))
 - 引用: 前端规范、后端规范、数据库规范
 
-**评论系统** ([comment-system-design.md](../designs/comment-system-design.md))
+**评论系统** ([comment-system-design.md](../designs/features/comment-system-design.md))
 - 引用: 前端规范、后端规范、数据库规范
 
-**实体变更日志** ([entity-change-design.md](../designs/entity-change-design.md))
+**实体变更日志** ([entity-change-design.md](../designs/features/entity-change-design.md))
 - 引用: 后端规范、数据库规范
 
-**MCP OAuth** ([mcp-oauth-design.md](../designs/mcp-oauth-design.md))
+**MCP OAuth** ([mcp-oauth-design.md](../designs/infra/mcp-oauth-design.md))
 - 引用: 后端规范、权限规范
 
-**性能优化** ([performance-optimization-plan.md](../designs/performance-optimization-plan.md))
+**性能优化** ([performance-optimization-plan.md](../designs/infra/performance-optimization-plan.md))
 - 引用: 前端规范、代码风格
 
-**统计分析** ([analytics-system-design.md](../designs/analytics-system-design.md))
+**统计分析** ([analytics-system-design.md](../designs/features/analytics-system-design.md))
 - 引用: 后端规范、数据库规范
 
 ## 🔗 双向引用关系
@@ -118,21 +118,21 @@
 ```markdown
 > **本文档定位**: 开发者操作手册
 >
-> **设计原理**详见: [对应的设计文档](../designs/xxx.md)
+> **设计原理**详见: `docs/designs/<category>/<name>.md`
 ```
 
 **设计 → 规范**:
 ```markdown
 > **本文档定位**: 技术设计文档
 >
-> **开发实施**详见: [对应的规范文档](../rules/xxx.md)
+> **开发实施**详见: `docs/rules/<name>.md`
 ```
 
 ### 引用矩阵
 
 | 规范文档 | 相关设计文档 |
 |---------|-------------|
-| [权限系统规范](permission.md) | [权限系统设计](../designs/permission-design.md) |
+| [权限系统规范](permission.md) | [权限系统设计](../designs/infra/permission-design.md) |
 | [向量检索规范](vector-search.md) | [向量化总览](../designs/vector/overview.md) |
 | [后端开发规范](backend.md) | 权限、MCP OAuth、评论、实体变更 |
 | [数据库开发规范](database.md) | 实体变更、评论、合集 |

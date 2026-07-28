@@ -3,7 +3,7 @@
 > **状态**: ✅ 已实施（已迁移至 LangGraph ReAct Agent）
 > **创建日期**: 2026-01-17
 > **最后更新**: 2026-07-14
-> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [站点级昼夜风格语义系统](../day-night-style-system.md) | [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)
+> **相关文档**: [语义搜索](../search/semantic-search.md) | [向量化总览](../vector/overview.md) | [站点级昼夜风格语义系统](../homepage/day-night-style-system.md) | [赛博朋克风格元素资料库](../../reference/cyberpunk-style-elements.md)
 
 ## 概述
 

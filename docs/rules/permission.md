@@ -4,7 +4,7 @@
 >
 > 本规范定义了项目中所有 API 的权限验证标准，所有开发人员必须严格遵守。
 >
-> **RBAC 设计文档**: [RBAC 可配置权限设计](../designs/rbac-config-design.md)
+> **RBAC 设计文档**: [RBAC 可配置权限设计](../designs/infra/rbac-config-design.md)
 
 ## 核心原则
 
@@ -376,7 +376,7 @@ if (hasPermission(COLLECTION_VIEW)) {
 
 ## 相关文档
 
-- **RBAC 设计文档**: [docs/designs/rbac-config-design.md](../designs/rbac-config-design.md)
+- **RBAC 设计文档**: [docs/designs/infra/rbac-config-design.md](../designs/infra/rbac-config-design.md)
 - **权限码配置源**: `tb_permission`
 - **权限码常量**: `src/constants/permissions.ts`（仅代码引用）
 - **权限检查函数**: `src/lib/permission.ts`

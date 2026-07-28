@@ -15,8 +15,8 @@
 ### 核心特性
 
 - **智能文本切片**：按 Markdown 结构语义分块，保留代码块和行内代码
-- **批量向量化**：使用 BAAI/bge-large-zh-v1.5 模型生成 1024 维向量
-- **异步队列**：通过内存队列管理向量化任务，不阻塞主流程
+- **批量向量化**：通过 `embedding` 场景绑定选择 OpenAI-compatible Provider 与模型
+- **异步队列**：通过通用 `TaskQueue` 的向量适配器管理内存任务，不阻塞主流程
 - **全量更新策略**：每次重新生成向量，保证数据一致性
 - **错误重试机制**：自动重试失败任务，提高可靠性
 
@@ -54,9 +54,9 @@ flowchart TB
         D6["移除 Markdown 语法"]
     end
 
-    subgraph API["Embedding API SiliconFlow"]
-        E1["模型: BAAI/bge-large-zh-v1.5"]
-        E2["维度: 1024"]
+    subgraph API["OpenAI-compatible Embedding Provider"]
+        E1["Provider / 模型来自 embedding 场景绑定"]
+        E2["当前 Qdrant collection 维度: 1024"]
         E3["批量调用: 减少请求次数"]
     end
 
@@ -134,7 +134,7 @@ export interface VectorDataItem {
 ### 文章状态字段
 
 ```prisma
-// prisma/schema.prisma
+// prisma/schema/blog.prisma
 
 model TbPost {
   // ... 其他字段
@@ -192,7 +192,7 @@ export async function simpleEmbedPost(
 |------|------|------|
 | `/api/post/[id]/embed` | POST | 手动触发向量化 |
 | `/api/post/embed/batch` | POST | 批量向量化 |
-| `/api/embedding/queue/status` | GET | 获取队列状态 |
+| `/api/post/embed/queue` | GET | 获取当前进程的向量队列状态 |
 
 ## Qdrant 部署
 
@@ -269,10 +269,9 @@ services:
 
 ## 参考资料
 
-### Embedding 模型
+### Embedding Provider
 
-- **BAAI/bge-large-zh-v1.5**: https://huggingface.co/BAAI/bge-large-zh-v1.5
-- **SiliconFlow**: https://docs.siliconflow.cn/
+运行时通过 `/c/config` 的 `embedding` 场景绑定选择 Provider、模型与 dimensions。当前 Qdrant collection 固定为 1024 维，切换不同维度的模型前必须同步重建 collection。
 
 ### 向量数据库
 
@@ -283,11 +282,11 @@ services:
 
 - [语义搜索](../search/semantic-search.md)
 - [Agent 聊天系统](../chat/rag-chat.md)
-- [队列调试指南](../../reference/QUEUE-DEBUG-GUIDE.md)
+- [后台任务队列系统](../infra/task-queue.md)
 
 ---
 
-**文档版本**：v2.0
+**文档版本**：v2.1
 **创建日期**：2026-01-17
-**最后更新**：2026-03-12
+**最后更新**：2026-07-28
 **状态**：✅ 已实现

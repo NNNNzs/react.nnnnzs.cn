@@ -384,6 +384,6 @@ export async function createChatAgent(systemPrompt: string) {
 **文档版本**：v1.0
 **创建日期**：2026-04-28
 **关联文档**：
-- [聊天系统简化方案](./chat-system-simplification.md)（将被本计划替代）
-- [RAG 聊天系统设计](../designs/chat/rag-chat.md)
-- [后端开发规范](../rules/backend.md)
+- 聊天系统简化方案（已被本计划替代并删除）
+- [RAG 聊天系统设计](../chat/rag-chat.md)
+- [后端开发规范](../../rules/backend.md)

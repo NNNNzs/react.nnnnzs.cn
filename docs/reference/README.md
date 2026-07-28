@@ -28,7 +28,7 @@
 ### 开发工具与调试
 
 #### 队列调试指南
-**文档**: [QUEUE-DEBUG-GUIDE.md](./QUEUE-DEBUG-GUIDE.md)
+**文档**: [后台任务队列系统](../designs/infra/task-queue.md)
 **描述**: 向量化队列系统的调试指南
 **内容**:
 - 队列状态查看

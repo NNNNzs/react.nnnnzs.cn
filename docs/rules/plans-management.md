@@ -109,7 +109,7 @@ mv docs/plans/feature-name.md docs/designs/feature-name.md
 # - 添加参考代码示例
 
 # 3. 创建对应的 cursor 规则引用
-# 在 .cursor/rules/ 中创建规则，指向设计文档
+# 在 docs/rules/ 中创建或更新规则，指向设计文档
 ```
 
 #### 情况 2：归档

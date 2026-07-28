@@ -3,8 +3,8 @@
 > **本文档定位**: 技术设计文档 - 说明实体变更追踪系统的设计原理和实现方案
 >
 > **开发实施规范**详见:
-> - [后端开发规范](../rules/backend.md) - API 路由和服务层实现
-> - [数据库开发规范](../rules/database.md) - 数据模型设计和触发器
+> - [后端开发规范](../../rules/backend.md) - API 路由和服务层实现
+> - [数据库开发规范](../../rules/database.md) - 数据模型设计和触发器
 
 ## 概述
 
@@ -476,8 +476,8 @@ const userActivity = await prisma.tbEntityChangeLog.groupBy({
 
 ## 相关文档
 
-- [数据库规范](../rules/database.md)
-- [目录结构](../rules/directory-structure.md)
+- [数据库规范](../../rules/database.md)
+- [目录结构](../../rules/directory-structure.md)
 - [评论系统设计](./comment-system-design.md)
 
 ## 更新日志

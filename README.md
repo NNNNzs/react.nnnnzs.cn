@@ -163,8 +163,7 @@ src/
 ├── components/              # React 组件
 ├── contexts/                # React Context
 ├── dto/                     # 数据传输对象
-├── entities/                # Prisma 实体
-├── generated/               # Prisma 生成的客户端
+├── generated/               # Prisma 生成的客户端（由 prisma/schema/ 生成）
 ├── hooks/                   # 自定义 Hooks
 ├── lib/                     # 工具库
 ├── services/                # 业务服务层
@@ -192,10 +191,10 @@ src/
 - `/c/edit/[id]` - 编辑文章
 - `/c/collections` - 合集管理
 - `/c/comments` - 评论管理
-- `/c/users` - 用户管理
+- `/c/user` - 用户管理
 - `/c/config` - 配置管理
-- `/c/vector` - 向量管理
-- `/c/tokens` - Token 管理
+- `/c/vector-search` - 向量检索与向量化管理
+- `/c/roles`、`/c/permissions` - 角色与权限管理
 
 ### 内容创作中台
 - `/create` - 内容创作工作台（独立于 `/c`，当前登录用户可访问）
@@ -258,7 +257,7 @@ src/
 3. **API 权限验证**（核心防护）
 4. **服务层过滤**
 
-详见：[权限系统设计](./docs/designs/permission-design.md)
+详见：[权限系统设计](./docs/designs/infra/permission-design.md)
 
 ##  Git 提交规范
 
@@ -268,20 +267,20 @@ fix(scope): 简短描述
 docs(scope): 简短描述
 ```
 
-详见：[Git 规范](./.cursor/rules/git-conventions.mdc)
+详见：[Git 规范](./docs/rules/git-conventions.md)
 
 ##  开发规范
 
-本项目使用 **Cursor IDE 规则系统** 进行开发规范管理，详细规则见 `.cursor/rules/` 目录：
+本项目以 `docs/rules/` 作为开发规范的 source of truth：
 
-- [项目概述](./.cursor/rules/project-overview.mdc)
-- [目录结构](./.cursor/rules/directory-structure.mdc)
-- [环境变量](./.cursor/rules/environment-variables.mdc)
-- [前端开发](./.cursor/rules/frontend.mdc)
-- [后端开发](./.cursor/rules/backend.mdc)
-- [数据库开发](./.cursor/rules/database.mdc)
-- [权限系统](./.cursor/rules/permission.mdc)
-- [向量检索](./.cursor/rules/vector-search.mdc)
+- [项目概述](./docs/rules/project-overview.md)
+- [目录结构](./docs/rules/directory-structure.md)
+- [环境变量](./docs/rules/environment-variables.md)
+- [前端开发](./docs/rules/frontend.md)
+- [后端开发](./docs/rules/backend.md)
+- [数据库开发](./docs/rules/database.md)
+- [权限系统](./docs/rules/permission.md)
+- [向量检索](./docs/rules/vector-search.md)
 
 ##  常用命令
 

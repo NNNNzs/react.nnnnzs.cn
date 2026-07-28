@@ -6,8 +6,8 @@
 > **目标**: 将 MCP 服务从自定义 Headers 认证升级为 OAuth 2.0 标准，兼容 Claude Code CLI
 >
 > **开发实施规范**详见:
-> - [后端开发规范](../rules/backend.md) - MCP API 路由实现
-> - [权限系统开发规范](../rules/permission.md) - OAuth 权限验证
+> - [后端开发规范](../../rules/backend.md) - MCP API 路由实现
+> - [权限系统开发规范](../../rules/permission.md) - OAuth 权限验证
 
 ---
 
@@ -165,7 +165,7 @@ model LongTermToken {
 - `src/lib/prisma.ts` (更新 mock)
 - `src/lib/redis.ts` (添加 setex)
 - `src/dto/user.dto.ts` (添加 Token DTO)
-- `prisma/schema.prisma` (添加 LongTermToken 表)
+- `prisma/schema/rbac.prisma`（`LongTermToken` 模型）
 
 ### 删除文件
 - `src/app/api/mcp/.well-known/` (整个目录，重复)
