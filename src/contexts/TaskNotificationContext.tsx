@@ -36,9 +36,11 @@ import type {
   TaskNotificationPreferences,
   TaskNotificationSnapshot,
 } from '@/types/task-notification';
+import { applyPollJitter, getPollBackoffDelay } from '@/lib/polling';
 
 const ACTIVE_POLL_INTERVAL_MS = 3000;
-const IDLE_POLL_INTERVAL_MS = 15000;
+const IDLE_VISIBLE_POLL_INTERVAL_MS = 60000;
+const IDLE_HIDDEN_POLL_INTERVAL_MS = 120000;
 const MAX_BACKOFF_MS = 60000;
 
 interface TaskNotificationContextValue {
@@ -182,10 +184,13 @@ export function TaskNotificationProvider({ children }: { children: ReactNode }) 
     let running = false;
     let failures = 0;
 
-    const schedule = (delay: number) => {
+    const schedule = (delay: number, jitter = true) => {
       if (stopped) return;
       if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void poll(), delay);
+      timer = window.setTimeout(
+        () => void poll(),
+        jitter ? applyPollJitter(delay) : delay,
+      );
     };
 
     const poll = async () => {
@@ -203,7 +208,7 @@ export function TaskNotificationProvider({ children }: { children: ReactNode }) 
         if (response.status === 400 && cursor) {
           clearTaskNotificationCursor(user.id);
           failures = 0;
-          schedule(0);
+          schedule(0, false);
           return;
         }
         if (response.status === 401 || response.status === 403) return;
@@ -233,18 +238,21 @@ export function TaskNotificationProvider({ children }: { children: ReactNode }) 
           ? 0
           : payload.data.activeJobs.length > 0
             ? ACTIVE_POLL_INTERVAL_MS
-            : IDLE_POLL_INTERVAL_MS);
+            : document.hidden
+              ? IDLE_HIDDEN_POLL_INTERVAL_MS
+              : IDLE_VISIBLE_POLL_INTERVAL_MS,
+        payload.data.hasMore ? false : true);
       } catch (error) {
         failures += 1;
         console.error('Poll task notifications failed:', error);
-        schedule(Math.min(IDLE_POLL_INTERVAL_MS * (2 ** (failures - 1)), MAX_BACKOFF_MS));
+        schedule(getPollBackoffDelay(15000, failures, MAX_BACKOFF_MS));
       } finally {
         running = false;
       }
     };
 
     const pollNow = () => {
-      if (!stopped && navigator.onLine) schedule(0);
+      if (!stopped && navigator.onLine) schedule(0, false);
       const currentPermission = getCurrentPermission();
       setPermission(currentPermission);
       if (currentPermission === 'denied') updatePreferences({ enabled: false });
@@ -256,7 +264,7 @@ export function TaskNotificationProvider({ children }: { children: ReactNode }) 
     window.addEventListener('online', pollNow);
     document.addEventListener('visibilitychange', handleVisibility);
     void registerTaskNotificationServiceWorker();
-    schedule(0);
+    schedule(0, false);
 
     return () => {
       stopped = true;

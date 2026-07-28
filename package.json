@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:polling": "tsx --test src/lib/polling-load-shedding.test.ts",
     "verify:ai-tools": "tsx --env-file=.env scripts/verify-ai-agent-tools.ts",
     "prisma:generate": "npx prisma generate",
     "prisma:studio": "npx prisma studio",

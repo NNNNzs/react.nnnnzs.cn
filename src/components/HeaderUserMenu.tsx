@@ -95,7 +95,7 @@ export default function HeaderUserMenu() {
           <span className="block h-8 w-24" aria-hidden />
         ) : user ? (
           <Space size="small">
-            <NotificationBell />
+            <NotificationBell userId={user.id} />
             <Dropdown menu={{ items: menuItems }} placement="bottomRight">
               <Space className="cursor-pointer">
                 <Avatar size={32} icon={<UserOutlined />} src={user.avatar} />

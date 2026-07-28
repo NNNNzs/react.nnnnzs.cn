@@ -7,12 +7,19 @@ import {
 } from '@/services/ai-job-notification';
 
 export const runtime = 'nodejs';
+const PRIVATE_NO_STORE_HEADERS = {
+  'Cache-Control': 'private, no-store',
+  Pragma: 'no-cache',
+};
 
 export async function GET(request: NextRequest) {
   try {
     const check = await requireAuth(request);
     if ('error' in check) {
-      return NextResponse.json(errorResponse(check.error), { status: check.status });
+      return NextResponse.json(errorResponse(check.error), {
+        status: check.status,
+        headers: PRIVATE_NO_STORE_HEADERS,
+      });
     }
 
     const cursor = request.nextUrl.searchParams.get('cursor');
@@ -20,18 +27,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(successResponse(snapshot), {
       headers: {
-        'Cache-Control': 'no-store',
-        Pragma: 'no-cache',
+        ...PRIVATE_NO_STORE_HEADERS,
       },
     });
   } catch (error) {
     if (error instanceof InvalidTaskNotificationCursorError) {
-      return NextResponse.json(errorResponse(error.message), { status: 400 });
+      return NextResponse.json(errorResponse(error.message), {
+        status: 400,
+        headers: PRIVATE_NO_STORE_HEADERS,
+      });
     }
     console.error('Query task notifications error:', error);
     return NextResponse.json(
       errorResponse(error instanceof Error ? error.message : '查询任务通知失败'),
-      { status: 500 },
+      { status: 500, headers: PRIVATE_NO_STORE_HEADERS },
     );
   }
 }

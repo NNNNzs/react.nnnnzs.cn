@@ -54,12 +54,6 @@ export async function closeRedis(): Promise<void> {
  * Redis 操作封装
  */
 export class RedisService {
-  private client: Redis;
-
-  constructor() {
-    this.client = getRedisClient();
-  }
-
   /**
    * 设置键值
    */
@@ -73,60 +67,80 @@ export class RedisService {
   ): Promise<string | null> {
     if (mode && typeof duration === 'number') {
       if (mode === 'EX') {
-        return this.client.set(key, value, 'EX', duration);
+        return getRedisClient().set(key, value, 'EX', duration);
       }
-      return this.client.set(key, value, 'PX', duration);
+      return getRedisClient().set(key, value, 'PX', duration);
     }
-    return this.client.set(key, value);
+    return getRedisClient().set(key, value);
   }
 
   /**
    * 获取值
    */
   async get(key: string): Promise<string | null> {
-    return this.client.get(key);
+    return getRedisClient().get(key);
   }
 
   /**
    * 删除键
    */
   async del(key: string): Promise<number> {
-    return this.client.del(key);
+    return getRedisClient().del(key);
   }
 
   /**
    * 检查键是否存在
    */
   async exists(key: string): Promise<number> {
-    return this.client.exists(key);
+    return getRedisClient().exists(key);
   }
 
   /**
    * 设置键值并指定过期时间（秒）
    */
   async setex(key: string, seconds: number, value: string): Promise<string | null> {
-    return this.client.setex(key, seconds, value);
+    return getRedisClient().setex(key, seconds, value);
+  }
+
+  /** 仅在键不存在时写入，并设置秒级过期时间。 */
+  async setIfAbsent(key: string, value: string, seconds: number): Promise<boolean> {
+    return (await getRedisClient().set(key, value, 'EX', seconds, 'NX')) === 'OK';
+  }
+
+  /** 仅当值仍属于当前持有者时删除锁。 */
+  async compareAndDelete(key: string, expectedValue: string): Promise<boolean> {
+    const result = await getRedisClient().eval(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+      1,
+      key,
+      expectedValue,
+    );
+    return Number(result) === 1;
+  }
+
+  async eval(script: string, keys: string[], args: string[]): Promise<unknown> {
+    return getRedisClient().eval(script, keys.length, ...keys, ...args);
   }
 
   /**
    * 设置过期时间
    */
   async expire(key: string, seconds: number): Promise<number> {
-    return this.client.expire(key, seconds);
+    return getRedisClient().expire(key, seconds);
   }
 
   /**
    * 获取剩余过期时间
    */
   async ttl(key: string): Promise<number> {
-    return this.client.ttl(key);
+    return getRedisClient().ttl(key);
   }
 
   /**
    * 获取所有匹配的键
    */
   async keys(pattern: string): Promise<string[]> {
-    return this.client.keys(pattern);
+    return getRedisClient().keys(pattern);
   }
 }
 
@@ -135,4 +149,3 @@ export class RedisService {
  */
 const redisService = new RedisService();
 export default redisService;
-

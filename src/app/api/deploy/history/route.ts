@@ -2,17 +2,20 @@
  * 部署历史查询 API
  * GET /api/deploy/history?limit=24
  *
- * 直接从 GitHub Actions API 查询 Docker Release workflow 的最近运行记录，
- * 不依赖 webhook 累积，首次即可获得真实部署历史。
+ * 页面请求按 5 分钟新鲜度懒加载 GitHub 历史，并与 webhook 实时增量合并。
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { successResponse, errorResponse } from '@/dto/response.dto';
+import { successResponse } from '@/dto/response.dto';
+import {
+  DEPLOY_GITHUB_HISTORY_KEY,
+  DEPLOY_WEBHOOK_HISTORY_KEY,
+  mergeDeployHistories,
+  type DeployHistoryRecord,
+} from '@/lib/deploy-history-cache';
+import { getOrRefreshJsonCache } from '@/lib/redis-json-cache';
 import redisService from '@/lib/redis';
 
 export const runtime = 'nodejs';
-
-const CACHE_KEY = 'deploy:history';
-const CACHE_TTL_SECONDS = 300; // 5 分钟
 
 const REPO_OWNER = 'nnnnzs';
 const REPO_NAME = 'react.nnnnzs.cn';
@@ -30,16 +33,7 @@ interface GitHubWorkflowRun {
   display_title: string;
 }
 
-interface DeployRecord {
-  status: 'deploying' | 'success' | 'failure';
-  timestamp: string;
-  commit: string;
-  version: string;
-  runId: number;
-  url: string;
-}
-
-function mapConclusionToStatus(status: string | null, conclusion: string | null): DeployRecord['status'] {
+function mapConclusionToStatus(status: string | null, conclusion: string | null): DeployHistoryRecord['status'] {
   if (status === 'in_progress' || status === 'queued') return 'deploying';
   if (conclusion === 'success') return 'success';
   return 'failure';
@@ -49,48 +43,56 @@ export async function GET(request: NextRequest) {
   try {
     const limit = Math.min(24, Math.max(1, Number(request.nextUrl.searchParams.get('limit')) || 24));
 
-    const cached = await redisService.get(CACHE_KEY);
-    if (cached) {
-      const data = JSON.parse(cached as string) as DeployRecord[];
-      return NextResponse.json(successResponse(data.slice(0, limit)));
+    const [githubHistory, webhookHistoryJson] = await Promise.all([
+      getOrRefreshJsonCache<DeployHistoryRecord[]>({
+        key: DEPLOY_GITHUB_HISTORY_KEY,
+        ttlSeconds: 300,
+        load: async () => {
+          const token = process.env.GITHUB_TOKEN;
+          const headers: Record<string, string> = {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'nnnnzs.cn',
+          };
+          if (token) headers.Authorization = `Bearer ${token}`;
+
+          const res = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=24`,
+            { headers, next: { revalidate: 300 }, signal: AbortSignal.timeout(8_000) },
+          );
+          if (!res.ok) throw new Error(`GitHub Actions API 请求失败: ${res.status} ${res.statusText}`);
+          const json = (await res.json()) as { workflow_runs: GitHubWorkflowRun[] };
+          return json.workflow_runs.map((run) => ({
+            status: mapConclusionToStatus(run.status, run.conclusion),
+            timestamp: run.created_at,
+            commit: run.head_sha.slice(0, 7),
+            message: run.display_title.split('\n')[0],
+            version: `#${run.run_number}`,
+            runId: run.id,
+            url: run.html_url,
+          }));
+        },
+      }),
+      redisService.get(DEPLOY_WEBHOOK_HISTORY_KEY),
+    ]);
+
+    let webhookHistory: DeployHistoryRecord[] = [];
+    if (webhookHistoryJson) {
+      try {
+        const parsed = JSON.parse(webhookHistoryJson) as unknown;
+        if (Array.isArray(parsed)) webhookHistory = parsed as DeployHistoryRecord[];
+      } catch {
+        // 无效的增量快照不影响 GitHub 历史返回。
+      }
     }
+    const data = mergeDeployHistories(webhookHistory, githubHistory || []);
 
-    const token = process.env.GITHUB_TOKEN;
-    const headers: Record<string, string> = {
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'nnnnzs.cn',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=${limit}`,
-      { headers, next: { revalidate: 300 } },
-    );
-
-    if (!res.ok) {
-      console.error('GitHub Actions API 请求失败:', res.status, res.statusText);
-      return NextResponse.json(successResponse([]));
-    }
-
-    const json = (await res.json()) as { workflow_runs: GitHubWorkflowRun[] };
-
-    const data: DeployRecord[] = json.workflow_runs.map((run) => ({
-      status: mapConclusionToStatus(run.status, run.conclusion),
-      timestamp: run.created_at,
-      commit: run.head_sha.slice(0, 7),
-      message: run.display_title.split('\n')[0],
-      version: `#${run.run_number}`,
-      runId: run.id,
-      url: run.html_url,
-    }));
-
-    await redisService.setex(CACHE_KEY, CACHE_TTL_SECONDS, JSON.stringify(data));
-
-    return NextResponse.json(successResponse(data.slice(0, limit)));
+    return NextResponse.json(successResponse(data.slice(0, limit)), {
+      headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' },
+    });
   } catch (error) {
     console.error('获取部署历史失败:', error);
-    return NextResponse.json(errorResponse('获取部署历史失败'), { status: 500 });
+    return NextResponse.json(successResponse([]), {
+      headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300' },
+    });
   }
 }

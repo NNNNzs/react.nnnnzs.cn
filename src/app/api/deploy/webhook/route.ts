@@ -6,14 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import redisService from '@/lib/redis';
+import { upsertDeployHistory } from '@/lib/deploy-history-cache';
+import { isWebhookAuthorized } from '@/lib/webhook-auth';
 
 export const runtime = 'nodejs';
 
 const DEPLOY_STATUS_KEY = 'deploy:status';
-const DEPLOY_HISTORY_KEY = 'deploy:history';
-const DEPLOY_HISTORY_MAX = 24;
 const DEPLOY_STATUS_TTL_SECONDS = 60 * 60;
-const DEPLOY_HISTORY_TTL_SECONDS = 60 * 60 * 24 * 7;
 const DEPLOY_STATUS_VALUES = new Set(['deploying', 'success', 'failure']);
 
 interface DeployStatusWebhookPayload {
@@ -56,10 +55,7 @@ function isDeployStatusPayload(value: unknown): value is DeployStatusWebhookPayl
 export async function POST(request: NextRequest) {
   try {
     const expectedToken = process.env.DEPLOY_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
-    const authorization = request.headers.get('authorization') || '';
-    const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-
-    if (!expectedToken || token !== expectedToken) {
+    if (!isWebhookAuthorized(request.headers.get('authorization'), expectedToken)) {
       return NextResponse.json(errorResponse('无效的 Webhook Token'), { status: 401 });
     }
 
@@ -88,19 +84,9 @@ export async function POST(request: NextRequest) {
       timestamp: deployStatus.updatedAt,
       commit: deployStatus.commit,
       version: deployStatus.version,
+      runId: deployStatus.runId,
     };
-
-    const existing = await redisService.get(DEPLOY_HISTORY_KEY);
-    const history: unknown[] = existing ? JSON.parse(existing as string) : [];
-    history.unshift(historyRecord);
-    if (history.length > DEPLOY_HISTORY_MAX) {
-      history.length = DEPLOY_HISTORY_MAX;
-    }
-    await redisService.setex(
-      DEPLOY_HISTORY_KEY,
-      DEPLOY_HISTORY_TTL_SECONDS,
-      JSON.stringify(history)
-    );
+    await upsertDeployHistory(historyRecord);
 
     return NextResponse.json(successResponse(deployStatus, '部署状态已更新'));
   } catch (error) {

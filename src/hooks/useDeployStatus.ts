@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useAdaptivePolling } from '@/hooks/useAdaptivePolling';
+import { useCrossTabLeader } from '@/hooks/useCrossTabLeader';
 
 type DeployStatusValue = 'deploying' | 'success' | 'failure';
 
@@ -23,79 +25,55 @@ interface UseDeployStatusResult {
   updatedAt: string;
 }
 
-const POLLING_INTERVAL_MS = 30_000;
+const IDLE_POLL_INTERVAL_MS = 120_000;
+const DEPLOYING_POLL_INTERVAL_MS = 10_000;
+
+type DeployStatusMessage = { kind: 'snapshot'; value: UseDeployStatusResult };
+
+const EMPTY_DEPLOY_STATUS: UseDeployStatusResult = {
+  status: null,
+  commit: '',
+  version: '',
+  updatedAt: '',
+};
 
 /**
  * 轮询部署状态
  */
 export function useDeployStatus(): UseDeployStatusResult {
-  const [deployStatus, setDeployStatus] = useState<UseDeployStatusResult>({
-    status: null,
-    commit: '',
-    version: '',
-    updatedAt: '',
+  const [deployStatus, setDeployStatus] = useState<UseDeployStatusResult>(EMPTY_DEPLOY_STATUS);
+  const { isLeader, broadcast } = useCrossTabLeader<DeployStatusMessage>(
+    'deploy-status',
+    (message) => {
+      if (message.kind === 'snapshot') setDeployStatus(message.value);
+    },
+    true,
+  );
+
+  useAdaptivePolling({
+    enabled: process.env.NODE_ENV !== 'development' && isLeader,
+    initialJitterMaxMs: 3_000,
+    pauseWhenHidden: true,
+    refreshOnVisible: true,
+    backoffBaseMs: 30_000,
+    maxBackoffMs: 300_000,
+    poll: async ({ signal }) => {
+      const response = await fetch('/api/deploy/status', { signal });
+      if (!response.ok) throw new Error(`查询部署状态失败: ${response.status}`);
+      const result = (await response.json()) as DeployStatusApiResponse;
+      if (!result.status) throw new Error('部署状态响应无效');
+
+      const value = result.data ? {
+        status: result.data.status,
+        commit: result.data.commit,
+        version: result.data.version,
+        updatedAt: result.data.updatedAt,
+      } : EMPTY_DEPLOY_STATUS;
+      setDeployStatus(value);
+      broadcast({ kind: 'snapshot', value });
+      return value.status === 'deploying' ? DEPLOYING_POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
+    },
   });
-
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
-
-    let isActive = true;
-    let abortController: AbortController | null = null;
-
-    const fetchDeployStatus = async () => {
-      try {
-        abortController?.abort();
-        abortController = new AbortController();
-
-        const response = await fetch('/api/deploy/status', {
-          cache: 'no-store',
-          signal: abortController.signal,
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const result = (await response.json()) as DeployStatusApiResponse;
-
-        if (!isActive) {
-          return;
-        }
-
-        if (!result.status || !result.data) {
-          setDeployStatus({
-            status: null,
-            commit: '',
-            version: '',
-            updatedAt: '',
-          });
-          return;
-        }
-
-        setDeployStatus({
-          status: result.data.status,
-          commit: result.data.commit,
-          version: result.data.version,
-          updatedAt: result.data.updatedAt,
-        });
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
-      }
-    };
-
-    fetchDeployStatus();
-    const intervalId = window.setInterval(fetchDeployStatus, POLLING_INTERVAL_MS);
-
-    return () => {
-      isActive = false;
-      window.clearInterval(intervalId);
-      abortController?.abort();
-    };
-  }, []);
 
   return deployStatus;
 }

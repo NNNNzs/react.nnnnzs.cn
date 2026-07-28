@@ -27,11 +27,15 @@ export async function GET() {
     const cachedStatus = await redisService.get(DEPLOY_STATUS_KEY);
 
     if (!cachedStatus) {
-      return NextResponse.json(successResponse<DeployStatusPayload | null>(null));
+      return NextResponse.json(successResponse<DeployStatusPayload | null>(null), {
+        headers: { 'Cache-Control': 'public, max-age=5, s-maxage=15, stale-while-revalidate=30' },
+      });
     }
 
     const deployStatus = JSON.parse(cachedStatus) as DeployStatusPayload;
-    return NextResponse.json(successResponse(deployStatus));
+    return NextResponse.json(successResponse(deployStatus), {
+      headers: { 'Cache-Control': 'public, max-age=5, s-maxage=15, stale-while-revalidate=30' },
+    });
   } catch (error) {
     console.error('读取部署状态失败:', error);
     return NextResponse.json(errorResponse('读取部署状态失败'), { status: 500 });

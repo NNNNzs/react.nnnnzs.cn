@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Post } from '@/types';
 import { createDataScreenTexture } from './furniture/shared';
@@ -13,13 +13,15 @@ export interface SceneActivityData {
 export function useSceneActivityData(): SceneActivityData {
   const [commits, setCommits] = useState<CommitEntry[]>([]);
   const [deployHistory, setDeployHistory] = useState<DeployRecord[]>([]);
+  const lastDeployRefreshRef = useRef(0);
+  const lastCommitRefreshRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchJson = async <T,>(url: string): Promise<T[]> => {
       try {
-        const response = await fetch(url, { cache: 'no-store' });
+        const response = await fetch(url);
         if (!response.ok) return [];
         const payload = await response.json() as { status?: boolean; data?: T[] };
         return payload.status && Array.isArray(payload.data) ? payload.data : [];
@@ -30,21 +32,31 @@ export function useSceneActivityData(): SceneActivityData {
 
     const refreshDeploys = async () => {
       const data = await fetchJson<DeployRecord>('/api/deploy/history');
-      if (!cancelled) setDeployHistory(data);
+      if (!cancelled) {
+        setDeployHistory(data);
+        lastDeployRefreshRef.current = Date.now();
+      }
     };
     const refreshCommits = async () => {
       const data = await fetchJson<CommitEntry>('/api/activity/commits?limit=8');
-      if (!cancelled) setCommits(data);
+      if (!cancelled) {
+        setCommits(data);
+        lastCommitRefreshRef.current = Date.now();
+      }
     };
 
     void Promise.all([refreshDeploys(), refreshCommits()]);
-    const deployTimer = window.setInterval(refreshDeploys, 30_000);
-    const commitTimer = window.setInterval(refreshCommits, 300_000);
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastDeployRefreshRef.current >= 300_000) void refreshDeploys();
+      if (now - lastCommitRefreshRef.current >= 600_000) void refreshCommits();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       cancelled = true;
-      window.clearInterval(deployTimer);
-      window.clearInterval(commitTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

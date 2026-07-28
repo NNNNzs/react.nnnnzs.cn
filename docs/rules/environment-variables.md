@@ -108,7 +108,7 @@ GITHUB_TOKEN=ghp_your_github_token
 ```
 
 > **说明**：
-> - `GITHUB_TOKEN` 用于首页 3D 场景的 Git commit 活动数据获取（`GET /api/activity/commits`）。
+> - `GITHUB_TOKEN` 用于页面首次请求或 Redis 快照过期时单飞刷新部署历史和 Git commit；未配置时使用 GitHub 匿名额度。
 > - 不配置时仍可正常运行，但 GitHub API 匿名请求速率限制为 60 次/小时，可能触发限流。
 > - 建议使用 fine-grained personal access token，仅需 `Contents` 只读权限。
 > - 服务端 Redis 缓存 10 分钟，实际 API 调用频率很低。
