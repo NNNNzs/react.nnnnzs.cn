@@ -5,7 +5,7 @@
 > 本规范定义了 Next.js API 路由、服务层、认证授权等开发标准。
 >
 > **相关功能设计文档**:
-> - [权限系统设计](../designs/infra/permission-design.md) - 多层权限防护架构
+> - [配置化 RBAC](../designs/infra/rbac-config-design.md) - 多层权限防护与角色配置
 > - [MCP OAuth 2.0 设计](../designs/infra/mcp-oauth-design.md) - OAuth 认证集成
 > - [评论系统设计](../designs/features/comment-system-design.md) - 评论功能实现
 > - [实体变更日志设计](../designs/features/entity-change-design.md) - 数据追踪系统
@@ -280,14 +280,9 @@ export async function getUserFromToken(request: NextRequest) {
 /**
  * 验证用户权限
  */
-export async function checkPermission(
-  request: NextRequest,
-  requiredRole: string
-): Promise<boolean> {
-  const user = await getUserFromToken(request)
-  if (!user) return false
-
-  return user.role === requiredRole || user.role === 'admin'
+export async function checkPermission(request: NextRequest, permissionCode: string) {
+  const user = await getAuthUserFromRequest(request.headers)
+  return Boolean(user?.permissions.includes(permissionCode))
 }
 ```
 

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         user_info: {
           id: result.userInfo.id,
           account: result.userInfo.account,
-          role: result.userInfo.role,
+          roles: result.userInfo.roles.map((role) => role.code),
           nickname: result.userInfo.nickname
         }
       },
@@ -92,7 +92,7 @@ export async function GET() {
         user_info: {
           id: 1,
           account: 'admin',
-          role: 'admin',
+          roles: ['admin'],
           nickname: '管理员'
         }
       }

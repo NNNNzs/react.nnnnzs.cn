@@ -11,6 +11,7 @@ import { requirePermission } from '@/lib/permission';
 import { USER_VIEW, USER_MANAGE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { prisma } from '@/lib/prisma';
+import { isSystemRoleCode } from '@/constants/roles';
 
 // 更新角色验证 schema
 const updateRoleSchema = z.object({
@@ -139,6 +140,26 @@ export async function PUT(
       );
     }
 
+    if (isSystemRoleCode(existingRole.code) && validationResult.data.status === 0) {
+      return NextResponse.json(errorResponse('系统内置角色不允许停用'), { status: 400 });
+    }
+    if (validationResult.data.status === 0 && existingRole.status === 1) {
+      const usersWithoutAnotherActiveRole = await prisma.tbUser.count({
+        where: {
+          userRoles: {
+            some: { role_id: roleId },
+            none: { role_id: { not: roleId }, role: { status: 1 } },
+          },
+        },
+      });
+      if (usersWithoutAnotherActiveRole > 0) {
+        return NextResponse.json(
+          errorResponse(`该角色是 ${usersWithoutAnotherActiveRole} 个用户的唯一启用角色，请先调整用户角色`),
+          { status: 400 },
+        );
+      }
+    }
+
     // 更新角色
     const role = await prisma.tbRole.update({
       where: { id: roleId },
@@ -188,7 +209,7 @@ export async function DELETE(
     }
 
     // 不允许删除系统内置角色
-    if (['admin', 'user'].includes(existingRole.code)) {
+    if (isSystemRoleCode(existingRole.code)) {
       return NextResponse.json(errorResponse('系统内置角色不允许删除'), { status: 400 });
     }
 

@@ -34,7 +34,7 @@
 - 内容: API 实现标准、代码示例、检查清单
 - 引用: 权限系统设计 (设计原理)
 
-**设计文档**: [权限系统设计](../designs/infra/permission-design.md)
+**设计文档**: [配置化 RBAC](../designs/infra/rbac-config-design.md)
 - 定位: 技术设计文档
 - 内容: 设计原则、架构原理、技术选型
 - 引用: 权限系统开发规范 (实施标准)
@@ -59,7 +59,7 @@
 - 新增: 引用相关功能设计文档
 
 **相关设计文档:**
-- [权限系统设计](../designs/infra/permission-design.md)
+- [配置化 RBAC](../designs/infra/rbac-config-design.md)
 - [MCP OAuth 2.0 设计](../designs/infra/mcp-oauth-design.md)
 - [评论系统设计](../designs/features/comment-system-design.md)
 - [实体变更日志设计](../designs/features/entity-change-design.md)
@@ -132,7 +132,7 @@
 
 | 规范文档 | 相关设计文档 |
 |---------|-------------|
-| [权限系统规范](permission.md) | [权限系统设计](../designs/infra/permission-design.md) |
+| [权限系统规范](permission.md) | [配置化 RBAC](../designs/infra/rbac-config-design.md) |
 | [向量检索规范](vector-search.md) | [向量化总览](../designs/vector/overview.md) |
 | [后端开发规范](backend.md) | 权限、MCP OAuth、评论、实体变更 |
 | [数据库开发规范](database.md) | 实体变更、评论、合集 |

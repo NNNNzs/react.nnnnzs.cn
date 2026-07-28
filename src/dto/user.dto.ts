@@ -26,7 +26,15 @@ export interface RegisterDto {
 /**
  * 用户信息（不包含密码）
  */
+export interface UserRoleSummary {
+  id: number;
+  code: string;
+  name: string;
+  status: number;
+}
+
 export type UserInfo = Omit<TbUser, 'password'> & {
+  roles: UserRoleSummary[];
   /** 仅在当前用户个人设置接口中返回，避免暴露密码本身 */
   has_password?: boolean;
 };
@@ -46,7 +54,7 @@ export interface CreateUserDto {
   account: string;
   password: string;
   nickname: string;
-  role?: string;
+  role_ids?: number[];
   mail?: string;
   phone?: string;
   avatar?: string;
@@ -58,7 +66,7 @@ export interface CreateUserDto {
  */
 export interface UpdateUserDto {
   nickname?: string;
-  role?: string;
+  role_ids?: number[];
   mail?: string;
   phone?: string;
   avatar?: string;
@@ -73,7 +81,7 @@ export interface QueryUserCondition {
   pageNum?: number;
   pageSize?: number;
   query?: string;
-  role?: string;
+  role_id?: number;
   status?: number;
 }
 

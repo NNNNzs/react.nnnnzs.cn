@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth';
 import { getConfigByKey } from '@/services/config';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { createUserWithDefaultRole } from '@/services/user-role';
 
 /** 邮箱验证 API 基地址 */
 const EMAIL_API = process.env.NEXT_PUBLIC_API_URL || 'https://api.nnnnzs.cn';
@@ -99,31 +100,24 @@ export async function POST(request: NextRequest) {
     const realIp = request.headers.get('x-real-ip');
     const clientIp = (xForwardedFor?.split(',')[0]?.trim() || realIp || '127.0.0.1');
 
-    const newUser = await prisma.tbUser.create({
-      data: {
+    const newUser = await createUserWithDefaultRole({
         account,
         password: hashedPassword,
         nickname,
         mail: mail || null,
         phone: phone || null,
-        role: 'user',
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${account}`,
         registered_ip: clientIp,
         registered_time: new Date(),
         status: 1,
-      },
     });
 
     // 生成Token
     const token = generateToken();
     await storeToken(token, newUser);
 
-    // 返回用户信息（不包含密码）
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...userInfo } = newUser;
-
     const response = NextResponse.json(
-      successResponse({ token, userInfo }, '注册成功')
+      successResponse({ token, userInfo: newUser }, '注册成功')
     );
 
     // 设置Cookie

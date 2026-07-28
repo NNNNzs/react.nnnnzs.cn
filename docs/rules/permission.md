@@ -102,10 +102,10 @@ Layer 3: 服务层过滤（最后一道防线）
 
 | 角色 | 说明 | 默认权限 |
 |------|------|----------|
-| `admin` | 管理员 | 全部权限码，data_scope=all |
-| `user` | 普通用户 | post:view/create/edit/hide，data_scope=self |
+| `admin` | 管理员 | 数据库配置，但必须保留 user:view/manage/role:assign，data_scope=all |
+| `user` | 普通用户 | 数据库配置；作为新注册用户的默认角色 |
 
-> 内置角色的权限可通过 `/c/roles` 管理页面修改，但不允许删除。
+> 内置角色不可改编码、删除或停用。匿名访客不是数据库角色；所有登录用户必须至少拥有一个启用角色。
 
 ## API 权限实现标准
 

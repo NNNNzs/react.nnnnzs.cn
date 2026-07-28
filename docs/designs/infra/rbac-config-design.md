@@ -2,11 +2,9 @@
 
 > **状态**: ✅ 已实施
 >
-> **前置文档**: [权限系统设计](permission-design.md)（当前硬编码实现）
->
 > **目标**: 将角色和权限从代码硬编码改为数据库配置，支持动态管理角色、权限码和数据权限。通过 `ApiDescriptor` 自描述 + `sync:api-registry` 脚本自动同步接口元数据到数据库，同时驱动 **API 权限控制** 和 **MCP 工具自动注册**。
 >
-> **实施完成**: 2026-05-15，共 21 个权限码、2 个内置角色（admin/user）、7 个阶段全部完成。
+> **实施完成**: 2026-07-28。角色、权限和用户角色关系全部以数据库为准，旧单值角色字段与权限回退已移除。
 
 ## 目录
 
@@ -27,7 +25,7 @@
 
 ## 背景与现状
 
-### 当前实现
+### 迁移前实现（历史背景）
 
 项目当前使用**硬编码 RBAC**，核心组件：
 
@@ -56,7 +54,7 @@
 4. **多角色支持** — 一个用户可以拥有多个角色
 5. **接口自描述同步** — 每个 route.ts 导出 `ApiDescriptor`，通过 `sync:api-registry` 脚本自动同步到数据库
 6. **MCP 工具自动注册** — 将管理后台配置的接口自动暴露为 MCP 工具，无需手动 `registerTool`
-7. **向后兼容** — 现有 `TbUser.role` 字段保留，过渡期兼容
+7. **一次性收口** — 补齐用户角色关系后删除旧单值字段，不保留双写或权限回退
 8. **前端自适应** — 登录时获取权限列表，菜单和按钮根据权限动态渲染
 
 ---
@@ -587,10 +585,9 @@ interface AuthUser {
   account: string;
   nickname: string;
   avatar: string | null;
-  role: string | null;       // 兼容旧字段
-  roles: string[];           // 新增：角色编码列表
-  permissions: string[];     // 新增：权限码列表
-  dataScopes: Record<string, string>; // 新增：权限码 → data_scope 映射
+  roles: string[];           // 启用的角色编码列表
+  permissions: string[];     // 权限码列表
+  dataScopes: Record<string, string>; // 权限码 → data_scope 映射
 }
 ```
 
@@ -1213,74 +1210,24 @@ export function useAuth(): AuthContextValue {
 
 ## 迁移方案
 
-### 向后兼容策略
+### 最终数据来源
 
 ```mermaid
 flowchart TD
-    A[用户请求] --> B{validateToken}
-    B --> C{用户有 tb_user_role 关联?}
-    C -->|是| D[从数据库查询权限]
-    C -->|否| E[回退到旧逻辑: 读 TbUser.role]
-    E --> F{role === 'admin'?}
-    F -->|是| G[返回所有权限 + data_scope=all]
-    F -->|否| H[返回基础权限 + data_scope=self]
+    A[用户请求] --> B[根据用户 ID 查询 tb_user_role]
+    B --> C[过滤启用角色]
+    C --> D[查询 tb_role_permission 与 tb_permission]
+    D --> E[合并权限码与 data_scope]
 ```
 
-### 兼容层实现
-
-```typescript
-// src/services/permission.ts
-
-export async function resolveUserPermissions(user: {
-  id: number;
-  role: string | null;
-}): Promise<{ permissions: string[]; dataScopes: Record<string, string> }> {
-  // 优先从新表查询
-  const userRoles = await prisma.tbUserRole.findMany({
-    where: { user_id: user.id },
-    select: { role_id: true },
-  });
-
-  // 关键：通过用户是否有角色关联来判断使用新/旧权限系统
-  // 不能用 permissions.length 判断，因为用户可能有角色但角色没有权限
-  if (userRoles.length > 0) {
-    return getUserPermissions(user.id);
-  }
-
-  // 回退到旧逻辑（仅当用户没有 tb_user_role 记录时）
-  if (user.role === 'admin') {
-    const permissions = await prisma.tbPermission.findMany({
-      where: { status: 1 },
-      select: { code: true },
-    });
-    const permissionCodes = permissions.map(p => p.code);
-    return {
-      permissions: permissionCodes,
-      dataScopes: Object.fromEntries(permissionCodes.map(c => [c, 'all'])),
-    };
-  }
-
-  if (user.role === 'user') {
-    return {
-      permissions: ['post:view', 'post:create', 'post:edit', 'post:hide'],
-      dataScopes: { 'post:view': 'self', 'post:create': 'self', 'post:edit': 'self', 'post:hide': 'self' },
-    };
-  }
-
-  // guest 或未知角色
-  return { permissions: [], dataScopes: {} };
-}
-```
+不存在角色枚举、单值角色字段或权限回退。匿名访客不进入 RBAC；登录用户必须至少关联一个启用角色。
 
 ### 迁移步骤
 
-1. 执行数据库迁移，新增 4 张表
-2. 运行 seed 脚本，初始化权限码和角色
-3. 将现有 `TbUser.role` 数据迁移到 `TbUserRole` 关联表
-4. 改造 `validateToken` 使用 `resolveUserPermissions`
-5. 逐步将 API 路由的 `isAdmin()` / `canManageXxx()` 替换为 `requirePermission()`
-6. 改造前端菜单和按钮权限判断
-7. 确认所有路由改造完成后，废弃 `TbUser.role` 字段
+1. 备份数据库并运行 `prisma/backfill-required-user-roles.ts`，为无角色用户补齐 `user`。
+2. 校验所有用户至少一个角色、至少一个启用管理员。
+3. 删除旧单值角色列并重新生成 Prisma Client。
+4. 部署只读取数据库角色关系的新代码。
 
 ---
 
@@ -1295,7 +1242,7 @@ export async function resolveUserPermissions(user: {
 | 1 | 新增 5 张表的 Prisma Schema | `pnpm prisma:push` 成功，表结构正确 |
 | 2 | 编写 seed 脚本（权限码 + 初始角色 + 接口注册表） | seed 运行后，数据库中有正确的初始数据 |
 | 3 | 实现 `getUserPermissions` 权限查询服务 | 单元测试覆盖：管理员/普通用户/无角色用户 |
-| 4 | 改造 `validateToken` 返回 `AuthUser` 结构（含兼容层） | 现有 API 功能不受影响，兼容层正确回退 |
+| 4 | 改造 `validateToken` 返回 `AuthUser` 结构 | 角色与权限完全来自关联表 |
 
 **验收标准**：现有所有 API 行为不变，新权限表可正常读写。
 
@@ -1335,7 +1282,7 @@ export async function resolveUserPermissions(user: {
 - 普通用户只能访问授权接口
 - 数据权限检查生效（用户只能操作自己的数据）
 
-**回滚方案**：逐个 API 回滚到旧的权限检查逻辑（`isAdmin()` / `canManageXxx()`）。
+**回滚方案**：回滚应用版本与数据库备份，不在新代码中保留双轨权限逻辑。
 
 **风险控制**：每个模块改造后立即测试，确认无问题后再改造下一个模块。
 
@@ -1408,8 +1355,8 @@ export async function resolveUserPermissions(user: {
 
 | 步骤 | 任务 | 验证点 |
 |------|------|--------|
-| 22 | 数据迁移脚本（`TbUser.role` → `TbUserRole`） | 所有用户都有正确的角色关联 |
-| 23 | 移除旧代码（`UserRole` 枚举、`RolePermissionsMap`、MCP 手动注册代码） | 构建成功，无类型错误 |
+| 22 | 为无角色用户补齐默认 `user` 关联 | 所有用户都有正确的角色关联 |
+| 23 | 移除旧单值角色字段、静态角色枚举与权限回退 | 构建成功，无类型错误 |
 | 24 | 更新 `docs/rules/permission.md` 开发规范 | 文档与代码一致 |
 
 **验收标准**：
@@ -1417,7 +1364,7 @@ export async function resolveUserPermissions(user: {
 - 旧代码完全移除
 - 文档更新完成
 
-**回滚方案**：保留 `TbUser.role` 字段，可随时回退到旧逻辑。
+**回滚方案**：结构变更前备份数据库；需要回滚时恢复备份并回滚应用版本。
 
 **风险控制**：迁移脚本运行前备份数据库，迁移后验证所有用户权限正确。
 
@@ -1427,6 +1374,7 @@ export async function resolveUserPermissions(user: {
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-07-28 | 2.0.0 | 删除旧单值角色字段和兼容回退；用户角色、显示与筛选统一读取数据库关系；增加系统角色和最后管理员保护 |
 | 2026-07-09 | 1.2.0 | 权限配置源收敛：`tb_permission` 负责权限管理展示，`tb_role_permission` 负责角色授权，`src/constants/permissions.ts` 仅保留代码引用常量 |
 | 2026-05-16 | 1.1.0 | 文档修正：Source of Truth 从 `API_REGISTRY` 改为 `ApiDescriptor` 自描述 + `sync:api-registry` 脚本同步 |
 | 2026-05-15 | 1.0.0 | ✅ 实施完成：7 个阶段全部落地，21 个权限码、2 个内置角色、MCP 自动注册、前端权限控制、管理界面均已实现 |

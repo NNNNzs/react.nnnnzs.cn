@@ -26,9 +26,7 @@ docs/designs/
 │   ├── cyberpunk-homepage-room-layout.md # 首页 3D 房间布局规范
 │   └── day-night-style-system.md        # 站点级昼夜风格语义系统
 ├── infra/                       # 基础设施
-│   ├── permission-design.md     # 权限系统设计
 │   ├── rbac-config-design.md    # 配置化 RBAC 权限系统
-│   ├── rbac-migration-inventory.md # RBAC 迁移清单
 │   ├── mcp-oauth-design.md      # MCP OAuth 2.0 认证
 │   ├── open-platform-oauth-integration.md # 开放平台 OAuth 集成
 │   ├── task-queue.md            # 后台任务队列系统
@@ -98,9 +96,7 @@ docs/designs/
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [权限系统](infra/permission-design.md) | 多层权限防护（当前实现） | ✅ 已实施 |
 | [配置化 RBAC](infra/rbac-config-design.md) | 角色权限配置化 + 统一接口注册表 + MCP 自动注册 | ✅ 已实施 |
-| [RBAC 迁移清单](infra/rbac-migration-inventory.md) | 现有权限和 MCP 接口盘点，迁移对照表 | 📦 已归档 |
 | [MCP OAuth 2.0](infra/mcp-oauth-design.md) | MCP 服务认证 | ✅ 已实施 |
 | [开放平台 OAuth 集成](infra/open-platform-oauth-integration.md) | 第三方应用 OAuth 接入 | ✅ 已实施 |
 | [后台任务队列系统](infra/task-queue.md) | 通用 TaskQueue、业务适配器、图片生成队列监控与重试 | ✅ 已实施 |

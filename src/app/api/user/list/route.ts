@@ -21,16 +21,20 @@ export async function GET(request: NextRequest) {
     const pageNum = Number(searchParams.get('pageNum')) || 1;
     const pageSize = Number(searchParams.get('pageSize')) || 10;
     const query = searchParams.get('query') || '';
-    const role = searchParams.get('role') || undefined;
+    const roleId = searchParams.get('role_id') ? Number(searchParams.get('role_id')) : undefined;
     const status = searchParams.get('status')
       ? Number(searchParams.get('status'))
       : undefined;
+
+    if (roleId !== undefined && (!Number.isInteger(roleId) || roleId <= 0)) {
+      return NextResponse.json(errorResponse('role_id 必须是正整数'), { status: 400 });
+    }
 
     const params: QueryUserCondition = {
       pageNum,
       pageSize,
       query,
-      role,
+      role_id: roleId,
       status,
     };
 

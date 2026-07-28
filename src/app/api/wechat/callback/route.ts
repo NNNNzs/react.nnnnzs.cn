@@ -9,6 +9,8 @@ import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getPrisma } from '@/lib/prisma';
 import { generateToken, storeToken } from '@/lib/auth';
 import redisService from '@/lib/redis';
+import { createUserWithDefaultRole } from '@/services/user-role';
+import { getUserById } from '@/services/user';
 
 /**
  * 回调参数类型
@@ -145,28 +147,29 @@ export async function POST(request: NextRequest) {
     } else {
       // 登录场景（默认）
       // 查找是否已有该 openid 的用户
-      let user = await prisma.tbUser.findFirst({
+      const existingLoginUser = await prisma.tbUser.findFirst({
         where: { wx_open_id: openId },
+        select: { id: true },
       });
+      let user = existingLoginUser ? await getUserById(existingLoginUser.id) : null;
 
       // 如果没有找到用户，创建新用户（自动注册）
       if (!user) {
         const { v4: uuidv4 } = await import('uuid');
         const account = `wx_${uuidv4().substring(0, 8)}`;
 
-        user = await prisma.tbUser.create({
-          data: {
+        user = await createUserWithDefaultRole({
             account,
             password: null,
             nickname: scanData?.nickName || '微信用户',
             avatar: scanData?.avatarUrl || '',
             wx_open_id: openId,
-            role: 'user',
             status: 1,
             registered_time: new Date(),
-          },
         });
       }
+
+      if (!user) throw new Error('用户创建失败');
 
       // 生成登录 token
       const loginToken = generateToken();

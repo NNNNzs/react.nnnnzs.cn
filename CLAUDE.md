@@ -66,7 +66,6 @@
 - **[赛博朋克风格元素资料库](docs/reference/cyberpunk-style-elements.md)** - 夜间模式、`/chat` 风格和 UI 命名可借用的赛博朋克元素
 
 #### 基础设施
-- **[权限系统设计](docs/designs/infra/permission-design.md)** - 多层权限防护架构
 - **[配置化 RBAC](docs/designs/infra/rbac-config-design.md)** - 角色权限配置化 + 统一接口注册表 + MCP 自动注册
 - **[MCP OAuth 2.0 认证设计](docs/designs/infra/mcp-oauth-design.md)** - MCP 服务 OAuth 2.0 集成
 - **[后台任务队列系统](docs/designs/infra/task-queue.md)** - 通用 TaskQueue、业务适配器、图片生成队列监控与重试

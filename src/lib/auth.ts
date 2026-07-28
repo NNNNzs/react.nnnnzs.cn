@@ -105,7 +105,12 @@ export async function validateToken(token: string): Promise<User | null> {
     if (userStr) {
       // 滑动续期：验证成功后自动延长 7 天
       await RedisService.expire(redisKey, TOKEN_EXPIRE);
-      return JSON.parse(userStr) as User;
+      const cachedUser = JSON.parse(userStr) as Partial<User>;
+      if (Array.isArray(cachedUser.roles)) return cachedUser as User;
+      const { getUserById } = await import('@/services/user');
+      const refreshedUser = await getUserById(Number(cachedUser.id));
+      if (refreshedUser) await storeToken(token, refreshedUser);
+      return refreshedUser;
     }
 
     // 再尝试 OAuth Token 格式
@@ -156,22 +161,15 @@ export async function validateTokenWithPermissions(token: string): Promise<AuthU
     }
 
     // 查询权限信息
-    const { permissions, dataScopes } = await resolveUserPermissions({
-      id: user.id,
-      role: user.role,
-    });
+    const { permissions, dataScopes } = await resolveUserPermissions({ id: user.id });
 
-    // 查询角色信息
-    const { getUserRoles } = await import('@/services/permission');
-    const userRoles = await getUserRoles(user.id);
-    const roles = userRoles.map(ur => ur.role.code);
+    const roles = user.roles.filter((role) => role.status === 1).map((role) => role.code);
 
     return {
       id: user.id,
       account: user.account,
       nickname: user.nickname,
       avatar: user.avatar,
-      role: user.role,
       roles,
       permissions,
       dataScopes,

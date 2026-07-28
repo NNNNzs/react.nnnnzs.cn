@@ -11,6 +11,7 @@ import { USER_VIEW, USER_ROLE_ASSIGN } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { prisma } from '@/lib/prisma';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { ADMIN_REQUIRED_PERMISSIONS, ADMIN_ROLE_CODE } from '@/constants/roles';
 
 /** 获取角色权限接口描述 */
 export const getDescriptor: ApiDescriptor = {
@@ -208,6 +209,22 @@ export async function PUT(
 
     const { permissions } = validationResult.data;
 
+    if (new Set(permissions.map((permission) => permission.code)).size !== permissions.length) {
+      return NextResponse.json(errorResponse('权限列表不能包含重复项'), { status: 400 });
+    }
+    if (role.code === ADMIN_ROLE_CODE) {
+      const permissionMap = new Map(permissions.map((permission) => [permission.code, permission.data_scope]));
+      const invalidRequiredPermission = ADMIN_REQUIRED_PERMISSIONS.find(
+        (code) => permissionMap.get(code) !== 'all',
+      );
+      if (invalidRequiredPermission) {
+        return NextResponse.json(
+          errorResponse(`管理员角色必须保留 ${invalidRequiredPermission}，且数据范围为 all`),
+          { status: 400 },
+        );
+      }
+    }
+
     // 使用事务确保原子性
     await prisma.$transaction(async (tx) => {
       // 删除旧的权限关联
@@ -225,6 +242,10 @@ export async function PUT(
         });
 
         const permissionMap = new Map(permissionRecords.map(p => [p.code, p.id]));
+
+        if (permissionRecords.length !== permissionCodes.length) {
+          throw new Error('部分权限码不存在');
+        }
 
         // 创建关联
         const rolePermissions = permissions

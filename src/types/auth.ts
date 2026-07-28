@@ -16,8 +16,6 @@ export interface AuthUser {
   nickname: string;
   /** 用户头像 */
   avatar: string | null;
-  /** 角色（兼容旧字段，过渡期保留） */
-  role: string | null;
   /** 角色编码列表 */
   roles: string[];
   /** 权限码列表 */

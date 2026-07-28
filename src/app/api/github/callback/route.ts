@@ -15,6 +15,8 @@ import {
   getBaseUrl,
 } from '@/lib/auth';
 import { proxyFetch } from '@/lib/proxy-fetch';
+import { createUserWithDefaultRole } from '@/services/user-role';
+import { getUserById } from '@/services/user';
 
 /**
  * 获取 GitHub 用户信息
@@ -138,9 +140,11 @@ export async function GET(request: NextRequest) {
     if (action === 'login') {
       // GitHub 登录逻辑
       // 查找是否已经存在该 GitHub 账号关联的用户
-      let user = await prisma.tbUser.findFirst({
+      const existingLoginUser = await prisma.tbUser.findFirst({
         where: { github_id: String(githubUser.id) },
+        select: { id: true, mail: true },
       });
+      let user = existingLoginUser ? await getUserById(existingLoginUser.id) : null;
       
       if (!user) {
         // 创建新用户
@@ -152,8 +156,7 @@ export async function GET(request: NextRequest) {
           realIp ||
           'unknown';
         
-        user = await prisma.tbUser.create({
-          data: {
+        user = await createUserWithDefaultRole({
             account: `gh_${githubUser.login}`,
             nickname: githubUser.name || githubUser.login,
             avatar: githubUser.avatar_url,
@@ -166,11 +169,10 @@ export async function GET(request: NextRequest) {
             registered_ip: ip,
             registered_time: new Date(),
             status: 1,
-          },
         });
       } else {
         // 更新 GitHub 信息和 Access Token
-        user = await prisma.tbUser.update({
+        await prisma.tbUser.update({
           where: { id: user.id },
           data: {
             github_username: githubUser.login,
@@ -179,15 +181,16 @@ export async function GET(request: NextRequest) {
             ...(user.mail ? {} : { mail: githubEmail, mail_verified_at: githubEmail ? new Date() : null }),
           },
         });
+        user = await getUserById(user.id);
       }
+
+      if (!user) throw new Error('用户创建失败');
       
       // 生成 Token
       const token = generateToken();
       
       // 将 token 和用户信息存储到 Redis
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = user;
-      await storeToken(token, userWithoutPassword as typeof user);
+      await storeToken(token, user);
       
       // 重定向到目标页面，并设置 token
       const redirectUrl = new URL(redirect, baseUrl);

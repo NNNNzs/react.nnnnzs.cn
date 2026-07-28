@@ -147,11 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (response.data.status) {
         setUser(response.data.data.userInfo);
+        await refreshPermissions();
       } else {
         throw new Error(response.data.message);
       }
     },
-    []
+    [refreshPermissions]
   );
 
   /**

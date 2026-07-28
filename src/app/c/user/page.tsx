@@ -24,7 +24,6 @@ import {
   Select,
   Switch,
   Card,
-  Checkbox,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -33,14 +32,13 @@ import {
   PlusOutlined,
   SearchOutlined,
   LockOutlined,
-  SafetyOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
-import { USER_MANAGE } from "@/constants/permissions";
+import { USER_MANAGE, USER_ROLE_ASSIGN, USER_VIEW } from "@/constants/permissions";
 import type { QueryUserCondition, UserInfo } from "@/dto/user.dto";
-import { UserRole, RoleDisplayNames, getRoleOptions } from "@/types/role";
+import { DEFAULT_USER_ROLE_CODE } from "@/constants/roles";
 import ResponsiveTable from "@/components/ResponsiveTable";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
@@ -60,7 +58,7 @@ function useUrlState() {
 
   return useMemo(() => ({
     searchText: searchParams.get("q") || "",
-    roleFilter: searchParams.get("role") || "all",
+    roleIdFilter: searchParams.get("role_id") || "all",
     statusFilter: searchParams.get("status") || "all",
     current: parseInt(searchParams.get("page") || "1", 10),
     pageSize: parseInt(searchParams.get("pageSize") || "20", 10),
@@ -72,7 +70,7 @@ function useUrlState() {
  */
 interface QueryParams {
   q?: string;
-  role?: string;
+  role_id?: string;
   status?: string;
   page?: number;
   pageSize?: number;
@@ -89,7 +87,7 @@ function useUpdateUrl() {
     (updates: Partial<QueryParams>) => {
       const currentParams: QueryParams = {
         q: searchParams.get("q") || undefined,
-        role: searchParams.get("role") || undefined,
+        role_id: searchParams.get("role_id") || undefined,
         status: searchParams.get("status") || undefined,
         page: searchParams.get("page")
           ? parseInt(searchParams.get("page")!, 10)
@@ -110,8 +108,8 @@ function useUpdateUrl() {
         params.set("q", mergedParams.q.trim());
       }
 
-      if (mergedParams.role && mergedParams.role !== "all") {
-        params.set("role", mergedParams.role);
+      if (mergedParams.role_id && mergedParams.role_id !== "all") {
+        params.set("role_id", mergedParams.role_id);
       }
 
       if (mergedParams.status && mergedParams.status !== "all") {
@@ -147,16 +145,13 @@ function UserPageContent() {
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [form] = Form.useForm();
 
-  // RBAC 角色分配相关状态
-  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [roleAssignUser, setRoleAssignUser] = useState<UserInfo | null>(null);
-  const [allRoles, setAllRoles] = useState<{ id: number; code: string; name: string }[]>([]);
-  const [userRoleIds, setUserRoleIds] = useState<number[]>([]);
-  const [roleLoading, setRoleLoading] = useState(false);
+  const [allRoles, setAllRoles] = useState<Array<{ id: number; code: string; name: string; status: number }>>([]);
 
   const { isMobile } = useBreakpoint();
+  const canManageUsers = hasPermission(USER_MANAGE);
+  const canAssignRoles = hasPermission(USER_ROLE_ASSIGN);
 
-  const roleFilter = urlState.roleFilter;
+  const roleIdFilter = urlState.roleIdFilter;
   const statusFilter = urlState.statusFilter;
 
   const pagination = useMemo(
@@ -172,7 +167,7 @@ function UserPageContent() {
    * 检查权限
    */
   useEffect(() => {
-    if (user && !hasPermission(USER_MANAGE)) {
+    if (user && !hasPermission(USER_VIEW)) {
       message.error("无权限访问用户管理");
       router.push("/c/post");
     }
@@ -200,9 +195,9 @@ function UserPageContent() {
           pageNum: currentPage,
           pageSize: currentPageSize,
           ...(urlState.searchText && { query: urlState.searchText }),
-          ...(urlState.roleFilter &&
-            urlState.roleFilter !== "all" && {
-            role: urlState.roleFilter,
+          ...(urlState.roleIdFilter &&
+            urlState.roleIdFilter !== "all" && {
+            role_id: Number(urlState.roleIdFilter),
           }),
           ...(urlState.statusFilter &&
             urlState.statusFilter !== "all" && {
@@ -262,7 +257,7 @@ function UserPageContent() {
     form.setFieldsValue({
       account: targetUser.account,
       nickname: targetUser.nickname,
-      role: targetUser.role,
+      role_ids: targetUser.roles.map((role) => role.id),
       mail: targetUser.mail,
       phone: targetUser.phone,
       status: targetUser.status,
@@ -277,7 +272,7 @@ function UserPageContent() {
     setEditingUser(null);
     form.resetFields();
     form.setFieldsValue({
-      role: UserRole.USER,
+      role_ids: allRoles.filter((role) => role.status === 1 && role.code === DEFAULT_USER_ROLE_CODE).map((role) => role.id),
       status: 1,
     });
     setIsModalOpen(true);
@@ -289,6 +284,12 @@ function UserPageContent() {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      if (!hasPermission(USER_ROLE_ASSIGN)) delete values.role_ids;
+      if (editingUser && !canManageUsers) {
+        Object.keys(values).forEach((key) => {
+          if (key !== 'role_ids') delete values[key];
+        });
+      }
 
       if (editingUser) {
         // 更新
@@ -372,58 +373,9 @@ function UserPageContent() {
     }
   }, []);
 
-  /**
-   * 打开角色分配弹窗
-   */
-  const handleAssignRoles = async (targetUser: UserInfo) => {
-    setRoleAssignUser(targetUser);
-    setIsRoleModalOpen(true);
-    setRoleLoading(true);
-
-    try {
-      // 加载角色列表（如果还没加载）
-      if (allRoles.length === 0) {
-        await loadAllRoles();
-      }
-      // 获取用户当前角色
-      const response = await axios.get(`/api/admin/users/${targetUser.id}/roles`);
-      if (response.data.status) {
-        const roles = response.data.data.roles || [];
-        setUserRoleIds(roles.map((r: { id: number }) => r.id));
-      }
-    } catch (error) {
-      console.error("获取用户角色失败:", error);
-      message.error("获取用户角色失败");
-    } finally {
-      setRoleLoading(false);
-    }
-  };
-
-  /**
-   * 保存用户角色
-   */
-  const handleSaveRoles = async () => {
-    if (!roleAssignUser) return;
-
-    try {
-      const response = await axios.put(`/api/admin/users/${roleAssignUser.id}/roles`, {
-        role_ids: userRoleIds,
-      });
-      if (response.data.status) {
-        message.success("用户角色更新成功");
-        setIsRoleModalOpen(false);
-        loadUsers(urlState.current, urlState.pageSize);
-      } else {
-        message.error(response.data.message || "更新失败");
-      }
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error("保存角色失败");
-      }
-    }
-  };
+  useEffect(() => {
+    if (user && hasPermission(USER_VIEW)) void loadAllRoles();
+  }, [user, hasPermission, loadAllRoles]);
 
   /**
    * 统一的查询参数更新方法
@@ -439,7 +391,7 @@ function UserPageContent() {
    * 当 URL 状态变化时，重新加载数据
    */
   useEffect(() => {
-    if (user && hasPermission(USER_MANAGE)) {
+    if (user && hasPermission(USER_VIEW)) {
       loadUsers(urlState.current, urlState.pageSize);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -447,7 +399,7 @@ function UserPageContent() {
     user,
     urlState.current,
     urlState.pageSize,
-    urlState.roleFilter,
+    urlState.roleIdFilter,
     urlState.statusFilter,
     urlState.searchText,
   ]);
@@ -476,22 +428,12 @@ function UserPageContent() {
     },
     {
       title: "角色",
-      dataIndex: "role",
-      key: "role",
-      width: 120,
-      render: (role: string | null) => {
-        const roleValue = (role || UserRole.GUEST) as UserRole;
-        const colorMap = {
-          [UserRole.ADMIN]: "red",
-          [UserRole.USER]: "blue",
-          [UserRole.GUEST]: "default",
-        };
-        return (
-          <Tag color={colorMap[roleValue]}>
-            {RoleDisplayNames[roleValue] || role}
-          </Tag>
-        );
-      },
+      dataIndex: "roles",
+      key: "roles",
+      width: 200,
+      render: (roles: UserInfo["roles"]) => roles.map((role) => (
+        <Tag key={role.id}>{role.name}</Tag>
+      )),
     },
     {
       title: "邮箱",
@@ -533,60 +475,41 @@ function UserPageContent() {
       fixed: "right" as const,
       render: (_: unknown, record: UserInfo) => (
         <AdminTableActions>
-          <AdminActionButton
+          {(canManageUsers || canAssignRoles) && <AdminActionButton
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             编辑
-          </AdminActionButton>
-          <AdminActionButton
-            icon={<SafetyOutlined />}
-            onClick={() => handleAssignRoles(record)}
-          >
-            角色
-          </AdminActionButton>
-          <AdminActionButton
+          </AdminActionButton>}
+          {canManageUsers && <AdminActionButton
             icon={<LockOutlined />}
             onClick={() => handleResetPassword(record)}
           >
             重置密码
-          </AdminActionButton>
-          <AdminActionButton
+          </AdminActionButton>}
+          {canManageUsers && <AdminActionButton
             color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-            disabled={record.role === UserRole.ADMIN}
           >
             删除
-          </AdminActionButton>
+          </AdminActionButton>}
         </AdminTableActions>
       ),
     },
   ];
 
   /**
-   * 角色颜色映射
-   */
-  const roleColorMap = {
-    [UserRole.ADMIN]: "red",
-    [UserRole.USER]: "blue",
-    [UserRole.GUEST]: "default",
-  };
-
-  /**
    * 渲染移动端用户卡片
    */
   const renderMobileCard = (record: UserInfo) => {
-    const roleValue = (record.role || UserRole.GUEST) as UserRole;
     return (
       <Card size="small" className="mb-2">
         {/* 顶部：昵称 + 角色 + 状态 */}
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-base">{record.nickname}</span>
           <Space>
-            <Tag color={roleColorMap[roleValue]}>
-              {RoleDisplayNames[roleValue] || record.role}
-            </Tag>
+            {record.roles.map((role) => <Tag key={role.id}>{role.name}</Tag>)}
             <Tag color={record.status === 1 ? "success" : "default"}>
               {record.status === 1 ? "启用" : "禁用"}
             </Tag>
@@ -608,32 +531,25 @@ function UserPageContent() {
               : "-"}
           </span>
           <AdminTableActions>
-            <AdminActionButton
+            {(canManageUsers || canAssignRoles) && <AdminActionButton
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
-            </AdminActionButton>
-            <AdminActionButton
-              icon={<SafetyOutlined />}
-              onClick={() => handleAssignRoles(record)}
-            >
-              角色
-            </AdminActionButton>
-            <AdminActionButton
+            </AdminActionButton>}
+            {canManageUsers && <AdminActionButton
               icon={<LockOutlined />}
               onClick={() => handleResetPassword(record)}
             >
               重置密码
-            </AdminActionButton>
-            <AdminActionButton
+            </AdminActionButton>}
+            {canManageUsers && <AdminActionButton
               color="danger"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record)}
-              disabled={record.role === UserRole.ADMIN}
             >
               删除
-            </AdminActionButton>
+            </AdminActionButton>}
           </AdminTableActions>
         </div>
       </Card>
@@ -648,13 +564,13 @@ function UserPageContent() {
         <AdminPageHeader
           title="用户管理"
           extra={
-          <Button variant="solid" color="primary"
+          canManageUsers ? <Button variant="solid" color="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
             size="small"
           >
             {isMobile ? "新建" : "创建新用户"}
-          </Button>
+          </Button> : null
           }
         />
 
@@ -676,13 +592,13 @@ function UserPageContent() {
               allowClear
               size="middle"
               style={isMobile ? { width: "50%" } : { width: 140 }}
-              value={roleFilter === "all" ? undefined : roleFilter}
+              value={roleIdFilter === "all" ? undefined : roleIdFilter}
               onChange={(value) =>
-                updateQueryParams({ role: value || "all", page: 1 })
+                updateQueryParams({ role_id: value ? String(value) : "all", page: 1 })
               }
               options={[
                 { label: "全部角色", value: "all" },
-                ...getRoleOptions(),
+                ...allRoles.map((role) => ({ label: role.name, value: String(role.id) })),
               ]}
             />
             <Select
@@ -752,10 +668,7 @@ function UserPageContent() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{
-            role: UserRole.USER,
-            status: 1,
-          }}
+          initialValues={{ status: 1 }}
         >
           <Form.Item
             label="账号"
@@ -768,7 +681,7 @@ function UserPageContent() {
             <Input
               placeholder="请输入账号"
               maxLength={16}
-              disabled={!!editingUser}
+              disabled={!!editingUser || !canManageUsers}
               autoComplete="username"
             />
           </Form.Item>
@@ -782,7 +695,7 @@ function UserPageContent() {
                 { min: 6, message: "密码至少6个字符" },
               ]}
             >
-              <Input.Password placeholder="请输入密码" maxLength={32} autoComplete="new-password" />
+              <Input.Password placeholder="请输入密码" maxLength={32} autoComplete="new-password" disabled={!canManageUsers} />
             </Form.Item>
           )}
 
@@ -791,23 +704,36 @@ function UserPageContent() {
             name="nickname"
             rules={[{ required: true, message: "请输入昵称" }]}
           >
-            <Input placeholder="请输入昵称" maxLength={16} autoComplete="nickname" />
+            <Input placeholder="请输入昵称" maxLength={16} autoComplete="nickname" disabled={!canManageUsers} />
           </Form.Item>
 
-          <Form.Item
+          {canAssignRoles ? <Form.Item
             label="角色"
-            name="role"
+            name="role_ids"
             rules={[{ required: true, message: "请选择角色" }]}
           >
-            <Select placeholder="请选择角色" options={getRoleOptions()} />
-          </Form.Item>
+            <Select
+              mode="multiple"
+              placeholder="请选择角色"
+              options={allRoles.filter((role) => role.status === 1).map((role) => ({
+                label: `${role.name}（${role.code}）`,
+                value: role.id,
+              }))}
+            />
+          </Form.Item> : editingUser ? (
+            <Form.Item label="角色">
+              <Space wrap>{editingUser.roles.map((role) => <Tag key={role.id}>{role.name}</Tag>)}</Space>
+            </Form.Item>
+          ) : (
+            <Form.Item label="角色"><span className="text-gray-500">将自动分配普通用户角色</span></Form.Item>
+          )}
 
           <Form.Item label="邮箱" name="mail">
-            <Input placeholder="请输入邮箱" maxLength={30} type="email" autoComplete="email" />
+            <Input placeholder="请输入邮箱" maxLength={30} type="email" autoComplete="email" disabled={!canManageUsers} />
           </Form.Item>
 
           <Form.Item label="手机" name="phone">
-            <Input placeholder="请输入手机号" maxLength={11} autoComplete="tel" />
+            <Input placeholder="请输入手机号" maxLength={11} autoComplete="tel" disabled={!canManageUsers} />
           </Form.Item>
 
           <Form.Item
@@ -817,7 +743,7 @@ function UserPageContent() {
             getValueFromEvent={(checked) => (checked ? 1 : 0)}
             getValueProps={(value) => ({ checked: value === 1 })}
           >
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" disabled={!canManageUsers} />
           </Form.Item>
 
           {editingUser && (
@@ -839,45 +765,6 @@ function UserPageContent() {
         </Form>
       </Modal>
 
-      {/* RBAC 角色分配弹窗 */}
-      <Modal
-        title={`分配角色 - ${roleAssignUser?.nickname || ""}`}
-        open={isRoleModalOpen}
-        onOk={handleSaveRoles}
-        onCancel={() => setIsRoleModalOpen(false)}
-        okText="保存"
-        cancelText="取消"
-        width={500}
-        destroyOnHidden
-        confirmLoading={roleLoading}
-      >
-        {roleAssignUser && (
-          <div>
-            <div className="mb-4 text-gray-500">
-              为用户「{roleAssignUser.nickname}」分配角色：
-            </div>
-            <Checkbox.Group
-              value={userRoleIds}
-              onChange={(checked) => setUserRoleIds(checked as number[])}
-              className="flex flex-col gap-3"
-            >
-              {allRoles.map(role => (
-                <Checkbox key={role.id} value={role.id}>
-                  <div>
-                    <span className="font-medium">{role.name}</span>
-                    <Tag className="ml-2">{role.code}</Tag>
-                  </div>
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
-            {allRoles.length === 0 && !roleLoading && (
-              <div className="text-gray-400 text-center py-4">
-                暂无可用角色，请先在角色管理中创建角色
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
     </>
   );
 }

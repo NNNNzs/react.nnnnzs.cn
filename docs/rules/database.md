@@ -39,6 +39,8 @@
 ### 用户与 RBAC
 
 - 用户、角色、权限通过 `TbUserRole` 与 `TbRolePermission` 关联。
+- `TbUser` 不保存单值角色字段；每个登录用户必须至少关联一个启用角色。
+- `admin`、`user` 是受保护的系统角色编码，匿名访客不写入角色表。
 - 权限码配置源是 `TbPermission`；API 自描述同步到 `TbApiRegistry`。
 - 长期 Token 使用 `LongTermToken`，不要另建后台 Token 页面专用表。
 

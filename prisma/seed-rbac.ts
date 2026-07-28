@@ -11,6 +11,7 @@
  */
 
 import { createScriptPrismaClient } from '../scripts/prisma-client';
+import { ADMIN_REQUIRED_PERMISSIONS, ADMIN_ROLE_CODE } from '../src/constants/roles';
 
 const prisma = createScriptPrismaClient();
 
@@ -708,13 +709,13 @@ async function seedRoles_() {
   console.log('👥 Seeding roles...');
 
   for (const role of seedRoles) {
-    // 创建或更新角色
+    const existingRole = await prisma.tbRole.findUnique({
+      where: { code: role.code },
+      select: { id: true },
+    });
     const createdRole = await prisma.tbRole.upsert({
       where: { code: role.code },
-      update: {
-        name: role.name,
-        description: role.description,
-      },
+      update: { status: 1 },
       create: {
         code: role.code,
         name: role.name,
@@ -723,20 +724,27 @@ async function seedRoles_() {
       },
     });
 
-    // 删除旧的权限关联
-    await prisma.tbRolePermission.deleteMany({
-      where: { role_id: createdRole.id },
-    });
-
-    // 创建新的权限关联
-    for (const perm of role.permissions) {
+    // 新角色写入默认权限；已存在角色仅补齐管理员安全权限，不覆盖后台配置。
+    const requiredPermissions = existingRole
+      ? role.code === ADMIN_ROLE_CODE
+        ? ADMIN_REQUIRED_PERMISSIONS.map((permission_code) => ({ permission_code, data_scope: 'all' }))
+        : []
+      : role.permissions;
+    for (const perm of requiredPermissions) {
       const permission = await prisma.tbPermission.findUnique({
         where: { code: perm.permission_code },
       });
 
       if (permission) {
-        await prisma.tbRolePermission.create({
-          data: {
+        await prisma.tbRolePermission.upsert({
+          where: {
+            role_id_permission_id: {
+              role_id: createdRole.id,
+              permission_id: permission.id,
+            },
+          },
+          update: { data_scope: perm.data_scope },
+          create: {
             role_id: createdRole.id,
             permission_id: permission.id,
             data_scope: perm.data_scope,

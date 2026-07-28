@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validateToken, getTokenFromRequest } from '@/lib/auth';
+import { validateToken, getTokenFromRequest, validateTokenWithPermissions } from '@/lib/auth';
 import { validateLongTermToken } from '@/services/token';
 
 // 定义 AuthInfo 类型，符合 MCP SDK 标准
@@ -54,7 +54,7 @@ export const mcpAuthVerifier: OAuthTokenVerifier = {
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     // 使用现有的 token 验证函数
-    const user = await validateToken(token);
+    const user = await validateTokenWithPermissions(token);
 
     if (!user) {
       throw new Error("Invalid or expired token");
@@ -68,7 +68,7 @@ export const mcpAuthVerifier: OAuthTokenVerifier = {
       expiresAt: undefined, // 使用现有 Redis 过期机制
       extra: {
         userId: user.id,
-        role: user.role || 'user',
+        roles: user.roles,
         account: user.account
       }
     };

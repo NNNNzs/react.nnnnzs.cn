@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     // 构建用户信息
     const userInfo = user
-      ? `用户已登录，昵称：${user.nickname || user.account}${user.role ? `（${user.role}）` : ''}`
+      ? `用户已登录，昵称：${user.nickname || user.account}${user.roles.length ? `（角色：${user.roles.map((role) => role.name).join('、')}）` : ''}`
       : '用户未登录（游客模式）';
 
     // 确定或创建会话

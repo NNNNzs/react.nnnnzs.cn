@@ -1,7 +1,6 @@
 // 用户表
 model TbUser {
   id                  Int       @id @default(autoincrement())
-  role                String?   @db.VarChar(255) // 兼容字段，过渡期保留，后续废弃
   account             String    @db.VarChar(16)
   avatar              String?   @db.VarChar(255)
   password            String?   @db.VarChar(255) // 快捷登录用户在主动设置前不具备密码登录能力

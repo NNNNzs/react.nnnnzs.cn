@@ -3,102 +3,19 @@
  * 提供服务端权限验证功能
  */
 
-import { validateToken, getTokenFromRequest, getAuthUserFromRequest } from '@/lib/auth';
-import { hasPermission } from '@/types/role';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import {
   POST_VIEW,
   POST_EDIT,
   POST_DELETE,
   POST_VIEW_DELETED,
   COLLECTION_EDIT,
-  CONFIG_VIEW,
   CONFIG_EDIT,
   USER_MANAGE,
 } from '@/constants/permissions';
-import type { User } from '@/types';
 import type { AuthUser } from '@/types/auth';
-import type { RolePermissions } from '@/types/role';
 import type { SerializedPost } from '@/dto/post.dto';
 import type { NextRequest } from 'next/server';
-
-/**
- * 从请求中验证用户身份和权限
- */
-export async function validateUserFromRequest(
-  headers: Headers
-): Promise<{ user: User | null; error: string | null }> {
-  const token = getTokenFromRequest(headers);
-
-  if (!token) {
-    return { user: null, error: '未授权' };
-  }
-
-  const user = await validateToken(token);
-
-  if (!user) {
-    return { user: null, error: '登录已过期' };
-  }
-
-  return { user, error: null };
-}
-
-/**
- * 检查用户是否有管理员权限
- * @deprecated 请使用 requirePermission(request, specificCode) 替代
- */
-export async function requireAdmin(
-  headers: Headers
-): Promise<{ user: AuthUser | null; error: string | null }> {
-  const user = await getAuthUserFromRequest(headers);
-
-  if (!user) {
-    return { user: null, error: '未授权' };
-  }
-
-  if (!hasPermissionCode(user, CONFIG_VIEW)) {
-    return { user: null, error: '无权限访问' };
-  }
-
-  return { user, error: null };
-}
-
-/**
- * 检查用户是否有指定权限（旧版本，兼容保留）
- */
-export async function requirePermissionLegacy(
-  headers: Headers,
-  permission: keyof RolePermissions
-): Promise<{ user: User | null; error: string | null }> {
-  const { user, error } = await validateUserFromRequest(headers);
-
-  if (error) {
-    return { user: null, error };
-  }
-
-  if (!user || !hasPermission(user.role, permission)) {
-    return { user: null, error: '无权限访问' };
-  }
-
-  return { user, error: null };
-}
-
-/**
- * 创建权限中间件（旧版本，兼容保留）
- */
-export function withPermission(permission: keyof RolePermissions) {
-  return async (headers: Headers) => {
-    return await requirePermissionLegacy(headers, permission);
-  };
-}
-
-/**
- * 创建管理员中间件
- */
-export function withAdmin() {
-  return async (headers: Headers) => {
-    return await requireAdmin(headers);
-  };
-}
 
 // ============ 文章级别权限检查 ============
 

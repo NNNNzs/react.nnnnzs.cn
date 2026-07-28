@@ -26,6 +26,7 @@ export type {
   CreateUserDto,
   UpdateUserDto,
   QueryUserCondition,
+  UserRoleSummary,
 } from '@/dto/user.dto';
 
 export type {
@@ -54,20 +55,9 @@ export type {
   StoredReactTimelineItem,
 } from '@/types/agent-stream';
 
-// 角色相关类型
-export {
-  UserRole,
-  RoleDisplayNames,
-  RolePermissionsMap,
-  hasPermission,
-  isAdmin,
-  getRoleOptions,
-} from '@/types/role';
-export type { RolePermissions } from '@/types/role';
-
 // 前端使用的类型别名
 import type { SerializedPost } from '@/dto/post.dto';
-import type { TbUser } from '@/generated/prisma-client/client';
+import type { UserInfo } from '@/dto/user.dto';
 import type { TbConfig } from '@/generated/prisma-client/client';
 
 /**
@@ -76,5 +66,5 @@ import type { TbConfig } from '@/generated/prisma-client/client';
  * - tags 是数组格式
  */
 export type Post = SerializedPost;
-export type User = TbUser;
+export type User = UserInfo;
 export type Config = TbConfig;

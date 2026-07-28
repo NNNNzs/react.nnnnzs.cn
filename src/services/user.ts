@@ -12,7 +12,27 @@ import type {
   UpdateUserDto,
   UserInfo,
 } from '@/dto/user.dto';
-import { UserRole } from '@/types/role';
+import { Prisma } from '@/generated/prisma-client/client';
+import {
+  assertActiveAdminRemains,
+  getDefaultUserRole,
+  replaceUserRoles,
+  validateActiveRoleIds,
+} from '@/services/user-role';
+
+const userRoleSelect = {
+  userRoles: {
+    select: {
+      role: { select: { id: true, code: true, name: true, status: true } },
+    },
+  },
+} as const;
+
+function toUserInfo<T extends { password: string | null; userRoles: Array<{ role: UserInfo['roles'][number] }> }>(user: T): UserInfo {
+  const { password: _password, userRoles, ...userInfo } = user;
+  void _password;
+  return { ...userInfo, roles: userRoles.map(({ role }) => role) } as unknown as UserInfo;
+}
 
 /**
  * 获取用户列表
@@ -20,12 +40,12 @@ import { UserRole } from '@/types/role';
 export async function getUserList(
   params: QueryUserCondition
 ): Promise<PageQueryRes<UserInfo>> {
-  const { pageNum = 1, pageSize = 10, query = '', role, status } = params;
+  const { pageNum = 1, pageSize = 10, query = '', role_id, status } = params;
 
   const prisma = await getPrisma();
 
   // 构建查询条件
-  const whereConditions: Record<string, unknown> = {};
+  const whereConditions: Prisma.TbUserWhereInput = {};
 
   if (query) {
     whereConditions.OR = [
@@ -35,8 +55,8 @@ export async function getUserList(
     ];
   }
 
-  if (role) {
-    whereConditions.role = role;
+  if (role_id) {
+    whereConditions.userRoles = { some: { role_id } };
   }
 
   if (status !== undefined) {
@@ -47,6 +67,7 @@ export async function getUserList(
   const [users, count] = await Promise.all([
     prisma.tbUser.findMany({
       where: whereConditions,
+      include: userRoleSelect,
       orderBy: {
         id: 'desc',
       },
@@ -57,11 +78,7 @@ export async function getUserList(
   ]);
 
   // 移除密码字段
-  const record = users.map((user) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userInfo } = user;
-    return userInfo;
-  });
+  const record = users.map(toUserInfo);
 
   return {
     record,
@@ -78,16 +95,14 @@ export async function getUserById(id: number): Promise<UserInfo | null> {
   const prisma = await getPrisma();
   const user = await prisma.tbUser.findUnique({
     where: { id },
+    include: userRoleSelect,
   });
 
   if (!user) {
     return null;
   }
 
-  // 移除密码字段
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = user;
-  return userInfo;
+  return toUserInfo(user);
 }
 
 /**
@@ -99,16 +114,14 @@ export async function getUserByAccount(
   const prisma = await getPrisma();
   const user = await prisma.tbUser.findFirst({
     where: { account },
+    include: userRoleSelect,
   });
 
   if (!user) {
     return null;
   }
 
-  // 移除密码字段
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = user;
-  return userInfo;
+  return toUserInfo(user);
 }
 
 /**
@@ -129,25 +142,25 @@ export async function createUser(dto: CreateUserDto): Promise<UserInfo> {
   // 加密密码
   const hashedPassword = await hashPassword(dto.password);
 
-  // 创建用户
-  const user = await prisma.tbUser.create({
-    data: {
-      account: dto.account,
-      password: hashedPassword,
-      nickname: dto.nickname,
-      role: dto.role || UserRole.USER,
-      mail: dto.mail,
-      phone: dto.phone,
-      avatar: dto.avatar,
-      status: dto.status ?? 1,
-      registered_time: new Date(),
-    },
-  });
-
-  // 移除密码字段
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = user;
-  return userInfo;
+  return prisma.$transaction(async (tx) => {
+    const roleIds = dto.role_ids ?? [(await getDefaultUserRole(tx)).id];
+    await validateActiveRoleIds(tx, roleIds);
+    const user = await tx.tbUser.create({
+      data: {
+        account: dto.account,
+        password: hashedPassword,
+        nickname: dto.nickname,
+        mail: dto.mail,
+        phone: dto.phone,
+        avatar: dto.avatar,
+        status: dto.status ?? 1,
+        registered_time: new Date(),
+        userRoles: { create: roleIds.map((role_id) => ({ role_id })) },
+      },
+      include: userRoleSelect,
+    });
+    return toUserInfo(user);
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -168,15 +181,10 @@ export async function updateUser(
     throw new Error('用户不存在');
   }
 
-  // 构建更新数据
-  const updateData: Record<string, unknown> = {};
+  const updateData: Prisma.TbUserUpdateInput = {};
 
   if (dto.nickname !== undefined) {
     updateData.nickname = dto.nickname;
-  }
-
-  if (dto.role !== undefined) {
-    updateData.role = dto.role;
   }
 
   if (dto.mail !== undefined) {
@@ -200,16 +208,26 @@ export async function updateUser(
     updateData.password = await hashPassword(dto.password);
   }
 
-  // 更新用户
-  const updatedUser = await prisma.tbUser.update({
-    where: { id },
-    data: updateData,
-  });
-
-  // 移除密码字段
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = updatedUser;
-  return userInfo;
+  return prisma.$transaction(async (tx) => {
+    const currentRoles = await tx.tbUserRole.findMany({
+      where: { user_id: id },
+      select: { role_id: true, role: { select: { code: true, status: true } } },
+    });
+    const nextStatus = dto.status ?? user.status;
+    if (dto.role_ids !== undefined) {
+      await replaceUserRoles(tx, id, dto.role_ids, nextStatus);
+    } else {
+      const activeRoleCodes = currentRoles.filter(({ role }) => role.status === 1).map(({ role }) => role.code);
+      if (activeRoleCodes.length === 0) throw new Error('用户至少需要一个启用角色');
+      await assertActiveAdminRemains(tx, id, nextStatus, activeRoleCodes);
+    }
+    const updatedUser = await tx.tbUser.update({
+      where: { id },
+      data: updateData,
+      include: userRoleSelect,
+    });
+    return toUserInfo(updatedUser);
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -226,14 +244,14 @@ export async function deleteUser(id: number): Promise<void> {
     throw new Error('用户不存在');
   }
 
-  // 不允许删除管理员账号
-  if (user.role === UserRole.ADMIN) {
-    throw new Error('不允许删除管理员账号');
-  }
-
-  await prisma.tbUser.delete({
-    where: { id },
-  });
+  await prisma.$transaction(async (tx) => {
+    const roles = await tx.tbUserRole.findMany({
+      where: { user_id: id },
+      select: { role: { select: { code: true } } },
+    });
+    await assertActiveAdminRemains(tx, id, 0, roles.map(({ role }) => role.code));
+    await tx.tbUser.delete({ where: { id } });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -277,10 +295,9 @@ export async function updateVerifiedUserEmail(id: number, mail: string): Promise
   const user = await prisma.tbUser.update({
     where: { id },
     data: { mail, mail_verified_at: new Date() },
+    include: userRoleSelect,
   });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = user;
-  return userInfo;
+  return toUserInfo(user);
 }
 
 /** 解除邮箱绑定 */
@@ -289,10 +306,9 @@ export async function clearUserEmail(id: number): Promise<UserInfo> {
   const user = await prisma.tbUser.update({
     where: { id },
     data: { mail: null, mail_verified_at: null },
+    include: userRoleSelect,
   });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password, ...userInfo } = user;
-  return userInfo;
+  return toUserInfo(user);
 }
 
 /** 获取密码与邮箱安全状态，仅供已认证的安全接口使用 */

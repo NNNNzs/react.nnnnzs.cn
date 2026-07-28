@@ -38,6 +38,7 @@ import {
   AdminPageHeader,
   AdminTableActions,
 } from "@/components/admin/AdminPageHeader";
+import { ADMIN_REQUIRED_PERMISSIONS, ADMIN_ROLE_CODE, isSystemRoleCode } from "@/constants/roles";
 
 const { Search } = Input;
 
@@ -341,12 +342,17 @@ function RolesPageContent() {
       const response = await axios.get(`/api/admin/roles/${role.id}/permissions`);
       if (response.data.status) {
         const perms = response.data.data.permissions || [];
-
-        setSelectedPermCodes(perms.map((p: RolePermission) => p.code));
+        const selectedCodes = perms.map((p: RolePermission) => p.code);
+        setSelectedPermCodes(role.code === ADMIN_ROLE_CODE
+          ? [...new Set([...selectedCodes, ...ADMIN_REQUIRED_PERMISSIONS])]
+          : selectedCodes);
         const scopes: Record<string, string> = {};
         perms.forEach((p: RolePermission) => {
           scopes[p.code] = p.data_scope;
         });
+        if (role.code === ADMIN_ROLE_CODE) {
+          ADMIN_REQUIRED_PERMISSIONS.forEach((code) => { scopes[code] = "all"; });
+        }
         setPermDataScopes(scopes);
       }
     } catch (error) {
@@ -364,9 +370,15 @@ function RolesPageContent() {
     if (!managingRole) return;
 
     try {
-      const permissions = selectedPermCodes.map(code => ({
+      const effectiveCodes = managingRole?.code === ADMIN_ROLE_CODE
+        ? [...new Set([...selectedPermCodes, ...ADMIN_REQUIRED_PERMISSIONS])]
+        : selectedPermCodes;
+      const permissions = effectiveCodes.map(code => ({
         code,
-        data_scope: permDataScopes[code] || "self",
+        data_scope: managingRole?.code === ADMIN_ROLE_CODE
+          && (ADMIN_REQUIRED_PERMISSIONS as readonly string[]).includes(code)
+          ? "all"
+          : permDataScopes[code] || "self",
       }));
 
       const response = await axios.put(`/api/admin/roles/${managingRole.id}/permissions`, {
@@ -473,7 +485,7 @@ function RolesPageContent() {
             color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-            disabled={["admin", "user"].includes(record.code)}
+            disabled={isSystemRoleCode(record.code)}
           >
             删除
           </AdminActionButton>
@@ -521,7 +533,7 @@ function RolesPageContent() {
             color="danger"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-            disabled={["admin", "user"].includes(record.code)}
+            disabled={isSystemRoleCode(record.code)}
           >
             删除
           </AdminActionButton>
@@ -645,7 +657,11 @@ function RolesPageContent() {
             getValueFromEvent={(checked) => (checked ? 1 : 0)}
             getValueProps={(value) => ({ checked: value === 1 })}
           >
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            <Switch
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+              disabled={Boolean(editingRole && isSystemRoleCode(editingRole.code))}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -669,10 +685,18 @@ function RolesPageContent() {
           allPermissions={allPermissions}
           selectedKeys={selectedPermCodes}
           dataScopes={permDataScopes}
-          onCheckedChange={setSelectedPermCodes}
-          onDataScopeChange={(code, scope) =>
-            setPermDataScopes(prev => ({ ...prev, [code]: scope }))
-          }
+          onCheckedChange={(codes) => setSelectedPermCodes(
+            managingRole?.code === ADMIN_ROLE_CODE
+              ? [...new Set([...codes, ...ADMIN_REQUIRED_PERMISSIONS])]
+              : codes,
+          )}
+          onDataScopeChange={(code, scope) => setPermDataScopes(prev => ({
+            ...prev,
+            [code]: managingRole?.code === ADMIN_ROLE_CODE
+              && (ADMIN_REQUIRED_PERMISSIONS as readonly string[]).includes(code)
+              ? "all"
+              : scope,
+          }))}
         />
       </Modal>
     </div>

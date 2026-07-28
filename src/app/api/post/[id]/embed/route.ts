@@ -6,9 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { queueEmbedPost, getQueueStatus } from '@/services/embedding';
-import { getTokenFromRequest, validateToken } from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getPrisma } from '@/lib/prisma';
+import { hasDataPermission } from '@/lib/permission';
+import { POST_EDIT } from '@/constants/permissions';
 
 /**
  * GET /api/post/[id]/embed
@@ -20,8 +22,7 @@ export async function GET(
 ) {
   try {
     // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
+    const user = await getAuthUserFromRequest(request.headers);
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
@@ -86,8 +87,7 @@ export async function POST(
 ) {
   try {
     // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    const user = token ? await validateToken(token) : null;
+    const user = await getAuthUserFromRequest(request.headers);
 
     if (!user) {
       return NextResponse.json(errorResponse('未授权'), { status: 401 });
@@ -118,8 +118,8 @@ export async function POST(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 检查权限（只能管理自己创建的文章，管理员除外）
-    if (user.role !== 'admin' && post.created_by !== user.id) {
+    // 数据权限由角色权限关系决定。
+    if (!hasDataPermission(user, POST_EDIT, post.created_by)) {
       return NextResponse.json(errorResponse('无权限操作此文章'), { status: 403 });
     }
 
