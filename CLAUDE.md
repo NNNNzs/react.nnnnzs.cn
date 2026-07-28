@@ -84,6 +84,8 @@
 - **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
 - **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
 - **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 🔄 进行中（已完成后台信息架构拆分、Run 观测和系统级 Prompts 管理，后续推进 Run 转 Eval Case、Golden Dataset 与 Replay）
+- **[AI Provider 配置管理重构](docs/plans/ai-provider-config.md)** — 🔄 进行中（Provider + 场景绑定代码已落地；待数据迁移与全场景手动验收）
+- **[赛博朋克 Blender 建模路由](docs/plans/cyberpunk-blender-modeling-route.md)** — 🔄 进行中
 
 ### 已完成计划（已归档到 `docs/designs/archive/`）
 - **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph

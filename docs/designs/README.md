@@ -9,6 +9,7 @@ docs/designs/
 ├── ai/                          # AI 系统
 │   ├── ai-config-profiles.md    # AI Provider 配置管理
 │   ├── ai-lab.md                # AI Lab / LLM 学习实验台
+│   ├── ai-template-mentions-migration.md # AI 模板 mentions 迁移
 │   ├── image-gen.md             # AI 图片生成
 │   ├── tts-page.md              # TTS 语音合成
 │   ├── topic-draft-workflow.md  # 选题完善与多平台草稿转换
@@ -41,7 +42,8 @@ docs/designs/
 └── archive/                     # 归档文档
     ├── rag-system-refactor.md
     ├── chat-langchain-migration.md
-    └── admin-mobile-ux.md
+    ├── admin-mobile-ux.md
+    └── prisma-7-upgrade.md
 ```
 
 ## 🔍 快速导航
@@ -52,6 +54,7 @@ docs/designs/
 |------|------|------|
 | [AI Provider 配置管理](ai/ai-config-profiles.md) | Provider、模型清单和场景绑定配置 | 🚧 执行中 |
 | [AI Lab / LLM 学习实验台](ai/ai-lab.md) | Run 观测、RAG 评测、系统级 Prompt 模板、检索实验与 LangSmith 集成设计 | 🚧 执行中 |
+| [AI 模板 mentions 迁移](ai/ai-template-mentions-migration.md) | AI 模板 mentions 字段迁移设计 | ✅ 已实施 |
 | [TTS 语音合成](ai/tts-page.md) | 小米 MiMo TTS 集成 | ✅ 已实施 |
 | [AI 图片生成](ai/image-gen.md) | GPT Image 2 文生图/图文编辑 | ✅ 已实施 |
 | [草稿库创作 Agent 助手](ai/create-agent.md) | LangGraph ReAct Agent + SSE 多事件流 + 草稿回填（方案 B） | ✅ 已落地 |
@@ -107,6 +110,7 @@ docs/designs/
 - [RAG 系统重构](archive/rag-system-refactor.md) - 向量化系统重构记录 (已完成)
 - [LangChain/LangGraph 迁移](archive/chat-langchain-migration.md) - 聊天系统迁移至 LangGraph
 - [管理后台移动端适配](archive/admin-mobile-ux.md) - 响应式 Sider/Drawer 切换
+- [Prisma 7 升级](archive/prisma-7-upgrade.md) - Prisma 7.8.0、MariaDB adapter 与 multi-file schema 升级
 
 ## 📝 文档状态
 

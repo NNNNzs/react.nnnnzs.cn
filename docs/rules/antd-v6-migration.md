@@ -4,7 +4,7 @@
 
 ## 适用范围
 
-- 当前项目固定使用 `antd@6.1.1`、`@ant-design/icons@^6.1.0`。
+- 当前项目固定使用 `antd@6.1.1`、`@ant-design/icons@^6.1.1`。
 - v6 对部分 v5 API 保留兼容，但会产生 deprecated warning；这些写法应视为禁止继续新增。
 - 迁移以“消除控制台 warning、兼容后续 v7 移除”为目标，避免继续按 v5 记忆写组件。
 

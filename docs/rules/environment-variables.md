@@ -16,6 +16,7 @@
 
 ### 数据库配置
 ```bash
+# 应用不读取以下 DB_* 变量；仅供外部运维/迁移脚本按需参考，可省略
 DB_HOST=localhost
 DB_PORT=3306
 DB_USERNAME=root
@@ -25,9 +26,8 @@ DATABASE_URL="mysql://root:your_mysql_password@localhost:3306/blog"
 ```
 
 > **说明**：
-> - `DB_*` 变量用于迁移脚本
-> - `DATABASE_URL` 用于 Prisma ORM
-> - 两者数据库名必须保持一致
+> - 应用不读取 `DB_*` 变量；它们仅供需要分项连接参数的外部运维/迁移脚本按需参考
+> - Prisma 仅使用 `DATABASE_URL`
 
 ### Redis 配置
 ```bash

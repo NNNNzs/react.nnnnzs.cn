@@ -91,7 +91,7 @@ flowchart TB
    - 或直接从 README.md 中删除
 
 3. **归档或删除**
-   - 有价值的计划：移动到 `docs/plans/archive/`
+   - 有价值的计划：移动到 `docs/plans/archive/feature-name.md`
    - 无价值的计划：直接删除
 
 ### 清理流程
@@ -170,7 +170,7 @@ rm docs/plans/feature-name.md
 
 ### 示例 1：有价值的计划 → 移至设计文档
 
-**计划阶段**：`docs/plans/vector-search.md`
+**计划阶段**：`docs/plans/feature-name.md`
 - 实施步骤清晰
 - 包含技术细节
 - 完成后仍需参考
@@ -178,7 +178,7 @@ rm docs/plans/feature-name.md
 **完成后**：
 ```bash
 # 转换为设计文档
-mv docs/plans/vector-search.md docs/designs/vector-search.md
+mv docs/plans/feature-name.md docs/designs/feature-name.md
 
 # 编辑设计文档，移除待办事项，保留技术细节
 

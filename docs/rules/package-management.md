@@ -89,7 +89,7 @@ pnpm update -i
 ```json
 {
   "antd": "6.1.1",
-  "next": "16.0.8"
+  "next": "16.0.10"
 }
 ```
 
@@ -108,12 +108,12 @@ pnpm update -i
 - `antd`: `6.1.1` - 固定版本，注意 6.x API 变更
 
 ### 核心框架
-- `next`: `16.0.8`
+- `next`: `16.0.10`
 - `react`: `19.2.1`
 
 ### 数据库
-- `@prisma/client`: `6.2.1`
-- `prisma`: `6.2.1`
+- `@prisma/client`: `7.8.0`
+- `prisma`: `7.8.0`
 
 ## 安全更新
 

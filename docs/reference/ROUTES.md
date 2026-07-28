@@ -78,7 +78,6 @@
 | `/api/create/*` | 选题、草稿、幻灯片、素材与创作总览 |
 | `/api/admin/ai-lab/*` | AI Lab Run 与 Prompt 管理 |
 | `/api/admin/roles/*`、`/api/admin/permissions` | RBAC 管理 |
-| `/api/admin/users/[id]/roles` | 用户角色 |
 | `/api/admin/api-registry` | API 注册表 |
 | `/api/admin/chat-logs` | 聊天日志 |
 | `/api/notifications/*`、`/api/ai-jobs/notifications` | 站内通知与 AI 任务通知 |

@@ -16,7 +16,7 @@
 ### UI 和样式
 - **Ant Design 6.1.1**（固定版本，注意 6.x API 变更）
   - `antd`: `6.1.1`
-  - `@ant-design/icons`: `^6.1.0`
+  - `@ant-design/icons`: `^6.1.1`
   - `@ant-design/nextjs-registry`: `^1.3.0`
   - **重要**：使用新 API，如 `Space` 组件的 `orientation` 而非 `direction`
 - Tailwind CSS 4.2.x

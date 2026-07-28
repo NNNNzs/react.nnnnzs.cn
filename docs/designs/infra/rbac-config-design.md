@@ -1173,13 +1173,6 @@ export function useAuth(): AuthContextValue {
 |------|------|------|----------|
 | `/api/admin/permissions` | GET | 所有权限码列表 | `user:view` |
 
-### 用户角色分配
-
-| 接口 | 方法 | 说明 | 权限要求 |
-|------|------|------|----------|
-| `/api/admin/users/[id]/roles` | GET | 获取用户角色 | `user:view` |
-| `/api/admin/users/[id]/roles` | PUT | 设置用户角色 | `user:role:assign` |
-
 ### 关键接口设计
 
 **PUT `/api/admin/roles/[id]/permissions`** — 设置角色权限：

@@ -922,7 +922,7 @@ const openPlatformConfigs = [
 1. **注册开放平台应用**
    - 调用开放平台注册接口
    - 获取 AppKey 和 AppSecret
-   - 记录回调地址：`https://react.nnnnzs.cn/api/wechat/callback`
+   - 记录回调地址：`https://www.nnnnzs.cn/api/wechat/callback`
 
 2. **添加配置到数据库**
    在配置管理页面（`/c/config`）中添加以下配置：

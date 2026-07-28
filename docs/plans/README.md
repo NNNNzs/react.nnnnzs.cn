@@ -13,6 +13,7 @@
 - [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
 - [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成 Run 观测和系统级 Prompts 管理；下一步从 Run 转 Eval Case 并推进 Golden Dataset）
 - [AI Provider 配置管理重构](./ai-provider-config.md) — 🔄 进行中（Provider + 场景绑定代码已落地；待数据迁移与全场景手动验收）
+- [赛博朋克 Blender 建模路由](./cyberpunk-blender-modeling-route.md) — 🔄 进行中
 
 ---
 

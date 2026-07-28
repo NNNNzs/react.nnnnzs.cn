@@ -174,7 +174,7 @@ src/
 
 ### 前台页面
 - `/` - 首页（文章列表）
-- `/[year]/[month]/[day]/[title]` - 文章详情页
+- `/[year]/[month]/[date]/[title]` - 文章详情页
 - `/tags` - 标签列表页
 - `/tags/[tag]` - 按标签筛选的文章列表
 - `/categories` - 分类列表页
@@ -257,7 +257,7 @@ src/
 3. **API 权限验证**（核心防护）
 4. **服务层过滤**
 
-详见：[权限系统设计](./docs/designs/infra/permission-design.md)
+详见：[权限系统设计](./docs/rules/permission.md)
 
 ##  Git 提交规范
 
