@@ -71,3 +71,4 @@ logs/
 
 # 本地开发用版本信息文件，Docker 构建时由 Dockerfile.prod 重新生成覆盖
 public/version.json
+.workbuddy
