@@ -7,6 +7,10 @@ const TRANSPARENT_PIXEL = Buffer.from(
   'base64',
 );
 
+function getPublicSiteUrl() {
+  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.nnnnzs.cn').replace(/\/$/, '');
+}
+
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token');
   const payload = token ? verifyNotificationReadToken(token) : null;
@@ -20,5 +24,5 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return NextResponse.redirect(new URL(payload.targetUrl, request.url));
+  return NextResponse.redirect(new URL(payload.targetUrl, getPublicSiteUrl()));
 }
