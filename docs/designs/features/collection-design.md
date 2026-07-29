@@ -1,5 +1,30 @@
 # 博客合集功能设计文档
 
+> **昼夜双主题与档案盒交互迁移**：后续改造范围、效果图、资源字段、后台配置和 SEO 验收详见 [合集昼夜双主题与档案盒交互改造计划](../../plans/collection-day-night-redesign.md)。图片与视频生产统一参考 [合集视觉资源生成指南](../../reference/collection-visual-generation-guide.md)。
+
+## 昼夜视觉改造代码落点（2026-07-29）
+
+| 层级 | 当前实现 |
+|---|---|
+| 数据模型 | `TbCollection.extends_json Json?` 保存版本化的日间/夜间 9:16 封面图、9:16 封面视频、16:9 页面背景图、焦点和强调色 |
+| 类型与校验 | `src/lib/collection-visual.ts` 负责 Zod 校验、解析、资源回退、旧视频识别和后台完整度统计 |
+| 首页配置 | `src/services/collection-home-visual.ts` 只读取 `collections.home.background.day/night` 两个白名单配置并独立缓存 |
+| 公开页面 | `/collections` 使用双向受控轮播与档案展开；`/collections/[slug]` 使用竖长封面媒体、静态空间背景、资料页和服务端目录 |
+| 后台 | `/c/collections` 显示日夜资源完整度；`/c/collections/[id]` 提供基础、日间、夜间和预览 Tabs |
+| 安全与 SEO | 公开 API 固定只返回可见数据，管理 API 单独鉴权；详情页输出 canonical、Open Graph 与 `CollectionPage`/`ItemList` JSON-LD |
+
+数据库同步、CDN 资源回填和真实页面联调仍以迁移计划中的未完成项为准。
+
+### 当前视觉字段契约
+
+每个主题只维护三类媒体：
+
+- `coverImageUrl`：9:16 竖长封面图，同时用于 Open Graph 和视频降级。
+- `coverVideoUrl`：9:16 竖长封面视频，选中合集后在首页和详情页静音循环播放。
+- `backgroundImageUrl`：16:9 详情页静态空间背景，不播放背景视频。
+
+不再维护独立 `videoPosterUrl` 或 `backgroundVideoUrl`。仅当 `extends_json` 缺失或无效时，旧 `cover/background/color` 才会在管理端归一化到日间视觉；一旦存在有效的新配置，其中的空值也具有明确语义，不能再由旧字段补回。旧视频背景只作为尚未迁移记录的日间竖长封面视频兼容来源。
+
 > **本文档定位**: 技术设计文档 - 说明合集功能的设计原理和实现方案
 >
 > **开发实施规范**详见:

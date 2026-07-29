@@ -8,12 +8,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requirePermission } from '@/lib/permission';
-import { COLLECTION_EDIT } from '@/constants/permissions';
+import { COLLECTION_EDIT, COLLECTION_VIEW } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import {
   addPostsToCollection,
+  getCollectionArticlesForManagement,
+  getCollectionById,
   removePostsFromCollection,
 } from '@/services/collection';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 // 添加文章验证schema
 const addPostsSchema = z.object({
@@ -25,6 +28,43 @@ const addPostsSchema = z.object({
 const removePostsSchema = z.object({
   post_ids: z.array(z.coerce.number()).min(1, '至少需要一个文章ID'),
 });
+
+async function revalidateCollectionContent(collectionId: number): Promise<void> {
+  const collection = await getCollectionById(collectionId);
+  revalidateTag('collection', {});
+  revalidateTag('collection-list', {});
+  if (collection) revalidatePath(`/collections/${collection.slug}`);
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const check = await requirePermission(request, COLLECTION_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
+    }
+
+    const { id } = await params;
+    const collectionId = Number.parseInt(id, 10);
+    if (!Number.isInteger(collectionId) || collectionId <= 0) {
+      return NextResponse.json(errorResponse('无效的合集 ID'), { status: 400 });
+    }
+
+    const articles = await getCollectionArticlesForManagement(collectionId);
+    if (!articles) {
+      return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
+    }
+
+    return NextResponse.json(successResponse({ articles }), {
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  } catch (error) {
+    console.error('获取合集文章失败:', error);
+    return NextResponse.json(errorResponse('获取合集文章失败'), { status: 500 });
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -65,6 +105,8 @@ export async function POST(
       validationResult.data.sort_orders,
       user.id
     );
+
+    await revalidateCollectionContent(collectionId);
 
     return NextResponse.json(successResponse(result, `成功添加 ${result.created} 篇文章到合集`));
   } catch (error) {
@@ -107,6 +149,7 @@ export async function DELETE(
     }
 
     await removePostsFromCollection(collectionId, validationResult.data.post_ids, user.id);
+    await revalidateCollectionContent(collectionId);
 
     return NextResponse.json(successResponse(null, '文章已从合集中移除'));
   } catch (error) {

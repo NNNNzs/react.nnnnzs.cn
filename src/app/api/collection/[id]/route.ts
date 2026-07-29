@@ -7,11 +7,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requirePermission } from '@/lib/permission';
-import { COLLECTION_EDIT, COLLECTION_DELETE } from '@/constants/permissions';
+import { COLLECTION_VIEW, COLLECTION_EDIT, COLLECTION_DELETE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { collectionVisualConfigSchema } from '@/lib/collection-visual';
+
+/** 获取合集管理详情接口描述 */
+export const getDescriptor: ApiDescriptor = {
+  code: 'collection_get',
+  name: '获取合集管理详情',
+  module: 'collection',
+  method: 'GET',
+  permissionCode: COLLECTION_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', description: '合集ID' },
+    },
+    required: ['id'],
+  },
+};
 
 /** 更新合集接口描述 */
 export const updateDescriptor: ApiDescriptor = {
@@ -32,6 +49,7 @@ export const updateDescriptor: ApiDescriptor = {
       background: { type: 'string', description: '背景图URL' },
       color: { type: 'string', description: '主题色' },
       status: { type: 'string', description: '状态：1-正常，0-隐藏' },
+      extends_json: { type: 'object', description: '版本化日间/夜间视觉配置' },
     },
     required: ['id'],
   },
@@ -57,13 +75,44 @@ export const deleteDescriptor: ApiDescriptor = {
 // 定义合集更新的验证schema
 const updateCollectionSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符').optional(),
-  slug: z.string().min(1, 'slug不能为空').max(255, 'slug不能超过255个字符').regex(/^[a-z0-9-]+$/, 'slug只能包含小写字母、数字和连字符').optional(),
+  slug: z.string().min(1, 'slug不能为空').max(191, 'slug不能超过191个字符').regex(/^[a-z0-9-]+$/, 'slug只能包含小写字母、数字和连字符').optional(),
   description: z.string().max(1000, '描述不能超过1000个字符').optional().nullable(),
   cover: z.string().url('无效的 URL').optional().nullable(),
   background: z.string().url('无效的 URL').optional().nullable(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '颜色必须是十六进制格式，如 #2563eb').optional().nullable(),
   status: z.enum(['0', '1']).optional(),
-});
+  extends_json: collectionVisualConfigSchema.optional().nullable(),
+}).strict();
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const check = await requirePermission(request, COLLECTION_VIEW);
+    if ('error' in check) {
+      return NextResponse.json(errorResponse(check.error), { status: check.status });
+    }
+
+    const { id } = await params;
+    const collectionId = Number.parseInt(id, 10);
+    if (!Number.isInteger(collectionId) || collectionId <= 0) {
+      return NextResponse.json(errorResponse('无效的合集 ID'), { status: 400 });
+    }
+
+    const collection = await getCollectionById(collectionId);
+    if (!collection) {
+      return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
+    }
+
+    return NextResponse.json(successResponse(collection), {
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  } catch (error) {
+    console.error('获取合集管理详情失败:', error);
+    return NextResponse.json(errorResponse('获取合集信息失败'), { status: 500 });
+  }
+}
 
 export async function PUT(
   request: NextRequest,
@@ -97,10 +146,13 @@ export async function PUT(
     }
 
     // 转换 status 为数字
-    const updateData: Record<string, unknown> = { ...validationResult.data };
-    if (updateData.status !== undefined) {
-      updateData.status = parseInt(updateData.status as string, 10);
-    }
+    const updateData = {
+      ...validationResult.data,
+      status: validationResult.data.status === undefined
+        ? undefined
+        : Number.parseInt(validationResult.data.status, 10),
+      updated_by: check.user.id,
+    };
 
     // 获取更新前的合集（用于清除旧 slug 的缓存）
     const oldCollection = await getCollectionById(collectionId);
@@ -113,6 +165,7 @@ export async function PUT(
 
     // 清除缓存
     revalidateTag('collection', {}); // 清除合集列表缓存
+    revalidateTag('collection-list', {});
     revalidatePath(`/collections/${result.slug}`); // 清除新路径缓存
 
     // 如果 slug 改变，清除旧路径缓存
@@ -154,6 +207,7 @@ export async function DELETE(
 
     // 清除缓存
     revalidateTag('collection', {}); // 清除合集列表缓存
+    revalidateTag('collection-list', {});
     if (collection) {
       revalidatePath(`/collections/${collection.slug}`); // 清除合集详情页
     }

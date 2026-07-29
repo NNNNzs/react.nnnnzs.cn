@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Button, Input, Tag, message, Modal, Switch, Card } from 'antd';
+import { Button, Input, Tag, message, Modal, Switch, Card, Space } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
@@ -20,7 +20,12 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { COLLECTION_VIEW } from '@/constants/permissions';
+import {
+  COLLECTION_CREATE,
+  COLLECTION_DELETE,
+  COLLECTION_EDIT,
+  COLLECTION_VIEW,
+} from '@/constants/permissions';
 import type { SerializedCollection } from '@/dto/collection.dto';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
@@ -32,6 +37,11 @@ import {
   AdminPageHeader,
   AdminTableActions,
 } from '@/components/admin/AdminPageHeader';
+import {
+  getCollectionVisualCompleteness,
+  resolveCollectionVisual,
+} from '@/lib/collection-visual';
+import { useStyleVariant } from '@/lib/site-style/useStyleVariant';
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -99,6 +109,10 @@ function useUpdateUrl() {
 
 function CollectionsManagePageContent() {
   const { user, hasPermission } = useAuth();
+  const styleVariant = useStyleVariant();
+  const canCreate = hasPermission(COLLECTION_CREATE);
+  const canEdit = hasPermission(COLLECTION_EDIT);
+  const canDelete = hasPermission(COLLECTION_DELETE);
   const router = useRouter();
   const { isMobile } = useBreakpoint();
   const urlState = useUrlState();
@@ -163,7 +177,10 @@ function CollectionsManagePageContent() {
         params.query = urlState.searchText;
       }
 
-      const res = await axios.get('/api/collections', { params });
+      const res = await axios.get('/api/collections/manage', {
+        params,
+        headers: { 'Cache-Control': 'no-cache' },
+      });
 
       if (res.data.status) {
         setCollections(res.data.data.record);
@@ -197,6 +214,7 @@ function CollectionsManagePageContent() {
 
   // 删除合集
   const handleDelete = async (id: number, title: string) => {
+    if (!canDelete) return;
     confirm({
       title: '确认删除',
       content: `确定要删除合集「${title}」吗？此操作不可恢复。`,
@@ -232,6 +250,7 @@ function CollectionsManagePageContent() {
 
   // 切换状态
   const handleToggleStatus = async (id: number, status: number) => {
+    if (!canEdit) return;
     try {
       const res = await axios.put(`/api/collection/${id}`, {
         status: status === 1 ? '1' : '0', // 传递字符串而不是数字
@@ -256,16 +275,19 @@ function CollectionsManagePageContent() {
     <Card key={record.id} size="small" className="mb-3">
       <div className="flex gap-3">
         {/* 左侧缩略图 */}
-        {record.cover && (
+        {resolveCollectionVisual(record, styleVariant).coverImageUrl && (
           <div className="shrink-0">
             <Image
-              src={optimizeImageUrl(record.cover, ImageOptimizationType.SMALL_THUMBNAIL)}
-              alt="封面"
-              width={64}
-              height={40}
+              src={optimizeImageUrl(
+                resolveCollectionVisual(record, styleVariant).coverImageUrl || '',
+                ImageOptimizationType.SMALL_THUMBNAIL,
+              )}
+              alt={`${record.title}封面`}
+              width={40}
+              height={64}
               unoptimized={true}
-              className="w-16 h-10 object-cover rounded"
-              sizes="64px"
+              className="h-16 w-10 rounded object-cover"
+              sizes="40px"
             />
           </div>
         )}
@@ -284,6 +306,7 @@ function CollectionsManagePageContent() {
             <Switch
               checked={record.status === 1}
               onChange={() => handleToggleStatus(record.id, record.status)}
+              disabled={!canEdit}
               checkedChildren="显示"
               unCheckedChildren="隐藏"
               size="small"
@@ -292,29 +315,39 @@ function CollectionsManagePageContent() {
           {/* 信息行：文章数 + 创建日期 */}
           <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
             <Tag color="blue">{record.article_count} 篇</Tag>
+            <Tag color="gold">
+              日 {getCollectionVisualCompleteness(record, 'day').configured}/{getCollectionVisualCompleteness(record, 'day').total}
+            </Tag>
+            <Tag color="cyan">
+              夜 {getCollectionVisualCompleteness(record, 'night').configured}/{getCollectionVisualCompleteness(record, 'night').total}
+            </Tag>
             <span>{dayjs(record.created_at).format('YYYY-MM-DD')}</span>
           </div>
           {/* 操作行 */}
           <AdminTableActions className="mt-2">
-            <AdminActionButton
-              icon={<EditOutlined />}
-              onClick={() => router.push(`/c/collections/${record.id}`)}
-            >
-              编辑
-            </AdminActionButton>
+            {canEdit ? (
+              <AdminActionButton
+                icon={<EditOutlined />}
+                onClick={() => router.push(`/c/collections/${record.id}`)}
+              >
+                编辑
+              </AdminActionButton>
+            ) : null}
             <AdminActionButton
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
             </AdminActionButton>
-            <AdminActionButton
-              color="danger"
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id, record.title)}
-            >
-              删除
-            </AdminActionButton>
+            {canDelete ? (
+              <AdminActionButton
+                color="danger"
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record.id, record.title)}
+              >
+                删除
+              </AdminActionButton>
+            ) : null}
           </AdminTableActions>
         </div>
       </div>
@@ -331,22 +364,42 @@ function CollectionsManagePageContent() {
     },
     {
       title: '封面',
-      dataIndex: 'cover',
+      dataIndex: 'extends_json',
       key: 'cover',
       width: 100,
-      render: (cover: string) => {
-        const src = cover || 'https://via.placeholder.com/60x40';
-        
-        return (
+      render: (_, record) => {
+        const src = resolveCollectionVisual(record, styleVariant).coverImageUrl;
+
+        return src ? (
           <Image
             src={optimizeImageUrl(src, ImageOptimizationType.SMALL_THUMBNAIL)}
-            alt="封面"
-            width={64}
-            height={40}
+            alt={`${record.title}封面`}
+            width={40}
+            height={64}
             unoptimized={true}
-            className="w-16 h-10 object-cover rounded"
-            sizes="64px"
+            className="h-16 w-10 rounded object-cover"
+            sizes="40px"
           />
+        ) : (
+          <div className="flex h-16 w-10 items-center justify-center rounded bg-slate-100 text-[10px] text-slate-400">
+            未配置
+          </div>
+        );
+      },
+    },
+    {
+      title: '视觉资源',
+      key: 'visuals',
+      width: 150,
+      render: (_, record) => {
+        const day = getCollectionVisualCompleteness(record, 'day');
+        const night = getCollectionVisualCompleteness(record, 'night');
+
+        return (
+          <Space orientation="vertical" size={2}>
+            <Tag color={day.configured === day.total ? 'success' : 'gold'}>日间 {day.configured}/{day.total}</Tag>
+            <Tag color={night.configured === night.total ? 'success' : 'cyan'}>夜间 {night.configured}/{night.total}</Tag>
+          </Space>
         );
       },
     },
@@ -395,6 +448,7 @@ function CollectionsManagePageContent() {
         <Switch
           checked={status === 1}
           onChange={() => handleToggleStatus(record.id, status)}
+          disabled={!canEdit}
           checkedChildren="显示"
           unCheckedChildren="隐藏"
         />
@@ -413,25 +467,29 @@ function CollectionsManagePageContent() {
       width: 240,
       render: (_, record) => (
         <AdminTableActions>
-          <AdminActionButton
-            icon={<EditOutlined />}
-            onClick={() => router.push(`/c/collections/${record.id}`)}
-          >
-            编辑
-          </AdminActionButton>
+          {canEdit ? (
+            <AdminActionButton
+              icon={<EditOutlined />}
+              onClick={() => router.push(`/c/collections/${record.id}`)}
+            >
+              编辑
+            </AdminActionButton>
+          ) : null}
           <AdminActionButton
             icon={<HistoryOutlined />}
             onClick={() => handleViewChangeHistory(record)}
           >
             变更历史
           </AdminActionButton>
-          <AdminActionButton
-            color="danger"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id, record.title)}
-          >
-            删除
-          </AdminActionButton>
+          {canDelete ? (
+            <AdminActionButton
+              color="danger"
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id, record.title)}
+            >
+              删除
+            </AdminActionButton>
+          ) : null}
         </AdminTableActions>
       ),
     },
@@ -445,13 +503,15 @@ function CollectionsManagePageContent() {
         <AdminPageHeader
           title="合集管理"
           extra={
-          <Button variant="solid" color="primary"
-            icon={<PlusOutlined />}
-            onClick={() => router.push('/c/collections/new')}
-            size="small"
-          >
-            {isMobile ? '新建' : '创建合集'}
-          </Button>
+          canCreate ? (
+            <Button variant="solid" color="primary"
+              icon={<PlusOutlined />}
+              onClick={() => router.push('/c/collections/new')}
+              size="small"
+            >
+              {isMobile ? '新建' : '创建合集'}
+            </Button>
+          ) : null
           }
         />
 

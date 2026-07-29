@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollectionList } from '@/services/collection';
-import { COLLECTION_VIEW } from '@/constants/permissions';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 
 /** 接口自描述信息 */
@@ -14,7 +13,6 @@ export const descriptor: ApiDescriptor = {
   name: '合集列表',
   module: 'collection',
   method: 'GET',
-  permissionCode: COLLECTION_VIEW,
   inputSchema: {
     type: 'object',
     properties: {
@@ -32,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
     const pageNum = parseInt(searchParams.get('pageNum') || '1', 10);
-    const statusParam = searchParams.get('status');
     const query = searchParams.get('query') || '';
 
     // 参数验证
@@ -56,20 +53,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 处理 status 参数：如果是 'all' 或无效值，则不传递 status
-    let status: number | undefined;
-    if (statusParam && statusParam !== 'all') {
-      const parsedStatus = parseInt(statusParam, 10);
-      if (!isNaN(parsedStatus)) {
-        status = parsedStatus;
-      }
-    }
-
     const result = await getCollectionList({
       pageSize,
       pageNum,
       query,
-      ...(status !== undefined && { status }),
+      status: 1,
     });
 
     return NextResponse.json({

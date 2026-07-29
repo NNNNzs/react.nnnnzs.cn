@@ -10,6 +10,8 @@ import { getConfigById, updateConfig, deleteConfig } from '@/services/config';
 import { requirePermission } from '@/lib/permission';
 import { CONFIG_VIEW, CONFIG_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { revalidateTag } from 'next/cache';
+import { isCollectionHomeVisualKey } from '@/services/collection-home-visual';
 
 
 /**
@@ -57,8 +59,13 @@ export async function PUT(
     }
     const { id } = await context.params;
     const body = await request.json();
+    const existing = await getConfigById(Number(id));
 
     const result = await updateConfig(Number(id), body);
+
+    if (isCollectionHomeVisualKey(existing?.key) || isCollectionHomeVisualKey(result.key)) {
+      revalidateTag('collections-home-visual', {});
+    }
 
     return NextResponse.json(successResponse(result, '更新成功'));
   } catch (error) {
@@ -83,7 +90,12 @@ export async function DELETE(
     }
     const { id } = await context.params;
 
+    const existing = await getConfigById(Number(id));
     await deleteConfig(Number(id));
+
+    if (isCollectionHomeVisualKey(existing?.key)) {
+      revalidateTag('collections-home-visual', {});
+    }
 
     return NextResponse.json(successResponse(null, '删除成功'));
   } catch (error) {

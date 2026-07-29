@@ -13,12 +13,15 @@ import {
   UpdateCollectionDto,
   CollectionQueryCondition,
   CollectionPageQueryRes,
+  CollectionShowcaseItem,
 } from '@/dto/collection.dto';
 import { TbCollection, TbPost } from '@/generated/prisma-client/client';
+import { Prisma } from '@/generated/prisma-client/client';
 import { serializePost } from './post';
 import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogsAsync } from '@/services/entity-change-log';
 import { EntityType, ValueType } from '@/types/entity-change';
+import { parseCollectionVisualConfig } from '@/lib/collection-visual';
 
 /**
  * 将 Prisma 实体序列化为纯对象
@@ -26,6 +29,7 @@ import { EntityType, ValueType } from '@/types/entity-change';
 export function serializeCollection(collection: TbCollection): SerializedCollection {
   return {
     ...collection,
+    extends_json: parseCollectionVisualConfig(collection.extends_json),
     created_at: collection.created_at?.toISOString() || '',
     updated_at: collection.updated_at?.toISOString() || '',
   };
@@ -87,10 +91,64 @@ export async function getCollectionList(
 }
 
 /**
+ * 获取合集首页的档案盒与展开目录数据。
+ * 每个合集只携带前 11 篇可见文章，避免把正文或完整文章对象传给客户端。
+ */
+export async function getCollectionShowcaseList(): Promise<CollectionShowcaseItem[]> {
+  const prisma = await getPrisma();
+  const data = await prisma.tbCollection.findMany({
+    where: {
+      is_delete: 0,
+      status: 1,
+    },
+    orderBy: { id: 'asc' },
+    include: {
+      collectionPosts: {
+        where: {
+          post: {
+            is_delete: 0,
+            hide: '0',
+          },
+        },
+        orderBy: { sort_order: 'asc' },
+        take: 11,
+        select: {
+          sort_order: true,
+          post: {
+            select: {
+              id: true,
+              title: true,
+              path: true,
+              date: true,
+              updated: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return data.map(({ collectionPosts, ...collection }) => ({
+    ...serializeCollection(collection),
+    articles: collectionPosts.map(({ post, sort_order }) => ({
+      id: post.id,
+      title: post.title,
+      path: post.path,
+      date: post.date?.toISOString() || null,
+      updated: post.updated?.toISOString() || null,
+      sort_order,
+    })),
+  }));
+}
+
+/**
  * 根据条件获取合集详情及文章
  */
 async function getCollectionDetail(
-  where: { slug: string } | { OR: Array<{ slug: string } | { title: string }> },
+  where:
+    | { id: number }
+    | { slug: string }
+    | { OR: Array<{ slug: string } | { title: string }> },
 ): Promise<CollectionDetail | null> {
   const prisma = await getPrisma();
 
@@ -162,6 +220,11 @@ export async function getCollectionBySlug(slug: string): Promise<CollectionDetai
   return getCollectionDetail({ slug });
 }
 
+/** 根据 ID 获取公开可见的合集详情及文章。 */
+export async function getPublicCollectionById(id: number): Promise<CollectionDetail | null> {
+  return getCollectionDetail({ id });
+}
+
 /**
  * 根据 slug 或中文标题获取合集详情及文章
  */
@@ -191,6 +254,50 @@ export async function getCollectionById(id: number): Promise<SerializedCollectio
   return collection ? serializeCollection(collection) : null;
 }
 
+/** 获取后台文章管理所需的合集文章，包含隐藏但未删除的文章。 */
+export async function getCollectionArticlesForManagement(
+  id: number,
+): Promise<ArticleInCollection[] | null> {
+  const prisma = await getPrisma();
+  const collection = await prisma.tbCollection.findFirst({
+    where: { id, is_delete: 0 },
+    select: {
+      collectionPosts: {
+        orderBy: { sort_order: 'asc' },
+        where: { post: { is_delete: 0 } },
+        select: {
+          sort_order: true,
+          post: {
+            select: {
+              id: true,
+              title: true,
+              path: true,
+              description: true,
+              cover: true,
+              date: true,
+              visitors: true,
+              likes: true,
+              tags: true,
+              category: true,
+              layout: true,
+              updated: true,
+              hide: true,
+              created_by: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!collection) return null;
+
+  return collection.collectionPosts.map((item) => ({
+    ...serializePost(item.post as TbPost),
+    sort_order: item.sort_order,
+  }));
+}
+
 /**
  * 创建合集
  */
@@ -205,6 +312,9 @@ export async function createCollection(data: CreateCollectionDto): Promise<Seria
       cover: data.cover || null,
       background: data.background || null,
       color: data.color || null,
+      ...(data.extends_json
+        ? { extends_json: data.extends_json as Prisma.InputJsonValue }
+        : {}),
       created_by: data.created_by || null,
     },
   });
@@ -239,6 +349,11 @@ export async function updateCollection(
     if (data.cover !== undefined) updateData.cover = data.cover;
     if (data.background !== undefined) updateData.background = data.background;
     if (data.color !== undefined) updateData.color = data.color;
+    if (data.extends_json !== undefined) {
+      updateData.extends_json = data.extends_json === null
+        ? Prisma.DbNull
+        : data.extends_json as Prisma.InputJsonValue;
+    }
     if (data.status !== undefined) updateData.status = data.status;
 
     // 执行更新

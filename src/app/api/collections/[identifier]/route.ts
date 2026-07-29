@@ -6,10 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCollectionBySlug } from '@/services/collection';
-import { getPrisma } from '@/lib/prisma';
-import { serializeCollection } from '@/services/collection';
-import { serializePost } from '@/services/post';
+import { getCollectionBySlug, getPublicCollectionById } from '@/services/collection';
 
 export async function GET(
   request: NextRequest,
@@ -28,57 +25,9 @@ export async function GET(
       );
     }
 
-    let collection = null;
-
-    // 尝试作为数字 ID 查询
-    if (/^\d+$/.test(identifier)) {
-      const prisma = await getPrisma();
-      const id = parseInt(identifier, 10);
-
-      const collectionData = await prisma.tbCollection.findFirst({
-        where: { id, is_delete: 0 },
-        include: {
-          collectionPosts: {
-            where: { post: { is_delete: 0 } },
-            include: {
-              post: true,
-            },
-            orderBy: { sort_order: 'asc' },
-          },
-        },
-      });
-
-      if (!collectionData) {
-        return NextResponse.json(
-          {
-            status: false,
-            message: '合集不存在',
-          },
-          { status: 404 }
-        );
-      }
-
-      // 构建文章列表
-      const articles = collectionData.collectionPosts
-        .map((cp) => {
-          if (!cp.post || cp.post.is_delete === 1) {
-            return null;
-          }
-          return {
-            ...serializePost(cp.post),
-            sort_order: cp.sort_order,
-          };
-        })
-        .filter((article) => article !== null);
-
-      collection = {
-        ...serializeCollection(collectionData),
-        articles,
-      };
-    } else {
-      // 作为 slug 查询
-      collection = await getCollectionBySlug(identifier);
-    }
+    const collection = /^\d+$/.test(identifier)
+      ? await getPublicCollectionById(Number.parseInt(identifier, 10))
+      : await getCollectionBySlug(identifier);
 
     if (!collection) {
       return NextResponse.json(

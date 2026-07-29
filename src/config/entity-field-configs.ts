@@ -126,11 +126,11 @@ export const postFieldConfigs: EntityFieldConfigs = {
  * 合集字段配置
  *
  * 需要记录变更的字段：
- * - name, slug, description, cover, hide, sort_order
+ * - title, slug, description, cover, background, color, status, extends_json
  */
 export const collectionFieldConfigs: EntityFieldConfigs = {
-  name: {
-    fieldName: 'name',
+  title: {
+    fieldName: 'title',
     displayName: '合集名称',
     valueType: ValueType.STRING,
   },
@@ -149,15 +149,25 @@ export const collectionFieldConfigs: EntityFieldConfigs = {
     displayName: '封面',
     valueType: ValueType.STRING,
   },
-  hide: {
-    fieldName: 'hide',
-    displayName: '隐藏状态',
-    valueType: ValueType.BOOLEAN,
+  background: {
+    fieldName: 'background',
+    displayName: '背景资源',
+    valueType: ValueType.STRING,
   },
-  sortOrder: {
-    fieldName: 'sort_order',
-    displayName: '排序',
+  color: {
+    fieldName: 'color',
+    displayName: '主题色',
+    valueType: ValueType.STRING,
+  },
+  status: {
+    fieldName: 'status',
+    displayName: '状态',
     valueType: ValueType.NUMBER,
+  },
+  extendsJson: {
+    fieldName: 'extends_json',
+    displayName: '昼夜视觉配置',
+    valueType: ValueType.OBJECT,
   },
 };
 

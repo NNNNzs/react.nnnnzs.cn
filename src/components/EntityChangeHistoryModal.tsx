@@ -77,6 +77,7 @@ const fieldDisplayNameMap: Record<string, string> = {
   status: '状态',
   background: '背景图',
   color: '主题色',
+  extends_json: '昼夜视觉配置',
 };
 
 /**

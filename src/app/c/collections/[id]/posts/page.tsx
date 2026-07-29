@@ -65,19 +65,14 @@ export default function CollectionPostsPage() {
     setLoading(true);
     try {
       // 加载合集信息
-      const collectionRes = await axios.get(
-        `/api/collections?pageSize=100&pageNum=1&status=all`
-      );
+      const collectionRes = await axios.get(`/api/collection/${collectionId}`);
       if (collectionRes.data.status) {
-        const coll = collectionRes.data.data.record.find(
-          (c: SerializedCollection) => c.id === parseInt(collectionId, 10)
-        );
-        setCollection(coll || null);
+        setCollection(collectionRes.data.data as SerializedCollection);
       }
 
       // 加载合集内的文章
       const collectionDetailRes = await axios.get(
-        `/api/collections/${collectionId}`
+        `/api/collection/${collectionId}/posts`
       );
       if (collectionDetailRes.data.status) {
         setSelectedArticles(collectionDetailRes.data.data.articles || []);
@@ -106,7 +101,7 @@ export default function CollectionPostsPage() {
       const currentIds = selectedArticles.map((a) => a.id);
 
       // 获取之前合集内的文章ID
-      const beforeSaveRes = await axios.get(`/api/collections/${collectionId}`);
+      const beforeSaveRes = await axios.get(`/api/collection/${collectionId}/posts`);
       const beforeIds = beforeSaveRes.data.status
         ? beforeSaveRes.data.data.articles.map((a: { id: number }) => a.id)
         : [];

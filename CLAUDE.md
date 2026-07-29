@@ -76,6 +76,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
+- **[合集昼夜双主题与档案盒交互改造](docs/plans/collection-day-night-redesign.md)** — 🚧 进行中（前后台、SEO、CDN 资源和数据库同步已完成，待竖长视频资源与跨端验收）
 - **[博客轮询削峰与缓存防击穿改造](docs/plans/polling-load-shedding.md)** — 🔄 进行中（代码改造与静态验证已完成，待浏览器多标签页及生产缓存联调）
 - **[后台任务桌面通知模块](docs/plans/desktop-task-notifications.md)** — 🔄 进行中（模块代码、静态检查和任务深链验收已完成，待数据库索引同步与通知授权后验收）
 - **[MCP Prompt 动态注册改造](docs/plans/mcp-prompts.md)** — 🔄 进行中（Prompt 原语注册、后台暴露开关和静态检查已完成，待真实 MCP 客户端联调）

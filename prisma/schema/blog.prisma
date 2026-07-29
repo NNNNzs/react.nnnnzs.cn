@@ -69,6 +69,7 @@ model TbCollection {
   cover       String?   @db.VarChar(255)    // 封面图URL
   background  String?   @db.VarChar(255)    // 背景图URL
   color       String?   @db.VarChar(20)     // 主题色，如 #2563eb
+  extends_json Json?                         // 版本化展示配置（日间/夜间封面图、竖长封面视频和页面背景图）
 
   // 统计信息（冗余字段，提高查询性能）
   article_count Int     @default(0)       // 文章数量

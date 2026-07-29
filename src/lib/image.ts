@@ -15,6 +15,8 @@ export enum ImageOptimizationType {
   POST_CARD_COVER = "post_card_cover",
   /** 合集封面 - 限宽 600px */
   COLLECTION_COVER = "collection_cover",
+  /** 合集氛围背景 - 限宽 1920px */
+  COLLECTION_BACKGROUND = "collection_background",
   /** 小封面缩略图 - 限宽 200px */
   SMALL_THUMBNAIL = "small_thumbnail",
   /** 不进行优化 */
@@ -25,6 +27,7 @@ const OPTIMIZATION_PARAMS: Record<ImageOptimizationType, string> = {
   [ImageOptimizationType.POST_LIST_COVER]: "imageMogr2/thumbnail/600x",
   [ImageOptimizationType.POST_CARD_COVER]: "imageMogr2/thumbnail/400x",
   [ImageOptimizationType.COLLECTION_COVER]: "imageMogr2/thumbnail/600x",
+  [ImageOptimizationType.COLLECTION_BACKGROUND]: "imageMogr2/thumbnail/1920x",
   [ImageOptimizationType.SMALL_THUMBNAIL]: "imageMogr2/thumbnail/200x",
   [ImageOptimizationType.NONE]: "",
 };
@@ -64,4 +67,3 @@ export function optimizeImageUrl(
   // 添加优化参数
   return `${url}?${params}`;
 }
-

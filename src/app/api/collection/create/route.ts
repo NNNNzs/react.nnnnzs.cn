@@ -11,6 +11,7 @@ import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { collectionVisualConfigSchema } from '@/lib/collection-visual';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -29,6 +30,7 @@ export const descriptor: ApiDescriptor = {
       cover: { type: 'string', description: '封面图URL' },
       background: { type: 'string', description: '背景图URL' },
       color: { type: 'string', description: '主题色，如 #2563eb' },
+      extends_json: { type: 'object', description: '版本化日间/夜间视觉配置' },
     },
     required: ['title', 'slug'],
   },
@@ -37,12 +39,13 @@ export const descriptor: ApiDescriptor = {
 // 定义合集创建的验证schema
 const createCollectionSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符'),
-  slug: z.string().min(1, 'slug不能为空').max(255, 'slug不能超过255个字符').regex(/^[a-z0-9-]+$/, 'slug只能包含小写字母、数字和连字符'),
+  slug: z.string().min(1, 'slug不能为空').max(191, 'slug不能超过191个字符').regex(/^[a-z0-9-]+$/, 'slug只能包含小写字母、数字和连字符'),
   description: z.string().max(1000, '描述不能超过1000个字符').optional().nullable(),
   cover: z.string().url('无效的 URL').optional().nullable(),
   background: z.string().url('无效的 URL').optional().nullable(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '颜色必须是十六进制格式，如 #2563eb').optional().nullable(),
-});
+  extends_json: collectionVisualConfigSchema.optional().nullable(),
+}).strict();
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +77,7 @@ export async function POST(request: NextRequest) {
 
     // 清除缓存
     revalidateTag('collection', {}); // 清除合集列表缓存
+    revalidateTag('collection-list', {});
     revalidatePath(`/collections/${result.slug}`); // 清除合集详情页
 
     return NextResponse.json(successResponse(result, '创建成功'));

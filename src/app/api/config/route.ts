@@ -9,6 +9,8 @@ import { requirePermission } from '@/lib/permission';
 import { CONFIG_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { revalidateTag } from 'next/cache';
+import { isCollectionHomeVisualKey } from '@/services/collection-home-visual';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -38,6 +40,10 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json();
     const result = await createConfig(body);
+
+    if (isCollectionHomeVisualKey(result.key)) {
+      revalidateTag('collections-home-visual', {});
+    }
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {

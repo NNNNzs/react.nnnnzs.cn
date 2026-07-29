@@ -5,14 +5,16 @@
 
 import { TbCollection } from '@/generated/prisma-client/client';
 import { SerializedPost } from './post.dto';
+import type { CollectionVisualConfig } from '@/lib/collection-visual';
 
 /**
  * 序列化后的合集类型（用于 API 响应）
  * - created_at 和 updated_at 字段转换为 ISO 字符串
  */
-export type SerializedCollection = Omit<TbCollection, 'created_at' | 'updated_at'> & {
+export type SerializedCollection = Omit<TbCollection, 'created_at' | 'updated_at' | 'extends_json'> & {
   created_at: string;
   updated_at: string;
+  extends_json: CollectionVisualConfig | null;
 };
 
 /**
@@ -27,6 +29,21 @@ export type ArticleInCollection = SerializedPost & {
  */
 export type CollectionDetail = SerializedCollection & {
   articles: ArticleInCollection[];
+};
+
+/** 合集首页展开面板使用的轻量文章信息。 */
+export type CollectionShowcaseArticle = {
+  id: number;
+  title: string | null;
+  path: string;
+  date: string | null;
+  updated: string | null;
+  sort_order: number;
+};
+
+/** 合集首页展示数据，避免客户端切换合集时再次请求。 */
+export type CollectionShowcaseItem = SerializedCollection & {
+  articles: CollectionShowcaseArticle[];
 };
 
 /**
@@ -51,6 +68,7 @@ export type CreateCollectionDto = {
   cover?: string | null;
   background?: string | null;
   color?: string | null;
+  extends_json?: CollectionVisualConfig | null;
   created_by?: number;
 };
 

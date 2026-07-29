@@ -8,7 +8,8 @@ import { z } from 'zod';
 import { requirePermission } from '@/lib/permission';
 import { COLLECTION_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { updateCollectionOrder } from '@/services/collection';
+import { getCollectionById, updateCollectionOrder } from '@/services/collection';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 // 调整顺序验证schema
 const updateOrderSchema = z.object({
@@ -50,6 +51,11 @@ export async function PUT(
     }
 
     await updateCollectionOrder(collectionId, validationResult.data.orders);
+
+    const collection = await getCollectionById(collectionId);
+    revalidateTag('collection', {});
+    revalidateTag('collection-list', {});
+    if (collection) revalidatePath(`/collections/${collection.slug}`);
 
     return NextResponse.json(successResponse(null, '排序调整成功'));
   } catch (error) {
