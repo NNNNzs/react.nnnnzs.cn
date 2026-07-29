@@ -11,6 +11,7 @@ import { MdEditor } from 'md-editor-rt';
 import 'md-editor-rt/lib/style.css';
 import '@/style/markdownEditor.css';
 import axios from 'axios';
+import { FILE_UPLOAD_TIMEOUT_MS } from '@/constants/upload';
 import { message } from 'antd';
 import { useDarkMode } from '@/hooks/useDarkMode';
 
@@ -61,6 +62,7 @@ export default function MarkdownEditor({
           headers: {
             'Content-Type': 'multipart/form-data',
           },
+          timeout: FILE_UPLOAD_TIMEOUT_MS,
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
               const percent = Math.round(

@@ -12,6 +12,7 @@ import type { UserInfo } from '@/dto/user.dto';
 import { IMAGE_VIEW, TTS_VIEW } from '@/constants/permissions';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import MediaUpload from '@/components/MediaUpload';
+import { FILE_UPLOAD_TIMEOUT_MS } from '@/constants/upload';
 import ImageCropper from '@/components/ImageCropper';
 import EmailBindingCard from '@/components/EmailBindingCard';
 import PasswordSettingsCard from '@/components/PasswordSettingsCard';
@@ -83,7 +84,10 @@ export default function UserInfoPage() {
       setUploading(true);
       const data = new FormData();
       data.append('inputFile', new File([blob], 'avatar.png', { type: 'image/png' }));
-      const response = await axios.post('/api/fs/upload', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const response = await axios.post('/api/fs/upload', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: FILE_UPLOAD_TIMEOUT_MS,
+      });
       if (!response.data.status) throw new Error(response.data.message || '上传失败');
       form.setFieldValue('avatar', response.data.data);
       message.success('头像上传成功，保存基本资料后生效');

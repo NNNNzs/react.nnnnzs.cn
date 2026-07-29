@@ -14,6 +14,7 @@ import { Input, Upload, Button, Space, Image, message } from "antd";
 import { UploadOutlined, DeleteOutlined, ScissorOutlined } from "@ant-design/icons";
 import type { RcFile } from "antd/es/upload";
 import ImageCropper from "@/components/ImageCropper";
+import { FILE_UPLOAD_TIMEOUT_MS } from "@/constants/upload";
 import axios from "axios";
 import "./MediaUpload.css";
 
@@ -267,6 +268,7 @@ export default function MediaUpload({
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        timeout: FILE_UPLOAD_TIMEOUT_MS,
       });
 
       if (response.data.status) {

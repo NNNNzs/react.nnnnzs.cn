@@ -106,8 +106,10 @@ export default function NotificationBell({ userId }: { userId: number }) {
 
   return (
     <Dropdown popupRender={() => menu} trigger={['hover']} placement="bottomRight">
-      <button type="button" className="cursor-pointer p-2 rounded-full text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="通知">
-        <Badge count={unreadCount} size="small" overflowCount={99}><BellOutlined className="text-lg" /></Badge>
+      <button type="button" className="group cursor-pointer rounded-full p-2 text-text-muted-light transition-colors hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="通知">
+        <Badge count={unreadCount} size="small" overflowCount={99}>
+          <BellOutlined className="text-lg text-text-muted-light dark:!text-slate-300 dark:group-hover:!text-white" />
+        </Badge>
       </button>
     </Dropdown>
   );
