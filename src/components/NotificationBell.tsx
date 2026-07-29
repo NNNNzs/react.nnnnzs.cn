@@ -82,7 +82,7 @@ export default function NotificationBell({ userId }: { userId: number }) {
   };
 
   const menu = (
-    <div className="w-80 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+    <div className="w-80 rounded-lg border border-slate-200 bg-white p-2 text-slate-900 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:[&_.ant-btn-link]:!text-cyan-300 dark:[&_.ant-list-empty-text]:!text-slate-400 dark:[&_.ant-list-item]:!border-slate-800 dark:[&_.ant-typography]:!text-slate-100">
       <div className="flex items-center justify-between px-2 pb-2">
         <Typography.Text strong>通知</Typography.Text>
         <Button type="link" size="small" icon={<CheckOutlined />} onClick={() => void markAllRead()} disabled={!unreadCount}>全部已读</Button>
@@ -95,7 +95,7 @@ export default function NotificationBell({ userId }: { userId: number }) {
           <List.Item className={item.read_at ? '' : 'bg-blue-50/70 dark:bg-blue-950/20'}>
             <Link href={item.target_url} onClick={() => void markRead(item)} className="block w-full px-1">
               <Typography.Text strong={!item.read_at}>{item.title}</Typography.Text>
-              <div className="mt-1 line-clamp-2 text-xs text-slate-500">{item.preview}</div>
+              <div className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{item.preview}</div>
             </Link>
           </List.Item>
         )}
