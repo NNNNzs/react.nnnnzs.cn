@@ -126,9 +126,13 @@ async function fetchResourceForPermissionCheck(
     }
     case 'create_drafts_get':
     case 'create_drafts_update':
-    case 'create_drafts_delete': {
+    case 'create_drafts_delete':
+    case 'create_draft_images_generate': {
       const { getContentDraft } = await import('@/services/content-creation');
-      return getContentDraft(args.id as number);
+      const draftId = entry.code === 'create_draft_images_generate'
+        ? args.draft_id
+        : args.id;
+      return getContentDraft(draftId as number);
     }
     case 'create_assets_get':
     case 'create_assets_update':

@@ -135,6 +135,13 @@ src/components/ImageGen/
 - **输入参数**: prompt、image 或 images
 - **状态资源**: `blog://image-generation-jobs/{jobId}`
 
+- **工具名**: `generate_draft_image`
+- **权限**: `content:edit`
+- **输入参数**: `draft_id`、`prompt`；可选 `mode`、`image`、`images`、`title`、`group`
+- **行为**: 为指定草稿提交文生图或图文编辑任务，立即创建素材库记录并关联草稿。草稿会显示预分配 CDN 地址对应的占位素材，任务完成后同一素材记录展示正式图片。
+- **推荐对话**: “为草稿《xxx》生成小红书封面并关联到草稿”。
+- **状态资源**: `blog://image-generation-jobs/{jobId}`
+
 MCP 状态查询使用 `ResourceTemplate`，客户端读取工具返回的 `resourceUri` 即可获得当前任务状态、最终 CDN URL、错误信息和耗时。
 
 ## API 设计

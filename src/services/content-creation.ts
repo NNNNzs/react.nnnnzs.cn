@@ -6,6 +6,7 @@ import { getPostById } from '@/services/post';
 import { formatAiJob } from '@/services/ai-job';
 import type { ImageGenerationJobView } from '@/services/image-gen-job';
 import type { ImageGenOptions } from '@/services/image-gen';
+import type { ImageGenSource } from '@/services/image-gen-log';
 import { Prisma, type TbAiJob } from '@/generated/prisma-client/client';
 import { generateUuid } from '@/lib/uuid';
 
@@ -146,8 +147,18 @@ export interface CreateGeneratedImageAssetInput {
   options: ImageGenOptions;
   title?: string | null;
   group?: string | null;
+  draft_id?: number | null;
   referenceAssetIds?: number[];
   created_by?: number | null;
+}
+
+export interface GenerateContentDraftImageInput {
+  draftId: number;
+  options: ImageGenOptions;
+  title?: string | null;
+  group?: string | null;
+  createdBy: number;
+  source: ImageGenSource;
 }
 
 export interface CreateUploadedImageAssetInput {
@@ -999,6 +1010,7 @@ export async function createGeneratedContentImageAsset(input: CreateGeneratedIma
   const title = cleanString(input.title) ?? input.options.prompt.slice(0, 80);
 
   return createContentAsset({
+    draft_id: input.draft_id,
     type: 'image',
     usage: input.group,
     title,
@@ -1007,6 +1019,39 @@ export async function createGeneratedContentImageAsset(input: CreateGeneratedIma
     ai_job_id: input.job.id,
     created_by: input.created_by,
   });
+}
+
+/**
+ * 为草稿提交图片生成任务，并立即建立素材库与草稿图片关联。
+ * 图片使用任务预分配的 CDN 地址作为占位；任务完成后同一素材记录即可展示成图。
+ */
+export async function generateContentDraftImage(input: GenerateContentDraftImageInput) {
+  const draft = await getContentDraft(input.draftId);
+  if (!draft) {
+    throw new Error('草稿不存在');
+  }
+  if (draft.status !== 'DRAFT') {
+    throw new Error('只能为草稿状态的草稿生成图片');
+  }
+
+  const { createImageGenerationJob } = await import('@/services/image-gen-job');
+  const job = await createImageGenerationJob({
+    options: input.options,
+    userId: input.createdBy,
+    source: input.source,
+    group: input.group ?? undefined,
+  });
+  const asset = await createGeneratedContentImageAsset({
+    job,
+    options: input.options,
+    title: input.title,
+    group: input.group,
+    draft_id: input.draftId,
+    created_by: input.createdBy,
+  });
+  const updatedDraft = await addContentDraftImage(input.draftId, asset.id);
+
+  return { draft: updatedDraft, asset, job };
 }
 
 export async function createUploadedContentImageAsset(input: CreateUploadedImageAssetInput) {

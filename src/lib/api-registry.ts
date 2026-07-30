@@ -72,6 +72,10 @@ import {
   updateAssetSchema,
   updateDescriptor as contentAssetUpdateRoute,
 } from '@/app/api/create/assets/[id]/route';
+import {
+  descriptor as generateDraftImageRoute,
+  generateDraftImageSchema,
+} from '@/app/api/create/drafts/[id]/images/generate/route';
 
 /** MCP 工具调用的 handler 类型 */
 export type McpHandler = (
@@ -366,6 +370,35 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     handler: async (args) => {
       const { deleteContentImageAsset } = await import('@/services/content-creation');
       return deleteContentImageAsset(getPositiveId(args, '素材'));
+    },
+    getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
+  },
+  {
+    ...generateDraftImageRoute,
+    apiPath: '/api/create/drafts/[id]/images/generate',
+    mcpEnabled: true,
+    mcpToolName: 'generate_draft_image',
+    handler: async (args, user) => {
+      const { generateContentDraftImage } = await import('@/services/content-creation');
+      const input = parseMcpInput(generateDraftImageSchema.safeParse(args));
+      const draftId = Number(args.draft_id);
+      if (!Number.isInteger(draftId) || draftId <= 0) {
+        throw new Error('无效的草稿 ID');
+      }
+
+      return generateContentDraftImage({
+        draftId,
+        options: {
+          mode: input.mode,
+          prompt: input.prompt,
+          image: input.image,
+          images: input.images,
+        },
+        title: input.title,
+        group: input.group,
+        createdBy: user.id,
+        source: 'MCP',
+      });
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
