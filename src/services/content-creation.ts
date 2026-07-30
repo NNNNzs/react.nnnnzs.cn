@@ -829,6 +829,11 @@ export async function addContentDraftImage(draftId: number, assetId: number) {
     data: {
       generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, normalizedImages),
     },
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
+    },
   });
 
   return {
@@ -854,6 +859,11 @@ export async function removeContentDraftImage(draftId: number, imageId: string) 
     where: { id: draftId },
     data: {
       generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
+    },
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
     },
   });
 
@@ -904,6 +914,11 @@ export async function updateContentDraftImages(draftId: number, input: UpdateDra
     where: { id: draftId },
     data: {
       generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
+    },
+    include: {
+      slides: {
+        orderBy: { sort_order: 'asc' },
+      },
     },
   });
 
