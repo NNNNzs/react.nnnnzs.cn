@@ -1,5 +1,13 @@
 import { defineStyleCopy } from '@/lib/site-style/copy';
 
+export const homepageSeoCopy = {
+  siteName: 'NNNNzs',
+  title: 'NNNNzs｜AI、编程、运维与开发工具实践',
+  heading: 'AI、编程、运维与开发工具实践',
+  description:
+    'NNNNzs 的个人技术博客，记录 AI 应用、编程开发、Next.js、DevOps 与自托管实践，分享真实项目中的问题排查、工具链和技术思考。',
+} as const;
+
 export const bannerCopy = defineStyleCopy({
   subtitle: {
     day: 'Neon Nomad Navigating Night Zones. 白天的房间留给阅读、整理和创作，代码、运维、AI 与生活切片在阳光里排成索引。',

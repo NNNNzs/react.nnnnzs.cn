@@ -6,9 +6,56 @@
 import { getPostList } from "@/services/post";
 import { getCollectionList } from "@/services/collection";
 import { unstable_cache } from "next/cache";
+import type { Metadata } from "next";
 import HomePageContainer from "@/components/HomePageContainer";
 import Footer from "@/components/Footer";
 import type { BookshelfCollection } from "@/components/cyberpunk/furniture/types";
+import { homepageSeoCopy } from "@/config/site-copy/home";
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.nnnnzs.cn").replace(/\/$/, "");
+
+export const metadata: Metadata = {
+  title: homepageSeoCopy.title,
+  description: homepageSeoCopy.description,
+  alternates: {
+    canonical: SITE_URL,
+  },
+  authors: [{ name: homepageSeoCopy.siteName, url: "https://github.com/NNNNzs" }],
+  creator: homepageSeoCopy.siteName,
+  publisher: homepageSeoCopy.siteName,
+  category: "technology",
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    url: SITE_URL,
+    siteName: homepageSeoCopy.siteName,
+    title: homepageSeoCopy.title,
+    description: homepageSeoCopy.description,
+  },
+  twitter: {
+    card: "summary",
+    title: homepageSeoCopy.title,
+    description: homepageSeoCopy.description,
+  },
+};
+
+const websiteStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  url: SITE_URL,
+  name: homepageSeoCopy.siteName,
+  alternateName: "NNNNzs 博客",
+  description: homepageSeoCopy.description,
+  inLanguage: "zh-CN",
+  publisher: {
+    "@type": "Person",
+    "@id": `${SITE_URL}/#author`,
+    name: homepageSeoCopy.siteName,
+    url: SITE_URL,
+    sameAs: ["https://github.com/NNNNzs"],
+  },
+};
 
 // 每页固定条数
 const PAGE_SIZE = 10;
@@ -79,6 +126,12 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(websiteStructuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <HomePageContainer
         posts={record}
         total={total}

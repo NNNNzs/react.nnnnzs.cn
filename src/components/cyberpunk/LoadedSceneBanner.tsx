@@ -8,7 +8,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { bannerCopy } from '@/config/site-copy/home';
+import { bannerCopy, homepageSeoCopy } from '@/config/site-copy/home';
 import { selectStyleText } from '@/lib/site-style/copy';
 import type { Post } from '@/types';
 import type { BookshelfCollection } from './furniture/types';
@@ -725,7 +725,12 @@ function HeroInterfaceOverlay({
             <span className="h-px w-10 bg-sky-500/40 dark:bg-cyan-300/40" />
             <span>{isDay ? 'SUNLIT SESSION' : '2147 RAIN SESSION'}</span>
           </div>
-          <h1 className="cyberpunk-hero-title">NNNNzs</h1>
+          <h1 className="cyberpunk-hero-title">
+            <span className="block">{homepageSeoCopy.siteName}</span>
+            <span className="mt-4 block max-w-2xl font-sans text-base font-semibold leading-7 tracking-normal text-sky-950/75 dark:text-cyan-100/80 md:text-xl">
+              {homepageSeoCopy.heading}
+            </span>
+          </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-slate-700/78 dark:text-slate-200/74 md:text-base">
             {selectStyleText(bannerCopy.subtitle, variant)}
           </p>
