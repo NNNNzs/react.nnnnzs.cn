@@ -108,44 +108,114 @@ start_new() {
     docker-compose -f $COMPOSE_FILE up -d
 }
 
-# 刷新 CDN 缓存（根据变更范围）
-purge_cdn() {
-    print_info "刷新 CDN 缓存..."
+# 生成部署 CDN 刷新清单，在新容器健康后由应用统一消费
+prepare_cdn_manifest() {
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local PURGE_SCRIPT="${SCRIPT_DIR}/../purge-cdn.mjs"
+    local MANIFEST_DIR=".cdn-purge"
+    local MANIFEST_FILE="${MANIFEST_DIR}/pending.json"
+    local NEW_COMMIT
+    local OLD_COMMIT
+    local VERSION
+    local DIFF_FILE
 
-    # 检查宿主机上是否有脚本
     if [ ! -f "$PURGE_SCRIPT" ]; then
-        print_warn "⚠️  未找到 purge-cdn.mjs，跳过 CDN 刷新"
+        print_warn "⚠️  未找到 purge-cdn.mjs，跳过部署 CDN 清单生成"
         return
     fi
 
-    # 确保容器正在运行
-    if ! docker ps | grep -q $CONTAINER_NAME; then
-        print_warn "⚠️  容器未运行，跳过 CDN 刷新"
-        return
+    mkdir -p "$MANIFEST_DIR"
+    chmod 0777 "$MANIFEST_DIR"
+    NEW_COMMIT=$(docker image inspect --format='{{ index .Config.Labels "commit" }}' "${IMAGE_NAME}:latest" 2>/dev/null || echo "")
+    if [ -z "$NEW_COMMIT" ]; then
+        NEW_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
     fi
+    OLD_COMMIT=$(docker inspect --format='{{ index .Config.Labels "commit" }}' "$CONTAINER_NAME" 2>/dev/null || echo "")
+    VERSION=$(docker image inspect --format='{{ index .Config.Labels "version" }}' "${IMAGE_NAME}:latest" 2>/dev/null || echo "")
+    if [ -z "$VERSION" ]; then
+        VERSION=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    fi
+    DIFF_FILE=$(mktemp)
 
-    # 复制脚本到容器内的 /app 目录
-    docker cp "$PURGE_SCRIPT" $CONTAINER_NAME:/app/purge-cdn.mjs
-
-    local CHANGED_FILE="/tmp/.deploy_changed_files"
-    if [ -f "$CHANGED_FILE" ] && [ -s "$CHANGED_FILE" ]; then
-        print_info "📋 检测到变更文件列表，按范围刷新..."
-        # 复制变更文件到容器内
-        docker cp "$CHANGED_FILE" $CONTAINER_NAME:/tmp/.deploy_changed_files
-        # 在容器内执行 CDN 刷新脚本
-        docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs --changed-file /tmp/.deploy_changed_files
-        # 清理
-        docker exec -u root $CONTAINER_NAME rm -f /tmp/.deploy_changed_files
+    if [ -n "$OLD_COMMIT" ] &&
+       git cat-file -e "${OLD_COMMIT}^{commit}" 2>/dev/null &&
+       git cat-file -e "${NEW_COMMIT}^{commit}" 2>/dev/null; then
+        git diff --name-only "$OLD_COMMIT" "$NEW_COMMIT" > "$DIFF_FILE"
+        print_info "📋 使用已部署版本差异生成 CDN 清单: ${OLD_COMMIT}..${NEW_COMMIT}"
+    elif [ -f "/tmp/.deploy_changed_files" ] && [ -s "/tmp/.deploy_changed_files" ]; then
+        cp "/tmp/.deploy_changed_files" "$DIFF_FILE"
+        print_warn "⚠️  无法解析已部署 commit，使用 CI 变更文件列表"
     else
-        print_info "📋 无变更文件信息，全站刷新..."
-        # 在容器内执行全站刷新
-        docker exec -w /app $CONTAINER_NAME node purge-cdn.mjs /
+        print_warn "⚠️  无法确定部署差异，生成全站刷新清单"
+        if command -v node >/dev/null 2>&1; then
+            node "$PURGE_SCRIPT" \
+                --full-site \
+                --output "$MANIFEST_FILE" \
+                --commit "$NEW_COMMIT" \
+                --version "$VERSION"
+        else
+            docker run --rm --entrypoint node \
+                -v "$(pwd)/${MANIFEST_DIR}:/app/.cdn-purge" \
+                "${IMAGE_NAME}:latest" \
+                /app/scripts/purge-cdn.mjs \
+                --full-site \
+                --output /app/.cdn-purge/pending.json \
+                --commit "$NEW_COMMIT" \
+                --version "$VERSION"
+        fi
+        rm -f "$DIFF_FILE"
+        return
     fi
 
-    # 清理复制的脚本（容器以 nextjs 用户运行，需要 root 权限删除）
-    docker exec -u root $CONTAINER_NAME rm -f /app/purge-cdn.mjs
+    if command -v node >/dev/null 2>&1; then
+        node "$PURGE_SCRIPT" \
+            --changed-file "$DIFF_FILE" \
+            --output "$MANIFEST_FILE" \
+            --commit "$NEW_COMMIT" \
+            --version "$VERSION"
+    else
+        docker run --rm --entrypoint node \
+            -v "$(pwd)/${MANIFEST_DIR}:/app/.cdn-purge" \
+            -v "${DIFF_FILE}:/tmp/cdn-changed-files:ro" \
+            "${IMAGE_NAME}:latest" \
+            /app/scripts/purge-cdn.mjs \
+            --changed-file /tmp/cdn-changed-files \
+            --output /app/.cdn-purge/pending.json \
+            --commit "$NEW_COMMIT" \
+            --version "$VERSION"
+    fi
+    rm -f "$DIFF_FILE"
+}
+
+# 新容器健康后触发应用内统一 CDN 刷新服务
+consume_cdn_manifest() {
+    if [ ! -f ".cdn-purge/pending.json" ]; then
+        print_info "📋 没有待消费的 CDN 刷新清单"
+        return
+    fi
+    if ! docker ps | grep -q "$CONTAINER_NAME"; then
+        print_warn "⚠️  容器未运行，跳过 CDN 清单消费"
+        return
+    fi
+
+    print_info "刷新 CDN 缓存..."
+    docker exec "$CONTAINER_NAME" node -e '
+      const secret = process.env.CDN_PURGE_SECRET;
+      if (!secret) {
+        console.warn("CDN_PURGE_SECRET 未配置，跳过部署 CDN 刷新");
+        process.exit(0);
+      }
+      fetch("http://127.0.0.1:" + (process.env.PORT || "3000") + "/api/internal/cache/purge-deploy", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + secret }
+      }).then(async (response) => {
+        const body = await response.text();
+        if (!response.ok) throw new Error("HTTP " + response.status + ": " + body);
+        console.log(body);
+      }).catch((error) => {
+        console.warn("部署 CDN 刷新失败，不影响部署结果:", error.message);
+      });
+    ' || true
 }
 
 # 清理旧镜像
@@ -164,27 +234,25 @@ show_logs() {
 # 检查容器状态
 check_status() {
     print_info "检查容器状态..."
-    sleep 5
-    
-    if docker ps | grep -q $CONTAINER_NAME; then
-        print_info "✅ 容器运行中"
-        
-        # 检查健康状态
-        HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME 2>/dev/null || echo "unknown")
-        
-        if [ "$HEALTH_STATUS" = "healthy" ]; then
-            print_info "✅ 健康检查通过"
-        elif [ "$HEALTH_STATUS" = "starting" ]; then
-            print_warn "⏳ 健康检查启动中..."
-        else
-            print_warn "⚠️  健康检查状态: $HEALTH_STATUS"
+    local attempt=1
+    local max_attempts=30
+
+    while [ $attempt -le $max_attempts ]; do
+        if ! docker ps | grep -q "$CONTAINER_NAME"; then
+            print_error "❌ 容器未运行"
+            return 1
         fi
-        
-        return 0
-    else
-        print_error "❌ 容器未运行"
-        return 1
-    fi
+        HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
+        if [ "$HEALTH_STATUS" = "healthy" ]; then
+            print_info "✅ 容器运行中且健康检查通过"
+            return 0
+        fi
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    print_warn "⚠️  健康检查未在等待时间内通过: $HEALTH_STATUS"
+    return 1
 }
 
 # 回滚到上一个版本
@@ -256,10 +324,11 @@ main() {
             check_docker
             check_env
             pull_image
+            prepare_cdn_manifest
             stop_old
             start_new
             check_status
-            purge_cdn
+            consume_cdn_manifest
             cleanup
             print_info "🎉 部署完成！"
             print_info "运行 '$0 logs' 查看日志"

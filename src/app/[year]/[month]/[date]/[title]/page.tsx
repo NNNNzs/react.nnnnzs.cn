@@ -180,6 +180,11 @@ export default async function PostDetail({ params }: PageProps) {
 
     return (
       <>
+        <meta
+          name="post-cache-debug"
+          data-post-id={post.id}
+          data-post-updated-at={post.updated || ""}
+        />
         {/* 将文章信息传递给 Header 组件 */}
         <SetCurrentPost post={post} />
 

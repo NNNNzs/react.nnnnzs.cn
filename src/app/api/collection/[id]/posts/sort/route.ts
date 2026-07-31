@@ -9,7 +9,9 @@ import { requirePermission } from '@/lib/permission';
 import { COLLECTION_EDIT } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { getCollectionById, updateCollectionOrder } from '@/services/collection';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { getPostById } from '@/services/post';
+import { collectCollectionCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
 
 // 调整顺序验证schema
 const updateOrderSchema = z.object({
@@ -52,10 +54,21 @@ export async function PUT(
 
     await updateCollectionOrder(collectionId, validationResult.data.orders);
 
-    const collection = await getCollectionById(collectionId);
-    revalidateTag('collection', {});
-    revalidateTag('collection-list', {});
-    if (collection) revalidatePath(`/collections/${collection.slug}`);
+    try {
+      const collection = await getCollectionById(collectionId);
+      if (collection) {
+        const posts = (await Promise.all(
+          validationResult.data.orders.map(({ post_id }) => getPostById(post_id)),
+        )).filter((post): post is NonNullable<typeof post> => Boolean(post));
+        scheduleCacheImpact(collectCollectionCacheImpact({
+          collectionSlug: collection.slug,
+          posts,
+          membershipChanged: false,
+        }));
+      }
+    } catch (error) {
+      console.error('收集合集排序缓存影响失败，不影响排序结果:', error);
+    }
 
     return NextResponse.json(successResponse(null, '排序调整成功'));
   } catch (error) {

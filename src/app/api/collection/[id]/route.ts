@@ -9,10 +9,17 @@ import { z } from 'zod';
 import { requirePermission } from '@/lib/permission';
 import { COLLECTION_VIEW, COLLECTION_EDIT, COLLECTION_DELETE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { updateCollection, deleteCollection, getCollectionById } from '@/services/collection';
-import { revalidateTag, revalidatePath } from 'next/cache';
+import {
+  updateCollection,
+  deleteCollection,
+  getCollectionById,
+  getCollectionArticlesForManagement,
+} from '@/services/collection';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 import { collectionVisualConfigSchema } from '@/lib/collection-visual';
+import { collectCollectionEntityCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
+import { bestEffortCacheRead } from '@/services/cache-impact-snapshot';
 
 /** 获取合集管理详情接口描述 */
 export const getDescriptor: ApiDescriptor = {
@@ -155,7 +162,18 @@ export async function PUT(
     };
 
     // 获取更新前的合集（用于清除旧 slug 的缓存）
-    const oldCollection = await getCollectionById(collectionId);
+    const [oldCollection, affectedPosts] = await Promise.all([
+      bestEffortCacheRead(
+        `collection:${collectionId}:before-update`,
+        () => getCollectionById(collectionId),
+        null,
+      ),
+      bestEffortCacheRead(
+        `collection:${collectionId}:posts-before-update`,
+        async () => await getCollectionArticlesForManagement(collectionId) || [],
+        [],
+      ),
+    ]);
 
     const result = await updateCollection(collectionId, updateData);
 
@@ -163,15 +181,11 @@ export async function PUT(
       return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
     }
 
-    // 清除缓存
-    revalidateTag('collection', {}); // 清除合集列表缓存
-    revalidateTag('collection-list', {});
-    revalidatePath(`/collections/${result.slug}`); // 清除新路径缓存
-
-    // 如果 slug 改变，清除旧路径缓存
-    if (oldCollection && oldCollection.slug !== result.slug) {
-      revalidatePath(`/collections/${oldCollection.slug}`);
-    }
+    scheduleCacheImpact(collectCollectionEntityCacheImpact({
+      before: oldCollection,
+      after: result,
+      posts: affectedPosts,
+    }));
 
     return NextResponse.json(successResponse(result, '更新成功'));
   } catch (error) {
@@ -198,19 +212,29 @@ export async function DELETE(
     }
 
     // 获取合集信息（用于清除缓存）
-    const collection = await getCollectionById(collectionId);
+    const [collection, affectedPosts] = await Promise.all([
+      bestEffortCacheRead(
+        `collection:${collectionId}:before-delete`,
+        () => getCollectionById(collectionId),
+        null,
+      ),
+      bestEffortCacheRead(
+        `collection:${collectionId}:posts-before-delete`,
+        async () => await getCollectionArticlesForManagement(collectionId) || [],
+        [],
+      ),
+    ]);
     const success = await deleteCollection(collectionId);
 
     if (!success) {
       return NextResponse.json(errorResponse('合集不存在'), { status: 404 });
     }
 
-    // 清除缓存
-    revalidateTag('collection', {}); // 清除合集列表缓存
-    revalidateTag('collection-list', {});
-    if (collection) {
-      revalidatePath(`/collections/${collection.slug}`); // 清除合集详情页
-    }
+    scheduleCacheImpact(collectCollectionEntityCacheImpact({
+      before: collection,
+      after: null,
+      posts: affectedPosts,
+    }));
 
     return NextResponse.json(successResponse(null, '删除成功'));
   } catch (error) {

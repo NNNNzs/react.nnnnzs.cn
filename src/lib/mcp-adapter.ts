@@ -75,8 +75,10 @@ export async function handleMcpToApi(
 
     const result = await entry.handler(sanitizedArgs, user);
 
-    // 5. 缓存失效
-    invalidateCacheTags(entry.cacheTags, result);
+    // 5. 缓存失效；文章写操作由字段级影响收集器统一处理。
+    if (!['post_create', 'post_update', 'post_delete'].includes(entry.code)) {
+      invalidateCacheTags(entry.cacheTags, result);
+    }
 
     if (!result) {
       return {

@@ -68,6 +68,18 @@ CDN_URL=https://static.your-domain.com
 
 > **双重命名支持**：代码同时支持 `COS_` 前缀命名（`COS_SECRET_ID`、`COS_SECRET_KEY`、`COS_BUCKET`、`COS_REGION`、`COS_CDN_URL`），优先使用无前缀的变量名。
 
+### 腾讯云页面 CDN 刷新
+```bash
+CDN_SITE_URL=https://www.your-domain.com
+CDN_PURGE_SECRET=replace-with-a-long-random-secret
+CACHE_ORIGIN_URL=http://127.0.0.1:3000
+```
+
+> - `CDN_SITE_URL`：博客 HTML 页面使用的腾讯云 CDN 域名，与 COS 静态资源的 `CDN_URL` 分开。
+> - `CDN_PURGE_SECRET`：部署脚本调用容器内清单消费接口的独立密钥。
+> - `CACHE_ORIGIN_URL`：Next.js 缓存失效后直接访问单实例源站进行预热，默认 `http://127.0.0.1:${PORT:-3000}`。
+> - 页面刷新只在源站预热验证通过后提交；失败仅记录日志，不影响文章发布或部署结果。
+
 ### 腾讯云人脸识别（IAI）
 ```bash
 TENCENT_IAI_REGION=ap-shanghai

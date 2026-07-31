@@ -21,7 +21,7 @@ scripts/
 │   ├── test-mcp-client.mjs       # MCP 测试客户端
 │   └── debug-image-gen-curl.ts   # 图片生成调试工具
 ├── prisma-client.ts  # Prisma Client 工厂函数（公共依赖）
-├── purge-cdn.mjs     # 腾讯云 CDN 缓存刷新脚本
+├── purge-cdn.mjs     # 部署 CDN 影响清单生成器（不直接调用腾讯云）
 ├── archive/          # 已归档的一次性脚本
 └── README.md         # 本文档
 ```
@@ -65,6 +65,9 @@ scripts/
 
 **用途**: 在服务器上快速部署和管理 Docker 容器
 
+缓存影响范围、源站验证和部署清单消费规则见
+[`docs/designs/infra/cache-invalidation.md`](../docs/designs/infra/cache-invalidation.md)。
+
 ### deploy-local.sh - 本地应急部署
 
 不等待 GitHub Actions，在 Apple 芯片 Mac 上构建 `linux/amd64` 镜像，导出 tar，通过 SSH/SCP 传到服务器，加载后强制重建服务并清理镜像。成功或失败退出时都会清理本地和服务器临时 tar。
@@ -83,6 +86,7 @@ scripts/
 **功能**:
 - ✅ 一键部署最新版本
 - ✅ 更新应用到最新版本
+- ✅ 对比上次成功部署 commit，生成并在新容器健康后消费 CDN 刷新清单
 - ✅ 重启、停止、启动容器
 - ✅ 查看日志和状态
 - ✅ 回滚到上一个版本

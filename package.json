@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:polling": "tsx --test src/lib/polling-load-shedding.test.ts",
     "test:collection-visual": "tsx --test src/lib/collection-visual.test.ts",
+    "test:cache-impact": "tsx --test src/lib/cache-impact.test.ts",
     "test:content-draft-assets": "tsx --test src/lib/content-draft-assets.test.ts src/lib/mcp-adapter.test.ts",
     "verify:ai-tools": "tsx --env-file=.env scripts/verify-ai-agent-tools.ts",
     "prisma:generate": "npx prisma generate",

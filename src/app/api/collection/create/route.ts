@@ -9,9 +9,10 @@ import { requirePermission } from '@/lib/permission';
 import { COLLECTION_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { createCollection } from '@/services/collection';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 import { collectionVisualConfigSchema } from '@/lib/collection-visual';
+import { collectCollectionEntityCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -75,10 +76,10 @@ export async function POST(request: NextRequest) {
       created_by: user.id,
     });
 
-    // 清除缓存
-    revalidateTag('collection', {}); // 清除合集列表缓存
-    revalidateTag('collection-list', {});
-    revalidatePath(`/collections/${result.slug}`); // 清除合集详情页
+    scheduleCacheImpact(collectCollectionEntityCacheImpact({
+      after: result,
+      posts: [],
+    }));
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {

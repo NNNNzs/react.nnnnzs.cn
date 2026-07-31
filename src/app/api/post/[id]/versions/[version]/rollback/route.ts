@@ -10,7 +10,11 @@ import {
   validateToken,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { updatePost } from '@/services/post';
+import { getPostById, updatePost } from '@/services/post';
+import { getCollectionsByPostId } from '@/services/collection';
+import { collectPostCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
+import { bestEffortCacheRead } from '@/services/cache-impact-snapshot';
 
 /**
  * 回滚到指定版本
@@ -37,14 +41,36 @@ export async function POST(
     if (isNaN(postId) || isNaN(versionNum)) {
       return NextResponse.json(errorResponse('无效的参数'), { status: 400 });
     }
+    const [before, collections] = await Promise.all([
+      bestEffortCacheRead(
+        `post:${postId}:before-rollback`,
+        () => getPostById(postId),
+        null,
+      ),
+      bestEffortCacheRead(
+        `post:${postId}:rollback-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      ),
+    ]);
 
     // 回滚到指定版本（创建新版本）
     const newVersion = await rollbackToVersion(postId, versionNum, user.id);
 
     // 更新文章内容为回滚后的内容
-    await updatePost(postId, {
+    const after = await updatePost(postId, {
       content: newVersion.content,
     });
+    if (before && after) {
+      scheduleCacheImpact(collectPostCacheImpact({
+        kind: 'rollback',
+        before,
+        after,
+        beforeCollections: collections,
+        afterCollections: collections,
+        changedFields: ['content'],
+      }));
+    }
 
     return NextResponse.json(
       successResponse(newVersion, '回滚成功，已创建新版本')

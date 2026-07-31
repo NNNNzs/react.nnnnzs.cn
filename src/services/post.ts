@@ -4,7 +4,6 @@ import { TbPost } from '@/generated/prisma-client/client';
 import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
 import { queueEmbedPost } from '@/services/embedding';
-import { revalidatePath } from "next/cache";
 import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
@@ -469,12 +468,12 @@ export async function updatePost(
     });
   }
 
-  // 如果有 title，重新生成 path（使用原始发布日期或更新后的日期）
-  if (data.title) {
-    // 优先使用更新的日期，否则使用原文章的日期
+  // 标题或发布日期变化都会改变公开 URL。
+  if (data.title || data.date !== undefined) {
     const dateForPath = (updateData.date as Date) || existingPost.date;
-    updateData.path = genPath(data.title, dateForPath);
-    updateData.title = data.title;
+    const titleForPath = data.title || existingPost.title || '';
+    updateData.path = genPath(titleForPath, dateForPath);
+    if (data.title) updateData.title = data.title;
   }
 
   // 处理 cover 字段
@@ -509,8 +508,6 @@ export async function updatePost(
     where: { id },
     data: updateData,
   });
-
-  revalidatePath(updatedPost.path!);
 
   // 检测字段变更并记录日志，确保 MCP/HTTP 请求返回前日志已落库
   const changes = detectChanges(

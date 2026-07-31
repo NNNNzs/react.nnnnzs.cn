@@ -9,8 +9,9 @@ import { createPost } from '@/services/post';
 import { requirePermission } from '@/lib/permission';
 import { POST_CREATE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { collectPostCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
 
 /** 接口自描述信息 */
 export const descriptor: ApiDescriptor = {
@@ -88,36 +89,11 @@ export async function POST(request: NextRequest) {
     // 注意：createPost 服务层已经自动将文章添加到向量化队列
     // 无需在此处手动调用向量化接口
 
-    // 清除缓存（精细化控制）
-    revalidateTag('post', {}); // 清除所有文章列表缓存
-    revalidateTag(`post:${result.id}`, {}); // 清除按 ID 的缓存
-
-    // 从 path 中提取 slug（最后一部分）
-    if (result.path) {
-      const slug = result.path.split('/').pop();
-      if (slug) {
-        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-      }
-      revalidatePath(result.path); // 清除路径缓存
-    }
-
-    // 清除列表页缓存
-    revalidateTag('home', {}); // 清除首页缓存
-    revalidateTag('post-list', {}); // 清除文章列表缓存
-    revalidateTag('tags', {}); // 清除标签列表缓存
-    revalidateTag('tag-list', {}); // 清除标签列表缓存
-    revalidateTag('archives', {}); // 清除归档页缓存
-
-    // 清除标签页缓存（如果文章有标签）
-    if (result.tags) {
-      const tags = Array.isArray(result.tags) ? result.tags : String(result.tags).split(',');
-      tags.forEach((tag: string) => {
-        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-        if (trimmedTag) {
-          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-        }
-      });
-    }
+    scheduleCacheImpact(collectPostCacheImpact({
+      kind: 'create',
+      after: result,
+      afterCollections: [],
+    }));
 
     return NextResponse.json(successResponse(result, '创建成功'));
   } catch (error) {

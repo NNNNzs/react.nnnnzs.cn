@@ -31,6 +31,21 @@ export const experimental = {
   scrollRestoration: true,
 };
 
+function formatShanghaiDateTime(date: Date): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .format(date)
+    .replace(/\//g, "-");
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -38,6 +53,7 @@ export default async function RootLayout({
 }>) {
   // 获取 GA4 配置
   const analyticsConfig = await getAnalyticsConfig();
+  const renderedAt = formatShanghaiDateTime(new Date());
 
   return (
     <html
@@ -45,6 +61,11 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <meta
+          name="next-rendered-at"
+          content={renderedAt}
+          data-cache-scope="full-route"
+        />
         <link rel="alternate" type="application/rss+xml" title="NNNNzs RSS Feed" href="/rss.xml" />
         <script dangerouslySetInnerHTML={{
           __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");var h=(d?"/favicon-dark.png":"/favicon-light.png")+"?v=20260629-"+(d?"dark":"light");var links=Array.prototype.slice.call(document.querySelectorAll("link[rel~='icon']"));var byId=document.getElementById("theme-favicon");if(byId&&links.indexOf(byId)===-1){byId.rel="icon";links.push(byId)}if(links.length){links.forEach(function(l){if(!l.type)l.type="image/png";l.href=h});(byId||links[0]).id="theme-favicon"}else{var l=document.createElement("link");l.id="theme-favicon";l.rel="icon";l.type="image/png";l.href=h;document.head.appendChild(l)}}catch(e){}})();`,

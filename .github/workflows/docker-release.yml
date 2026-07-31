@@ -21,7 +21,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: 检查最新提交信息
         id: commit-check
@@ -29,8 +29,15 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" ${{ github.sha }})
           echo "提交信息: ${COMMIT_MSG}"
 
-          # 获取更改的文件列表
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          # 覆盖本次 push 的完整提交范围，而不是只比较最后一个 commit
+          BASE_COMMIT="${{ github.event.before }}"
+          if [ -n "$BASE_COMMIT" ] &&
+             [ "$BASE_COMMIT" != "0000000000000000000000000000000000000000" ] &&
+             git cat-file -e "${BASE_COMMIT}^{commit}" 2>/dev/null; then
+            CHANGED_FILES=$(git diff --name-only "$BASE_COMMIT" "${{ github.sha }}")
+          else
+            CHANGED_FILES=$(git diff-tree --root --no-commit-id --name-only -r "${{ github.sha }}")
+          fi
           echo "更改的文件:"
           echo "$CHANGED_FILES"
           # 输出变更文件列表供后续步骤使用
@@ -155,6 +162,8 @@ jobs:
 
       - name: 服务器部署
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          changed_files: ${{ needs.skip-check.outputs.changed_files }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -169,6 +178,7 @@ jobs:
               echo "📥 拉取最新代码..."
               # 先 stash 本地修改，pull 后再恢复
               git stash || true
+              git fetch --all --tags --prune || true
               git pull origin main || echo "⚠️  git pull 失败，使用现有代码继续部署"
               git stash pop || true
             fi

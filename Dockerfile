@@ -110,6 +110,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/scripts/purge-cdn.mjs ./scripts/purge-cdn.mjs
 
 # 创建必要的目录结构并设置权限（在切换用户之前）
 # 确保 nextjs 用户有权限写入预渲染缓存

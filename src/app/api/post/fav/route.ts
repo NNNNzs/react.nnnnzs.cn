@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import { canLike, recordLike } from '@/services/like-record';
 import { trackEvent, createSessionCookie } from '@/lib/analytics';
 
@@ -71,19 +70,6 @@ export async function PUT(request: NextRequest) {
         response.headers.set('Set-Cookie', createSessionCookie(gaResult.sessionId));
       }
       return response;
-    }
-
-    // 清除缓存（精细化控制）
-    revalidateTag('post', {}); // 清除所有文章列表缓存
-    revalidateTag(`post:${id}`, {}); // 清除按 ID 的缓存
-
-    // 从 path 中提取 slug（最后一部分）
-    if (updatedPost.path) {
-      const slug = updatedPost.path.split('/').pop();
-      if (slug) {
-        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-      }
-      revalidatePath(updatedPost.path); // 清除路径缓存
     }
 
     return NextResponse.json(successResponse(updatedPost));

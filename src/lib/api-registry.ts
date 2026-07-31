@@ -134,7 +134,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'create_article',
     handler: async (args, user) => {
       const { createPost } = await import('@/services/post');
-      const { addPostsToCollection, getCollectionBySlug } = await import('@/services/collection');
+      const { addPostsToCollection, getCollectionBySlug, getCollectionsByPostId } = await import('@/services/collection');
+      const { collectPostCacheImpact } = await import('@/lib/cache-impact');
+      const { scheduleCacheImpact } = await import('@/services/cache-refresh');
+      const { bestEffortCacheRead } = await import('@/services/cache-impact-snapshot');
       const { collections, ...postArgs } = args;
 
       const post = await createPost({ ...postArgs, created_by: user.id });
@@ -153,6 +156,15 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         }
       }
 
+      scheduleCacheImpact(collectPostCacheImpact({
+        kind: 'create',
+        after: post,
+        afterCollections: await bestEffortCacheRead(
+          `post:${post.id}:mcp-create-collections`,
+          () => getCollectionsByPostId(post.id),
+          [],
+        ),
+      }));
       return post;
     },
   },
@@ -451,9 +463,24 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpEnabled: true,
     mcpToolName: 'update_article',
     handler: async (args, user) => {
-      const { updatePost } = await import('@/services/post');
-      const { addPostsToCollection, removePostsFromCollection, getCollectionBySlug } = await import('@/services/collection');
+      const { getPostById, updatePost } = await import('@/services/post');
+      const { addPostsToCollection, removePostsFromCollection, getCollectionBySlug, getCollectionsByPostId } = await import('@/services/collection');
+      const { collectPostCacheImpact } = await import('@/lib/cache-impact');
+      const { scheduleCacheImpact } = await import('@/services/cache-refresh');
+      const { bestEffortCacheRead } = await import('@/services/cache-impact-snapshot');
       const postId = args.id as number;
+      const [before, beforeCollections] = await Promise.all([
+        bestEffortCacheRead(
+          `post:${postId}:mcp-before-update`,
+          () => getPostById(postId),
+          null,
+        ),
+        bestEffortCacheRead(
+          `post:${postId}:mcp-before-collections`,
+          () => getCollectionsByPostId(postId),
+          [],
+        ),
+      ]);
 
       // 提取合集操作参数，不传给 updatePost
       const { add_to_collections, remove_from_collections, ...postArgs } = args;
@@ -492,7 +519,25 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         }
       }
 
-      return updatePost(postId, postArgs, user.id);
+      const after = await updatePost(postId, postArgs, user.id);
+      if (after) {
+        scheduleCacheImpact(collectPostCacheImpact({
+          kind: 'update',
+          before,
+          after,
+          beforeCollections,
+          afterCollections: await bestEffortCacheRead(
+            `post:${postId}:mcp-after-collections`,
+            () => getCollectionsByPostId(postId),
+            [],
+          ),
+          changedFields: [
+            ...Object.keys(postArgs),
+            ...(add_to_collections || remove_from_collections ? ['collections'] : []),
+          ],
+        }));
+      }
+      return after;
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
@@ -503,8 +548,26 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpToolName: 'delete_article',
     handler: async (args) => {
       const { getPostById, deletePost } = await import('@/services/post');
-      const post = await getPostById(args.id as number);
-      const success = await deletePost(args.id as number);
+      const { getCollectionsByPostId } = await import('@/services/collection');
+      const { collectPostCacheImpact } = await import('@/lib/cache-impact');
+      const { scheduleCacheImpact } = await import('@/services/cache-refresh');
+      const { bestEffortCacheRead } = await import('@/services/cache-impact-snapshot');
+      const postId = args.id as number;
+      const post = await getPostById(postId);
+      const beforeCollections = await bestEffortCacheRead(
+        `post:${postId}:mcp-before-delete-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      );
+      const success = await deletePost(postId);
+      if (success && post) {
+        scheduleCacheImpact(collectPostCacheImpact({
+          kind: 'delete',
+          before: post,
+          after: null,
+          beforeCollections,
+        }));
+      }
       return { success, post };
     },
     getOwnerId: (resource) => (resource as { post?: { created_by?: number } })?.post?.created_by,

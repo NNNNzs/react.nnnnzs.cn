@@ -16,7 +16,9 @@ import {
   getCollectionById,
   removePostsFromCollection,
 } from '@/services/collection';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { getPostById } from '@/services/post';
+import { collectCollectionCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
 
 // 添加文章验证schema
 const addPostsSchema = z.object({
@@ -29,11 +31,23 @@ const removePostsSchema = z.object({
   post_ids: z.array(z.coerce.number()).min(1, '至少需要一个文章ID'),
 });
 
-async function revalidateCollectionContent(collectionId: number): Promise<void> {
-  const collection = await getCollectionById(collectionId);
-  revalidateTag('collection', {});
-  revalidateTag('collection-list', {});
-  if (collection) revalidatePath(`/collections/${collection.slug}`);
+async function scheduleCollectionContent(
+  collectionId: number,
+  postIds: number[],
+): Promise<void> {
+  try {
+    const collection = await getCollectionById(collectionId);
+    if (!collection) return;
+    const posts = (await Promise.all(postIds.map((postId) => getPostById(postId))))
+      .filter((post): post is NonNullable<typeof post> => Boolean(post));
+    scheduleCacheImpact(collectCollectionCacheImpact({
+      collectionSlug: collection.slug,
+      posts,
+      membershipChanged: true,
+    }));
+  } catch (error) {
+    console.error('收集合集缓存影响失败，不影响关联操作:', error);
+  }
 }
 
 export async function GET(
@@ -106,7 +120,7 @@ export async function POST(
       user.id
     );
 
-    await revalidateCollectionContent(collectionId);
+    await scheduleCollectionContent(collectionId, validationResult.data.post_ids);
 
     return NextResponse.json(successResponse(result, `成功添加 ${result.created} 篇文章到合集`));
   } catch (error) {
@@ -149,7 +163,7 @@ export async function DELETE(
     }
 
     await removePostsFromCollection(collectionId, validationResult.data.post_ids, user.id);
-    await revalidateCollectionContent(collectionId);
+    await scheduleCollectionContent(collectionId, validationResult.data.post_ids);
 
     return NextResponse.json(successResponse(null, '文章已从合集中移除'));
   } catch (error) {

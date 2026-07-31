@@ -13,8 +13,11 @@ import { getAuthUserFromRequest } from '@/lib/auth';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { POST_VIEW, POST_EDIT, POST_DELETE, POST_VIEW_DELETED } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { revalidateTag, revalidatePath } from 'next/cache';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { getCollectionsByPostId } from '@/services/collection';
+import { collectPostCacheImpact } from '@/lib/cache-impact';
+import { scheduleCacheImpact } from '@/services/cache-refresh';
+import { bestEffortCacheRead } from '@/services/cache-impact-snapshot';
 
 /** 获取文章详情接口描述 */
 export const getDescriptor: ApiDescriptor = {
@@ -174,6 +177,11 @@ export async function PUT(
     if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
+    const beforeCollections = await bestEffortCacheRead(
+      `post:${postId}:before-collections`,
+      () => getCollectionsByPostId(postId),
+      [],
+    );
 
     const body = await request.json();
 
@@ -199,36 +207,19 @@ export async function PUT(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 清除缓存（精细化控制）
-    revalidateTag('post', {}); // 清除所有文章列表缓存
-    revalidateTag(`post:${updatedPost.id}`, {}); // 清除按 ID 的缓存
-
-    // 从 path 中提取 slug（最后一部分）
-    if (updatedPost.path) {
-      const slug = updatedPost.path.split('/').pop();
-      if (slug) {
-        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-      }
-      revalidatePath(updatedPost.path); // 清除路径缓存
-    }
-
-    // 清除列表页缓存
-    revalidateTag('home', {}); // 清除首页缓存
-    revalidateTag('post-list', {}); // 清除文章列表缓存
-    revalidateTag('tags', {}); // 清除标签列表缓存
-    revalidateTag('tag-list', {}); // 清除标签列表缓存
-    revalidateTag('archives', {}); // 清除归档页缓存
-
-    // 清除标签页缓存（如果文章有标签）
-    if (updatedPost.tags) {
-      const tags = Array.isArray(updatedPost.tags) ? updatedPost.tags : String(updatedPost.tags).split(',');
-      tags.forEach((tag: string) => {
-        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-        if (trimmedTag) {
-          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-        }
-      });
-    }
+    const afterCollections = await bestEffortCacheRead(
+      `post:${postId}:after-collections`,
+      () => getCollectionsByPostId(postId),
+      [],
+    );
+    scheduleCacheImpact(collectPostCacheImpact({
+      kind: 'update',
+      before: existingPost,
+      after: updatedPost,
+      beforeCollections,
+      afterCollections,
+      changedFields: Object.keys(validationResult.data),
+    }));
 
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
@@ -268,6 +259,11 @@ export async function PATCH(
     if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
+    const beforeCollections = await bestEffortCacheRead(
+      `post:${postId}:before-collections`,
+      () => getCollectionsByPostId(postId),
+      [],
+    );
 
     const body = await request.json();
 
@@ -301,36 +297,19 @@ export async function PATCH(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 清除缓存（精细化控制）
-    revalidateTag('post', {}); // 清除所有文章列表缓存
-    revalidateTag(`post:${updatedPost.id}`, {}); // 清除按 ID 的缓存
-
-    // 从 path 中提取 slug（最后一部分）
-    if (updatedPost.path) {
-      const slug = updatedPost.path.split('/').pop();
-      if (slug) {
-        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-      }
-      revalidatePath(updatedPost.path); // 清除路径缓存
-    }
-
-    // 清除列表页缓存
-    revalidateTag('home', {}); // 清除首页缓存
-    revalidateTag('post-list', {}); // 清除文章列表缓存
-    revalidateTag('tags', {}); // 清除标签列表缓存
-    revalidateTag('tag-list', {}); // 清除标签列表缓存
-    revalidateTag('archives', {}); // 清除归档页缓存
-
-    // 清除标签页缓存（如果文章有标签）
-    if (updatedPost.tags) {
-      const tags = Array.isArray(updatedPost.tags) ? updatedPost.tags : String(updatedPost.tags).split(',');
-      tags.forEach((tag: string) => {
-        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-        if (trimmedTag) {
-          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-        }
-      });
-    }
+    const afterCollections = await bestEffortCacheRead(
+      `post:${postId}:after-collections`,
+      () => getCollectionsByPostId(postId),
+      [],
+    );
+    scheduleCacheImpact(collectPostCacheImpact({
+      kind: 'update',
+      before: existingPost,
+      after: updatedPost,
+      beforeCollections,
+      afterCollections,
+      changedFields: Object.keys(validationResult.data),
+    }));
 
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
@@ -370,6 +349,11 @@ export async function DELETE(
     if (!hasDataPermission(user, POST_DELETE, post.created_by)) {
       return NextResponse.json(errorResponse('无权限删除此文章'), { status: 403 });
     }
+    const beforeCollections = await bestEffortCacheRead(
+      `post:${postId}:before-delete-collections`,
+      () => getCollectionsByPostId(postId),
+      [],
+    );
 
     const success = await deletePost(postId);
 
@@ -377,36 +361,12 @@ export async function DELETE(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 清除缓存（精细化控制）
-    revalidateTag('post', {}); // 清除所有文章列表缓存
-    revalidateTag(`post:${postId}`, {}); // 清除按 ID 的缓存
-
-    // 从 path 中提取 slug（最后一部分）
-    if (post?.path) {
-      const slug = post.path.split('/').pop();
-      if (slug) {
-        revalidateTag(`post:${slug}`, {}); // 清除按 slug 的缓存
-      }
-      revalidatePath(post.path); // 清除路径缓存
-    }
-
-    // 清除列表页缓存
-    revalidateTag('home', {}); // 清除首页缓存
-    revalidateTag('post-list', {}); // 清除文章列表缓存
-    revalidateTag('tags', {}); // 清除标签列表缓存
-    revalidateTag('tag-list', {}); // 清除标签列表缓存
-    revalidateTag('archives', {}); // 清除归档页缓存
-
-    // 清除标签页缓存（如果文章有标签）
-    if (post?.tags) {
-      const tags = Array.isArray(post.tags) ? post.tags : String(post.tags).split(',');
-      tags.forEach((tag: string) => {
-        const trimmedTag = typeof tag === 'string' ? tag.trim() : tag;
-        if (trimmedTag) {
-          revalidatePath(`/tags/${encodeURIComponent(trimmedTag)}`);
-        }
-      });
-    }
+    scheduleCacheImpact(collectPostCacheImpact({
+      kind: 'delete',
+      before: post,
+      after: null,
+      beforeCollections,
+    }));
 
     return NextResponse.json(successResponse(null, '删除成功'));
   } catch (error) {

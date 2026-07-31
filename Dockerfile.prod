@@ -107,6 +107,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/scripts/purge-cdn.mjs ./scripts/purge-cdn.mjs
 
 # 创建必要的目录结构并设置权限（在切换用户之前）
 # 确保 nextjs 用户有权限写入预渲染缓存
@@ -114,14 +115,6 @@ COPY --from=builder /app/src/generated ./src/generated
 # 我们需要创建这个目录，让 Next.js 运行时可以写入缓存文件
 RUN mkdir -p logs .next/cache .next/server/app && \
     chown -R nextjs:nodejs logs .next
-
-# 安装 CDN 刷新所需的依赖（purge-cdn.mjs 需要，standalone 模式不包含）
-# 在临时目录安装，避免污染 app 的 node_modules 解析，然后合并到 app 的 node_modules
-RUN cd /tmp && npm init -y > /dev/null 2>&1 && \
-    npm install tencentcloud-sdk-nodejs && \
-    cp -rn node_modules/* /app/node_modules/ && \
-    cd /app && rm -rf /tmp/node_modules /tmp/package.json /tmp/package-lock.json && \
-    chown -R nextjs:nodejs node_modules
 
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh
