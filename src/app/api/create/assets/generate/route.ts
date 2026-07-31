@@ -15,7 +15,6 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const generateAssetSchema = z.object({
-  mode: z.enum(['generate', 'edit']).default('generate'),
   prompt: z.string().min(1, '提示词不能为空').max(32000, '提示词过长'),
   image: z.string().max(5000).optional(),
   images: z.array(z.string().min(1).max(5000)).max(10).optional(),
@@ -52,14 +51,9 @@ export async function POST(request: NextRequest) {
         .filter((url): url is string => Boolean(url)),
     ]);
 
-    if (data.mode === 'edit' && referenceImageUrls.length === 0) {
-      return NextResponse.json(errorResponse('图文编辑需要至少选择一张母图'), { status: 400 });
-    }
-
     const options: ImageGenOptions = {
-      mode: data.mode,
       prompt: data.prompt.trim(),
-      ...(data.mode === 'edit'
+      ...(referenceImageUrls.length > 0
         ? { image: referenceImageUrls[0], images: referenceImageUrls }
         : {}),
     };

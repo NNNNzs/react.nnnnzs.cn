@@ -63,7 +63,7 @@ interface LogRecord {
   created_at: string;
 }
 
-/** 从 ext_json 中解析编辑模式的参考图片 URL */
+/** 从 ext_json 中解析任务使用的参考图片 URL */
 function parseEditImageUrls(extJson: string | null): string[] {
   if (!extJson) return [];
   try {
@@ -612,7 +612,7 @@ export default function ImageGenHistory({
                         {record.prompt.length > 40 ? "..." : ""}
                       </p>
                     </Popover>
-                    {/* 编辑模式：参考图可直接放大预览 */}
+                    {/* 有参考图时可直接放大预览 */}
                     {(() => {
                       const refUrls = parseEditImageUrls(record.ext_json);
                       if (refUrls.length === 0) return null;

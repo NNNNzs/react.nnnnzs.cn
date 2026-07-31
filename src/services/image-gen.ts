@@ -1,14 +1,13 @@
 import { getAIConfigCandidates, type AIConfig } from '@/lib/ai-config';
 
-const VALID_MODES = ['generate', 'edit'] as const;
 const VALID_API_MODES = ['chat_completions', 'images_generations'] as const;
 const IMAGE_URL_REGEX = /!\[image\]\((https?:\/\/[^\s)]+)\)/;
 const MAX_EDIT_IMAGES = 10;
 
-type ImageGenApiMode = typeof VALID_API_MODES[number];
+export type ImageGenApiMode = typeof VALID_API_MODES[number];
+export type ImageGenOperation = 'chat_completions' | 'images_generations' | 'images_edits';
 
 export interface ImageGenOptions {
-  mode: 'generate' | 'edit';
   prompt: string;
   image?: string;
   images?: string[];
@@ -32,19 +31,25 @@ export function normalizeImageInputs(options: Pick<ImageGenOptions, 'image' | 'i
 }
 
 export function validateImageGenOptions(options: ImageGenOptions): void {
-  if (!VALID_MODES.includes(options.mode)) {
-    throw new Error('无效的模式，仅支持 generate 或 edit');
-  }
   if (!options.prompt?.trim()) {
     throw new Error('提示词不能为空');
   }
   const imageInputs = normalizeImageInputs(options);
-  if (options.mode === 'edit' && imageInputs.length === 0) {
-    throw new Error('编辑模式需要提供参考图片');
+  if (imageInputs.length > MAX_EDIT_IMAGES) {
+    throw new Error(`最多支持 ${MAX_EDIT_IMAGES} 张参考图片`);
   }
-  if (options.mode === 'edit' && imageInputs.length > MAX_EDIT_IMAGES) {
-    throw new Error(`编辑模式最多支持 ${MAX_EDIT_IMAGES} 张参考图片`);
+}
+
+export function resolveImageGenOperation(
+  apiMode: ImageGenApiMode,
+  options: Pick<ImageGenOptions, 'image' | 'images'>,
+): ImageGenOperation {
+  if (apiMode === 'images_generations') {
+    return normalizeImageInputs(options).length > 0
+      ? 'images_edits'
+      : 'images_generations';
   }
+  return 'chat_completions';
 }
 
 function resolveApiMode(value: string | null): ImageGenApiMode {
@@ -166,11 +171,11 @@ async function requestChatCompletions(params: {
   options: ImageGenOptions;
 }): Promise<ImageGenResult> {
   const { apiKey, baseUrl, model, options } = params;
-  const { mode, prompt } = options;
+  const { prompt } = options;
+  const imageInputs = normalizeImageInputs(options);
   const messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }> = [];
 
-  if (mode === 'edit') {
-    const imageInputs = normalizeImageInputs(options);
+  if (imageInputs.length > 0) {
     messages.push({
       role: 'user',
       content: [
@@ -197,7 +202,7 @@ async function requestChatCompletions(params: {
       endpoint,
       status: response.status,
       model,
-      mode,
+      hasReferences: imageInputs.length > 0,
       response: errorText.slice(0, 1000),
     });
     console.error('图片生成 chat_completions 调用失败:', detail);
@@ -212,7 +217,7 @@ async function requestChatCompletions(params: {
     console.error('图片生成 chat_completions 返回格式异常:', {
       endpoint,
       model,
-      mode,
+      hasReferences: imageInputs.length > 0,
       content: String(content).slice(0, 1000),
     });
     throw new Error('API 返回数据异常，未包含图片');
@@ -329,10 +334,12 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
     const apiMode = resolveApiMode(config.api_mode ?? null);
 
     try {
-      if (apiMode === 'images_generations') {
-        return options.mode === 'edit'
-          ? await requestImagesEdits({ apiKey, baseUrl, model, options })
-          : await requestImagesGenerations({ apiKey, baseUrl, model, options });
+      const operation = resolveImageGenOperation(apiMode, options);
+      if (operation === 'images_edits') {
+        return await requestImagesEdits({ apiKey, baseUrl, model, options });
+      }
+      if (operation === 'images_generations') {
+        return await requestImagesGenerations({ apiKey, baseUrl, model, options });
       }
 
       return await requestChatCompletions({ apiKey, baseUrl, model, options });
@@ -382,6 +389,7 @@ export async function generateImageWithLog(
   const startTime = Date.now();
   const { createImageGenLog } = await import('./image-gen-log');
   const editImageUrls = normalizeImageInputs(options);
+  const hasReferences = editImageUrls.length > 0;
 
   try {
     // 1. 调用 AI 生成图片
@@ -402,9 +410,9 @@ export async function generateImageWithLog(
       userId,
       source,
       prompt: options.prompt,
-      editPrompt: options.mode === 'edit' ? options.prompt : undefined,
-      editImageUrl: options.mode === 'edit' ? editImageUrls[0] : undefined,
-      editImageUrls: options.mode === 'edit' ? editImageUrls : undefined,
+      editPrompt: hasReferences ? options.prompt : undefined,
+      editImageUrl: hasReferences ? editImageUrls[0] : undefined,
+      editImageUrls: hasReferences ? editImageUrls : undefined,
       model: result.model,
       originalUrl: result.b64Json ? 'b64_json' : result.imageUrl,
       cdnUrl,
@@ -424,7 +432,7 @@ export async function generateImageWithLog(
     console.error('图片生成失败:', {
       userId,
       source,
-      mode: options.mode,
+      hasReferences,
       promptLength: options.prompt?.length ?? 0,
       hasImage: Boolean(options.image),
       errorMessage,

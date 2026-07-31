@@ -155,7 +155,7 @@ export default function ImageGenPage() {
           className="mb-2"
           title="AI 图片工作台"
           icon={<PictureOutlined className="text-xl text-blue-500" />}
-          tag={<Tag color="blue">生成 · 编辑 · 识别</Tag>}
+          tag={<Tag color="blue">图片生成 · 图片识别</Tag>}
         />
         <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
           <div className="flex min-h-0 w-full flex-col gap-3 lg:w-[55%] lg:overflow-y-auto lg:pr-1">

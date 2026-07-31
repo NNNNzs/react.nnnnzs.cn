@@ -22,7 +22,6 @@ interface ImageResultItem {
   id: string;
   imageUrl: string;
   prompt: string;
-  mode: "generate" | "edit";
   elapsed?: string;
   timestamp: number;
 }

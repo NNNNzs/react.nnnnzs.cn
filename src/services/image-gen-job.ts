@@ -40,7 +40,6 @@ export type ImageGenerationRecoverySnapshot = RecoverySnapshot;
 
 export interface ImageGenerationJobView extends AiJobView {
   // 图片生成特有的字段（从 extJson 提取）
-  mode: 'generate' | 'edit';
   group: string | null;
   referenceImageUrls: string[];
   imageUrl: string | null;  // 别名，指向 resourceUrl
@@ -84,7 +83,6 @@ function toImageGenerationJobView(job: AiJobView | null): ImageGenerationJobView
   return {
     ...job,
     resourceUri: `blog://image-generation-jobs/${job.jobId}`,
-    mode: (extJson.mode as 'generate' | 'edit') || 'generate',
     group: typeof extJson.group === 'string' ? extJson.group : null,
     referenceImageUrls: editImageUrls,
     imageUrl: job.resourceUrl,
@@ -130,7 +128,6 @@ async function processImageGenerationJob(jobId: string) {
     ? extJson.edit_image_urls.filter((url: unknown): url is string => typeof url === 'string')
     : (typeof extJson.edit_image_url === 'string' ? [extJson.edit_image_url] : []);
   const options: ImageGenOptions = {
-    mode: extJson.mode || 'generate',
     prompt: job.prompt,
     ...(editImageUrls.length > 0 ? { images: editImageUrls, image: editImageUrls[0] } : {}),
   };
@@ -164,7 +161,7 @@ async function processImageGenerationJob(jobId: string) {
     const fullError = JSON.stringify({
       message: errorMessage,
       jobId,
-      mode: options.mode,
+      hasReferences: editImageUrls.length > 0,
       prompt: options.prompt?.slice(0, 200),
       imageCount: editImageUrls.length,
       durationMs,
@@ -212,15 +209,12 @@ export async function createImageGenerationJob(params: CreateImageGenerationJobP
 
   // 构造 ext_json
   const extJson: Record<string, unknown> = {
-    mode: params.options.mode || 'generate',
   };
-  if (params.options.mode === 'edit') {
-    const { normalizeImageInputs } = await import('@/services/image-gen');
-    const editImageUrls = normalizeImageInputs(params.options);
-    if (editImageUrls.length > 0) {
-      extJson.edit_image_url = editImageUrls[0];
-      extJson.edit_image_urls = editImageUrls;
-    }
+  const { normalizeImageInputs } = await import('@/services/image-gen');
+  const editImageUrls = normalizeImageInputs(params.options);
+  if (editImageUrls.length > 0) {
+    extJson.edit_image_url = editImageUrls[0];
+    extJson.edit_image_urls = editImageUrls;
   }
   if (params.group?.trim()) extJson.group = params.group.trim();
 
@@ -239,7 +233,7 @@ export async function createImageGenerationJob(params: CreateImageGenerationJobP
       status: 'PENDING',
       error_message: null,
       duration_ms: 0,
-      ext_text: params.options.mode === 'edit' ? params.options.prompt : null,
+      ext_text: editImageUrls.length > 0 ? params.options.prompt : null,
       ext_json: JSON.stringify(extJson),
     },
   });

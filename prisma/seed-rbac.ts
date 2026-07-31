@@ -265,13 +265,16 @@ const seedApiRegistry: ApiRegistrySeed[] = [
     input_schema: {
       type: 'object',
       properties: {
-        mode: { type: 'string', description: '模式：generate（文生图）或 edit（图文编辑）' },
         prompt: { type: 'string', description: '提示词' },
-        image: { type: 'string', description: '参考图片URL（编辑模式必填）' },
-        size: { type: 'string', description: '图片尺寸，如 1024x1024' },
-        quality: { type: 'string', description: '图片质量：high 或 medium' },
+        image: { type: 'string', description: '可选参考图片 URL' },
+        images: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '可选参考图片 URL 列表；提供后按参考图生成',
+        },
+        group: { type: 'string', description: '图片任务分组，仅用于管理和筛选，不传给模型' },
       },
-      required: ['mode', 'prompt'],
+      required: ['prompt'],
     },
   },
   {

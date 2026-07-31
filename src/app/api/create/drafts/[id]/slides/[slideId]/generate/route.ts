@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!slide?.prompt?.trim()) return NextResponse.json(errorResponse('图卡缺少图片提示词'), { status: 400 });
 
     const job = await createImageGenerationJob({
-      options: { mode: 'generate', prompt: slide.prompt },
+      options: { prompt: slide.prompt },
       userId: check.user.id,
       source: 'ADMIN',
       group: 'draft-slide',

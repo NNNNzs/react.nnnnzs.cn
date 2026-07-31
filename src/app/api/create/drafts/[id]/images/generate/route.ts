@@ -15,7 +15,6 @@ interface RouteContext {
 }
 
 export const generateDraftImageSchema = z.object({
-  mode: z.enum(['generate', 'edit']).default('generate'),
   prompt: z.string().trim().min(1, '提示词不能为空').max(32000, '提示词过长'),
   image: z.string().trim().min(1).max(5000).optional(),
   images: z.array(z.string().trim().min(1).max(5000)).max(10).optional(),
@@ -34,10 +33,9 @@ export const descriptor: ApiDescriptor = {
     type: 'object',
     properties: {
       draft_id: { type: 'number', description: '目标草稿 ID' },
-      mode: { type: 'string', description: '模式：generate（文生图）或 edit（图文编辑），默认 generate' },
       prompt: { type: 'string', description: '图片提示词或编辑指令' },
-      image: { type: 'string', description: '单张参考图片 URL（编辑模式兼容旧客户端）' },
-      images: { type: 'array', items: { type: 'string' }, description: '参考图片 URL 列表，编辑模式支持多图' },
+      image: { type: 'string', description: '可选参考图片 URL' },
+      images: { type: 'array', items: { type: 'string' }, description: '可选参考图片 URL 列表' },
       title: { type: 'string', description: '素材名称，可选' },
       group: { type: 'string', description: '图片用途或素材分组，如 cover、正文配图，可选' },
     },
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const result = await generateContentDraftImage({
       draftId,
       options: {
-        mode: validation.data.mode,
         prompt: validation.data.prompt,
         image: validation.data.image,
         images: validation.data.images,

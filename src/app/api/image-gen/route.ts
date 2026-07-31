@@ -2,7 +2,7 @@
  * AI 图片生成 API
  * POST /api/image-gen
  * 创建图片生成异步任务
- * 支持文生图、图文编辑
+ * 支持纯提示词生成，以及带可选参考图的图片生成
  * 后台队列自动生成、转存到 CDN 并记录日志
  */
 
@@ -29,17 +29,16 @@ export const descriptor: ApiDescriptor = {
   inputSchema: {
     type: 'object',
     properties: {
-      mode: { type: 'string', description: '模式：generate（文生图）或 edit（图文编辑）' },
       prompt: { type: 'string', description: '提示词' },
-      image: { type: 'string', description: '单张参考图片 URL（编辑模式兼容旧客户端）' },
+      image: { type: 'string', description: '可选参考图片 URL' },
       images: {
         type: 'array',
         items: { type: 'string' },
-        description: '参考图片 URL 列表（编辑模式支持多图）',
+        description: '可选参考图片 URL 列表；提供后按参考图生成',
       },
       group: { type: 'string', description: '图片任务分组，仅用于管理和筛选，不传给模型' },
     },
-    required: ['mode', 'prompt'],
+    required: ['prompt'],
   },
 };
 

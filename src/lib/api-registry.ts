@@ -23,7 +23,6 @@ import { descriptor as postCreateRoute } from '@/app/api/post/create/route';
 import { getDescriptor as postGetRoute, updateDescriptor as postUpdateRoute, deleteDescriptor as postDeleteRoute } from '@/app/api/post/[id]/route';
 import { descriptor as postListRoute } from '@/app/api/post/list/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
-import { descriptor as imageEditRoute } from '@/app/api/image-gen/edit/route';
 import { descriptor as imageRecognizeRoute } from '@/app/api/image-gen/recognize/route';
 import { descriptor as ttsSynthesizeRoute } from '@/app/api/tts/synthesize/route';
 import { descriptor as collectionCreateRoute } from '@/app/api/collection/create/route';
@@ -444,7 +443,6 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       return generateContentDraftImage({
         draftId,
         options: {
-          mode: input.mode,
           prompt: input.prompt,
           image: input.image,
           images: input.images,
@@ -627,11 +625,12 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/image-gen',
     mcpEnabled: true,
     mcpToolName: 'generate_image',
-    description: '创建 AI 图片生成异步任务(文生图)，立即返回 jobId、预分配 CDN URL 和 MCP resourceUri；通过 resourceUri 查询任务状态。',
+    description: '创建 AI 图片生成异步任务；可选传入参考图，立即返回 jobId、预分配 CDN URL 和 MCP resourceUri。',
     inputSchema: {
       type: 'object',
       properties: {
         prompt: { type: 'string', description: '图片描述提示词' },
+        images: { type: 'array', items: { type: 'string' }, description: '可选参考图片 URL 列表' },
         group: { type: 'string', description: '图片任务分组，仅用于管理和筛选' },
       },
       required: ['prompt'],
@@ -640,47 +639,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       const { createImageGenerationJob } = await import('@/services/image-gen-job');
       return createImageGenerationJob({
         options: {
-          mode: 'generate',
           prompt: args.prompt as string,
-        },
-        userId: user.id,
-        source: 'MCP',
-        group: args.group as string | undefined,
-      });
-    },
-  },
-  {
-    ...imageEditRoute,
-    apiPath: '/api/image-gen/edit',
-    mcpEnabled: true,
-    mcpToolName: 'edit_image',
-    description: '创建 AI 图片编辑异步任务，支持一张或多张参考图片；立即返回 jobId、预分配 CDN URL 和 MCP resourceUri；通过 resourceUri 查询任务状态。',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        prompt: { type: 'string', description: '图片编辑指令' },
-        image: { type: 'string', description: '单张参考图片 URL（兼容旧客户端）' },
-        images: {
-          type: 'array',
-          items: { type: 'string' },
-          description: '参考图片 URL 列表，支持多图编辑',
-        },
-        group: { type: 'string', description: '图片任务分组，仅用于管理和筛选' },
-      },
-      required: ['prompt'],
-    },
-    handler: async (args, user) => {
-      const { createImageGenerationJob } = await import('@/services/image-gen-job');
-      const rawImages = Array.isArray(args.images)
-        ? args.images.filter((item): item is string => typeof item === 'string')
-        : undefined;
-
-      return createImageGenerationJob({
-        options: {
-          mode: 'edit',
-          prompt: args.prompt as string,
-          image: args.image as string | undefined,
-          images: rawImages,
+          images: Array.isArray(args.images)
+            ? args.images.filter((item): item is string => typeof item === 'string')
+            : undefined,
         },
         userId: user.id,
         source: 'MCP',

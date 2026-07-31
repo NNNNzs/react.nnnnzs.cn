@@ -176,26 +176,6 @@ async function main() {
     }
   }
 
-  // Disable APIs not found in code scan
-  // 保留 mcp_available=1 或 mcp_enabled=1 的接口（它们有 MCP handler，来自 api-registry.ts）
-  const codes = extractedApis.map(a => a.code);
-  const disabled = await prisma.tbApiRegistry.updateMany({
-    where: {
-      code: { notIn: codes },
-      auto_discovered: 1,
-      status: 1,
-      mcp_available: 0,
-      mcp_enabled: 0,
-    },
-    data: { status: 0 },
-  });
-
-  console.log('\n📊 Sync complete:');
-  console.log(`  Created: ${created}`);
-  console.log(`  Updated: ${updated}`);
-  console.log(`  Unchanged: ${unchanged}`);
-  console.log(`  Disabled: ${disabled.count}`);
-
   // 从 API_REGISTRY 动态获取有 handler 的接口，不再写死
   const { API_REGISTRY } = await import('../../src/lib/api-registry');
   const handlerCodes = API_REGISTRY
@@ -225,6 +205,27 @@ async function main() {
     data: { mcp_available: 0, mcp_enabled: 0 },
   });
   console.log(`  Done, affected: ${mcpUnavailable.count}`);
+
+  // 路由扫描和 MCP handler 都不存在的自动发现接口应停用。
+  // 必须在 MCP 状态收口后执行，避免刚失去 handler 的旧接口因残留标记而被跳过。
+  const activeCodes = Array.from(new Set([
+    ...extractedApis.map(api => api.code),
+    ...handlerCodes,
+  ]));
+  const disabled = await prisma.tbApiRegistry.updateMany({
+    where: {
+      code: { notIn: activeCodes },
+      auto_discovered: 1,
+      status: 1,
+    },
+    data: { status: 0 },
+  });
+
+  console.log('\n📊 Sync complete:');
+  console.log(`  Created: ${created}`);
+  console.log(`  Updated: ${updated}`);
+  console.log(`  Unchanged: ${unchanged}`);
+  console.log(`  Disabled: ${disabled.count}`);
 
   console.log('🔌 Disconnecting...');
   await prisma.$disconnect();

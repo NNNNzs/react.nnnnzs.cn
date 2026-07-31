@@ -412,7 +412,7 @@ function formatContentImageJob(job: TbAiJob) {
 
   return {
     ...baseJob,
-    mode: extJson.mode === 'edit' ? 'edit' : 'generate',
+    mode: referenceImageUrls.length > 0 ? 'edit' : 'generate',
     group: typeof extJson.group === 'string' ? extJson.group : null,
     referenceImageUrls,
     imageUrl: baseJob.resourceUrl,

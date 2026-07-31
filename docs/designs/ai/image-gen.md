@@ -2,9 +2,9 @@
 
 ## 概述
 
-管理后台「AI 图片工作台」支持文生图、图文编辑和图片识别。图片生成统一走异步队列：接口先返回任务 ID 和预分配 CDN URL，后台队列完成生成、转存和状态更新；图片识别调用多模态模型后同步返回文本结果。
+管理后台「AI 图片工作台」提供图片生成与图片识别。图片生成统一走异步队列：接口先返回任务 ID 和预分配 CDN URL，后台队列完成生成、转存和状态更新；是否基于参考图生成由参考图参数自动决定。图片识别调用多模态模型后同步返回文本结果。
 
-`/c/ai-lab/image-gen` 复用该工作台，在同一个参数组件内提供「文生图」「图文编辑」「图片识别」三个并列模式。页面固定满屏分栏，右侧生成历史独立滚动；识图历史以浏览器会话抽屉展示。
+`/c/ai-lab/image-gen` 复用该工作台，在「图片生成」与「图片识别」两个页签之间切换。图片生成的参考图为可选输入，尺寸/比例和质量偏好为可自由输入的提示词模板字段；图片识别保留当前标签页的会话历史。
 
 ## API 信息
 
@@ -40,13 +40,13 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 
 ### 图片生成约束
 
-前端公共 `ImageGenerationComposer` 统一收集尺寸与质量，并将其写入提示词末尾：
+前端公共 `ImageGenerationComposer` 提供可选的尺寸/比例和质量偏好输入，并将非空值写入提示词末尾：
 
 ```text
-【生成约束】尺寸：1024x1024；质量：high。
+【生成参考】尺寸或比例：16:9；质量偏好：电影感。
 ```
 
-尺寸和质量不会作为独立 API、队列或上游 Images API 参数传递。这样 Chat Completions、Images Generations、Images Edits 三种上游模式共享同一条提示词约束语义。
+尺寸和质量不会作为独立 API、队列或上游 Images API 参数传递；输入为空时不追加约束。尺寸可以是像素、比例或自然语言，质量也可以是任意偏好文本。
 
 分组是工作台的通用管理字段：图片生成时写入队列任务 `ext_json.group`，素材库生成时同时写入素材分组。它用于后续筛选、展示与管理，不会传给图片模型。图文编辑的「添加参考图」弹窗与素材库解耦：本地图片上传到 `/upload/image-references/` 并返回 CDN URL、外链直接使用 HTTPS URL，然后 emit 给编辑器参考图列表；不创建素材记录。只有素材库页面的「添加素材」才会入库。
 
@@ -64,7 +64,7 @@ content 中包含 markdown 图片链接 `![image](https://oss.filenest.top/uploa
 
 响应支持 `data[0].url` 和 `data[0].b64_json` 两种格式。`b64_json` 会先转存到 CDN，再返回 CDN URL。
 
-图文编辑模式会自动改用 OpenAI 兼容的 `/v1/images/edits`，以 `multipart/form-data` 上传一张或多张参考图：
+提供参考图时会自动改用 OpenAI 兼容的 `/v1/images/edits`，以 `multipart/form-data` 上传一张或多张参考图：
 
 ```text
 model=gpt-image-2
@@ -103,9 +103,9 @@ src/lib/
 ├── api-registry.ts             # MCP 工具注册（handler 引用任务 service）
 └── uuid.ts                     # UUID 校验工具（UUID_REGEX / isUuid）
 src/app/c/image-gen/
-└── page.tsx                    # 图片工作台（生成 / 识别）
+└── page.tsx                    # 图片工作台（图片生成 / 图片识别）
 src/components/ImageGen/
-├── ImageGenerationComposer.tsx # 文生图/图文编辑公共编排器
+├── ImageGenerationComposer.tsx # 图片生成公共编排器
 ├── ImageRecognitionWorkbench.tsx # 图片识别工作区
 └── ImageResultCard.tsx         # 结果展示组件
 ```
@@ -114,31 +114,26 @@ src/components/ImageGen/
 
 | 组件 | 职责 | 复用规则 |
 |------|------|----------|
-| `ImageGenerationComposer` | 文生图、图文编辑、图片识别模式切换；统一尺寸、质量、分组与队列提交事件 | AI Lab 和 `/create/assets` 必须复用，不再各自实现生成表单 |
-| `ImageReferenceAddModal` | 上传参考图到专用 COS 路径或填写 HTTPS 外链，确认后仅 emit URL | 图文编辑与图片识别复用；不得写入素材库 |
+| `ImageGenerationComposer` | 图片生成、可选参考图、尺寸/比例、质量偏好、分组与队列提交 | AI Lab 和 `/create/assets` 必须复用，不再各自实现生成表单 |
+| `ImageReferenceAddModal` | 上传参考图到专用 COS 路径或填写 HTTPS 外链，确认后仅 emit URL | 图片生成复用；不得写入素材库 |
 | `ImageAssetAddModal` | 上传图片或添加外链，并建立 `ContentAsset` 素材记录 | 仅素材库“添加素材”入口使用；成功后 emit 素材记录 |
-| `ImageRecognitionWorkbench` | 识别图、提问、结果和会话历史抽屉 | 作为 `ImageGenerationComposer` 的“图片识别”模式复用 |
+| `ImageRecognitionWorkbench` | 识别图、提问、识别结果和当前标签页会话历史 | AI 图片工作台的“图片识别”页签使用 |
 
 新增图片相关入口时，应先组合上述组件并通过回调注入业务 API；不要复制上传、参考图预览、队列提交或会话历史逻辑。
 
 ## MCP 工具
 
-已注册 MCP 工具 `generate_image` 和 `edit_image`，支持 Claude 等 AI 客户端提交图片生成或图片编辑任务。工具会立即返回 `jobId`、预分配 `imageUrl` 和 `resourceUri`，不等待上游图片模型完成。
+已注册 MCP 工具 `generate_image`，支持 Claude 等 AI 客户端提交图片生成任务；参考图参数可选，有参考图时自动按图片编辑协议处理。工具会立即返回 `jobId`、预分配 `imageUrl` 和 `resourceUri`，不等待上游图片模型完成。
 
 - **工具名**: `generate_image`
 - **权限**: `image:view`
-- **输入参数**: prompt
-- **状态资源**: `blog://image-generation-jobs/{jobId}`
-
-- **工具名**: `edit_image`
-- **权限**: `image:view`
-- **输入参数**: prompt、image 或 images
+- **输入参数**: prompt；可选 images、group
 - **状态资源**: `blog://image-generation-jobs/{jobId}`
 
 - **工具名**: `generate_draft_image`
 - **权限**: `content:edit`
-- **输入参数**: `draft_id`、`prompt`；可选 `mode`、`image`、`images`、`title`、`group`
-- **行为**: 为指定草稿提交文生图或图文编辑任务，立即创建素材库记录并关联草稿。草稿会显示预分配 CDN 地址对应的占位素材，任务完成后同一素材记录展示正式图片。
+- **输入参数**: `draft_id`、`prompt`；可选 `image`、`images`、`title`、`group`
+- **行为**: 为指定草稿提交图片生成任务；有参考图时自动基于参考图生成，立即创建素材库记录并关联草稿。草稿会显示预分配 CDN 地址对应的占位素材，任务完成后同一素材记录展示正式图片。
 - **推荐对话**: “为草稿《xxx》生成小红书封面并关联到草稿”。
 - **状态资源**: `blog://image-generation-jobs/{jobId}`
 
@@ -153,7 +148,6 @@ MCP 状态查询使用 `ResourceTemplate`，客户端读取工具返回的 `reso
 **请求体:**
 ```typescript
 interface ImageGenRequest {
-  mode: 'generate' | 'edit';  // 模式
   prompt: string;              // 提示词（必填）
   image?: string;              // 单张参考图 URL（兼容旧客户端）
   images?: string[];           // 多张参考图 URL

@@ -44,22 +44,30 @@ test('MCP schema 保留对象数组的内部字段约束', () => {
   assert.equal(schema.safeParse({ assets: [{ asset_id: '1' }] }).success, false);
 });
 
-test('草稿和素材 MCP 工具公开正确的参数结构与主权限', async () => {
+test('草稿、素材与图片生成 MCP 工具公开正确的参数结构与主权限', async () => {
   const { API_REGISTRY } = await import('./api-registry');
   const createDraft = API_REGISTRY.find((entry) => entry.mcpToolName === 'create_content_draft');
   const updateDraft = API_REGISTRY.find((entry) => entry.mcpToolName === 'update_content_draft');
   const createAsset = API_REGISTRY.find((entry) => entry.mcpToolName === 'create_content_asset');
+  const generateImage = API_REGISTRY.find((entry) => entry.code === 'image_gen');
+  const legacyEditImage = API_REGISTRY.find((entry) => entry.mcpToolName === 'edit_image');
 
   assert.equal(createDraft?.permissionCode, 'content:create');
   assert.equal(updateDraft?.permissionCode, 'content:edit');
   assert.equal(createAsset?.permissionCode, 'content:create');
+  assert.equal(generateImage?.permissionCode, 'image:view');
+  assert.equal(legacyEditImage, undefined);
 
   const createDraftProperties = createDraft?.inputSchema?.properties as Record<string, unknown>;
   const updateDraftProperties = updateDraft?.inputSchema?.properties as Record<string, unknown>;
   const createAssetProperties = createAsset?.inputSchema?.properties as Record<string, unknown>;
+  const generateImageProperties = generateImage?.inputSchema?.properties as Record<string, unknown>;
   assert.ok(createDraftProperties.assets);
   assert.ok(updateDraftProperties.assets);
   assert.ok(createAssetProperties.draft_id);
+  assert.ok(generateImageProperties.images);
+  assert.equal(generateImageProperties.mode, undefined);
+  assert.deepEqual(generateImage?.inputSchema?.required, ['prompt']);
 });
 
 test('MCP 适配器拒绝缺少功能权限的调用并清理 created_by', async () => {

@@ -422,7 +422,7 @@ export function CreateImageAssetsManager() {
       method: "POST",
       body: JSON.stringify({
         ...params,
-        reference_asset_ids: params.mode === "edit" ? referenceAssetIds : undefined,
+        reference_asset_ids: referenceAssetIds.length > 0 ? referenceAssetIds : undefined,
       }),
     })
   ), [referenceAssetIds]);
