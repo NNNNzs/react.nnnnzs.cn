@@ -4,6 +4,25 @@
  */
 
 import { ChatPromptTemplate, createAIChain, streamFromChain } from '@/lib/ai';
+import { loadActivePrompt } from '@/services/ai-template';
+
+const ARTICLE_DESCRIPTION_PROMPT_SLUG = 'blog-post-description';
+
+async function loadArticleDescriptionPrompt() {
+  const result = await loadActivePrompt({
+    slug: ARTICLE_DESCRIPTION_PROMPT_SLUG,
+    policy: {
+      allowedScopes: ['content'],
+      allowedSlugs: [ARTICLE_DESCRIPTION_PROMPT_SLUG],
+    },
+  });
+
+  if (!result.version.content.trim()) {
+    throw new Error('文章导语 Prompt 模板为空');
+  }
+
+  return result.version.content;
+}
 
 /**
  * 生成文章描述（流式）
@@ -13,12 +32,9 @@ import { ChatPromptTemplate, createAIChain, streamFromChain } from '@/lib/ai';
 export const generDescriptionStream = async (
   content: string
 ): Promise<ReadableStream> => {
-  const systemInstruction = `请使用中文回复。
+  const systemInstruction = await loadArticleDescriptionPrompt();
 
-你是一个文章描述生成器。
-请你以主人公第一人称的视角描述这篇文章的内容，简洁的描述，可以艺术加工而不是流水账，不要纯文本格式不要用Markdown语法，描述不超过100个字符。`;
-
-  // 创建提示词模板
+  // 用户录入的 ACTIVE Prompt 作为 system message，文章正文作为唯一运行上下文。
   const prompt = ChatPromptTemplate.fromMessages([
     ['system', systemInstruction],
     ['human', '{content}'],
