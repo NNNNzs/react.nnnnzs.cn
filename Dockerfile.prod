@@ -102,19 +102,19 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # 复制必要的文件 (Standalone 模式)
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src/generated ./src/generated
-COPY --from=builder /app/scripts/purge-cdn.mjs ./scripts/purge-cdn.mjs
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
+COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
+COPY --chown=nextjs:nodejs --from=builder /app/prisma ./prisma
+COPY --chown=nextjs:nodejs --from=builder /app/src/generated ./src/generated
+COPY --chown=nextjs:nodejs --from=builder /app/scripts/purge-cdn.mjs ./scripts/purge-cdn.mjs
 
 # 创建必要的目录结构并设置权限（在切换用户之前）
 # 确保 nextjs 用户有权限写入预渲染缓存
 # 注意：在 standalone 模式下，.next/server/app 可能不存在于 standalone 输出中
 # 我们需要创建这个目录，让 Next.js 运行时可以写入缓存文件
 RUN mkdir -p logs .next/cache .next/server/app && \
-    chown -R nextjs:nodejs logs .next
+    chown -R nextjs:nodejs logs .next/cache .next/server/app
 
 # 复制启动脚本
 COPY docker-entrypoint-prod.sh /app/docker-entrypoint-prod.sh

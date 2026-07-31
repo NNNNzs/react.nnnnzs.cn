@@ -124,8 +124,25 @@ prepare_cdn_manifest() {
         return
     fi
 
-    mkdir -p "$MANIFEST_DIR"
-    chmod 0777 "$MANIFEST_DIR"
+    if ! mkdir -p "$MANIFEST_DIR"; then
+        print_warn "⚠️  无法创建 CDN 清单目录，跳过本次 CDN 清单生成"
+        return 1
+    fi
+
+    # 清单目录同时被 SSH 部署用户和容器内 nextjs 用户读写。
+    # 目录可能曾由 Docker daemon 创建并归 root 所有，先尝试宿主机 chmod；
+    # 失败时借助刚拉取的镜像以 root 身份修复宿主机挂载目录权限。
+    if ! chmod 0777 "$MANIFEST_DIR" 2>/dev/null; then
+        print_warn "⚠️  宿主机无法直接调整 ${MANIFEST_DIR} 权限，尝试通过 Docker 修复"
+        if ! docker run --rm --user 0:0 \
+            --entrypoint /bin/sh \
+            -v "$(pwd)/${MANIFEST_DIR}:/app/.cdn-purge" \
+            "${IMAGE_NAME}:latest" \
+            -c 'chmod 0777 /app/.cdn-purge'; then
+            print_warn "⚠️  无法修复 ${MANIFEST_DIR} 权限，跳过本次 CDN 清单生成"
+            return 1
+        fi
+    fi
     NEW_COMMIT=$(docker image inspect --format='{{ index .Config.Labels "commit" }}' "${IMAGE_NAME}:latest" 2>/dev/null || echo "")
     if [ -z "$NEW_COMMIT" ]; then
         NEW_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
@@ -148,33 +165,42 @@ prepare_cdn_manifest() {
     else
         print_warn "⚠️  无法确定部署差异，生成全站刷新清单"
         if command -v node >/dev/null 2>&1; then
-            node "$PURGE_SCRIPT" \
+            if ! node "$PURGE_SCRIPT" \
                 --full-site \
                 --output "$MANIFEST_FILE" \
                 --commit "$NEW_COMMIT" \
-                --version "$VERSION"
+                --version "$VERSION"; then
+                rm -f "$DIFF_FILE"
+                return 1
+            fi
         else
-            docker run --rm --entrypoint node \
+            if ! docker run --rm --entrypoint node \
                 -v "$(pwd)/${MANIFEST_DIR}:/app/.cdn-purge" \
                 "${IMAGE_NAME}:latest" \
                 /app/scripts/purge-cdn.mjs \
                 --full-site \
                 --output /app/.cdn-purge/pending.json \
                 --commit "$NEW_COMMIT" \
-                --version "$VERSION"
+                --version "$VERSION"; then
+                rm -f "$DIFF_FILE"
+                return 1
+            fi
         fi
         rm -f "$DIFF_FILE"
         return
     fi
 
     if command -v node >/dev/null 2>&1; then
-        node "$PURGE_SCRIPT" \
+        if ! node "$PURGE_SCRIPT" \
             --changed-file "$DIFF_FILE" \
             --output "$MANIFEST_FILE" \
             --commit "$NEW_COMMIT" \
-            --version "$VERSION"
+            --version "$VERSION"; then
+            rm -f "$DIFF_FILE"
+            return 1
+        fi
     else
-        docker run --rm --entrypoint node \
+        if ! docker run --rm --entrypoint node \
             -v "$(pwd)/${MANIFEST_DIR}:/app/.cdn-purge" \
             -v "${DIFF_FILE}:/tmp/cdn-changed-files:ro" \
             "${IMAGE_NAME}:latest" \
@@ -182,7 +208,10 @@ prepare_cdn_manifest() {
             --changed-file /tmp/cdn-changed-files \
             --output /app/.cdn-purge/pending.json \
             --commit "$NEW_COMMIT" \
-            --version "$VERSION"
+            --version "$VERSION"; then
+            rm -f "$DIFF_FILE"
+            return 1
+        fi
     fi
     rm -f "$DIFF_FILE"
 }
@@ -320,15 +349,24 @@ main() {
     
     case $command in
         deploy|update)
+            local cdn_manifest_ready=0
             print_info "🚀 开始部署应用..."
             check_docker
             check_env
             pull_image
-            prepare_cdn_manifest
+            if prepare_cdn_manifest; then
+                cdn_manifest_ready=1
+            else
+                print_warn "⚠️  CDN 清单准备失败，继续部署应用但跳过本次 CDN 刷新"
+            fi
             stop_old
             start_new
             check_status
-            consume_cdn_manifest
+            if [ "$cdn_manifest_ready" -eq 1 ]; then
+                consume_cdn_manifest
+            else
+                print_warn "⚠️  本次没有可消费的 CDN 清单"
+            fi
             cleanup
             print_info "🎉 部署完成！"
             print_info "运行 '$0 logs' 查看日志"

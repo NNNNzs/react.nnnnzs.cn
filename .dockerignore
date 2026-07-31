@@ -56,3 +56,18 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
+# 仅用于开发、设计和部署辅助，不进入生产构建上下文
+docs
+assets
+.codegraph
+.claude
+.agents
+.deploy
+performance
+
+# 已确认不参与生产运行的项目说明文件；不要使用全局 *.md，保留未来 Markdown 模板能力
+README.md
+AGENTS.md
+CLAUDE.md
+scripts/README*.md
+src/services/ai/tools/README.md

@@ -172,6 +172,7 @@ jobs:
           envs: changed_files
           command_timeout: 20m
           script: |
+            set -e
             cd ${{ secrets.DEPLOY_DIR }}
             # 拉取最新代码（deploy.sh、purge_cdn.py 等脚本依赖此步骤）
             if [ -d ".git" ]; then
@@ -185,9 +186,15 @@ jobs:
             # 写入变更文件列表（临时文件，deploy 后清理）
             echo "${changed_files}" > /tmp/.deploy_changed_files
             if [ -f "${{ secrets.DEPLOY_SCRIPT }}" ]; then
-              bash "${{ secrets.DEPLOY_SCRIPT }}"
+              bash "${{ secrets.DEPLOY_SCRIPT }}" || {
+                echo "❌ 服务器部署脚本执行失败" >&2
+                exit 1
+              }
             else
-              ${{ secrets.DEPLOY_SCRIPT }}
+              "${{ secrets.DEPLOY_SCRIPT }}" || {
+                echo "❌ 服务器部署脚本执行失败" >&2
+                exit 1
+              }
             fi
             rm -f /tmp/.deploy_changed_files
             echo "✅ 部署完成！"
