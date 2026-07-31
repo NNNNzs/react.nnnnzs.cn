@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { CONTENT_DELETE, CONTENT_EDIT, CONTENT_VIEW } from '@/constants/permissions';
-import { deleteContentImageAsset, getContentImageAsset, updateContentImageAsset } from '@/services/content-creation';
+import {
+  ContentAssetInUseError,
+  deleteContentImageAsset,
+  getContentImageAsset,
+  updateContentImageAsset,
+} from '@/services/content-creation';
 import { getPrisma } from '@/lib/prisma';
 import { validationErrorResponse } from '../../_utils';
 import type { ApiDescriptor } from '@/types/api-descriptor';
@@ -42,7 +47,7 @@ export const updateDescriptor: ApiDescriptor = {
 };
 
 export const deleteDescriptor: ApiDescriptor = {
-  code: 'create_assets_delete', name: '删除素材', description: '按 ID 删除一条图片素材记录。',
+  code: 'create_assets_delete', name: '删除素材', description: '删除未被草稿或图卡引用的图片素材。',
   module: 'content', method: 'DELETE', permissionCode: CONTENT_DELETE,
   inputSchema: { type: 'object', properties: assetIdInputSchema, required: ['id'] },
 };
@@ -154,6 +159,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('删除图片素材失败:', error);
-    return NextResponse.json(errorResponse('删除图片素材失败'), { status: 500 });
+    if (error instanceof ContentAssetInUseError) {
+      return NextResponse.json(errorResponse(error.message), { status: 409 });
+    }
+    return NextResponse.json(
+      errorResponse(error instanceof Error ? error.message : '删除图片素材失败'),
+      { status: 500 },
+    );
   }
 }

@@ -15,6 +15,8 @@ import type { AuthUser } from '@/types/auth';
 import { CONFIG_EDIT, FILE_UPLOAD } from '@/constants/permissions';
 import { hasDataPermission } from '@/lib/permission';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import { hasDraftAssetSelections } from '@/lib/content-draft-assets';
+import { z } from 'zod';
 
 // ---- 从 route.ts 导入 descriptor（元数据 Source of Truth）----
 import { descriptor as postCreateRoute } from '@/app/api/post/create/route';
@@ -252,7 +254,18 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     handler: async (args, user) => {
       const { createContentDraft } = await import('@/services/content-creation');
       const input = parseMcpInput(createDraftSchema.safeParse(args));
-      return createContentDraft({ ...input, created_by: user.id });
+      if (
+        hasDraftAssetSelections(input.assets)
+        && contentAssetListRoute.permissionCode
+        && !user.permissions.includes(contentAssetListRoute.permissionCode)
+      ) {
+        throw new Error(`无权限：需要 ${contentAssetListRoute.permissionCode}`);
+      }
+      return createContentDraft({
+        ...input,
+        created_by: user.id,
+        asset_user_id: getScopedUserId(user, contentAssetListRoute.permissionCode!),
+      });
     },
   },
   {
@@ -271,12 +284,23 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     apiPath: '/api/create/drafts/[id]',
     mcpEnabled: true,
     mcpToolName: 'update_content_draft',
-    handler: async (args) => {
+    handler: async (args, user) => {
       const { updateContentDraft } = await import('@/services/content-creation');
       const id = getPositiveId(args, '草稿');
       const { id: _id, ...input } = args;
       void _id;
-      return updateContentDraft(id, parseMcpInput(updateDraftSchema.safeParse(input)));
+      const parsed = parseMcpInput(updateDraftSchema.safeParse(input));
+      if (
+        hasDraftAssetSelections(parsed.assets)
+        && contentAssetListRoute.permissionCode
+        && !user.permissions.includes(contentAssetListRoute.permissionCode)
+      ) {
+        throw new Error(`无权限：需要 ${contentAssetListRoute.permissionCode}`);
+      }
+      return updateContentDraft(id, {
+        ...parsed,
+        asset_user_id: getScopedUserId(user, contentAssetListRoute.permissionCode!),
+      });
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
@@ -318,17 +342,36 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   },
   {
     ...contentAssetCreateRoute,
+    inputSchema: {
+      ...contentAssetCreateRoute.inputSchema,
+      properties: {
+        ...((contentAssetCreateRoute.inputSchema?.properties ?? {}) as Record<string, unknown>),
+        draft_id: { type: 'number', description: '可选；创建素材后立即关联的草稿 ID' },
+      },
+    },
     apiPath: '/api/create/assets',
     mcpEnabled: true,
     mcpToolName: 'create_content_asset',
     handler: async (args, user) => {
       const { createLinkedContentImageAsset } = await import('@/services/content-creation');
-      const input = parseMcpInput(createAssetSchema.safeParse(args));
+      const input = parseMcpInput(createAssetSchema.extend({
+        draft_id: z.coerce.number().int().positive().optional().nullable(),
+      }).safeParse(args));
+      if (
+        input.draft_id
+        && contentDraftUpdateRoute.permissionCode
+        && !user.permissions.includes(contentDraftUpdateRoute.permissionCode)
+      ) {
+        throw new Error(`无权限：需要 ${contentDraftUpdateRoute.permissionCode}`);
+      }
       return createLinkedContentImageAsset({
         imageUrl: input.image_url,
         title: input.title,
         group: input.group,
         created_by: user.id,
+        draft_id: input.draft_id,
+        asset_user_id: getScopedUserId(user, contentAssetListRoute.permissionCode!),
+        draft_user_id: getScopedUserId(user, contentDraftUpdateRoute.permissionCode!),
       });
     },
   },

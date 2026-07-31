@@ -133,9 +133,9 @@ flowchart TB
 
 草稿详情同时展示只读的来源选题快照。用户点击“AI 根据选题生成初稿”后，草稿 Agent 才读取选题快照和平台模板生成建议；创建草稿本身不自动消耗模型调用。详细上下文契约和编辑器选择见[选题完善与多平台草稿转换设计](../ai/topic-draft-workflow.md)。
 
-草稿选用图片保存在 `ContentDraft.generation_snapshot_json.draftImages`，不回写 `ContentAsset.draft_id`。因此一张图片素材可以被多个草稿重复添加，也可以在同一草稿中按需要重复使用。
+草稿选用图片通过 `ContentDraftAsset` 正式关联。一个素材可被多个草稿复用，但同一草稿只能关联一次；关联记录保存 `sort_order`、`remark` 和关联时间，名称、分组与 CDN 地址实时读取素材库。
 
-`draftImages` 是草稿内的图片使用快照，包含素材 ID、图片 URL、标题、分组、添加时间、`sortOrder` 和 `remark`。`sortOrder` 用于保存前端拖拽后的展示顺序，旧数据读取时按数组顺序补齐；`remark` 用于记录封面图或单张图片备注。备注和排序只影响草稿内这次使用，不修改素材库中的素材名称或 CDN URL。
+草稿新增和编辑接口使用有序 `assets` 数组统一管理关联。更新时省略 `assets` 表示不修改，传空数组表示解除全部关联；移除图卡正在使用的素材时，同一事务会清空对应 `ContentDraftSlide.asset_id`。
 
 草稿详情右栏支持把当前草稿图片按保存顺序一键打包下载。下载包包含图片文件和 `manifest.json`，manifest 记录每张图片的素材 ID、原始 URL、分组、顺序和备注，便于后续发布或交给本地工作流处理。
 
@@ -228,7 +228,11 @@ flowchart LR
 
 列表和详情使用 `content:view`，新建使用 `content:create`，更新使用 `content:edit`，删除使用 `content:delete`。当权限的数据范围不是全部数据时，列表自动限制为当前用户数据，详情、更新和删除在调用 service 前校验 `created_by`。
 
-MCP 新建草稿允许一次传入正文、标签和来源关联，便于外部创作 Agent 完成结构化写入；网页草稿库仍保持最小新建表单，详细内容由草稿详情页继续编辑。素材新建只登记已有 HTTPS 图片地址，上传文件应先调用 `upload_file`，素材更新不允许修改 CDN 地址。
+MCP 新建和编辑草稿允许通过有序 `assets` 数组完整管理素材关联，便于外部创作 Agent 完成结构化写入；网页草稿库仍保持最小新建表单，详细内容由草稿详情页继续编辑。`create_content_asset` 可选传入 `draft_id`，创建后直接追加到该草稿；上传文件应先调用 `upload_file`，素材更新不允许修改 CDN 地址。
+
+`assets` 中存在素材时，REST 与 MCP 除草稿主操作权限外还要求 `content:view`，并按该权限的 `self/all` 数据范围校验每个素材。传空数组只表示解除全部关联，不额外要求素材查看权限。`create_content_asset(draft_id)` 同时要求 `content:create` 和目标草稿的 `content:edit`，目标草稿仍按 `content:edit` 数据范围校验。
+
+素材 ID 重复、素材不存在、类型不是图片或 CDN 尚不可用属于输入错误，REST 返回 400；素材存在但超出当前用户数据范围时返回 403。MCP 以工具错误返回同一业务消息。所有 MCP 工具仍先经过 Registry 启用状态、主权限过滤和调用时权限复核，客户端不能通过传入 `created_by` 提升权限。
 
 ## 7. Prisma 组织
 

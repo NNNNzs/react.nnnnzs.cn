@@ -2,26 +2,26 @@
 
 // 选题池：保存创作意图、来源和去重依据；平台正文属于 ContentDraft。
 model ContentTopic {
-  id             Int       @id @default(autoincrement())
-  title          String    @db.VarChar(255)
-  source_type    String    @default("idea") @db.VarChar(30)
-  source_url     String?   @db.Text
-  description    String?   @db.Text
-  original_idea  String?   @db.Text
-  core_angle     String?   @db.Text
+  id             Int      @id @default(autoincrement())
+  title          String   @db.VarChar(255)
+  source_type    String   @default("idea") @db.VarChar(30)
+  source_url     String?  @db.Text
+  description    String?  @db.Text
+  original_idea  String?  @db.Text
+  core_angle     String?  @db.Text
   key_points     Json?
-  dedup_key      String?   @db.VarChar(500)
+  dedup_key      String?  @db.VarChar(500)
   // 以下字段保留到旧数据完成迁移；新选题不再以栏目、优先级或 AI 理由为核心信息。
-  pillar         String?   @db.VarChar(80)
-  series         String?   @db.VarChar(80)
-  status         String    @default("IDEA") @db.VarChar(30)
-  priority       Int       @default(3)
+  pillar         String?  @db.VarChar(80)
+  series         String?  @db.VarChar(80)
+  status         String   @default("IDEA") @db.VarChar(30)
+  priority       Int      @default(3)
   source_post_id Int?
-  source_note    String?   @db.Text
-  ai_reason      String?   @db.Text
+  source_note    String?  @db.Text
+  ai_reason      String?  @db.Text
   created_by     Int?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   drafts ContentDraft[]
   assets ContentAsset[]
@@ -35,25 +35,25 @@ model ContentTopic {
 
 // 草稿主体：优先承载小红书图文，视频脚本只保留类型扩展。
 model ContentDraft {
-  id                       Int       @id @default(autoincrement())
+  id                       Int      @id @default(autoincrement())
   topic_id                 Int?
   source_post_id           Int?
   template_id              Int?
-  platform                 String    @default("xhs") @db.VarChar(40)
-  type                     String    @default("note") @db.VarChar(40)
-  title                    String    @db.VarChar(255)
-  hook                     String?   @db.Text
-  body                     String?   @db.LongText
+  platform                 String   @default("xhs") @db.VarChar(40)
+  type                     String   @default("note") @db.VarChar(40)
+  title                    String   @db.VarChar(255)
+  hook                     String?  @db.Text
+  body                     String?  @db.LongText
   tags_json                Json?
-  status                   String    @default("DRAFT") @db.VarChar(30)
+  status                   String   @default("DRAFT") @db.VarChar(30)
   generation_snapshot_json Json?
   created_by               Int?
-  created_at               DateTime  @default(now())
-  updated_at               DateTime  @updatedAt
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 
   topic  ContentTopic?       @relation(fields: [topic_id], references: [id], onDelete: SetNull)
   slides ContentDraftSlide[]
-  assets ContentAsset[]
+  assets ContentDraftAsset[]
 
   @@index([status, updated_at], name: "idx_draft_status_updated")
   @@index([topic_id], name: "idx_draft_topic")
@@ -65,43 +65,61 @@ model ContentDraft {
 
 // 小红书图文卡片结构化内容。
 model ContentDraftSlide {
-  id         Int      @id @default(autoincrement())
-  draft_id   Int
-  sort_order Int      @default(0)
-  title      String?  @db.VarChar(255)
+  id           Int      @id @default(autoincrement())
+  draft_id     Int
+  sort_order   Int      @default(0)
+  title        String?  @db.VarChar(255)
   bullets_json Json?
-  prompt     String?  @db.Text
-  asset_id   Int?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  prompt       String?  @db.Text
+  asset_id     Int?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
-  draft ContentDraft @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+  draft ContentDraft  @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+  asset ContentAsset? @relation(fields: [asset_id], references: [id], onDelete: Restrict)
 
   @@index([draft_id, sort_order], name: "idx_slide_draft_sort")
   @@index([asset_id], name: "idx_slide_asset")
   @@map("content_draft_slides")
 }
 
-// 素材库：当前只管理图片；草稿选用图片写入 ContentDraft.generation_snapshot_json.draftImages，不回写 draft_id。
+// 草稿选用素材：同一素材可跨草稿复用，同一草稿内只关联一次。
+model ContentDraftAsset {
+  id         Int      @id @default(autoincrement())
+  draft_id   Int
+  asset_id   Int
+  sort_order Int      @default(0)
+  remark     String?  @db.VarChar(500)
+  created_at DateTime @default(now())
+
+  draft ContentDraft @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+  asset ContentAsset @relation(fields: [asset_id], references: [id], onDelete: Restrict)
+
+  @@unique([draft_id, asset_id], name: "uk_draft_asset")
+  @@index([draft_id, sort_order], name: "idx_draft_asset_sort")
+  @@index([asset_id], name: "idx_draft_asset_asset")
+  @@map("content_draft_assets")
+}
+
+// 素材库：当前只管理图片；草稿使用关系由 ContentDraftAsset 管理。
 model ContentAsset {
-  id            Int       @id @default(autoincrement())
-  draft_id      Int?
-  topic_id      Int?
-  type          String    @default("image") @db.VarChar(40)
-  usage         String?   @db.VarChar(60)
-  title         String?   @db.VarChar(255)
-  cdn_url       String?   @db.Text
-  cos_key       String?   @db.VarChar(255)
-  local_path    String?   @db.Text
-  ai_job_id     Int?
-  is_favorite   Boolean   @default(false)
-  created_by    Int?
-  created_at    DateTime  @default(now())
+  id          Int      @id @default(autoincrement())
+  topic_id    Int?
+  type        String   @default("image") @db.VarChar(40)
+  usage       String?  @db.VarChar(60)
+  title       String?  @db.VarChar(255)
+  cdn_url     String?  @db.Text
+  cos_key     String?  @db.VarChar(255)
+  local_path  String?  @db.Text
+  ai_job_id   Int?
+  is_favorite Boolean  @default(false)
+  created_by  Int?
+  created_at  DateTime @default(now())
 
-  draft ContentDraft? @relation(fields: [draft_id], references: [id], onDelete: SetNull)
-  topic ContentTopic? @relation(fields: [topic_id], references: [id], onDelete: SetNull)
+  drafts ContentDraftAsset[]
+  slides ContentDraftSlide[]
+  topic  ContentTopic?       @relation(fields: [topic_id], references: [id], onDelete: SetNull)
 
-  @@index([draft_id], name: "idx_asset_draft")
   @@index([topic_id], name: "idx_asset_topic")
   @@index([type, created_at], name: "idx_asset_type_time")
   @@index([ai_job_id], name: "idx_asset_ai_job")

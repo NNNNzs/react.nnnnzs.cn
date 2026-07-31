@@ -235,7 +235,6 @@ src/generated/content-prisma-client
 - `status`：`DRAFT` / `ASSET_PENDING` / `READY` / `PUBLISHED` / `ARCHIVED`
 - `template_id`：平台输出模板版本
 - `generation_snapshot_json`
-- `generation_snapshot_json.draftImages`：草稿选用图片列表，只保存素材使用快照，不回写素材归属；单项包含 `assetId`、`imageUrl`、`title`、`group`、`sortOrder`、`remark` 和 `addedAt`
 - `created_by`
 - `created_at`
 - `updated_at`
@@ -259,7 +258,6 @@ src/generated/content-prisma-client
 图片素材资产。当前素材库只展示和管理图片，音频、视频和 Remotion 产物后续独立设计，不进入当前素材库主流程。
 
 - `id`
-- `draft_id`
 - `topic_id`
 - `type`：当前固定为 `image`
 - `usage`：当前作为图片分组名使用，如 `cover` / `slide` / `reference`
@@ -276,7 +274,22 @@ src/generated/content-prisma-client
 - `created_by`
 - `created_at`
 
-草稿使用图片时，不修改 `content_assets.draft_id`。素材库中的图片可以被多个草稿重复添加，草稿内的使用记录保存在 `content_drafts.generation_snapshot_json.draftImages`。草稿图片的拖拽顺序写入 `sortOrder`，备注写入 `remark`；打包下载接口按 `sortOrder` 输出图片，并附带 `manifest.json` 保存素材 ID、URL、分组和备注。
+### `content_draft_assets`
+
+草稿与素材的正式关联表。同一个素材可以被多个草稿复用，但同一草稿只能关联一次。
+
+- `id`
+- `draft_id`
+- `asset_id`
+- `sort_order`
+- `remark`
+- `created_at`
+
+素材名称、分组和 CDN 地址实时读取 `content_assets`；关联表只保存草稿局部的顺序和备注。草稿新增、编辑、页面操作与 MCP 统一通过 `assets` 数组完整替换关联，省略表示不修改，空数组表示解除全部关联。
+
+非空 `assets` 需要 `content:view` 并按 `self/all` 数据范围校验素材；空数组只执行解除关联，不增加查看权限要求。素材输入无效返回 400，素材存在但越权返回 403。MCP 的 `create_content_asset(draft_id)` 还需要目标草稿的 `content:edit`，素材创建和草稿关联在同一事务完成。
+
+草稿删除级联清理关联记录；素材被草稿或图卡引用时禁止删除。解除草稿素材关联时，同一事务清空引用该素材的 `ContentDraftSlide.asset_id`。
 
 ### `content_publish_records`
 

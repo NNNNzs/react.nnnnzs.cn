@@ -51,15 +51,15 @@ interface PageResult<T> {
   pageSize: number;
 }
 
-interface DraftImageItem {
-  id: string;
-  assetId: number;
+interface DraftAssetItem {
+  asset_id: number;
   title: string | null;
-  imageUrl: string;
+  image_url: string;
   group: string | null;
-  sortOrder: number;
+  source: "generated" | "uploaded";
+  sort_order: number;
   remark: string | null;
-  addedAt: string;
+  added_at: string;
 }
 
 interface DraftSlideItem {
@@ -95,7 +95,7 @@ interface DraftRecord {
   generation_snapshot_json?: unknown;
   updated_at: string;
   slides: DraftSlideItem[];
-  selected_images: DraftImageItem[];
+  assets: DraftAssetItem[];
 }
 
 interface TopicSnapshot {
@@ -191,18 +191,18 @@ function getAssetTitle(asset: ImageAssetRecord) {
   return asset.title || `图片 #${asset.id}`;
 }
 
-function sortDraftImages(images: DraftImageItem[]) {
+function sortDraftImages(images: DraftAssetItem[]) {
   return [...images].sort((left, right) => (
-    left.sortOrder - right.sortOrder
-    || left.addedAt.localeCompare(right.addedAt)
-    || left.id.localeCompare(right.id)
+    left.sort_order - right.sort_order
+    || left.added_at.localeCompare(right.added_at)
+    || left.asset_id - right.asset_id
   ));
 }
 
-function normalizeDraftImages(images: DraftImageItem[]) {
+function normalizeDraftImages(images: DraftAssetItem[]) {
   return sortDraftImages(images).map((image, index) => ({
     ...image,
-    sortOrder: index + 1,
+    sort_order: index + 1,
   }));
 }
 
@@ -246,7 +246,7 @@ function buildDraftPatchDiff(params: {
   body: string;
   tags: string[];
   status: string;
-  selectedImages: DraftImageItem[];
+  selectedImages: DraftAssetItem[];
 }): DraftPatchDiff {
   const { patch, title, hook, body, tags, status, selectedImages } = params;
   const oldSections: string[] = [];
@@ -287,12 +287,12 @@ function buildDraftPatchDiff(params: {
     fields.push("图片");
     oldSections.push(formatDiffSection(
       "图片",
-      selectedImages.map((image) => `${image.sortOrder}. ${image.title || image.imageUrl}`),
+      selectedImages.map((image) => `${image.sort_order}. ${image.title || image.image_url}`),
     ));
     newSections.push(formatDiffSection(
       "图片",
       [
-        ...selectedImages.map((image) => `${image.sortOrder}. ${image.title || image.imageUrl}`),
+        ...selectedImages.map((image) => `${image.sort_order}. ${image.title || image.image_url}`),
         ...patch.addImages.map((image, index) => (
           `新增 ${index + 1}. ${image.title || image.imageUrl}${image.assetId ? ` (#${image.assetId})` : ""}`
         )),
@@ -340,7 +340,7 @@ export function CreateDraftEditor() {
   const [pendingPatch, setPendingPatch] = useState<DraftPatch | null>(null);
   const [patchOpen, setPatchOpen] = useState(false);
   const [patchApplying, setPatchApplying] = useState(false);
-  const selectedImages = useMemo(() => normalizeDraftImages(draft?.selected_images ?? []), [draft?.selected_images]);
+  const selectedImages = useMemo(() => normalizeDraftImages(draft?.assets ?? []), [draft?.assets]);
   const snapshots = useMemo(
     () => readDraftSnapshots(draft?.generation_snapshot_json),
     [draft?.generation_snapshot_json],
@@ -435,6 +435,10 @@ export function CreateDraftEditor() {
           tags,
           type,
           status,
+          assets: selectedImages.map((image) => ({
+            asset_id: image.asset_id,
+            remark: image.remark,
+          })),
         }),
       });
       setDraft(result);
@@ -473,24 +477,26 @@ export function CreateDraftEditor() {
       if (patch.status !== undefined) setStatus(patch.status);
 
       if (patch.addImages?.length) {
-        for (const img of patch.addImages) {
-          if (!img.assetId) continue;
-          try {
-            const result = await requestApi<DraftRecord>(
-              `/api/create/drafts/${draftId}/images`,
-              {
-                method: "POST",
-                body: JSON.stringify({ asset_id: img.assetId }),
-              },
-            );
-            // 只合并图片快照，不整体覆盖 draft（result 的 title/body 是 DB 旧值，
-            // 整体覆盖会让刚 patch 进 title/body state 的内容与 draft 失配）
-            setDraft((current) =>
-              current ? { ...current, selected_images: result.selected_images } : result,
-            );
-          } catch (error) {
-            console.error("[agent] 回填图片失败:", error);
-          }
+        const nextAssetIds = patch.addImages
+          .map((image) => image.assetId)
+          .filter((assetId): assetId is number => typeof assetId === "number");
+        if (nextAssetIds.length > 0) {
+          const existingIds = new Set(selectedImages.map((image) => image.asset_id));
+          const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              assets: [
+                ...selectedImages.map((image) => ({
+                  asset_id: image.asset_id,
+                  remark: image.remark,
+                })),
+                ...nextAssetIds
+                  .filter((assetId) => !existingIds.has(assetId))
+                  .map((asset_id) => ({ asset_id })),
+              ],
+            }),
+          });
+          setDraft(result);
         }
         message.success(`AI 已追加 ${patch.addImages.length} 张图片`);
       }
@@ -504,7 +510,7 @@ export function CreateDraftEditor() {
         message.success(`AI 已保存 ${patch.slides.length} 张图卡计划`);
       }
     },
-    [draftId],
+    [draftId, selectedImages],
   );
 
   /**
@@ -553,9 +559,17 @@ export function CreateDraftEditor() {
     }
 
     try {
-      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}/images`, {
-        method: "POST",
-        body: JSON.stringify({ asset_id: asset.id }),
+      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          assets: [
+            ...selectedImages.map((image) => ({
+              asset_id: image.asset_id,
+              remark: image.remark,
+            })),
+            { asset_id: asset.id },
+          ],
+        }),
       });
       setDraft(result);
       message.success("图片已添加");
@@ -607,10 +621,18 @@ export function CreateDraftEditor() {
     }
   };
 
-  const handleRemoveImage = async (imageId: string) => {
+  const handleRemoveImage = async (assetId: number) => {
     try {
-      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}/images?imageId=${encodeURIComponent(imageId)}`, {
-        method: "DELETE",
+      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          assets: selectedImages
+            .filter((image) => image.asset_id !== assetId)
+            .map((image) => ({
+              asset_id: image.asset_id,
+              remark: image.remark,
+            })),
+        }),
       });
       setDraft(result);
       message.success("图片已移除");
@@ -619,22 +641,21 @@ export function CreateDraftEditor() {
     }
   };
 
-  const updateImagesLocally = (images: DraftImageItem[]) => {
+  const updateImagesLocally = (images: DraftAssetItem[]) => {
     const nextImages = normalizeDraftImages(images);
-    setDraft((current) => (current ? { ...current, selected_images: nextImages } : current));
+    setDraft((current) => (current ? { ...current, assets: nextImages } : current));
     return nextImages;
   };
 
-  const persistDraftImages = async (images: DraftImageItem[], successMessage?: string) => {
+  const persistDraftImages = async (images: DraftAssetItem[], successMessage?: string) => {
     const nextImages = normalizeDraftImages(images);
     setImageSaving(true);
     try {
-      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}/images`, {
+      const result = await requestApi<DraftRecord>(`/api/create/drafts/${draftId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          images: nextImages.map((image) => ({
-            id: image.id,
-            sort_order: image.sortOrder,
+          assets: nextImages.map((image) => ({
+            asset_id: image.asset_id,
             remark: image.remark,
           })),
         }),
@@ -650,41 +671,42 @@ export function CreateDraftEditor() {
     }
   };
 
-  const handleRemarkChange = (imageId: string, remark: string) => {
+  const handleRemarkChange = (assetId: number, remark: string) => {
     updateImagesLocally(
       selectedImages.map((image) => (
-        image.id === imageId ? { ...image, remark } : image
+        image.asset_id === assetId ? { ...image, remark } : image
       )),
     );
   };
 
-  const handleRemarkBlur = (imageId: string, remark: string) => {
+  const handleRemarkBlur = (assetId: number, remark: string) => {
     const nextImages = updateImagesLocally(
       selectedImages.map((image) => (
-        image.id === imageId ? { ...image, remark } : image
+        image.asset_id === assetId ? { ...image, remark } : image
       )),
     );
     void persistDraftImages(nextImages);
   };
 
-  const handleImageDragStart = (event: React.DragEvent<HTMLElement>, imageId: string) => {
+  const handleImageDragStart = (event: React.DragEvent<HTMLElement>, assetId: number) => {
     if (imageSaving) return;
-    setDraggingImageId(imageId);
+    setDraggingImageId(String(assetId));
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", imageId);
+    event.dataTransfer.setData("text/plain", String(assetId));
   };
 
-  const handleImageDrop = (event: React.DragEvent<HTMLElement>, targetImageId: string) => {
+  const handleImageDrop = (event: React.DragEvent<HTMLElement>, targetAssetId: number) => {
     event.preventDefault();
     const sourceImageId = draggingImageId || event.dataTransfer.getData("text/plain");
     setDraggingImageId(null);
 
+    const targetImageId = String(targetAssetId);
     if (!sourceImageId || sourceImageId === targetImageId || imageSaving) {
       return;
     }
 
-    const sourceIndex = selectedImages.findIndex((image) => image.id === sourceImageId);
-    const targetIndex = selectedImages.findIndex((image) => image.id === targetImageId);
+    const sourceIndex = selectedImages.findIndex((image) => String(image.asset_id) === sourceImageId);
+    const targetIndex = selectedImages.findIndex((image) => String(image.asset_id) === targetImageId);
     if (sourceIndex < 0 || targetIndex < 0) {
       return;
     }
@@ -988,29 +1010,29 @@ export function CreateDraftEditor() {
               <div className="grid gap-3">
                 {selectedImages.map((image) => (
                   <article
-                    key={image.id}
+                    key={image.asset_id}
                     onDragOver={(event) => {
-                      if (draggingImageId && draggingImageId !== image.id) {
+                      if (draggingImageId && draggingImageId !== String(image.asset_id)) {
                         event.preventDefault();
                       }
                     }}
-                    onDrop={(event) => handleImageDrop(event, image.id)}
+                    onDrop={(event) => handleImageDrop(event, image.asset_id)}
                     className={[
                       "overflow-hidden rounded-md border bg-white transition",
-                      draggingImageId === image.id
+                      draggingImageId === String(image.asset_id)
                         ? "border-blue-300 opacity-70 ring-2 ring-blue-100"
                         : "border-slate-200 hover:border-blue-200",
                     ].join(" ")}
                   >
                     <div className="relative">
                       <Image
-                        src={image.imageUrl}
-                        alt={image.title ?? `素材 ${image.assetId}`}
+                        src={image.image_url}
+                        alt={image.title ?? `素材 ${image.asset_id}`}
                         fallback={FALLBACK_IMAGE}
                         style={{ width: "100%", height: 180, objectFit: "cover" }}
                       />
                       <div className="absolute left-2 top-2 rounded bg-slate-950/75 px-2 py-1 text-xs font-semibold text-white">
-                        #{image.sortOrder}
+                        #{image.sort_order}
                       </div>
                     </div>
                     <div className="space-y-2 p-2">
@@ -1029,7 +1051,7 @@ export function CreateDraftEditor() {
                               icon={<HolderOutlined />}
                               draggable={!imageSaving}
                               disabled={imageSaving}
-                              onDragStart={(event) => handleImageDragStart(event, image.id)}
+                              onDragStart={(event) => handleImageDragStart(event, image.asset_id)}
                               onDragEnd={() => setDraggingImageId(null)}
                               className="cursor-grab"
                             />
@@ -1040,18 +1062,18 @@ export function CreateDraftEditor() {
                               type="text"
                               size="small"
                               icon={<DeleteOutlined />}
-                              onClick={() => handleRemoveImage(image.id)}
+                              onClick={() => handleRemoveImage(image.asset_id)}
                             />
                           </Tooltip>
                         </div>
                       </div>
                       <Input.TextArea
                         value={image.remark ?? ""}
-                        onChange={(event) => handleRemarkChange(image.id, event.target.value)}
-                        onBlur={(event) => handleRemarkBlur(image.id, event.currentTarget.value)}
+                        onChange={(event) => handleRemarkChange(image.asset_id, event.target.value)}
+                        onBlur={(event) => handleRemarkBlur(image.asset_id, event.currentTarget.value)}
                         rows={2}
                         maxLength={500}
-                        placeholder={image.sortOrder === 1 ? "封面图备注" : "图片备注"}
+                        placeholder={image.sort_order === 1 ? "封面图备注" : "图片备注"}
                         disabled={imageSaving}
                       />
                     </div>

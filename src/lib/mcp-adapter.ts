@@ -13,7 +13,7 @@ import { hasDataPermission } from '@/lib/permission';
 import type { ApiRegistryEntry } from '@/lib/api-registry';
 import type { AuthUser } from '@/types/auth';
 import { revalidateTag, revalidatePath } from 'next/cache';
-import { z } from 'zod';
+export { jsonSchemaToZod } from '@/lib/json-schema-zod';
 
 /**
  * MCP 工具调用结果
@@ -177,43 +177,3 @@ function invalidateCacheTags(tags: string[] | undefined, resource: unknown) {
  *
  * 仅支持本项目用到的 JSON Schema 子集
  */
-export function jsonSchemaToZod(schema: Record<string, unknown>): Record<string, z.ZodType> {
-  const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
-  const required = new Set((schema.required || []) as string[]);
-  const fields: Record<string, z.ZodType> = {};
-
-  for (const [key, prop] of Object.entries(properties)) {
-    let field: z.ZodType;
-
-    if (prop.type === 'string') {
-      field = z.string();
-    } else if (prop.type === 'number') {
-      field = z.number();
-    } else if (prop.type === 'boolean') {
-      field = z.boolean();
-    } else if (prop.type === 'array') {
-      const items = prop.items as Record<string, unknown> | undefined;
-      if (items?.type === 'string') {
-        field = z.array(z.string());
-      } else if (items?.type === 'number') {
-        field = z.array(z.number());
-      } else {
-        field = z.array(z.unknown());
-      }
-    } else {
-      field = z.unknown();
-    }
-
-    if (prop.description) {
-      field = field.describe(prop.description as string);
-    }
-
-    if (!required.has(key)) {
-      field = field.optional();
-    }
-
-    fields[key] = field;
-  }
-
-  return fields;
-}

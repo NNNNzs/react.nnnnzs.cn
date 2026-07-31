@@ -15,6 +15,13 @@ import {
   validationErrorResponse,
 } from '../_utils';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import {
+  ContentDraftAssetPermissionError,
+  ContentDraftAssetValidationError,
+  draftAssetsInputSchema,
+  draftAssetsSchema,
+  hasDraftAssetSelections,
+} from '@/lib/content-draft-assets';
 
 export const createDraftSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符'),
@@ -27,6 +34,7 @@ export const createDraftSchema = z.object({
   hook: z.string().max(5000).optional().nullable(),
   body: z.string().max(100000).optional().nullable(),
   tags: z.array(z.string().min(1)).max(20).optional().nullable(),
+  assets: draftAssetsSchema.optional(),
 }).superRefine((value, context) => {
   if (value.platform === 'zhihu' && value.type !== 'article') {
     context.addIssue({
@@ -61,7 +69,7 @@ export const getDescriptor: ApiDescriptor = {
 export const createDescriptor: ApiDescriptor = {
   code: 'create_drafts_create',
   name: '新建草稿',
-  description: '新建小红书或知乎草稿，可直接写入标题、开头、正文和标签。',
+  description: '新建小红书或知乎草稿，可直接写入正文、标签和有序素材关联。',
   module: 'content',
   method: 'POST',
   permissionCode: CONTENT_CREATE,
@@ -78,6 +86,7 @@ export const createDescriptor: ApiDescriptor = {
       hook: { type: 'string', description: '开头或钩子文案' },
       body: { type: 'string', description: '平台正文；知乎可写 Markdown' },
       tags: { type: 'array', items: { type: 'string' }, description: '标签列表' },
+      assets: draftAssetsInputSchema,
     },
     required: ['title'],
   },
@@ -126,15 +135,28 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return validationErrorResponse(validation.error);
     }
+    if (hasDraftAssetSelections(validation.data.assets) && !check.user.permissions.includes(CONTENT_VIEW)) {
+      return NextResponse.json(errorResponse(`无权限：需要 ${CONTENT_VIEW}`), { status: 403 });
+    }
 
     const result = await createContentDraft({
       ...validation.data,
       created_by: check.user.id,
+      asset_user_id: hasDataPermission(check.user, CONTENT_VIEW) ? undefined : check.user.id,
     });
 
     return NextResponse.json(successResponse(result, '草稿已创建'), { status: 201 });
   } catch (error) {
     console.error('创建内容草稿失败:', error);
-    return NextResponse.json(errorResponse('创建内容草稿失败'), { status: 500 });
+    if (error instanceof ContentDraftAssetPermissionError) {
+      return NextResponse.json(errorResponse(error.message), { status: 403 });
+    }
+    if (error instanceof ContentDraftAssetValidationError) {
+      return NextResponse.json(errorResponse(error.message), { status: 400 });
+    }
+    return NextResponse.json(
+      errorResponse(error instanceof Error ? error.message : '创建内容草稿失败'),
+      { status: 500 },
+    );
   }
 }

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
   createContentAsset,
   getContentDraft,
-  type DraftImageItem,
+  type DraftAssetItem,
 } from '@/services/content-creation';
 import { serializeToolData, serializeToolError } from '../tool-result';
 import type { DraftPatch } from './draft-patch';
@@ -43,13 +43,13 @@ export function createGetCurrentDraftTool(context: CurrentDraftToolContext) {
             bullets: slide.bullets_json,
             prompt: slide.prompt,
           })),
-          selectedImages: (draft.selected_images as DraftImageItem[]).map((image) => ({
-            id: image.id,
-            assetId: image.assetId,
+          assets: (draft.assets as DraftAssetItem[]).map((image) => ({
+            assetId: image.asset_id,
             title: image.title,
-            imageUrl: image.imageUrl,
+            imageUrl: image.image_url,
             group: image.group,
-            sortOrder: image.sortOrder,
+            source: image.source,
+            sortOrder: image.sort_order,
             remark: image.remark,
           })),
         });
@@ -77,7 +77,6 @@ export function createEmitDraftPatchTool(context: EmitDraftPatchToolContext) {
               if (image.assetId || !image.imageUrl) return image;
               const asset = await createContentAsset({
                 type: 'image',
-                draft_id: context.draftId,
                 title: image.title ?? null,
                 usage: image.group ?? null,
                 cdn_url: image.imageUrl,

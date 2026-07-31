@@ -152,7 +152,9 @@ async function main() {
           existing.module !== data.module ||
           existing.api_path !== data.api_path ||
           existing.api_method !== data.api_method ||
-          existing.permission_code !== data.permission_code;
+          existing.permission_code !== data.permission_code ||
+          existing.input_schema !== data.input_schema ||
+          existing.cache_tags !== data.cache_tags;
 
         if (hasChanges) {
           await prisma.tbApiRegistry.update({
@@ -202,11 +204,20 @@ async function main() {
 
   console.log('🔧 Syncing MCP handler status...');
 
-  // 有 handler 的启用 mcp_available，并恢复之前被禁用的 mcp_enabled
-  await prisma.tbApiRegistry.updateMany({
-    where: { code: { in: handlerCodes } },
-    data: { mcp_available: 1, mcp_enabled: 1, status: 1 },
-  });
+  // 有 handler 的条目以 API_REGISTRY 为准同步 MCP 专属 schema。
+  // 例如 REST 创建素材不接收 draft_id，但 create_content_asset MCP 工具支持该参数。
+  for (const entry of API_REGISTRY.filter(item => !!item.handler)) {
+    await prisma.tbApiRegistry.updateMany({
+      where: { code: entry.code },
+      data: {
+        input_schema: entry.inputSchema ? JSON.stringify(entry.inputSchema) : null,
+        cache_tags: entry.cacheTags ? entry.cacheTags.join(',') : null,
+        mcp_available: 1,
+        mcp_enabled: 1,
+        status: 1,
+      },
+    });
+  }
 
   // 没有代码 entry 的禁用 mcp_available 并关闭 MCP
   const mcpUnavailable = await prisma.tbApiRegistry.updateMany({

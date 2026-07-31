@@ -3,7 +3,6 @@ import { CONTENT_EDIT } from '@/constants/permissions';
 import { errorResponse, successResponse } from '@/dto/response.dto';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
 import {
-  addContentDraftImage,
   attachContentDraftSlideAsset,
   createContentAsset,
   getContentDraft,
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       group: 'draft-slide',
     });
     const asset = await createContentAsset({
-      draft_id: draftId,
       type: 'image',
       usage: 'draft-slide',
       title: slide.title ?? `图卡 ${slide.sort_order}`,
@@ -48,8 +46,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       ai_job_id: job.id,
       created_by: check.user.id,
     });
-    await attachContentDraftSlideAsset(draftId, parsedSlideId, asset.id);
-    const result = await addContentDraftImage(draftId, asset.id);
+    const result = await attachContentDraftSlideAsset(draftId, parsedSlideId, asset.id);
     return NextResponse.json(successResponse({ draft: result, job }, '图卡图片已提交生成并已关联草稿'), {
       status: 202,
       headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },

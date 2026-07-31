@@ -12,6 +12,13 @@ import {
 } from '@/services/content-creation';
 import { validationErrorResponse } from '../../_utils';
 import type { ApiDescriptor } from '@/types/api-descriptor';
+import {
+  ContentDraftAssetPermissionError,
+  ContentDraftAssetValidationError,
+  draftAssetsInputSchema,
+  draftAssetsSchema,
+  hasDraftAssetSelections,
+} from '@/lib/content-draft-assets';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -24,6 +31,7 @@ export const updateDraftSchema = z.object({
   tags: z.array(z.string().min(1)).max(20).optional().nullable(),
   type: z.enum(CONTENT_DRAFT_TYPES).optional(),
   status: z.enum(CONTENT_DRAFT_STATUSES).optional(),
+  assets: draftAssetsSchema.optional(),
 });
 
 const draftIdInputSchema = { id: { type: 'number', description: '草稿 ID' } };
@@ -35,7 +43,7 @@ export const getDescriptor: ApiDescriptor = {
 };
 
 export const updateDescriptor: ApiDescriptor = {
-  code: 'create_drafts_update', name: '更新草稿', description: '更新草稿标题、开头、正文、标签、类型或状态。',
+  code: 'create_drafts_update', name: '更新草稿', description: '更新草稿字段；assets 省略时不变，传入时完整替换素材关联。',
   module: 'content', method: 'PATCH', permissionCode: CONTENT_EDIT,
   inputSchema: {
     type: 'object',
@@ -47,6 +55,7 @@ export const updateDescriptor: ApiDescriptor = {
       tags: { type: 'array', items: { type: 'string' }, description: '标签列表' },
       type: { type: 'string', description: '草稿类型' },
       status: { type: 'string', description: '草稿状态' },
+      assets: draftAssetsInputSchema,
     },
     required: ['id'],
   },
@@ -122,11 +131,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!validation.success) {
       return validationErrorResponse(validation.error);
     }
+    if (hasDraftAssetSelections(validation.data.assets) && !check.user.permissions.includes(CONTENT_VIEW)) {
+      return NextResponse.json(errorResponse(`无权限：需要 ${CONTENT_VIEW}`), { status: 403 });
+    }
     if (existing.platform === 'zhihu' && validation.data.type && validation.data.type !== 'article') {
       return NextResponse.json(errorResponse('知乎草稿必须使用长文 / Markdown 类型'), { status: 400 });
     }
 
-    const draft = await updateContentDraft(draftId, validation.data);
+    const draft = await updateContentDraft(draftId, {
+      ...validation.data,
+      asset_user_id: hasDataPermission(check.user, CONTENT_VIEW) ? undefined : check.user.id,
+    });
     return NextResponse.json(successResponse(draft, '草稿已保存'), {
       headers: {
         'Cache-Control': 'no-store',
@@ -135,6 +150,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('更新内容草稿失败:', error);
+    if (error instanceof ContentDraftAssetPermissionError) {
+      return NextResponse.json(errorResponse(error.message), { status: 403 });
+    }
+    if (error instanceof ContentDraftAssetValidationError) {
+      return NextResponse.json(errorResponse(error.message), { status: 400 });
+    }
     return NextResponse.json(
       errorResponse(error instanceof Error ? error.message : '更新内容草稿失败'),
       { status: 500 },

@@ -3,7 +3,7 @@ import { errorResponse } from '@/dto/response.dto';
 import { requirePermission, hasDataPermission } from '@/lib/permission';
 import { CONTENT_VIEW } from '@/constants/permissions';
 import { createStoredZip, type StoredZipEntry } from '@/lib/zip';
-import { getContentDraft, type DraftImageItem } from '@/services/content-creation';
+import { getContentDraft, type DraftAssetItem } from '@/services/content-creation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,16 +84,16 @@ function encodeContentDispositionFileName(fileName: string) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
-async function fetchImageEntry(image: DraftImageItem, index: number, usedNames: Set<string>): Promise<StoredZipEntry> {
-  const response = await fetch(image.imageUrl, { cache: 'no-store' });
+async function fetchImageEntry(image: DraftAssetItem, index: number, usedNames: Set<string>): Promise<StoredZipEntry> {
+  const response = await fetch(image.image_url, { cache: 'no-store' });
 
   if (!response.ok) {
-    throw new Error(`图片下载失败：${image.title || `素材 ${image.assetId}`}`);
+    throw new Error(`图片下载失败：${image.title || `素材 ${image.asset_id}`}`);
   }
 
   const data = Buffer.from(await response.arrayBuffer());
-  const extension = getImageExtension(image.imageUrl, response.headers.get('content-type'));
-  const title = sanitizeFileName(image.title || `asset-${image.assetId}`, `asset-${image.assetId}`);
+  const extension = getImageExtension(image.image_url, response.headers.get('content-type'));
+  const title = sanitizeFileName(image.title || `asset-${image.asset_id}`, `asset-${image.asset_id}`);
   const baseName = `${String(index + 1).padStart(2, '0')}-${title}${extension}`;
 
   return {
@@ -111,15 +111,15 @@ function createManifest(draft: NonNullable<Awaited<ReturnType<typeof getContentD
       status: draft.status,
     },
     exportedAt: new Date().toISOString(),
-    images: draft.selected_images.map((image) => ({
-      id: image.id,
-      assetId: image.assetId,
+    assets: draft.assets.map((image) => ({
+      assetId: image.asset_id,
       title: image.title,
-      imageUrl: image.imageUrl,
+      imageUrl: image.image_url,
       group: image.group,
-      sortOrder: image.sortOrder,
+      source: image.source,
+      sortOrder: image.sort_order,
       remark: image.remark,
-      addedAt: image.addedAt,
+      addedAt: image.added_at,
     })),
   };
 }
@@ -145,13 +145,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
-    if (draft.selected_images.length === 0) {
+    if (draft.assets.length === 0) {
       return NextResponse.json(errorResponse('草稿暂无图片可下载'), { status: 400 });
     }
 
     const usedNames = new Set<string>();
     const imageEntries = await Promise.all(
-      draft.selected_images.map((image, index) => fetchImageEntry(image, index, usedNames)),
+      draft.assets.map((image, index) => fetchImageEntry(image, index, usedNames)),
     );
     const manifestEntry: StoredZipEntry = {
       name: 'manifest.json',

@@ -94,10 +94,9 @@ interface DraftRecord {
   type: string;
   status: string;
   updated_at: string;
-  selected_images?: Array<{
-    id: string;
-    assetId: number;
-    imageUrl: string;
+  assets?: Array<{
+    asset_id: number;
+    remark: string | null;
   }>;
 }
 
@@ -516,13 +515,25 @@ export function CreateImageAssetsManager() {
     setDraftPickerOpen(true);
   };
 
-  const handleAddToDraft = async (draftId: number) => {
+  const handleAddToDraft = async (draft: DraftRecord) => {
     if (!targetAsset) return;
+    if (draft.assets?.some((asset) => asset.asset_id === targetAsset.id)) {
+      message.info("该素材已在草稿中");
+      return;
+    }
 
     try {
-      await requestJson(`/api/create/drafts/${draftId}/images`, {
-        method: "POST",
-        body: JSON.stringify({ asset_id: targetAsset.id }),
+      await requestJson(`/api/create/drafts/${draft.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          assets: [
+            ...(draft.assets ?? []).map((asset) => ({
+              asset_id: asset.asset_id,
+              remark: asset.remark,
+            })),
+            { asset_id: targetAsset.id },
+          ],
+        }),
       });
       message.success("图片已添加到草稿");
       await loadDraftCandidates();
@@ -687,11 +698,11 @@ export function CreateImageAssetsManager() {
                 key={draft.id}
                 type="button"
                 className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
-                onClick={() => handleAddToDraft(draft.id)}
+                onClick={() => handleAddToDraft(draft)}
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-slate-900">{draft.title}</span>
-                  <span className="text-xs text-slate-500">{draft.selected_images?.length ?? 0} 张图片</span>
+                  <span className="text-xs text-slate-500">{draft.assets?.length ?? 0} 张图片</span>
                 </span>
                 <FileTextOutlined className="text-slate-400" />
               </button>

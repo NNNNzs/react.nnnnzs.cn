@@ -77,18 +77,18 @@ interface DraftRecord {
   type: string;
   status: string;
   updated_at: string;
-  selected_images?: DraftImageItem[];
+  assets?: DraftAssetItem[];
 }
 
-interface DraftImageItem {
-  id: string;
-  assetId: number;
+interface DraftAssetItem {
+  asset_id: number;
   title: string | null;
-  imageUrl: string;
+  image_url: string;
   group: string | null;
-  sortOrder: number;
+  source: "generated" | "uploaded";
+  sort_order: number;
   remark: string | null;
-  addedAt: string;
+  added_at: string;
 }
 
 interface AssetRecord {
@@ -891,7 +891,7 @@ export function CreateDraftsManager() {
     return {
       total: data?.total ?? 0,
       ready: records.filter((item) => item.status === "READY").length,
-      withImages: records.filter((item) => (item.selected_images?.length ?? 0) > 0).length,
+      withImages: records.filter((item) => (item.assets?.length ?? 0) > 0).length,
     };
   }, [data]);
 
@@ -936,8 +936,8 @@ export function CreateDraftsManager() {
                     <div className="mb-2 flex flex-wrap gap-2">
                       <Tag color="blue">{draftStatusLabel.get(draft.status) ?? draft.status}</Tag>
                       <Tag>{draftTypeLabel.get(draft.type) ?? draft.type}</Tag>
-                      {(draft.selected_images?.length ?? 0) > 0 ? (
-                        <Tag color="green">{draft.selected_images?.length} 张图片</Tag>
+                      {(draft.assets?.length ?? 0) > 0 ? (
+                        <Tag color="green">{draft.assets?.length} 张图片</Tag>
                       ) : null}
                     </div>
                     <h2 className="line-clamp-2 text-base font-semibold text-slate-950">{draft.title}</h2>

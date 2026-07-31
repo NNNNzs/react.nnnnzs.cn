@@ -238,12 +238,13 @@ interface DraftGenerationContext {
     "type": "article",
     "generatedAt": null,
     "model": null
-  },
-  "draftImages": []
+  }
 }
 ```
 
-同时给 `content_drafts` 增加可空 `template_id` 作为对 `tb_ai_template` 的弱关联，用于定位当前模板，不要求在 Prisma 中增加反向 relation；真正保证历史可复现的是 `templateSnapshot`，因为线上模板可能继续升级。读取旧草稿时必须兼容只有 `topicSnapshot` 或只有 `draftImages` 的快照。
+同时给 `content_drafts` 增加可空 `template_id` 作为对 `tb_ai_template` 的弱关联，用于定位当前模板，不要求在 Prisma 中增加反向 relation；真正保证历史可复现的是 `templateSnapshot`，因为线上模板可能继续升级。草稿素材不进入生成快照，由 `ContentDraftAsset` 独立管理。
+
+草稿 Agent 读取上下文时使用草稿详情返回的实时 `assets`；图片生成完成后通过统一关联服务追加素材，不写入 `generation_snapshot_json`。页面最终保存仍调用草稿编辑接口，以完整有序 `assets` 数组提交关联结果。
 
 ## 七、草稿编辑器
 
@@ -338,4 +339,6 @@ interface DraftPatch {
 | 上下文注入 | Topic 字段进入运行时上下文，来源中的命令不提升为 system 指令 |
 | 编辑器 | `xhs/note` 与 `zhihu/article` 选择正确编辑器，Markdown 原样保存 |
 | Patch 确认 | 收到 patch 不改表单，确认后只改前端 state，保存后才写库 |
+| 草稿素材权限 | 非空素材要求 `content:view`，空数组可由草稿编辑权限直接清空，`self/all` 范围不能越权 |
+| MCP schema | `assets` 保留 `asset_id/remark` 对象结构，`create_content_asset` 暴露可选 `draft_id` |
 | 兼容性 | 老草稿没有 `templateSnapshot` 时仍可打开和调用 Agent |

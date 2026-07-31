@@ -23,7 +23,7 @@ export const createAssetSchema = z.object({
 });
 
 export const getDescriptor: ApiDescriptor = {
-  code: 'create_assets_list', name: '素材列表', description: '分页查询图片素材，可按关键词、分组、来源、收藏、草稿或选题筛选。',
+  code: 'create_assets_list', name: '素材列表', description: '分页查询图片素材，可按正式草稿关联、关键词、分组、来源、收藏或选题筛选。',
   module: 'content', method: 'GET', permissionCode: CONTENT_VIEW,
   inputSchema: {
     type: 'object',

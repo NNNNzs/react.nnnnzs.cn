@@ -21,7 +21,7 @@
 | `blog.prisma` | `TbPost`、`TbConfig`、`TbPostVersion`、`TbCollection`、`TbCollectionPost`、`TbComment`、`TbNotification`、`TbNotificationDelivery`、`TbLikeRecord`、`TbEntityChangeLog` |
 | `rbac.prisma` | `TbUser`、`LongTermToken`、`TbRole`、`TbPermission`、`TbRolePermission`、`TbUserRole`、`TbApiRegistry` |
 | `ai.prisma` | `TbAiProvider`、`TbAiScenario`、`TbAiScenarioBinding`、`TbAiJob`、`TbAiTemplate`、`TbAiTemplateVersion`、`TbImageGenLogLegacy`、`TbChatSession`、`TbChatMessage`、`TbAiLabRun` |
-| `content.prisma` | `ContentTopic`、`ContentDraft`、`ContentDraftSlide`、`ContentAsset` |
+| `content.prisma` | `ContentTopic`、`ContentDraft`、`ContentDraftSlide`、`ContentDraftAsset`、`ContentAsset` |
 
 不要在文档或业务代码中假设存在单文件 `prisma/schema.prisma`。图片与 TTS 新任务写入 `TbAiJob`；`TbImageGenLogLegacy` 仅保留旧表兼容，不接收新任务。
 
@@ -58,6 +58,9 @@
 - `ContentTopic` 管理选题。
 - `ContentDraft` 管理平台草稿，`ContentDraftSlide` 管理小红书等分页内容。
 - `ContentAsset` 管理上传、外链与 AI 生成素材。
+- `ContentDraftAsset` 管理草稿与素材的多对多使用关系；同一草稿内素材唯一，排序和备注属于关联记录。
+- 删除草稿时级联删除 `ContentDraftAsset`；删除素材时由草稿关联和图卡引用共同限制，不允许静默解除。
+- 从草稿解除素材关联时，业务事务必须先清空同一草稿内引用该素材的 `ContentDraftSlide.asset_id`。
 
 字段、relation、index、default 与物理表名必须直接查看对应 `.prisma` 文件，不在规范中复制可能漂移的完整模型。
 

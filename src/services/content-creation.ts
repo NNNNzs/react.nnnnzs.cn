@@ -8,12 +8,17 @@ import type { ImageGenerationJobView } from '@/services/image-gen-job';
 import type { ImageGenOptions } from '@/services/image-gen';
 import type { ImageGenSource } from '@/services/image-gen-log';
 import { Prisma, type TbAiJob } from '@/generated/prisma-client/client';
-import { generateUuid } from '@/lib/uuid';
+import {
+  ContentDraftAssetPermissionError,
+  ContentDraftAssetValidationError,
+  getRemovedDraftAssetIds,
+  normalizeDraftAssetSelections,
+  type DraftAssetSelectionInput,
+} from '@/lib/content-draft-assets';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const MAX_BLOG_CONTENT_LENGTH = 9000;
-const DRAFT_IMAGES_KEY = 'draftImages';
 
 export const CONTENT_DRAFT_TYPES = ['note', 'article', 'short_video', 'checklist', 'faq'] as const;
 export const CONTENT_DRAFT_STATUSES = ['DRAFT', 'ASSET_PENDING', 'READY', 'PUBLISHED', 'ARCHIVED'] as const;
@@ -101,6 +106,8 @@ export interface CreateDraftInput {
   generation_snapshot_json?: Prisma.InputJsonValue;
   created_by?: number | null;
   slides?: CreateDraftSlideInput[];
+  assets?: DraftAssetInput[];
+  asset_user_id?: number;
 }
 
 export interface UpdateDraftInput {
@@ -110,27 +117,24 @@ export interface UpdateDraftInput {
   tags?: string[] | null;
   type?: ContentDraftType | string;
   status?: ContentDraftStatus | string;
+  assets?: DraftAssetInput[];
+  asset_user_id?: number;
 }
 
-export interface DraftImageItem {
-  id: string;
-  assetId: number;
+export type DraftAssetInput = DraftAssetSelectionInput;
+
+export interface DraftAssetItem {
+  asset_id: number;
   title: string | null;
-  imageUrl: string;
+  image_url: string;
   group: string | null;
-  sortOrder: number;
+  source: ContentAssetSource;
+  sort_order: number;
   remark: string | null;
-  addedAt: string;
-}
-
-export interface UpdateDraftImageInput {
-  id: string;
-  sortOrder: number;
-  remark?: string | null;
+  added_at: Date;
 }
 
 export interface CreateAssetInput {
-  draft_id?: number | null;
   topic_id?: number | null;
   type?: string;
   usage?: string | null;
@@ -147,7 +151,6 @@ export interface CreateGeneratedImageAssetInput {
   options: ImageGenOptions;
   title?: string | null;
   group?: string | null;
-  draft_id?: number | null;
   referenceAssetIds?: number[];
   created_by?: number | null;
 }
@@ -176,12 +179,27 @@ export interface CreateLinkedImageAssetInput {
   group?: string | null;
   imageUrl: string;
   created_by?: number | null;
+  draft_id?: number | null;
+  asset_user_id?: number;
+  draft_user_id?: number;
 }
 
 export interface UpdateContentImageAssetInput {
   title?: string | null;
   group?: string | null;
   isFavorite?: boolean;
+}
+
+export class ContentAssetInUseError extends Error {
+  readonly draftCount: number;
+  readonly slideCount: number;
+
+  constructor(draftCount: number, slideCount: number) {
+    super(`素材正在被 ${draftCount} 个草稿和 ${slideCount} 张图卡使用，请先解除关联`);
+    this.name = 'ContentAssetInUseError';
+    this.draftCount = draftCount;
+    this.slideCount = slideCount;
+  }
 }
 
 export interface GenerateTopicsFromPostInput {
@@ -224,79 +242,163 @@ function normalizeTopicSourceType(input: Pick<CreateTopicInput, 'source_type' | 
   return input.source_url ? 'url' : 'idea';
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+const draftAssetInclude = {
+  orderBy: { sort_order: 'asc' as const },
+  include: {
+    asset: {
+      select: {
+        id: true,
+        title: true,
+        usage: true,
+        cdn_url: true,
+        ai_job_id: true,
+      },
+    },
+  },
+};
+
+type DraftAssetRelation = {
+  sort_order: number;
+  remark: string | null;
+  created_at: Date;
+  asset: {
+    id: number;
+    title: string | null;
+    usage: string | null;
+    cdn_url: string | null;
+    ai_job_id: number | null;
+  };
+};
+
+function formatDraftAssets(relations: DraftAssetRelation[]): DraftAssetItem[] {
+  return relations.flatMap((relation) => {
+    if (!relation.asset.cdn_url) return [];
+    return [{
+      asset_id: relation.asset.id,
+      title: relation.asset.title,
+      image_url: relation.asset.cdn_url,
+      group: relation.asset.usage,
+      source: relation.asset.ai_job_id ? 'generated' as const : 'uploaded' as const,
+      sort_order: relation.sort_order,
+      remark: relation.remark,
+      added_at: relation.created_at,
+    }];
+  });
 }
 
-function compactJsonRecord(value: Record<string, unknown>): Prisma.InputJsonObject {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, item]) => item !== undefined),
-  ) as Prisma.InputJsonObject;
-}
+async function replaceDraftAssetRelations(
+  tx: Prisma.TransactionClient,
+  draftId: number,
+  input: DraftAssetInput[],
+  assetUserId?: number,
+) {
+  const normalized = normalizeDraftAssetSelections(input);
+  const assetIds = normalized.map((item) => item.asset_id);
+  const assets = assetIds.length
+    ? await tx.contentAsset.findMany({
+        where: {
+          id: { in: assetIds },
+          type: 'image',
+          cdn_url: { not: null },
+        },
+        select: { id: true, created_by: true },
+      })
+    : [];
 
-function readJsonRecord(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function normalizeDraftImageItem(value: unknown, index: number): DraftImageItem | null {
-  if (!isRecord(value)) return null;
-  const assetId = value.assetId;
-  const sortOrder = value.sortOrder;
-  if (
-    typeof value.id !== 'string'
-    || typeof assetId !== 'number'
-    || !Number.isInteger(assetId)
-    || typeof value.imageUrl !== 'string'
-    || value.imageUrl.length === 0
-    || typeof value.addedAt !== 'string'
-  ) {
-    return null;
+  if (assets.length !== assetIds.length) {
+    const foundIds = new Set(assets.map((asset) => asset.id));
+    const missingIds = assetIds.filter((assetId) => !foundIds.has(assetId));
+    throw new ContentDraftAssetValidationError(
+      `图片素材不存在或尚未生成完成：${missingIds.join(', ')}`,
+    );
   }
 
-  return {
-    id: value.id,
-    assetId,
-    title: typeof value.title === 'string' ? value.title : null,
-    imageUrl: value.imageUrl,
-    group: typeof value.group === 'string' ? value.group : null,
-    sortOrder: typeof sortOrder === 'number' && Number.isInteger(sortOrder) && sortOrder > 0
-      ? sortOrder
-      : index + 1,
-    remark: typeof value.remark === 'string' ? toNullableString(value.remark) : null,
-    addedAt: value.addedAt,
-  };
-}
+  if (assetUserId !== undefined) {
+    const forbiddenIds = assets
+      .filter((asset) => asset.created_by !== assetUserId)
+      .map((asset) => asset.id);
+    if (forbiddenIds.length > 0) {
+      throw new ContentDraftAssetPermissionError(
+        `无权访问图片素材：${forbiddenIds.join(', ')}`,
+      );
+    }
+  }
 
-function normalizeDraftImages(images: DraftImageItem[]): DraftImageItem[] {
-  return [...images]
-    .sort((left, right) => (
-      left.sortOrder - right.sortOrder
-      || left.addedAt.localeCompare(right.addedAt)
-      || left.id.localeCompare(right.id)
-    ))
-    .map((image, index) => ({
-      ...image,
-      sortOrder: index + 1,
-    }));
-}
-
-function readDraftImages(value: unknown): DraftImageItem[] {
-  const snapshot = readJsonRecord(value);
-  const images = snapshot[DRAFT_IMAGES_KEY];
-  return Array.isArray(images)
-    ? normalizeDraftImages(
-        images
-          .map(normalizeDraftImageItem)
-          .filter((image): image is DraftImageItem => image !== null),
-      )
-    : [];
-}
-
-function writeDraftImages(value: unknown, images: DraftImageItem[]): Prisma.InputJsonObject {
-  return compactJsonRecord({
-    ...readJsonRecord(value),
-    [DRAFT_IMAGES_KEY]: normalizeDraftImages(images),
+  const existing = await tx.contentDraftAsset.findMany({
+    where: { draft_id: draftId },
+    select: { asset_id: true },
   });
+  const removedIds = getRemovedDraftAssetIds(
+    existing.map((item) => item.asset_id),
+    assetIds,
+  );
+
+  if (removedIds.length > 0) {
+    await tx.contentDraftSlide.updateMany({
+      where: { draft_id: draftId, asset_id: { in: removedIds } },
+      data: { asset_id: null },
+    });
+    await tx.contentDraftAsset.deleteMany({
+      where: { draft_id: draftId, asset_id: { in: removedIds } },
+    });
+  }
+
+  for (const item of normalized) {
+    await tx.contentDraftAsset.upsert({
+      where: {
+        uk_draft_asset: {
+          draft_id: draftId,
+          asset_id: item.asset_id,
+        },
+      },
+      create: {
+        draft_id: draftId,
+        asset_id: item.asset_id,
+        sort_order: item.sort_order,
+        remark: item.remark,
+      },
+      update: {
+        sort_order: item.sort_order,
+        remark: item.remark,
+      },
+    });
+  }
+}
+
+export async function appendContentDraftAsset(
+  draftId: number,
+  assetId: number,
+  assetUserId?: number,
+) {
+  const prisma = await getPrisma();
+  await prisma.$transaction(async (tx) => {
+    const draft = await tx.contentDraft.findUnique({
+      where: { id: draftId },
+      select: { id: true, status: true },
+    });
+    if (!draft) throw new Error('草稿不存在');
+    if (draft.status !== 'DRAFT') throw new Error('只能向草稿状态的草稿添加素材');
+
+    const existing = await tx.contentDraftAsset.findMany({
+      where: { draft_id: draftId },
+      orderBy: { sort_order: 'asc' },
+      select: { asset_id: true, remark: true },
+    });
+    if (existing.some((item) => item.asset_id === assetId)) {
+      throw new Error(`素材 ${assetId} 已关联到该草稿`);
+    }
+
+    await replaceDraftAssetRelations(
+      tx,
+      draftId,
+      [
+        ...existing.map((item) => ({ asset_id: item.asset_id, remark: item.remark })),
+        { asset_id: assetId },
+      ],
+      assetUserId,
+    );
+  });
+  return getContentDraft(draftId);
 }
 
 function formatContentImageJob(job: TbAiJob) {
@@ -430,7 +532,7 @@ function buildAssetWhere(params: AssetQueryParams): Prisma.ContentAssetWhereInpu
     andFilters.push({ is_favorite: params.favorite });
   }
   if (params.draftId) {
-    where.draft_id = params.draftId;
+    where.drafts = { some: { draft_id: params.draftId } };
   }
   if (params.topicId) {
     where.topic_id = params.topicId;
@@ -581,6 +683,9 @@ export async function listContentDrafts(params: DraftQueryParams = {}) {
   const [drafts, total] = await Promise.all([
     prisma.contentDraft.findMany({
       where,
+      include: {
+        assets: draftAssetInclude,
+      },
       orderBy: { updated_at: 'desc' },
       skip: (pageNum - 1) * pageSize,
       take: pageSize,
@@ -590,7 +695,7 @@ export async function listContentDrafts(params: DraftQueryParams = {}) {
 
   const record = drafts.map((draft) => ({
     ...draft,
-    selected_images: readDraftImages(draft.generation_snapshot_json),
+    assets: formatDraftAssets(draft.assets),
   }));
 
   return { record, total, pageNum, pageSize };
@@ -599,42 +704,41 @@ export async function listContentDrafts(params: DraftQueryParams = {}) {
 export async function createContentDraft(input: CreateDraftInput) {
   const prisma = await getPrisma();
 
-  const draft = await prisma.contentDraft.create({
-    data: {
-      topic_id: input.topic_id ?? null,
-      source_post_id: input.source_post_id ?? null,
-      template_id: input.template_id ?? null,
-      platform: input.platform || 'xhs',
-      type: input.type || 'note',
-      title: input.title.trim(),
-      hook: toNullableString(input.hook),
-      body: toNullableString(input.body),
-      tags_json: input.tags ? input.tags : undefined,
-      status: input.status || 'DRAFT',
-      generation_snapshot_json: input.generation_snapshot_json,
-      created_by: input.created_by ?? null,
-      slides: input.slides?.length
-        ? {
-            create: input.slides.map((slide, index) => ({
-              sort_order: index + 1,
-              title: toNullableString(slide.title),
-              bullets_json: slide.bullets ?? undefined,
-              prompt: toNullableString(slide.prompt),
-            })),
-          }
-        : undefined,
-    },
-    include: {
-      slides: {
-        orderBy: { sort_order: 'asc' },
+  const draftId = await prisma.$transaction(async (tx) => {
+    const draft = await tx.contentDraft.create({
+      data: {
+        topic_id: input.topic_id ?? null,
+        source_post_id: input.source_post_id ?? null,
+        template_id: input.template_id ?? null,
+        platform: input.platform || 'xhs',
+        type: input.type || 'note',
+        title: input.title.trim(),
+        hook: toNullableString(input.hook),
+        body: toNullableString(input.body),
+        tags_json: input.tags ? input.tags : undefined,
+        status: input.status || 'DRAFT',
+        generation_snapshot_json: input.generation_snapshot_json,
+        created_by: input.created_by ?? null,
+        slides: input.slides?.length
+          ? {
+              create: input.slides.map((slide, index) => ({
+                sort_order: index + 1,
+                title: toNullableString(slide.title),
+                bullets_json: slide.bullets ?? undefined,
+                prompt: toNullableString(slide.prompt),
+              })),
+            }
+          : undefined,
       },
-    },
+      select: { id: true },
+    });
+    if (input.assets !== undefined) {
+      await replaceDraftAssetRelations(tx, draft.id, input.assets, input.asset_user_id);
+    }
+    return draft.id;
   });
 
-  return {
-    ...draft,
-    selected_images: readDraftImages(draft.generation_snapshot_json),
-  };
+  return getContentDraft(draftId);
 }
 
 export async function getContentDraft(id: number) {
@@ -644,23 +748,20 @@ export async function getContentDraft(id: number) {
     include: {
       slides: {
         orderBy: { sort_order: 'asc' },
+        include: {
+          asset: {
+            select: { id: true, title: true, cdn_url: true, ai_job_id: true },
+          },
+        },
       },
+      assets: draftAssetInclude,
     },
   });
 
   if (!draft) return null;
 
-  const assetIds = draft.slides
-    .map((slide) => slide.asset_id)
-    .filter((assetId): assetId is number => typeof assetId === 'number');
-  const assets = assetIds.length > 0
-    ? await prisma.contentAsset.findMany({
-      where: { id: { in: assetIds } },
-      select: { id: true, title: true, cdn_url: true, ai_job_id: true },
-    })
-    : [];
-  const jobIds = assets
-    .map((asset) => asset.ai_job_id)
+  const jobIds = draft.slides
+    .map((slide) => slide.asset?.ai_job_id)
     .filter((jobId): jobId is number => typeof jobId === 'number');
   const jobs = jobIds.length > 0
     ? await prisma.tbAiJob.findMany({
@@ -668,13 +769,12 @@ export async function getContentDraft(id: number) {
       select: { id: true, job_id: true, status: true, cdn_url: true, reserved_cdn_url: true, error_message: true },
     })
     : [];
-  const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
   const jobMap = new Map(jobs.map((job) => [job.id, job]));
 
   return {
     ...draft,
     slides: draft.slides.map((slide) => {
-      const asset = slide.asset_id ? assetMap.get(slide.asset_id) : undefined;
+      const asset = slide.asset ?? undefined;
       const job = asset?.ai_job_id ? jobMap.get(asset.ai_job_id) : undefined;
       return {
         ...slide,
@@ -691,7 +791,7 @@ export async function getContentDraft(id: number) {
         } : null,
       };
     }),
-    selected_images: readDraftImages(draft.generation_snapshot_json),
+    assets: formatDraftAssets(draft.assets),
   };
 }
 
@@ -727,9 +827,29 @@ export async function replaceContentDraftSlides(draftId: number, slides: UpdateD
 /** 将已创建的图片素材关联到一张图卡。 */
 export async function attachContentDraftSlideAsset(draftId: number, slideId: number, assetId: number) {
   const prisma = await getPrisma();
-  const slide = await prisma.contentDraftSlide.findFirst({ where: { id: slideId, draft_id: draftId } });
-  if (!slide) return null;
-  await prisma.contentDraftSlide.update({ where: { id: slideId }, data: { asset_id: assetId } });
+  await prisma.$transaction(async (tx) => {
+    const slide = await tx.contentDraftSlide.findFirst({
+      where: { id: slideId, draft_id: draftId },
+      select: { id: true },
+    });
+    if (!slide) throw new Error('草稿图卡不存在');
+
+    const existing = await tx.contentDraftAsset.findMany({
+      where: { draft_id: draftId },
+      orderBy: { sort_order: 'asc' },
+      select: { asset_id: true, remark: true },
+    });
+    if (!existing.some((item) => item.asset_id === assetId)) {
+      await replaceDraftAssetRelations(tx, draftId, [
+        ...existing.map((item) => ({ asset_id: item.asset_id, remark: item.remark })),
+        { asset_id: assetId },
+      ]);
+    }
+    await tx.contentDraftSlide.update({
+      where: { id: slide.id },
+      data: { asset_id: assetId },
+    });
+  });
   return getContentDraft(draftId);
 }
 
@@ -756,20 +876,18 @@ export async function updateContentDraft(id: number, input: UpdateDraftInput) {
     data.status = input.status;
   }
 
-  const draft = await prisma.contentDraft.update({
-    where: { id },
-    data,
-    include: {
-      slides: {
-        orderBy: { sort_order: 'asc' },
-      },
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.contentDraft.update({
+      where: { id },
+      data,
+      select: { id: true },
+    });
+    if (input.assets !== undefined) {
+      await replaceDraftAssetRelations(tx, id, input.assets, input.asset_user_id);
+    }
   });
 
-  return {
-    ...draft,
-    selected_images: readDraftImages(draft.generation_snapshot_json),
-  };
+  return getContentDraft(id);
 }
 
 export async function deleteContentDraft(id: number) {
@@ -777,155 +895,6 @@ export async function deleteContentDraft(id: number) {
   await prisma.contentDraft.delete({
     where: { id },
   });
-}
-
-export async function addContentDraftImage(draftId: number, assetId: number) {
-  const prisma = await getPrisma();
-  const [draft, asset] = await Promise.all([
-    prisma.contentDraft.findUnique({ where: { id: draftId } }),
-    prisma.contentAsset.findFirst({
-      where: {
-        id: assetId,
-        type: 'image',
-        cdn_url: { not: null },
-      },
-      select: {
-        id: true,
-        title: true,
-        usage: true,
-        cdn_url: true,
-      },
-    }),
-  ]);
-
-  if (!draft) {
-    throw new Error('草稿不存在');
-  }
-  if (draft.status !== 'DRAFT') {
-    throw new Error('只能添加到草稿状态的草稿');
-  }
-  if (!asset?.cdn_url) {
-    throw new Error('图片素材不存在或尚未生成完成');
-  }
-
-  const images = readDraftImages(draft.generation_snapshot_json);
-  const nextImages: DraftImageItem[] = [
-    ...images,
-    {
-      id: generateUuid(),
-      assetId: asset.id,
-      title: asset.title,
-      imageUrl: asset.cdn_url,
-      group: asset.usage,
-      sortOrder: images.length + 1,
-      remark: null,
-      addedAt: new Date().toISOString(),
-    },
-  ];
-  const normalizedImages = normalizeDraftImages(nextImages);
-
-  const updated = await prisma.contentDraft.update({
-    where: { id: draftId },
-    data: {
-      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, normalizedImages),
-    },
-    include: {
-      slides: {
-        orderBy: { sort_order: 'asc' },
-      },
-    },
-  });
-
-  return {
-    ...updated,
-    selected_images: normalizedImages,
-  };
-}
-
-export async function removeContentDraftImage(draftId: number, imageId: string) {
-  const prisma = await getPrisma();
-  const draft = await prisma.contentDraft.findUnique({
-    where: { id: draftId },
-  });
-
-  if (!draft) {
-    throw new Error('草稿不存在');
-  }
-
-  const images = readDraftImages(draft.generation_snapshot_json);
-  const nextImages = normalizeDraftImages(images.filter((image) => image.id !== imageId));
-
-  const updated = await prisma.contentDraft.update({
-    where: { id: draftId },
-    data: {
-      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
-    },
-    include: {
-      slides: {
-        orderBy: { sort_order: 'asc' },
-      },
-    },
-  });
-
-  return {
-    ...updated,
-    selected_images: nextImages,
-  };
-}
-
-export async function updateContentDraftImages(draftId: number, input: UpdateDraftImageInput[]) {
-  const prisma = await getPrisma();
-  const draft = await prisma.contentDraft.findUnique({
-    where: { id: draftId },
-  });
-
-  if (!draft) {
-    throw new Error('草稿不存在');
-  }
-
-  const images = readDraftImages(draft.generation_snapshot_json);
-  const imageIds = new Set(images.map((image) => image.id));
-  const seenUpdateIds = new Set<string>();
-  const updateMap = new Map<string, UpdateDraftImageInput>();
-
-  for (const item of input) {
-    if (!imageIds.has(item.id)) {
-      throw new Error('草稿图片不存在');
-    }
-    if (seenUpdateIds.has(item.id)) {
-      throw new Error('草稿图片更新项重复');
-    }
-    seenUpdateIds.add(item.id);
-    updateMap.set(item.id, item);
-  }
-
-  const nextImages = normalizeDraftImages(images.map((image) => {
-    const item = updateMap.get(image.id);
-    if (!item) return image;
-
-    return {
-      ...image,
-      sortOrder: item.sortOrder,
-      remark: item.remark === undefined ? image.remark : toNullableString(item.remark),
-    };
-  }));
-
-  const updated = await prisma.contentDraft.update({
-    where: { id: draftId },
-    data: {
-      generation_snapshot_json: writeDraftImages(draft.generation_snapshot_json, nextImages),
-    },
-    include: {
-      slides: {
-        orderBy: { sort_order: 'asc' },
-      },
-    },
-  });
-
-  return {
-    ...updated,
-    selected_images: nextImages,
-  };
 }
 
 export async function listContentAssets(params: AssetQueryParams = {}) {
@@ -937,13 +906,21 @@ export async function listContentAssets(params: AssetQueryParams = {}) {
     prisma.contentAsset.findMany({
       where,
       include: {
-        draft: {
+        drafts: {
+          orderBy: { sort_order: 'asc' },
           select: {
-            id: true,
-            title: true,
-            status: true,
+            sort_order: true,
+            remark: true,
+            draft: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
+            },
           },
         },
+        _count: { select: { drafts: true } },
         topic: {
           select: {
             id: true,
@@ -970,10 +947,19 @@ export async function listContentAssets(params: AssetQueryParams = {}) {
       })
     : [];
   const aiJobMap = new Map(aiJobs.map((job) => [job.id, formatContentImageJob(job)] as const));
-  const record = assets.map((asset) => ({
-    ...asset,
-    image_job: asset.ai_job_id ? aiJobMap.get(asset.ai_job_id) ?? null : null,
-  }));
+  const record = assets.map((asset) => {
+    const { drafts, _count, ...data } = asset;
+    return {
+      ...data,
+      drafts: drafts.map((relation) => ({
+        ...relation.draft,
+        sort_order: relation.sort_order,
+        remark: relation.remark,
+      })),
+      draft_count: _count.drafts,
+      image_job: asset.ai_job_id ? aiJobMap.get(asset.ai_job_id) ?? null : null,
+    };
+  });
 
   return { record, total, pageNum, pageSize };
 }
@@ -983,7 +969,15 @@ export async function getContentImageAsset(id: number) {
   const asset = await prisma.contentAsset.findFirst({
     where: { id, type: 'image' },
     include: {
-      draft: { select: { id: true, title: true, status: true } },
+      drafts: {
+        orderBy: { sort_order: 'asc' },
+        select: {
+          sort_order: true,
+          remark: true,
+          draft: { select: { id: true, title: true, status: true } },
+        },
+      },
+      _count: { select: { drafts: true, slides: true } },
       topic: { select: { id: true, title: true } },
     },
   });
@@ -996,8 +990,16 @@ export async function getContentImageAsset(id: number) {
       })
     : null;
 
+  const { drafts, _count, ...data } = asset;
   return {
-    ...asset,
+    ...data,
+    drafts: drafts.map((relation) => ({
+      ...relation.draft,
+      sort_order: relation.sort_order,
+      remark: relation.remark,
+    })),
+    draft_count: _count.drafts,
+    slide_count: _count.slides,
     image_job: aiJob ? formatContentImageJob(aiJob) : null,
   };
 }
@@ -1007,7 +1009,6 @@ export async function createContentAsset(input: CreateAssetInput) {
 
   return prisma.contentAsset.create({
     data: {
-      draft_id: input.draft_id ?? null,
       topic_id: input.topic_id ?? null,
       type: input.type || 'image',
       usage: toNullableString(input.usage),
@@ -1025,7 +1026,6 @@ export async function createGeneratedContentImageAsset(input: CreateGeneratedIma
   const title = cleanString(input.title) ?? input.options.prompt.slice(0, 80);
 
   return createContentAsset({
-    draft_id: input.draft_id,
     type: 'image',
     usage: input.group,
     title,
@@ -1061,10 +1061,9 @@ export async function generateContentDraftImage(input: GenerateContentDraftImage
     options: input.options,
     title: input.title,
     group: input.group,
-    draft_id: input.draftId,
     created_by: input.createdBy,
   });
-  const updatedDraft = await addContentDraftImage(input.draftId, asset.id);
+  const updatedDraft = await appendContentDraftAsset(input.draftId, asset.id, input.createdBy);
 
   return { draft: updatedDraft, asset, job };
 }
@@ -1081,12 +1080,43 @@ export async function createUploadedContentImageAsset(input: CreateUploadedImage
 }
 
 export async function createLinkedContentImageAsset(input: CreateLinkedImageAssetInput) {
-  return createContentAsset({
-    type: 'image',
-    usage: input.group,
-    title: cleanString(input.title) ?? input.imageUrl,
-    cdn_url: input.imageUrl,
-    created_by: input.created_by,
+  const prisma = await getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const asset = await tx.contentAsset.create({
+      data: {
+        type: 'image',
+        usage: toNullableString(input.group),
+        title: cleanString(input.title) ?? input.imageUrl,
+        cdn_url: input.imageUrl,
+        created_by: input.created_by ?? null,
+      },
+    });
+    if (input.draft_id) {
+      const draft = await tx.contentDraft.findUnique({
+        where: {
+          id: input.draft_id,
+          ...(input.draft_user_id ? { created_by: input.draft_user_id } : {}),
+        },
+        select: { id: true, status: true },
+      });
+      if (!draft) throw new Error('草稿不存在');
+      if (draft.status !== 'DRAFT') throw new Error('只能向草稿状态的草稿添加素材');
+      const existing = await tx.contentDraftAsset.findMany({
+        where: { draft_id: draft.id },
+        orderBy: { sort_order: 'asc' },
+        select: { asset_id: true, remark: true },
+      });
+      await replaceDraftAssetRelations(
+        tx,
+        draft.id,
+        [
+          ...existing.map((item) => ({ asset_id: item.asset_id, remark: item.remark })),
+          { asset_id: asset.id },
+        ],
+        input.asset_user_id,
+      );
+    }
+    return asset;
   });
 }
 
@@ -1127,8 +1157,14 @@ export async function deleteContentImageAsset(id: number) {
   const prisma = await getPrisma();
   const asset = await prisma.contentAsset.findFirst({
     where: { id, type: 'image' },
+    include: {
+      _count: { select: { drafts: true, slides: true } },
+    },
   });
   if (!asset) return null;
+  if (asset._count.drafts > 0 || asset._count.slides > 0) {
+    throw new ContentAssetInUseError(asset._count.drafts, asset._count.slides);
+  }
 
   await prisma.contentAsset.delete({ where: { id } });
   return asset;
