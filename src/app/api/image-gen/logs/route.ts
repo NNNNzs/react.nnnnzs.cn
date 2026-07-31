@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
     const source = searchParams.get('source') as 'ADMIN' | 'MCP' | null;
     const status = searchParams.get('status') as ImageGenStatus | null;
+    const prompt = searchParams.get('prompt')?.trim() || undefined;
 
     // 管理员可查所有用户，普通用户只能查自己的
     const isAdmin = check.user.permissions.includes(USER_MANAGE);
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
       pageSize: Math.min(pageSize, 50),
       source: source || undefined,
       status: status || undefined,
+      prompt,
       userId: isAdmin ? undefined : check.user.id,
     });
 

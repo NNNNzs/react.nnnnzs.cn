@@ -11,6 +11,9 @@ import {
   Empty,
   Spin,
   Tooltip,
+  Image,
+  Input,
+  Pagination,
   message,
   Button,
   Space,
@@ -29,6 +32,9 @@ import {
   BorderOutlined,
   FilterOutlined,
   ReloadOutlined,
+  SearchOutlined,
+  DownloadOutlined,
+  RedoOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_MANAGE } from "@/constants/permissions";
@@ -121,14 +127,17 @@ export default function ImageGenHistory({
   const [records, setRecords] = useState<LogRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [pageNum, setPageNum] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [promptFilter, setPromptFilter] = useState("");
+  const [promptQuery, setPromptQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleting, setBatchDeleting] = useState(false);
+  const [retryingJobIds, setRetryingJobIds] = useState<Set<string>>(new Set());
 
-  const pageSize = 20;
   const canDelete = hasPermission(USER_MANAGE);
 
   const fetchLogs = useCallback(async () => {
@@ -138,6 +147,7 @@ export default function ImageGenHistory({
         pageNum: String(pageNum),
         pageSize: String(pageSize),
       });
+      if (promptQuery) params.set("prompt", promptQuery);
       if (sourceFilter) params.set("source", sourceFilter);
       if (statusFilter) params.set("status", statusFilter);
 
@@ -155,7 +165,7 @@ export default function ImageGenHistory({
     } finally {
       setLoading(false);
     }
-  }, [pageNum, sourceFilter, statusFilter]);
+  }, [pageNum, pageSize, promptQuery, sourceFilter, statusFilter]);
 
   useEffect(() => {
     fetchLogs();
@@ -182,6 +192,64 @@ export default function ImageGenHistory({
     },
     []
   );
+
+  const handleDownload = useCallback(async (e: React.MouseEvent, url: string) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("下载图片失败");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }, []);
+
+  const handleRetry = useCallback(async (e: React.MouseEvent, record: LogRecord) => {
+    e.stopPropagation();
+    if (!record.job_id) return;
+
+    setRetryingJobIds((ids) => new Set(ids).add(record.job_id as string));
+    try {
+      const response = await fetch(`/api/image-gen/jobs/${record.job_id}/retry`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+      const json = await response.json() as {
+        status?: boolean;
+        message?: string;
+        data?: { jobId?: string; status?: ImageGenStatus; reservedCdnUrl?: string | null; model?: string | null };
+      };
+      if (!response.ok || !json.status) throw new Error(json.message || "重试失败");
+      setRecords((items) => items.map((item) => item.id === record.id ? {
+        ...item,
+        job_id: json.data?.jobId || item.job_id,
+        status: json.data?.status || "PENDING",
+        reserved_cdn_url: json.data?.reservedCdnUrl || item.reserved_cdn_url,
+        error_message: null,
+        cdn_url: null,
+        original_url: null,
+        model: json.data?.model || item.model,
+      } : item));
+      message.success("任务已重新入队");
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "重试失败");
+    } finally {
+      setRetryingJobIds((ids) => {
+        const next = new Set(ids);
+        next.delete(record.job_id as string);
+        return next;
+      });
+    }
+  }, []);
 
   const handleDelete = useCallback(
     (e: React.MouseEvent, record: LogRecord) => {
@@ -435,6 +503,20 @@ export default function ImageGenHistory({
         </Space>
       </div>
 
+      <div className="shrink-0 mb-3">
+        <Input.Search
+          allowClear
+          value={promptFilter}
+          placeholder="按提示词搜索历史记录"
+          enterButton={<SearchOutlined />}
+          onChange={(event) => setPromptFilter(event.target.value)}
+          onSearch={(value) => {
+            setPromptQuery(value.trim());
+            setPageNum(1);
+          }}
+        />
+      </div>
+
       {/* 列表 */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {loading && records.length === 0 ? (
@@ -506,31 +588,50 @@ export default function ImageGenHistory({
 
                   {/* 底部信息 */}
                   <div className="p-2">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate mb-1">
-                      {record.prompt.slice(0, 40)}
-                      {record.prompt.length > 40 ? "..." : ""}
-                    </p>
-                    {/* 编辑模式：展示参考图片缩略图 */}
+                    <Popover
+                      trigger="hover"
+                      placement="topLeft"
+                      title="完整提示词"
+                      content={
+                        <div className="max-w-[320px] space-y-2">
+                          <div className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5">
+                            {record.prompt}
+                          </div>
+                          <Button
+                            size="small"
+                            icon={<CopyOutlined />}
+                            onClick={(e) => handleCopyPrompt(e, record.prompt)}
+                          >
+                            复制提示词
+                          </Button>
+                        </div>
+                      }
+                    >
+                      <p className="mb-1 cursor-help truncate text-xs text-gray-600 dark:text-gray-400">
+                        {record.prompt.slice(0, 40)}
+                        {record.prompt.length > 40 ? "..." : ""}
+                      </p>
+                    </Popover>
+                    {/* 编辑模式：参考图可直接放大预览 */}
                     {(() => {
                       const refUrls = parseEditImageUrls(record.ext_json);
                       if (refUrls.length === 0) return null;
                       return (
                         <div className="flex gap-1 mb-1 overflow-hidden">
                           {refUrls.map((refUrl, idx) => (
-                            <Tooltip key={idx} title={`参考图 ${idx + 1}`}>
-                              <div className="h-6 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-600">
-                                <ImageGenJobImage
-                                  imageUrl={refUrl}
-                                  alt={`参考图 ${idx + 1}`}
-                                  preview={false}
-                                  optimizationType={ImageOptimizationType.SMALL_THUMBNAIL}
-                                  className="h-full w-full"
-                                />
-                              </div>
-                            </Tooltip>
+                            <div key={idx} className="h-9 w-9 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-600">
+                              <Image
+                                src={refUrl}
+                                alt={`参考图 ${idx + 1}`}
+                                width={36}
+                                height={36}
+                                preview={{ mask: <span className="text-[10px]">预览</span> }}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
                           ))}
                           <span className="text-[10px] text-gray-400 self-center">
-                            参考图
+                            参考图（点击预览）
                           </span>
                         </div>
                       );
@@ -568,18 +669,53 @@ export default function ImageGenHistory({
                               />
                             </Tooltip>
                           )}
-                          <Tooltip title="复制提示词">
+                          {url && (
+                            <Tooltip title="下载图片">
+                              <Button variant="text"
+                                size="small"
+                                icon={<DownloadOutlined />}
+                                className="text-xs"
+                                onClick={(e) => handleDownload(e, url)}
+                              />
+                            </Tooltip>
+                          )}
+                          <Popover
+                            trigger="hover"
+                            placement="topRight"
+                            title="完整提示词"
+                            content={
+                              <div className="max-w-[320px] space-y-2">
+                                <div className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5">
+                                  {record.prompt}
+                                </div>
+                                <Button
+                                  size="small"
+                                  icon={<CopyOutlined />}
+                                  onClick={(e) => handleCopyPrompt(e, record.prompt)}
+                                >
+                                  复制提示词
+                                </Button>
+                              </div>
+                            }
+                          >
                             <Button variant="text"
                               size="small"
-                              icon={
-                                <span className="text-[10px]">T</span>
-                              }
+                              icon={<CopyOutlined />}
                               className="text-xs"
-                              onClick={(e) =>
-                                handleCopyPrompt(e, record.prompt)
-                              }
+                              onClick={(e) => handleCopyPrompt(e, record.prompt)}
                             />
-                          </Tooltip>
+                          </Popover>
+                          {record.status === "FAILED" && record.job_id && (
+                            <Tooltip title="重试任务">
+                              <Button variant="text"
+                                size="small"
+                                icon={<RedoOutlined />}
+                                loading={retryingJobIds.has(record.job_id)}
+                                className="text-xs"
+                                onClick={(e) => handleRetry(e, record)}
+                              />
+                            </Tooltip>
+                          )}
                           {canDelete && (
                             <Tooltip title="删除记录">
                               <Button variant="text" color="danger"
@@ -605,15 +741,25 @@ export default function ImageGenHistory({
       </div>
 
       {/* 分页 */}
-      {total > pageSize && (
+      {total > 0 && (
         <div className="shrink-0 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-center">
-          <Button variant="text"
+          <Pagination
+            current={pageNum}
+            pageSize={pageSize}
+            total={total}
             size="small"
-            disabled={pageNum * pageSize >= total}
-            onClick={() => setPageNum((p) => p + 1)}
-          >
-            加载更多
-          </Button>
+            showSizeChanger
+            pageSizeOptions={[12, 24, 36]}
+            showTotal={(count) => `共 ${count} 条`}
+            onChange={(nextPage, nextPageSize) => {
+              if (nextPageSize !== pageSize) {
+                setPageSize(nextPageSize);
+                setPageNum(1);
+                return;
+              }
+              setPageNum(nextPage);
+            }}
+          />
         </div>
       )}
     </div>

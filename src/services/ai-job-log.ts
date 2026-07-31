@@ -54,6 +54,7 @@ export interface AiJobLogQuery {
   pageSize?: number;
   source?: AiJobSource;
   status?: AiJobStatus;
+  prompt?: string;
   userId?: number;
 }
 
@@ -95,6 +96,9 @@ export async function getAiJobLogs(query: AiJobLogQuery) {
   if (query.type) where.type = query.type;
   if (query.source) where.source = query.source;
   if (query.status) where.status = query.status;
+  if (query.prompt?.trim()) {
+    where.prompt = { contains: query.prompt.trim() };
+  }
   if (query.userId) where.user_id = query.userId;
 
   const [total, records] = await Promise.all([

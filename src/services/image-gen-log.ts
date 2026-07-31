@@ -44,6 +44,7 @@ export interface ImageGenLogQuery {
   pageSize?: number;
   source?: ImageGenSource;
   status?: ImageGenStatus;
+  prompt?: string;
   userId?: number;
 }
 
@@ -91,6 +92,7 @@ export async function getImageGenLogs(query: ImageGenLogQuery) {
     pageSize: query.pageSize,
     source: query.source,
     status: query.status,
+    prompt: query.prompt,
     userId: query.userId,
   });
 }
