@@ -5,7 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPostVersions, getPostVersion } from '@/services/post-version';
-import { getPostById } from '@/services/post';
+import { getPostByIdIncludingDeleted } from '@/services/post';
+import { getAuthUserFromRequest } from '@/lib/auth';
+import { canViewPost } from '@/lib/permission';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,13 +29,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // 检查文章是否存在
-    const post = await getPostById(postId);
+    const post = await getPostByIdIncludingDeleted(postId);
     if (!post) {
       return NextResponse.json(
         { status: false, message: '文章不存在', data: null },
         { status: 404 }
       );
     }
+    const user = await getAuthUserFromRequest(request.headers);
+    if (!canViewPost(user, post)) {
+      return NextResponse.json(
+        { status: false, message: '无权限查看此文章的版本记录', data: null },
+        { status: 403 },
+      );
+    }
+    const privateHeaders = post.hide === '1' || post.is_delete !== 0
+      ? { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' }
+      : undefined;
 
     // 获取版本参数（可选，用于获取特定版本的完整内容）
     const { searchParams } = new URL(request.url);
@@ -68,7 +80,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           createdAt: versionData.created_at.toISOString(),
           createdBy: versionData.created_by,
         },
-      });
+      }, { headers: privateHeaders });
     }
 
     // 获取版本列表（不包含完整内容）
@@ -93,7 +105,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         versions: versionList,
         total: versionList.length,
       },
-    });
+    }, { headers: privateHeaders });
   } catch (error) {
     console.error('获取版本列表失败:', error);
     return NextResponse.json(

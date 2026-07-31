@@ -24,7 +24,7 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { POST_VIEW_DELETED } from '@/constants/permissions';
+import { POST_RESTORE, POST_VIEW_DELETED } from '@/constants/permissions';
 import type { Post } from '@/types';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
@@ -299,6 +299,29 @@ function AdminPageContent() {
     router.push(`/c/edit/${post.id}`);
   };
 
+  const handleRestore = (post: Post) => {
+    confirm({
+      title: '确认恢复',
+      content: `确定恢复文章《${post.title}》吗？恢复后会重新进入向量化队列。`,
+      okText: '恢复',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const response = await axios.post(`/api/post/${post.id}/restore`);
+          if (response.data.status) {
+            message.success('恢复成功');
+            loadPosts(urlState.current, urlState.pageSize);
+          } else {
+            message.error(response.data.message || '恢复失败');
+          }
+        } catch (error) {
+          console.error('恢复文章失败:', error);
+          message.error('恢复失败');
+        }
+      },
+    });
+  };
+
   /**
    * 查看变更历史
    */
@@ -500,12 +523,21 @@ function AdminPageContent() {
             <Dropdown
               menu={{
                 items: [
-                  { key: 'view', icon: <EyeOutlined />, label: '查看', onClick: () => handleView(record) },
+                  ...(record.is_delete === 0
+                    ? [{ key: 'view', icon: <EyeOutlined />, label: '查看', onClick: () => handleView(record) }]
+                    : []),
                   { key: 'edit', icon: <EditOutlined />, label: '编辑', onClick: () => handleEdit(record) },
+                  ...(record.is_delete === 1 && hasPermission(POST_RESTORE)
+                    ? [{ key: 'restore', icon: <ReloadOutlined />, label: '恢复', onClick: () => handleRestore(record) }]
+                    : []),
                   { key: 'history', icon: <HistoryOutlined />, label: '变更历史', onClick: () => handleViewChangeHistory(record) },
-                  { key: 'embed', icon: <ReloadOutlined />, label: '更新向量', onClick: () => handleUpdateEmbedding(record) },
+                  ...(record.is_delete === 0
+                    ? [{ key: 'embed', icon: <ReloadOutlined />, label: '更新向量', onClick: () => handleUpdateEmbedding(record) }]
+                    : []),
                   { type: 'divider' as const },
-                  { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => handleDelete(record) },
+                  ...(record.is_delete === 0
+                    ? [{ key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => handleDelete(record) }]
+                    : []),
                 ],
               }}
               trigger={['click']}
@@ -517,37 +549,51 @@ function AdminPageContent() {
         // 桌面端：保持原有按钮组
         return (
           <AdminTableActions>
-            <AdminActionButton
-              icon={<EyeOutlined />}
-              onClick={() => handleView(record)}
-            >
-              查看
-            </AdminActionButton>
+            {record.is_delete === 0 && (
+              <AdminActionButton
+                icon={<EyeOutlined />}
+                onClick={() => handleView(record)}
+              >
+                查看
+              </AdminActionButton>
+            )}
             <AdminActionButton
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
               编辑
             </AdminActionButton>
+            {record.is_delete === 1 && hasPermission(POST_RESTORE) && (
+              <AdminActionButton
+                icon={<ReloadOutlined />}
+                onClick={() => handleRestore(record)}
+              >
+                恢复
+              </AdminActionButton>
+            )}
             <AdminActionButton
               icon={<HistoryOutlined />}
               onClick={() => handleViewChangeHistory(record)}
             >
               变更历史
             </AdminActionButton>
-            <AdminActionButton
-              icon={<ReloadOutlined />}
-              onClick={() => handleUpdateEmbedding(record)}
-            >
-              更新向量
-            </AdminActionButton>
-            <AdminActionButton
-              color="danger"
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record)}
-            >
-              删除
-            </AdminActionButton>
+            {record.is_delete === 0 && (
+              <>
+                <AdminActionButton
+                  icon={<ReloadOutlined />}
+                  onClick={() => handleUpdateEmbedding(record)}
+                >
+                  更新向量
+                </AdminActionButton>
+                <AdminActionButton
+                  color="danger"
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record)}
+                >
+                  删除
+                </AdminActionButton>
+              </>
+            )}
           </AdminTableActions>
         );
       },
@@ -728,7 +774,7 @@ function AdminPageContent() {
                 onChange={(value) => updateQueryParams({ is_delete: value ? '1' : undefined, page: 1 })}
                 options={[
                   { label: '仅未删除', value: false },
-                  { label: '含已删除', value: true },
+                  { label: '回收站', value: true },
                 ]}
               />
             )}

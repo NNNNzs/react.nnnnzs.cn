@@ -18,6 +18,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryEntityChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
+import { getPostByIdIncludingDeleted } from '@/services/post';
+import { getAuthUserFromRequest } from '@/lib/auth';
+import { canViewPost } from '@/lib/permission';
 
 export async function GET(
   request: NextRequest,
@@ -52,6 +55,21 @@ export async function GET(
       );
     }
 
+    let privateHeaders: Record<string, string> | undefined;
+    if (entityType === EntityType.POST) {
+      const post = await getPostByIdIncludingDeleted(entityIdNum);
+      if (!post) {
+        return NextResponse.json({ error: '文章不存在', message: '文章不存在' }, { status: 404 });
+      }
+      const user = await getAuthUserFromRequest(request.headers);
+      if (!canViewPost(user, post)) {
+        return NextResponse.json({ error: '无权限', message: '无权限查看此文章的变更历史' }, { status: 403 });
+      }
+      if (post.hide === '1' || post.is_delete !== 0) {
+        privateHeaders = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' };
+      }
+    }
+
     // 查询变更日志
     const logs = await queryEntityChangeLogs({
       entityId: entityIdNum,
@@ -70,7 +88,7 @@ export async function GET(
         total: logs.length,
         logs,
       },
-    });
+    }, { headers: privateHeaders });
   } catch (error) {
     console.error('查询变更历史失败:', error);
     return NextResponse.json(

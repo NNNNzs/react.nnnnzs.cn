@@ -8,10 +8,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getPostById, getPostByTitle, updatePost, deletePost } from '@/services/post';
+import { getPostById, getPostByIdIncludingDeleted, getPostByTitle, updatePost, deletePost } from '@/services/post';
 import { getAuthUserFromRequest } from '@/lib/auth';
-import { requirePermission, hasDataPermission } from '@/lib/permission';
-import { POST_VIEW, POST_EDIT, POST_DELETE, POST_VIEW_DELETED } from '@/constants/permissions';
+import { canViewPost, requirePermission, hasDataPermission } from '@/lib/permission';
+import { POST_VIEW, POST_EDIT, POST_DELETE } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import type { ApiDescriptor } from '@/types/api-descriptor';
 import { getCollectionsByPostId } from '@/services/collection';
@@ -117,30 +117,27 @@ export async function GET(
       post = await getPostByTitle(decodedTitle);
     } else {
       // 是ID
-      post = await getPostById(Number(id));
+      post = await getPostByIdIncludingDeleted(Number(id));
     }
 
     if (!post) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    // 检查是否已删除：已删除的文章只有管理员可以查看
-    if (post.is_delete === 1) {
-      const user = await getAuthUserFromRequest(request.headers);
-      if (!user || !hasDataPermission(user, POST_VIEW_DELETED)) {
-        return NextResponse.json(errorResponse('无权限查看已删除文章'), { status: 403 });
-      }
+    const user = await getAuthUserFromRequest(request.headers);
+    if (!canViewPost(user, post)) {
+      return NextResponse.json(
+        errorResponse(post.is_delete !== 0 ? '无权限查看已删除文章' : '无权限查看此隐藏文章'),
+        { status: 403 },
+      );
     }
 
-    // 检查是否隐藏：隐藏文章只有管理员或作者本人可以查看
-    if (post.hide === '1') {
-      const user = await getAuthUserFromRequest(request.headers);
-      if (!user || !hasDataPermission(user, POST_VIEW, post.created_by)) {
-        return NextResponse.json(errorResponse('无权限查看此隐藏文章'), { status: 403 });
-      }
-    }
-
-    return NextResponse.json(successResponse(post));
+    return NextResponse.json(successResponse(post), {
+      // 隐藏/回收站内容绝不能被浏览器、中间代理或 CDN 复用给其他请求者。
+      headers: post.hide === '1' || post.is_delete !== 0
+        ? { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' }
+        : undefined,
+    });
   } catch (error) {
     console.error('获取文章详情失败:', error);
     return NextResponse.json(errorResponse('获取文章详情失败'), {
@@ -168,7 +165,7 @@ export async function PUT(
     const postId = Number(id);
 
     // 先获取文章，检查数据权限
-    const existingPost = await getPostById(postId);
+    const existingPost = await getPostByIdIncludingDeleted(postId);
     if (!existingPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
@@ -177,11 +174,14 @@ export async function PUT(
     if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
-    const beforeCollections = await bestEffortCacheRead(
-      `post:${postId}:before-collections`,
-      () => getCollectionsByPostId(postId),
-      [],
-    );
+    const shouldRefreshPublicState = existingPost.is_delete === 0;
+    const beforeCollections = shouldRefreshPublicState
+      ? await bestEffortCacheRead(
+        `post:${postId}:before-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      )
+      : [];
 
     const body = await request.json();
 
@@ -207,19 +207,21 @@ export async function PUT(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    const afterCollections = await bestEffortCacheRead(
-      `post:${postId}:after-collections`,
-      () => getCollectionsByPostId(postId),
-      [],
-    );
-    scheduleCacheImpact(collectPostCacheImpact({
-      kind: 'update',
-      before: existingPost,
-      after: updatedPost,
-      beforeCollections,
-      afterCollections,
-      changedFields: Object.keys(validationResult.data),
-    }));
+    if (shouldRefreshPublicState) {
+      const afterCollections = await bestEffortCacheRead(
+        `post:${postId}:after-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      );
+      scheduleCacheImpact(collectPostCacheImpact({
+        kind: 'update',
+        before: existingPost,
+        after: updatedPost,
+        beforeCollections,
+        afterCollections,
+        changedFields: Object.keys(validationResult.data),
+      }));
+    }
 
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost
@@ -250,7 +252,7 @@ export async function PATCH(
     const postId = Number(id);
 
     // 先获取文章，检查数据权限
-    const existingPost = await getPostById(postId);
+    const existingPost = await getPostByIdIncludingDeleted(postId);
     if (!existingPost) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
@@ -259,11 +261,14 @@ export async function PATCH(
     if (!hasDataPermission(user, POST_EDIT, existingPost.created_by)) {
       return NextResponse.json(errorResponse('无权限编辑此文章'), { status: 403 });
     }
-    const beforeCollections = await bestEffortCacheRead(
-      `post:${postId}:before-collections`,
-      () => getCollectionsByPostId(postId),
-      [],
-    );
+    const shouldRefreshPublicState = existingPost.is_delete === 0;
+    const beforeCollections = shouldRefreshPublicState
+      ? await bestEffortCacheRead(
+        `post:${postId}:before-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      )
+      : [];
 
     const body = await request.json();
 
@@ -297,19 +302,21 @@ export async function PATCH(
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
     }
 
-    const afterCollections = await bestEffortCacheRead(
-      `post:${postId}:after-collections`,
-      () => getCollectionsByPostId(postId),
-      [],
-    );
-    scheduleCacheImpact(collectPostCacheImpact({
-      kind: 'update',
-      before: existingPost,
-      after: updatedPost,
-      beforeCollections,
-      afterCollections,
-      changedFields: Object.keys(validationResult.data),
-    }));
+    if (shouldRefreshPublicState) {
+      const afterCollections = await bestEffortCacheRead(
+        `post:${postId}:after-collections`,
+        () => getCollectionsByPostId(postId),
+        [],
+      );
+      scheduleCacheImpact(collectPostCacheImpact({
+        kind: 'update',
+        before: existingPost,
+        after: updatedPost,
+        beforeCollections,
+        afterCollections,
+        changedFields: Object.keys(validationResult.data),
+      }));
+    }
 
     // 注意：向量化现在在 updatePost 函数中通过增量向量化处理（创建版本和chunk记录）
     // 这里不再需要单独调用 embedPost

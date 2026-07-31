@@ -6,11 +6,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPostVersion } from '@/services/post-version';
-import {
-  getTokenFromRequest,
-  validateToken,
-} from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/dto/response.dto';
+import { getPostByIdIncludingDeleted } from '@/services/post';
+import { canViewPost } from '@/lib/permission';
 
 /**
  * 获取指定版本的内容
@@ -22,12 +21,6 @@ export async function GET(
   }
 ) {
   try {
-    // 验证Token
-    const token = getTokenFromRequest(request.headers);
-    if (!token || !(await validateToken(token))) {
-      return NextResponse.json(errorResponse('未授权'), { status: 401 });
-    }
-
     const { id, version } = await context.params;
     const postId = Number(id);
     const versionNum = Number(version);
@@ -36,12 +29,25 @@ export async function GET(
       return NextResponse.json(errorResponse('无效的参数'), { status: 400 });
     }
 
+    const post = await getPostByIdIncludingDeleted(postId);
+    if (!post) {
+      return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+    const user = await getAuthUserFromRequest(request.headers);
+    if (!canViewPost(user, post)) {
+      return NextResponse.json(errorResponse('无权限查看此文章的版本记录'), { status: 403 });
+    }
+
     const versionRecord = await getPostVersion(postId, versionNum);
     if (!versionRecord) {
       return NextResponse.json(errorResponse('版本不存在'), { status: 404 });
     }
 
-    return NextResponse.json(successResponse(versionRecord));
+    return NextResponse.json(successResponse(versionRecord), {
+      headers: post.hide === '1' || post.is_delete !== 0
+        ? { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' }
+        : undefined,
+    });
   } catch (error) {
     console.error('获取文章版本详情失败:', error);
     return NextResponse.json(errorResponse('获取文章版本详情失败'), {

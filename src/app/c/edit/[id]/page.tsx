@@ -217,54 +217,58 @@ export default function EditPostPage() {
           router.replace(`/c/edit/${newId}`);
         }
       } else {
-        await axios.patch(`/api/post/${params.id}`, postData);
+        const updateResponse = await axios.patch(`/api/post/${params.id}`, postData);
+        const isDeletedPost = updateResponse.data.data?.is_delete !== 0;
 
-        const currentCollectionsRes = await axios.get(
-          `/api/post/${params.id}/collections`,
-        );
-        const currentCollectionIds = currentCollectionsRes.data.status
-          ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
-          : [];
+        // 回收站内容可以继续编辑，但恢复前不得改变公开合集关系，避免触发合集/CDN 刷新。
+        if (!isDeletedPost) {
+          const currentCollectionsRes = await axios.get(
+            `/api/post/${params.id}/collections`,
+          );
+          const currentCollectionIds = currentCollectionsRes.data.status
+            ? currentCollectionsRes.data.data.map((c: { id: number }) => c.id)
+            : [];
 
-        const collectionIds = postData.collection_ids as number[];
-        const toAdd = collectionIds.filter(
-          (id: number) => !currentCollectionIds.includes(id),
-        );
-        const toRemove = currentCollectionIds.filter(
-          (id: number) => !collectionIds.includes(id),
-        );
+          const collectionIds = postData.collection_ids as number[];
+          const toAdd = collectionIds.filter(
+            (id: number) => !currentCollectionIds.includes(id),
+          );
+          const toRemove = currentCollectionIds.filter(
+            (id: number) => !collectionIds.includes(id),
+          );
 
-        if (toAdd.length > 0) {
-          try {
-            await Promise.all(
-              toAdd.map((collectionId: number) =>
-                axios.post(`/api/collection/${collectionId}/posts`, {
-                  post_ids: [params.id],
-                }),
-              ),
-            );
-          } catch (addError) {
-            console.error("❌ 添加到合集失败:", addError);
-            message.error("添加到合集失败");
+          if (toAdd.length > 0) {
+            try {
+              await Promise.all(
+                toAdd.map((collectionId: number) =>
+                  axios.post(`/api/collection/${collectionId}/posts`, {
+                    post_ids: [params.id],
+                  }),
+                ),
+              );
+            } catch (addError) {
+              console.error("❌ 添加到合集失败:", addError);
+              message.error("添加到合集失败");
+            }
+          }
+
+          if (toRemove.length > 0) {
+            try {
+              await Promise.all(
+                toRemove.map((collectionId: number) =>
+                  axios.delete(`/api/collection/${collectionId}/posts`, {
+                    data: { post_ids: [params.id] },
+                  }),
+                ),
+              );
+            } catch (removeError) {
+              console.error("❌ 从合集移除失败:", removeError);
+              message.error("从合集移除失败");
+            }
           }
         }
 
-        if (toRemove.length > 0) {
-          try {
-            await Promise.all(
-              toRemove.map((collectionId: number) =>
-                axios.delete(`/api/collection/${collectionId}/posts`, {
-                  data: { post_ids: [params.id] },
-                }),
-              ),
-            );
-          } catch (removeError) {
-            console.error("❌ 从合集移除失败:", removeError);
-            message.error("从合集移除失败");
-          }
-        }
-
-        message.success("保存成功");
+        message.success(isDeletedPost ? "保存成功，文章仍在回收站" : "保存成功");
         loadPost();
       }
     } catch (error: unknown) {
@@ -389,6 +393,11 @@ export default function EditPostPage() {
           collection_ids: [],
         }}
       >
+        {post?.is_delete !== 0 && (
+          <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 md:px-6">
+            当前文章仍在回收站。保存只保留编辑内容，不会恢复文章、更新向量或刷新公开缓存；请从文章管理页单独恢复。
+          </div>
+        )}
         {/* 极简顶部栏 */}
         <div className="shrink-0 border-b border-neutral-200 bg-white px-3 md:px-6 py-3 mb-2 md:mb-4">
           <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-4'}`}>

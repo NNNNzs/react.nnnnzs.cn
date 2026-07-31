@@ -59,6 +59,24 @@ export function canAccessPost(
 }
 
 /**
+ * 判断用户是否可读取文章内容。
+ *
+ * 公开文章允许匿名读取；隐藏文章需要文章查看数据权限；软删除文章只能由
+ * 具备回收站查看数据权限的用户读取。
+ */
+export function canViewPost(user: AuthUser | null, post: SerializedPost): boolean {
+  if (post.is_delete !== 0) {
+    return !!user && hasDataPermission(user, POST_VIEW_DELETED, post.created_by);
+  }
+
+  if (post.hide === '1') {
+    return !!user && hasDataPermission(user, POST_VIEW, post.created_by);
+  }
+
+  return true;
+}
+
+/**
  * 检查用户是否有权限查看隐藏文章
  * @param user 当前用户
  * @returns 是否有权限

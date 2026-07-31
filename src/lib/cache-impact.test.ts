@@ -131,6 +131,20 @@ test('hide and delete retain the old detail path and old relationships', () => {
   );
 });
 
+test('editing an already hidden or deleted post has no public cache impact', () => {
+  for (const before of [post({ hide: '1' }), post({ is_delete: 1 })]) {
+    const plan = collectPostCacheImpact({
+      kind: 'update',
+      before,
+      after: post({ ...before, content: 'edited in private state' }),
+      changedFields: ['content'],
+    });
+    assert.deepEqual(plan.nextTags, []);
+    assert.deepEqual(plan.nextPaths, []);
+    assert.deepEqual(plan.cdnPagePaths, []);
+  }
+});
+
 test('likes, visitors and internal RAG updates have no public cache impact', () => {
   for (const field of ['likes', 'visitors', 'rag_status']) {
     const plan = collectPostCacheImpact({

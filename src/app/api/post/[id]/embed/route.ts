@@ -110,12 +110,16 @@ export async function POST(
         title: true,
         content: true,
         hide: true,
+        is_delete: true,
         created_by: true,
       },
     });
 
     if (!post) {
       return NextResponse.json(errorResponse('文章不存在'), { status: 404 });
+    }
+    if (post.is_delete !== 0) {
+      return NextResponse.json(errorResponse('请先恢复文章后再更新向量'), { status: 409 });
     }
 
     // 数据权限由角色权限关系决定。

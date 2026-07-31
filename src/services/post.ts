@@ -161,13 +161,13 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
         visitors: true,
         likes: true,
         hide: true,
+        is_delete: true,
         created_by: true,
         rag_status: true,
         rag_error: true,
         rag_updated_at: true,
         // content 不在列表中返回
         content: false,
-        is_delete: false,
       },
     }),
     prisma.tbPost.count({ where: whereConditions }),
@@ -237,17 +237,29 @@ export async function getPostByTitle(title: string): Promise<SerializedPost | nu
  * 根据ID获取文章
  */
 export async function getPostById(id: number): Promise<SerializedPost | null> {
+  const post = await getPostByIdIncludingDeleted(id);
+
+  // 默认读取路径不暴露软删除文章。
+  if (post && post.is_delete !== 0) {
+    return null;
+  }
+
+  return post;
+}
+
+/**
+ * 根据 ID 获取文章，包含软删除记录。
+ *
+ * 仅供已经在路由层完成回收站权限校验的后台流程使用；公开读取仍应使用
+ * getPostById，以避免意外暴露已删除文章。
+ */
+export async function getPostByIdIncludingDeleted(id: number): Promise<SerializedPost | null> {
   const prisma = await getPrisma();
   const post = await prisma.tbPost.findUnique({
     where: {
       id,
     },
   });
-
-  // 检查是否已删除
-  if (post && post.is_delete !== 0) {
-    return null;
-  }
 
   return post ? serializePost(post) : null;
 }
@@ -537,27 +549,29 @@ export async function updatePost(
     });
   }
 
-  // 如果内容有更新，先确保版本记录落库，再异步添加到向量化队列
+  // 内容修订始终保留版本；回收站中的文章在明确恢复前不能重新进入向量检索。
   if (hasContentUpdate && updatedPost.content) {
     await createPostVersion(id, updatedPost.content, createdBy);
 
-    // 异步执行，不阻塞响应
-    (async () => {
-      try {
-        // 添加到向量化队列（使用新的简化向量化服务）
-        await queueEmbedPost({
-          postId: id,
-          title: updatedPost.title || '',
-          content: updatedPost.content || '',
-          hide: updatedPost.hide || '0',
-          priority: 5, // 更新文章优先级略高
-        });
+    if (updatedPost.is_delete === 0) {
+      // 异步执行，不阻塞响应
+      (async () => {
+        try {
+          // 添加到向量化队列（使用新的简化向量化服务）
+          await queueEmbedPost({
+            postId: id,
+            title: updatedPost.title || '',
+            content: updatedPost.content || '',
+            hide: updatedPost.hide || '0',
+            priority: 5, // 更新文章优先级略高
+          });
 
-      } catch (error) {
-        console.error(`❌ 文章 ${id} 添加到向量化队列失败:`, error);
-        // 失败不影响文章更新
-      }
-    })();
+        } catch (error) {
+          console.error(`❌ 文章 ${id} 添加到向量化队列失败:`, error);
+          // 失败不影响文章更新
+        }
+      })();
+    }
   }
 
   return serializePost(updatedPost);
@@ -588,4 +602,29 @@ export async function deletePost(id: number): Promise<boolean> {
   }
 
   return !!result;
+}
+
+/**
+ * 恢复软删除文章。
+ *
+ * 向量重建和公开缓存刷新由调用方在恢复成功后显式触发，避免编辑回收站内容时
+ * 意外产生公开侧副作用。
+ */
+export async function restorePost(id: number): Promise<SerializedPost | null> {
+  const prisma = await getPrisma();
+  const existingPost = await prisma.tbPost.findUnique({ where: { id } });
+
+  if (!existingPost || existingPost.is_delete === 0) {
+    return null;
+  }
+
+  const restoredPost = await prisma.tbPost.update({
+    where: { id },
+    data: {
+      is_delete: 0,
+      updated: new Date(),
+    },
+  });
+
+  return serializePost(restoredPost);
 }
