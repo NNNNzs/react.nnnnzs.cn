@@ -23,7 +23,6 @@ import { scheduleCacheImpact } from '@/services/cache-refresh';
 // 添加文章验证schema
 const addPostsSchema = z.object({
   post_ids: z.array(z.coerce.number()).min(1, '至少需要一个文章ID'),
-  sort_orders: z.array(z.number()).optional(),
 });
 
 // 移除文章验证schema
@@ -116,7 +115,6 @@ export async function POST(
     const result = await addPostsToCollection(
       collectionId,
       validationResult.data.post_ids,
-      validationResult.data.sort_orders,
       user.id
     );
 

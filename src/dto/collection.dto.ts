@@ -105,7 +105,6 @@ export type CollectionPageQueryRes = {
  */
 export type AddPostsToCollectionDto = {
   post_ids: number[];
-  sort_orders?: number[];
 };
 
 /**

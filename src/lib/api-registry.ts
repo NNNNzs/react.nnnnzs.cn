@@ -150,7 +150,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
             : (await getCollectionBySlug(token))?.id;
 
           if (collectionId) {
-            await addPostsToCollection(collectionId, [post.id], undefined, user.id);
+            await addPostsToCollection(collectionId, [post.id], user.id);
           }
         }
       }
@@ -505,7 +505,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       if (add_to_collections) {
         const colIds = await resolveCollectionIds(add_to_collections as string);
         for (const colId of colIds) {
-          await addPostsToCollection(colId, [postId], undefined, user.id);
+          await addPostsToCollection(colId, [postId], user.id);
         }
       }
 

@@ -110,7 +110,7 @@ export async function getCollectionShowcaseList(): Promise<CollectionShowcaseIte
             hide: '0',
           },
         },
-        orderBy: { sort_order: 'asc' },
+        orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
         take: 11,
         select: {
           sort_order: true,
@@ -178,7 +178,8 @@ async function getCollectionDetail(
             },
           },
         },
-        orderBy: { sort_order: 'asc' },
+        // 合集详情：序号越大越靠前；同序时，较新的文章排在前面。
+        orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
         where: {
           post: {
             is_delete: 0,
@@ -263,7 +264,7 @@ export async function getCollectionArticlesForManagement(
     where: { id, is_delete: 0 },
     select: {
       collectionPosts: {
-        orderBy: { sort_order: 'asc' },
+        orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
         where: { post: { is_delete: 0 } },
         select: {
           sort_order: true,
@@ -409,7 +410,6 @@ export async function deleteCollection(id: number): Promise<boolean> {
 export async function addPostsToCollection(
   collectionId: number,
   postIds: number[],
-  sortOrders?: number[],
   userId?: number
 ) {
   const prisma = await getPrisma();
@@ -428,11 +428,20 @@ export async function addPostsToCollection(
     const existingIds = existing.map((e) => e.post_id);
     const newPostIds = postIds.filter((id) => !existingIds.includes(id));
 
+    // 所有入口（后台、文章编辑页、REST、MCP）统一分配当前最大序号后的新值。
+    // 重新排序只能通过 updateCollectionOrder 完成，避免不同入口写出相互冲突的序号。
+    const lastRelation = await tx.tbCollectionPost.findFirst({
+      where: { collection_id: collectionId },
+      orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
+      select: { sort_order: true },
+    });
+    const nextSortOrder = (lastRelation?.sort_order ?? -1) + 1;
+
     // 批量创建关联
     const createData = newPostIds.map((postId, index) => ({
       collection_id: collectionId,
       post_id: postId,
-      sort_order: sortOrders?.[index] ?? 0,
+      sort_order: nextSortOrder + index,
     }));
 
     if (createData.length > 0) {
@@ -458,7 +467,7 @@ export async function addPostsToCollection(
     const currentPosts = await prisma.tbCollectionPost.findMany({
       where: { collection_id: collectionId },
       select: { post_id: true },
-      orderBy: { sort_order: 'asc' },
+      orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
     });
 
     const currentPostIds = currentPosts.map(p => p.post_id);
@@ -518,7 +527,7 @@ export async function removePostsFromCollection(
     const currentPosts = await prisma.tbCollectionPost.findMany({
       where: { collection_id: collectionId },
       select: { post_id: true },
-      orderBy: { sort_order: 'asc' },
+      orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
     });
 
     const currentPostIds = currentPosts.map(p => p.post_id);
@@ -587,7 +596,7 @@ export async function getCollectionsByPostId(postId: number): Promise<PostCollec
         },
       },
     },
-    orderBy: { sort_order: 'asc' },
+    orderBy: [{ sort_order: 'asc' }, { id: 'asc' }],
   });
 
   return relations.map((r) => ({
@@ -672,9 +681,7 @@ export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
             hide: '0',
           },
         },
-        orderBy: {
-          sort_order: 'asc',
-        },
+        orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
       },
     },
     orderBy: {

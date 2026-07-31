@@ -1,396 +1,395 @@
-/**
- * 合集文章管理页面
- * 路由: /c/collections/[id]/posts
- * 功能: 添加/移除文章到合集，调整文章顺序
- */
+/** 合集文章管理页：服务端搜索、分页、关联维护和排序。 */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
+  Alert,
   Button,
   Card,
-  message,
+  Empty,
+  Input,
+  Pagination,
   Space,
   Spin,
-  Input,
-  Alert,
+  Tag,
+  message,
 } from 'antd';
 import {
-  ArrowLeftOutlined,
   ArrowDownOutlined,
+  ArrowLeftOutlined,
   ArrowUpOutlined,
+  MinusCircleOutlined,
+  PlusOutlined,
   SaveOutlined,
   SearchOutlined,
-  PlusOutlined,
-  MinusCircleOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { SerializedCollection } from '@/dto/collection.dto';
 import type { SerializedPost } from '@/dto/post.dto';
-import dayjs from 'dayjs';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 const { Search } = Input;
+const CANDIDATE_PAGE_SIZE = 10;
 
 interface ArticleInCollection extends SerializedPost {
   sort_order: number;
+}
+
+interface PostListResponse {
+  record: SerializedPost[];
+  total: number;
 }
 
 export default function CollectionPostsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const collectionId = params.id as string;
   const { isMobile } = useBreakpoint();
+  const collectionId = String(params.id || '');
 
   const [collection, setCollection] = useState<SerializedCollection | null>(null);
-  const [allArticles, setAllArticles] = useState<SerializedPost[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<ArticleInCollection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [candidateArticles, setCandidateArticles] = useState<SerializedPost[]>([]);
+  const [candidateTotal, setCandidateTotal] = useState(0);
+  const [candidatePage, setCandidatePage] = useState(1);
+  const [searchInputValue, setSearchInputValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [pendingPostId, setPendingPostId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderDirty, setOrderDirty] = useState(false);
 
-  // 加载合集信息和文章
-  useEffect(() => {
-    if (collectionId && user) {
-      loadData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collectionId, user]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // 加载合集信息
-      const collectionRes = await axios.get(`/api/collection/${collectionId}`);
-      if (collectionRes.data.status) {
-        setCollection(collectionRes.data.data as SerializedCollection);
-      }
-
-      // 加载合集内的文章
-      const collectionDetailRes = await axios.get(
-        `/api/collection/${collectionId}/posts`
-      );
-      if (collectionDetailRes.data.status) {
-        setSelectedArticles(collectionDetailRes.data.data.articles || []);
-      }
-
-      // 加载所有文章
-      const articlesRes = await axios.get('/api/post/list', {
-        params: { pageSize: 1000, pageNum: 1, hide: '0' },
-      });
-      if (articlesRes.data.status) {
-        setAllArticles(articlesRes.data.data.record || []);
-      }
-    } catch (error) {
-      console.error('加载数据失败:', error);
-      message.error('加载数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 保存文章关联
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      // 获取当前合集内的文章ID
-      const currentIds = selectedArticles.map((a) => a.id);
-
-      // 获取之前合集内的文章ID
-      const beforeSaveRes = await axios.get(`/api/collection/${collectionId}/posts`);
-      const beforeIds = beforeSaveRes.data.status
-        ? beforeSaveRes.data.data.articles.map((a: { id: number }) => a.id)
-        : [];
-
-      // 计算需要添加和移除的文章
-      const toAdd = currentIds.filter((id: number) => !beforeIds.includes(id));
-      const toRemove = beforeIds.filter((id: number) => !currentIds.includes(id));
-
-      console.log('📝 保存合集文章:', { currentIds, beforeIds, toAdd, toRemove });
-
-      // 添加新文章
-      if (toAdd.length > 0) {
-        console.log('➕ 添加文章到合集:', toAdd);
-        const addRes = await axios.post(`/api/collection/${collectionId}/posts`, {
-          post_ids: toAdd,
-          sort_orders: toAdd.map((_, index) => index),
-        });
-        console.log('✅ 添加文章响应:', addRes.data);
-      }
-
-      // 移除文章
-      if (toRemove.length > 0) {
-        console.log('➖ 从合集移除文章:', toRemove);
-        const removeRes = await axios.delete(`/api/collection/${collectionId}/posts`, {
-          data: { post_ids: toRemove },
-        });
-        console.log('✅ 移除文章响应:', removeRes.data);
-      }
-
-      message.success('保存成功');
-      loadData(); // 重新加载数据
-    } catch (error: unknown) {
-      console.error('❌ 保存失败:', error);
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        console.error('❌ 错误响应:', axiosError.response?.data);
-        message.error(axiosError.response?.data?.message || '保存失败');
-      } else {
-        message.error('保存失败');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 从合集移除文章
-  const handleRemove = async (postId: number) => {
-    try {
-      await axios.delete(`/api/collection/${collectionId}/posts`, {
-        data: { post_ids: [postId] },
-      });
-      message.success('移除成功');
-      loadData();
-    } catch (error: unknown) {
-      console.error('移除失败:', error);
-      message.error('移除失败');
-    }
-  };
-
-  // 调整文章顺序（上移）
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const newArticles = [...selectedArticles];
-    [newArticles[index - 1], newArticles[index]] = [newArticles[index], newArticles[index - 1]];
-    setSelectedArticles(newArticles);
-  };
-
-  // 调整文章顺序（下移）
-  const handleMoveDown = (index: number) => {
-    if (index === selectedArticles.length - 1) return;
-    const newArticles = [...selectedArticles];
-    [newArticles[index], newArticles[index + 1]] = [newArticles[index + 1], newArticles[index]];
-    setSelectedArticles(newArticles);
-  };
-
-  // 保存排序
-  const handleSaveOrder = async () => {
-    setSaving(true);
-    try {
-      const orders = selectedArticles.map((article, index) => ({
-        post_id: article.id,
-        sort_order: index,
-      }));
-
-      await axios.put(`/api/collection/${collectionId}/posts/sort`, { orders });
-      message.success('排序保存成功');
-      loadData();
-    } catch (error) {
-      console.error('保存排序失败:', error);
-      message.error('保存排序失败');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 过滤文章
-  const filteredArticles = allArticles.filter((article) =>
-    article.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-    article.description?.toLowerCase().includes(searchText.toLowerCase())
+  const selectedArticleIds = useMemo(
+    () => new Set(selectedArticles.map((article) => article.id)),
+    [selectedArticles],
   );
 
-  if (loading) {
+  const loadSelectedArticles = useCallback(async () => {
+    const response = await axios.get(`/api/collection/${collectionId}/posts`);
+    if (!response.data.status) {
+      throw new Error(response.data.message || '获取合集文章失败');
+    }
+    setSelectedArticles(response.data.data.articles || []);
+    setOrderDirty(false);
+  }, [collectionId]);
+
+  const loadCollection = useCallback(async () => {
+    const response = await axios.get(`/api/collection/${collectionId}`);
+    if (!response.data.status) {
+      throw new Error(response.data.message || '获取合集信息失败');
+    }
+    setCollection(response.data.data as SerializedCollection);
+  }, [collectionId]);
+
+  const loadCandidates = useCallback(async (page: number, query: string) => {
+    setCandidateLoading(true);
+    try {
+      const response = await axios.get('/api/post/list', {
+        params: {
+          pageNum: page,
+          pageSize: CANDIDATE_PAGE_SIZE,
+          hide: '0',
+          ...(query ? { query } : {}),
+        },
+      });
+      if (!response.data.status) {
+        throw new Error(response.data.message || '获取文章列表失败');
+      }
+
+      const data = response.data.data as PostListResponse;
+      setCandidateArticles(data.record || []);
+      setCandidateTotal(data.total || 0);
+    } catch (error) {
+      console.error('获取可添加文章失败:', error);
+      message.error(error instanceof Error ? error.message : '获取可添加文章失败');
+      setCandidateArticles([]);
+      setCandidateTotal(0);
+    } finally {
+      setCandidateLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!collectionId || !user) return;
+
+    const loadInitialData = async () => {
+      setInitialLoading(true);
+      try {
+        await Promise.all([loadCollection(), loadSelectedArticles()]);
+      } catch (error) {
+        console.error('加载合集文章管理数据失败:', error);
+        message.error(error instanceof Error ? error.message : '加载数据失败');
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    void loadInitialData();
+  }, [collectionId, loadCollection, loadSelectedArticles, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadCandidates(candidatePage, searchQuery);
+  }, [candidatePage, loadCandidates, searchQuery, user]);
+
+  const handleSearch = (value: string) => {
+    setSearchInputValue(value);
+    setSearchQuery(value.trim());
+    setCandidatePage(1);
+  };
+
+  const handleAdd = async (post: SerializedPost) => {
+    if (orderDirty) {
+      message.warning('请先保存当前排序，再添加文章');
+      return;
+    }
+
+    setPendingPostId(post.id);
+    try {
+      const response = await axios.post(`/api/collection/${collectionId}/posts`, {
+        post_ids: [post.id],
+      });
+      if (!response.data.status) {
+        throw new Error(response.data.message || '添加文章失败');
+      }
+
+      await loadSelectedArticles();
+      message.success('已添加到合集顶部');
+    } catch (error) {
+      console.error('添加文章到合集失败:', error);
+      message.error(error instanceof Error ? error.message : '添加文章失败');
+    } finally {
+      setPendingPostId(null);
+    }
+  };
+
+  const handleRemove = async (postId: number) => {
+    if (orderDirty) {
+      message.warning('请先保存当前排序，再移除文章');
+      return;
+    }
+
+    setPendingPostId(postId);
+    try {
+      const response = await axios.delete(`/api/collection/${collectionId}/posts`, {
+        data: { post_ids: [postId] },
+      });
+      if (!response.data.status) {
+        throw new Error(response.data.message || '移除文章失败');
+      }
+
+      await loadSelectedArticles();
+      message.success('已从合集中移除');
+    } catch (error) {
+      console.error('移除合集文章失败:', error);
+      message.error(error instanceof Error ? error.message : '移除文章失败');
+    } finally {
+      setPendingPostId(null);
+    }
+  };
+
+  const handleMove = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= selectedArticles.length) return;
+
+    setSelectedArticles((articles) => {
+      const nextArticles = [...articles];
+      [nextArticles[index], nextArticles[targetIndex]] = [nextArticles[targetIndex], nextArticles[index]];
+      return nextArticles;
+    });
+    setOrderDirty(true);
+  };
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true);
+    try {
+      const response = await axios.put(`/api/collection/${collectionId}/posts/sort`, {
+        orders: selectedArticles.map((article, index) => ({
+          post_id: article.id,
+          sort_order: selectedArticles.length - index,
+        })),
+      });
+      if (!response.data.status) {
+        throw new Error(response.data.message || '保存排序失败');
+      }
+
+      await loadSelectedArticles();
+      message.success('排序已保存');
+    } catch (error) {
+      console.error('保存合集文章排序失败:', error);
+      message.error(error instanceof Error ? error.message : '保存排序失败');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  if (initialLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex h-full items-center justify-center">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        <div className="p-6">
-          <Card
-            title={
-              <Space>
-                <Button variant="text"
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.push('/c/collections')}
-                  size="small"
-                >
-                  返回
-                </Button>
-                <span>
-                  {collection?.title} - 文章管理 ({selectedArticles.length} 篇)
-                </span>
-              </Space>
-            }
-            extra={
-              <Space>
-                <Button variant="solid" color="primary"
-                  icon={<SaveOutlined />}
-                  onClick={handleSave}
-                  loading={saving}
-                  size="small"
-                >
-                  保存
-                </Button>
-              </Space>
-            }
-          >
-            <Alert
-              title="操作说明"
-              description={
-                <div>
-                  <p>1. 在下方搜索并选择文章添加到合集</p>
-                  <p>2. 使用上下箭头调整文章顺序</p>
-                  <p>3. 点击&ldquo;移除&rdquo;按钮将文章从合集中移除</p>
-                  <p>4. 点击&ldquo;保存&rdquo;按钮保存所有更改</p>
-                </div>
-              }
-              type="info"
-              showIcon
-              className="mb-4"
-            />
+    <div className="flex h-full w-full flex-col">
+      <AdminPageHeader
+        title={`${collection?.title || '合集'} - 文章管理`}
+        description="序号越大越靠前；新增文章会进入合集顶部，使用上下箭头调整目录后再保存排序。"
+        extra={(
+          <Space wrap>
+            <Button size="small" icon={<ArrowLeftOutlined />} onClick={() => router.push('/c/collections')}>
+              返回合集
+            </Button>
+            <Button
+              size="small"
+              color="primary"
+              variant="solid"
+              icon={<SaveOutlined />}
+              onClick={handleSaveOrder}
+              disabled={!orderDirty || selectedArticles.length === 0}
+              loading={savingOrder}
+            >
+              保存排序
+            </Button>
+          </Space>
+        )}
+      />
 
-            {/* 搜索和添加文章 */}
-            <div className="mb-6">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        <div className="space-y-4 pb-1">
+          <Alert
+            type={orderDirty ? 'warning' : 'info'}
+            showIcon
+            message={orderDirty ? '排序尚未保存' : '操作说明'}
+            description={orderDirty
+              ? '请先保存排序，再继续添加或移除文章，以免覆盖当前调整。'
+              : '下方搜索仅查询当前页的服务器数据，不会把全部文章加载到浏览器。'}
+          />
+
+          <Card size="small" title="添加文章">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Search
-                placeholder="搜索文章标题或描述"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: isMobile ? '100%' : 300, marginBottom: 16 }}
-                prefix={<SearchOutlined />}
+                allowClear
+                placeholder="按文章标题或正文搜索"
+                value={searchInputValue}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setSearchInputValue(nextValue);
+                  if (!nextValue) {
+                    setSearchQuery('');
+                    setCandidatePage(1);
+                  }
+                }}
+                onSearch={handleSearch}
+                enterButton={<SearchOutlined />}
+                className="w-full sm:max-w-md"
               />
-
-              <div className="max-h-60 overflow-y-auto border border-gray-300 rounded p-2">
-                {filteredArticles.length === 0 ? (
-                  <div className="text-center text-gray-500 py-4">没有找到匹配的文章</div>
-                ) : (
-                  filteredArticles.map((article) => {
-                    const isSelected = selectedArticles.some((a) => a.id === article.id);
-                    return (
-                      <div
-                        key={article.id}
-                        className={`flex items-center justify-between p-2 mb-2 border rounded ${
-                          isSelected ? 'border-gray-200 bg-gray-50' : 'border-blue-200 bg-blue-50'
-                        }`}
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium">{article.title}</div>
-                          <div className="text-sm text-gray-500 line-clamp-1">
-                            {article.description}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {article.date ? dayjs(article.date).format('YYYY-MM-DD') : ''}
-                          </div>
-                        </div>
-                        <Button
-                          color={isSelected ? undefined : 'primary'}
-                          variant={isSelected ? 'outlined' : 'solid'}
-                          size="small"
-                          icon={isSelected ? <MinusCircleOutlined /> : <PlusOutlined />}
-                          onClick={() => {
-                            if (isSelected) {
-                              // 移除
-                              setSelectedArticles(selectedArticles.filter((a) => a.id !== article.id));
-                            } else {
-                              // 添加
-                              setSelectedArticles([
-                                ...selectedArticles,
-                                { ...article, sort_order: selectedArticles.length },
-                              ]);
-                            }
-                          }}
-                        >
-                          {isSelected ? '移除' : '添加'}
-                        </Button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+              <Tag color="blue">共 {candidateTotal} 篇匹配文章</Tag>
             </div>
 
-            {/* 已选文章列表 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">
-                已选文章 ({selectedArticles.length} 篇)
-              </h3>
-
-              {selectedArticles.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  还没有添加文章到合集
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {selectedArticles.map((article, index) => (
-                    <div
-                      key={article.id}
-                      className={`p-4 bg-white border border-gray-200 rounded hover:shadow-sm transition-shadow ${isMobile ? 'flex flex-col gap-2' : 'flex items-center gap-4'}`}
-                    >
-                      {/* 序号 */}
-                      <div className={`text-2xl font-bold text-gray-400 text-center ${isMobile ? 'hidden' : 'w-8 shrink-0'}`}>
-                        {String(index + 1).padStart(2, '0')}
+            <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+              {candidateLoading ? (
+                <div className="flex min-h-32 items-center justify-center"><Spin /></div>
+              ) : candidateArticles.length === 0 ? (
+                <Empty className="my-8" description="没有找到可显示的文章" />
+              ) : candidateArticles.map((article) => {
+                const isSelected = selectedArticleIds.has(article.id);
+                return (
+                  <div key={article.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium text-slate-900">{article.title || '无标题文章'}</div>
+                      {article.description ? (
+                        <div className="mt-1 line-clamp-1 text-sm text-slate-500">{article.description}</div>
+                      ) : null}
+                      <div className="mt-1 text-xs text-slate-400">
+                        {article.date ? dayjs(article.date).format('YYYY-MM-DD') : '未设置发布日期'}
                       </div>
-
-                      {/* 文章信息 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          {isMobile && <span className="text-sm text-gray-400">#{index + 1}</span>}
-                          <span className="font-medium">{article.title}</span>
-                        </div>
-                        <div className="text-sm text-gray-500 line-clamp-1">
-                          {article.description}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {article.date ? dayjs(article.date).format('YYYY-MM-DD HH:mm') : ''} ·
-                          👁️ {article.visitors || 0} · ❤️ {article.likes || 0}
-                        </div>
-                      </div>
-
-                      {/* 操作按钮 */}
-                      <Space size="small" wrap={isMobile}>
-                        <Button
-                          size="small"
-                          icon={<ArrowUpOutlined />}
-                          disabled={index === 0}
-                          onClick={() => handleMoveUp(index)}
-                        >
-                          上移
-                        </Button>
-                        <Button
-                          size="small"
-                          icon={<ArrowDownOutlined />}
-                          disabled={index === selectedArticles.length - 1}
-                          onClick={() => handleMoveDown(index)}
-                        >
-                          下移
-                        </Button>
-                        <Button color="danger"
-                          size="small"
-                          icon={<MinusCircleOutlined />}
-                          onClick={() => handleRemove(article.id)}
-                        >
-                          移除
-                        </Button>
-                      </Space>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <Button
+                      size="small"
+                      color={isSelected ? undefined : 'primary'}
+                      variant={isSelected ? 'outlined' : 'solid'}
+                      icon={isSelected ? undefined : <PlusOutlined />}
+                      disabled={isSelected || orderDirty}
+                      loading={pendingPostId === article.id}
+                      onClick={() => void handleAdd(article)}
+                    >
+                      {isSelected ? '已在合集' : '添加'}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
 
-            {selectedArticles.length > 1 && (
-              <div className="mt-6 text-center">
-                <Button color="primary" variant="solid" icon={<SaveOutlined />} onClick={handleSaveOrder} loading={saving} size="small">
-                  保存排序
-                </Button>
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                current={candidatePage}
+                pageSize={CANDIDATE_PAGE_SIZE}
+                total={candidateTotal}
+                showSizeChanger={false}
+                size={isMobile ? 'small' : 'default'}
+                onChange={setCandidatePage}
+                showTotal={(total) => `共 ${total} 篇`}
+              />
+            </div>
+          </Card>
+
+          <Card
+            size="small"
+            title={`合集目录（${selectedArticles.length} 篇）`}
+            extra={orderDirty ? <Tag color="orange">待保存排序</Tag> : null}
+          >
+            {selectedArticles.length === 0 ? (
+              <Empty className="my-8" description="还没有添加文章到这个合集" />
+            ) : (
+              <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+                {selectedArticles.map((article, index) => (
+                  <div key={article.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                    <span className="w-7 shrink-0 text-center font-mono text-sm text-slate-400">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium text-slate-900">{article.title || '无标题文章'}</div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {article.date ? dayjs(article.date).format('YYYY-MM-DD') : '未设置发布日期'}
+                        {' · '}👁️ {article.visitors || 0} · ❤️ {article.likes || 0}
+                      </div>
+                    </div>
+                    <Space size={4} wrap>
+                      <Button
+                        size="small"
+                        icon={<ArrowUpOutlined />}
+                        aria-label="上移文章"
+                        disabled={index === 0 || pendingPostId === article.id}
+                        onClick={() => handleMove(index, -1)}
+                      />
+                      <Button
+                        size="small"
+                        icon={<ArrowDownOutlined />}
+                        aria-label="下移文章"
+                        disabled={index === selectedArticles.length - 1 || pendingPostId === article.id}
+                        onClick={() => handleMove(index, 1)}
+                      />
+                      <Button
+                        size="small"
+                        color="danger"
+                        icon={<MinusCircleOutlined />}
+                        disabled={orderDirty}
+                        loading={pendingPostId === article.id}
+                        onClick={() => void handleRemove(article.id)}
+                      >
+                        {isMobile ? '' : '移除'}
+                      </Button>
+                    </Space>
+                  </div>
+                ))}
               </div>
             )}
           </Card>

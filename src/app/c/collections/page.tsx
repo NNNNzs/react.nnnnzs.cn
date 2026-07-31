@@ -16,6 +16,7 @@ import {
   PlusOutlined,
   HistoryOutlined,
   SearchOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -327,6 +328,14 @@ function CollectionsManagePageContent() {
           <AdminTableActions className="mt-2">
             {canEdit ? (
               <AdminActionButton
+                icon={<UnorderedListOutlined />}
+                onClick={() => router.push(`/c/collections/${record.id}/posts`)}
+              >
+                管理文章
+              </AdminActionButton>
+            ) : null}
+            {canEdit ? (
+              <AdminActionButton
                 icon={<EditOutlined />}
                 onClick={() => router.push(`/c/collections/${record.id}`)}
               >
@@ -467,6 +476,14 @@ function CollectionsManagePageContent() {
       width: 240,
       render: (_, record) => (
         <AdminTableActions>
+          {canEdit ? (
+            <AdminActionButton
+              icon={<UnorderedListOutlined />}
+              onClick={() => router.push(`/c/collections/${record.id}/posts`)}
+            >
+              管理文章
+            </AdminActionButton>
+          ) : null}
           {canEdit ? (
             <AdminActionButton
               icon={<EditOutlined />}

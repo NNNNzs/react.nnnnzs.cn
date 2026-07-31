@@ -307,12 +307,15 @@ GET /api/admin/collections
 
 #### 5. 文章关联到合集
 ```
-POST /api/admin/collections/[id]/posts
+POST /api/collection/[id]/posts
 Body:
 {
-  "post_ids": [101, 102, 103],
-  "sort_orders": [0, 1, 2]  // 可选，指定排序
+  "post_ids": [101, 102, 103]
 }
+
+新增文章统一取得当前最大 `sort_order + 1`；由于序号越大越靠前，新文章会展示在合集顶部。不接受调用方指定的排序号；需要调整目录顺序时，使用下方的排序接口。
+
+合集首页预览和详情均按 `sort_order` 降序展示；排序号相同时，按文章创建/发布日期（`tb_post.date`）倒序展示，较新的文章在前。
 
 响应：
 {
@@ -338,7 +341,7 @@ Body:
 
 #### 7. 调整合集内文章顺序
 ```
-PUT /api/admin/collections/[id]/sort
+PUT /api/collection/[id]/posts/sort
 Body:
 {
   "orders": [
@@ -479,19 +482,22 @@ Body:
 - **路径**：`/c/collections`
 - **功能**：
   - 合集列表表格（类似文章管理）
-  - 创建、编辑、删除操作
+  - 创建、编辑、删除操作，以及直接进入“管理文章”
   - 批量操作（可选）
 
 #### 2. 合集编辑页 (`/c/collections/[id]/page.tsx`)
 - **路径**：`/c/collections/[id]`
 - **功能**：
   - 基本信息编辑（标题、slug、描述、图片链接、主题色）
-  - 文章关联管理：
-    - 可选择文章添加到合集
-    - 拖拽排序
-    - 从合集中移除文章
+  - 提供“管理文章”入口
 
-#### 3. 文章编辑页增强 (`/c/edit/[id]/page.tsx`)
+#### 3. 合集文章管理页 (`/c/collections/[id]/posts`)
+- **功能**：
+  - 服务端分页、按标题或正文搜索可添加文章
+  - 添加文章到合集末尾、从合集中移除文章
+  - 上移/下移后显式保存排序
+
+#### 4. 文章编辑页增强 (`/c/edit/[id]/page.tsx`)
 在现有编辑页面增加合集选择器：
 ```tsx
 <Select
@@ -586,7 +592,7 @@ export async function getCollectionBySlug(slug: string) {
           }
         },
         orderBy: {
-          TbCollectionPost: { sort_order: 'asc' }
+          TbCollectionPost: { sort_order: 'desc' }
         }
       }
     }
@@ -659,8 +665,7 @@ export async function deleteCollection(id: number) {
 // 将文章添加到合集
 export async function addPostsToCollection(
   collectionId: number,
-  postIds: number[],
-  sortOrders?: number[]
+  postIds: number[]
 ) {
   const prisma = await getPrisma();
 
@@ -678,11 +683,19 @@ export async function addPostsToCollection(
     const existingIds = existing.map(e => e.post_id);
     const newPostIds = postIds.filter(id => !existingIds.includes(id));
 
+    // 所有入口统一分配当前最大序号后的新值，展示时位于目录顶部
+    const lastRelation = await tx.tbCollectionPost.findFirst({
+      where: { collection_id: collectionId },
+      orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
+      select: { sort_order: true }
+    });
+    const nextSortOrder = (lastRelation?.sort_order ?? -1) + 1;
+
     // 批量创建关联
     const createData = newPostIds.map((postId, index) => ({
       collection_id: collectionId,
       post_id: postId,
-      sort_order: sortOrders?.[index] ?? 0
+      sort_order: nextSortOrder + index
     }));
 
     if (createData.length > 0) {
@@ -832,10 +845,8 @@ export async function createPostWithCollections(
 
   // 如果指定了合集，添加关联
   if (collectionIds && collectionIds.length > 0) {
-    await addPostsToCollection(
-      collectionIds[0],
-      [post.id],
-      [0] // 默认排序为0
+    await Promise.all(
+      collectionIds.map((collectionId) => addPostsToCollection(collectionId, [post.id]))
     );
   }
 
