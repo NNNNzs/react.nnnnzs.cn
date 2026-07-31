@@ -166,7 +166,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
 
   if (isMobile) {
     return (
-      <Layout className={`admin-light-shell ${CREATE_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
+      <Layout className={`admin-light-shell relative ${CREATE_LAYOUT_HEIGHT} bg-slate-50 text-slate-950`}>
         <AdminSidebar
           title="内容创作"
           mobileTitle="内容创作中台"

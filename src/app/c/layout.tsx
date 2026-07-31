@@ -345,7 +345,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
   // 移动端：隐藏 Sider，使用 Drawer + 全宽内容区
   if (isMobile) {
     return (
-      <Layout className={`admin-light-shell ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
+      <Layout className={`admin-light-shell relative ${ADMIN_LAYOUT_HEIGHT} !bg-slate-50 text-slate-950`}>
         <AdminSidebar
           title="管理后台"
           mobileTitle={sectionTitle}

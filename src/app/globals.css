@@ -863,10 +863,14 @@ body.admin-light-page .header .DocSearch-Button-Key {
 }
 
 /* Admin pages intentionally stay light even when the public site is in night mode. */
-.admin-light-shell,
-.admin-light-drawer {
+.admin-light-shell {
   color-scheme: light;
   background: #f8fafc;
+  color: #1e293b;
+}
+
+.admin-light-drawer {
+  color-scheme: light;
   color: #1e293b;
 }
 

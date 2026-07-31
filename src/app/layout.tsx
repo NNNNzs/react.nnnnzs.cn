@@ -14,6 +14,7 @@ import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
 import DeployStatusIndicator from "@/components/DeployStatusIndicator";
+import GoogleAdSense from "@/components/GoogleAdSense";
 // 初始化向量化队列
 import "@/lib/embedding-init";
 
@@ -117,7 +118,7 @@ export default async function RootLayout({
                   })();
                   `}
                     </Script>
-                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6540786548340758" crossOrigin="anonymous"></script>
+                    <GoogleAdSense />
      
                     <GoogleTagManager gtmId="GTM-PTJQT23X" />
                     <GoogleAnalytics measurementId={analyticsConfig.measurementId} />

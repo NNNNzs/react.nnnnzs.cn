@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { Suspense, useState, useEffect, useRef } from "react";
+import React, { Suspense, useCallback, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
@@ -57,6 +57,17 @@ export default function Header() {
 
   // 滚动进度与 Header 透明度
   const { scrollProgress, headerOpacity } = useScrollProgress(pathname);
+
+  const getDrawerContainer = useCallback(() => {
+    if (headerStyle.static) {
+      return (
+        document.querySelector<HTMLElement>(".admin-light-shell") ??
+        document.body
+      );
+    }
+
+    return document.body;
+  }, [headerStyle.static]);
 
   // 检查是否应该显示编辑按钮
   const shouldShowEditButton =
@@ -253,6 +264,7 @@ export default function Header() {
               <button
                 className="md:hidden p-2 rounded-md text-text-muted-light dark:text-text-muted-dark hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none"
                 onClick={() => setDrawerOpen(true)}
+                aria-label="打开主菜单"
               >
                 <MenuOutlined />
               </button>
@@ -276,6 +288,8 @@ export default function Header() {
 	        placement="right"
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
+        getContainer={getDrawerContainer}
+        rootStyle={headerStyle.static ? { position: "absolute" } : undefined}
         className="md:hidden"
       >
         <div className="flex flex-col space-y-4">

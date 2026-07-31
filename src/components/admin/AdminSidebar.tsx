@@ -87,8 +87,11 @@ export default function AdminSidebar({
           placement="left"
           onClose={() => onDrawerOpenChange(false)}
           open={drawerOpen}
+          destroyOnHidden
           size={width}
+          getContainer={false}
           rootClassName="admin-light-drawer"
+          rootStyle={{ position: "absolute" }}
           styles={{
             body: { padding: 0 },
           }}
