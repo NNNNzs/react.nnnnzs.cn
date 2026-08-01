@@ -1,8 +1,9 @@
 # 内容创作中台设计
 
-> **状态**：🔄 进行中
+> **状态**：✅ 已实施
 > **创建时间**：2026-07-07
-> **关联计划**：[内容创作中台建设计划](../../plans/content-creation-platform.md)
+> **完成时间**：2026-08-01
+> **关联计划**：[内容创作中台建设计划](../../plans/archive/content-creation-platform.md)
 > **当前开发设计**：[选题完善与多平台草稿转换](../ai/topic-draft-workflow.md)
 > **目标入口**：`/create`
 > **本地协作项目**：`/Users/nnnnzs/project/xhs`
@@ -278,7 +279,7 @@ prisma/schema/
 
 | 本地资产 | 线上对象 | 迁移方式 |
 |----------|----------|----------|
-| `content/topic-bank.md` | `ContentTopic` | 脚本导入或手动初始化 |
+| `content/topic-bank.md` | 不再直接迁移 | 选题策略由 AI Lab 系统提示词模板库和线上选题库维护 |
 | `content/calendar/*.md` | `ContentPublishRecord` | 后续导入历史计划 |
 | `content/drafts/*/README.md` | `ContentDraft` + `ContentDraftSlide` | 可选历史导入 |
 | `docs/brand-positioning.md` | 模板/配置 | 抽出账号定位和视觉资产 |

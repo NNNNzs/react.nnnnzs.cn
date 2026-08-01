@@ -83,7 +83,7 @@ docs/designs/
 |------|------|------|
 | [博客合集功能](features/collection-design.md) | 文章合集管理 | ✅ 已实施 |
 | [评论系统](features/comment-system-design.md) | 评论功能设计 | ✅ 已实施 |
-| [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；支持选题 Agent 和多平台草稿 | 🔄 进行中 |
+| [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；支持选题 Agent 和多平台草稿 | ✅ 已实施 |
 | [实体变更日志](features/entity-change-design.md) | 数据变更追踪 | ✅ 已实施 |
 | [统计系统](features/analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
 
@@ -129,4 +129,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-07-12
+**最后更新**: 2026-08-01

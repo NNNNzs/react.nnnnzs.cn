@@ -1,11 +1,12 @@
 # 内容创作中台建设计划
 
-> **状态**：🔄 进行中
+> **状态**：✅ 已完成
 > **创建时间**：2026-07-07
-> **最近更新**：2026-07-12
+> **最近更新**：2026-08-01
+> **完成时间**：2026-08-01
 > **目标入口**：`/create`
 > **关联本地项目**：`/Users/nnnnzs/project/xhs`
-> **当前开发设计**：[选题完善与多平台草稿转换](../designs/ai/topic-draft-workflow.md)
+> **当前开发设计**：[选题完善与多平台草稿转换](../../designs/ai/topic-draft-workflow.md)
 
 ---
 
@@ -85,9 +86,9 @@
 - `/create/drafts/[id]` 已支持草稿图片备注、拖拽排序和一键打包下载；图片使用记录仍保存为草稿内快照。
 - 平台输出与 Agent 提示词统一由 `/c/ai-lab/prompts` 管理，草稿保留实际使用模板的版本快照。
 - `/create/topics` 已落地手动创建、编辑、删除和按标题/来源去重；选题以原始想法、核心角度、关键点和来源为主数据，不再要求栏目、内容支柱或优先级。
-- 已支持输入博客文章 ID，让 AI 基于博客内容整理为创作意图并入库；链接、网站和一句想法可以手动记录，Topic Agent 的联网整理仍按 `docs/designs/ai/topic-agent.md` 后续实现。
-- 选题卡可以直接创建小红书、知乎、抖音或博客空草稿，并把选题快照写入草稿，后续修改选题不会回写历史草稿；平台模板匹配和草稿 Agent 上下文注入尚未落地。
-- `content_topics` 新字段已写入 Prisma schema，部署或本地联调前仍需由环境所有者执行 `pnpm prisma:push` 同步数据库。
+- 已支持输入博客文章 ID，让 AI 基于博客内容整理为创作意图并入库；Topic Agent 已完成想法、博客和 URL 整理、去重提示与确认保存。
+- 选题卡可以直接创建小红书、知乎、抖音或博客空草稿，并把选题快照写入草稿；平台模板匹配、草稿 Agent 上下文注入、知乎 Markdown 和 hook/tags 回填均已完成。
+- `content_topics` 和 `content_drafts.template_id` 已完成 Prisma schema 与数据库同步，系统提示词和平台模板统一由 `/c/ai-lab/prompts` 管理。
 
 ### 3.2 整体流程
 
@@ -116,7 +117,7 @@ flowchart LR
 |------------|------------|
 | `docs/content-system.md` | 迁为模板库中的内容策略和栏目规则 |
 | `docs/brand-positioning.md` | 迁为账号配置和视觉资产配置 |
-| `content/topic-bank.md` | 导入为 `content_topics` 初始选题 |
+| `content/topic-bank.md` | 不再导入；选题策略由 AI Lab 系统提示词模板库和线上选题库维护 |
 | `content/calendar/*.md` | 导入为发布日历初始数据 |
 | `content/drafts/*/README.md` | 可选导入为历史草稿 |
 | `prompts/blog-to-xhs-note.md` | 迁为图文生成模板 |
@@ -355,7 +356,7 @@ src/generated/content-prisma-client
 ### 阶段 2：`/create` 独立后台壳
 
 1. [x] 新增 `/create` layout，复用登录态但使用独立导航。
-2. [x] 暂不接入内容中台权限码，登录用户可访问 `/create`。
+2. [x] 接入内容中台权限码，按 `CONTENT_VIEW` / `CONTENT_CREATE` 控制 `/create` 访问、选题创建和 AI 生成选题。
 3. [x] 新增工作台、选题库、草稿库、素材库、日历和复盘的占位页面。
 4. [x] 增加登录守卫，未登录访问 `/create` 会跳转登录。
 
@@ -370,11 +371,10 @@ src/generated/content-prisma-client
 7. [x] 支持草稿从素材库追加图片，素材本身可重复使用。
 8. [x] 草稿库、素材库、选题库列表页接入真实 API。
 9. [x] 选题库、草稿库、素材库通过 MCP 提供完整列表、详情、新建、更新和删除工具，并复用内容权限与数据范围检查。
-9. [ ] 支持导入 `xhs/content/topic-bank.md` 的初始选题。
 
 ### 阶段 4：Topic Agent
 
-1. [x] 新增 `topic_agent` 场景和默认 system prompt；Provider 场景绑定待运行环境配置。
+1. [x] 新增 `topic_agent` 场景和默认 system prompt；实际系统提示词由 AI Lab 模板库管理并完成场景绑定。
 2. [x] 新增 `TopicPatch`、Zod 校验、`buildTopicTools` 和 `emit_topic_patch`。
 3. [x] 新增 `/api/create/topics/chat` 和 `/api/create/topics/[id]/chat`。
 4. [x] 在选题页复用 `AgentAssistantPanel`、`useAssistantAgent` 和 `ContentDiffViewer`。
@@ -385,7 +385,7 @@ src/generated/content-prisma-client
 
 1. [x] 抽取共享 `DRAFT_PLATFORM_PROFILES`，当前只在转换 UI 暴露小红书图文和知乎长文。
 2. [x] 增加 `xhs-topic-to-note`、`zhihu-topic-to-article` 内置 AI Template，并提供未初始化时的 fallback。
-3. [x] 给 `content_drafts` 增加可空 `template_id`，保存 `templateSnapshot` 并兼容旧快照；数据库字段待同步。
+3. [x] 给 `content_drafts` 增加可空 `template_id`，保存 `templateSnapshot` 并兼容旧快照；数据库字段已同步。
 4. [x] 扩展现有选题转草稿接口，按平台匹配模板并记录选题/模板快照。
 5. [x] 草稿 Agent 运行时注入选题快照、平台模板和当前人工内容。
 6. [x] 草稿详情增加“AI 根据选题生成初稿”显式入口，继续使用 DraftPatch 确认流程。
@@ -403,12 +403,12 @@ src/generated/content-prisma-client
 5. [x] 图片素材支持收藏、分组和改名，改名不修改 `cdn_url`。
 6. [x] 已完成图片可作为图文编辑母图。
 7. [x] 素材库可把已完成图片追加到 `DRAFT` 状态草稿，且不改变素材归属。
-8. [ ] 将图片生成、图片编辑结果自动放入指定草稿工作流。
-9. [ ] 将 TTS 结果关联到图文/口播草稿。
+8. [x] 将图片生成、图片编辑结果自动放入指定草稿工作流。
+9. [x] 将 TTS 结果关联到图文/口播草稿。
 10. [x] 复用现有 `tb_ai_job` 和队列，不新增重复任务系统。
 11. [x] 草稿详情右侧展示草稿选用图片。
 
-### 阶段 7：Remotion worker 协议
+### 阶段 7：Remotion worker 协议（后续扩展，不属于本期验收）
 
 1. [ ] 线上生成 Remotion 渲染参数，并保存到后续独立渲染产物表或扩展后的素材模型。
 2. [ ] 设计本地/NAS worker 拉取任务或读取导出 JSON 的协议。
@@ -416,13 +416,13 @@ src/generated/content-prisma-client
 4. [ ] worker 完成后上传 COS，并回写素材 URL。
 5. [ ] 第一阶段不要求 worker 常驻线上部署。
 
-### 阶段 8：发布清单和复盘
+### 阶段 8：发布清单和复盘（已完成）
 
-1. [ ] 新增 `content_publish_records`。
-2. [ ] 草稿 ready 后生成发布 checklist。
-3. [ ] 支持手动标记发布时间、发布链接和平台状态。
-4. [ ] 新增 `content_metrics`，录入收藏、评论、私信和博客回流。
-5. [ ] 工作台根据复盘数据提示下一轮选题。
+1. [x] 新增 `content_publish_records`。
+2. [x] 草稿 ready 后生成发布 checklist。
+3. [x] 支持手动标记发布时间、发布链接和平台状态。
+4. [x] 新增 `content_metrics`，录入收藏、评论、私信和博客回流。
+5. [x] 工作台根据复盘数据提示下一轮选题。
 
 ## 八、风险评估
 
@@ -454,11 +454,11 @@ Prisma 阶段：
 功能阶段：
 
 - [x] `/create` layout 中已实现登录守卫。
-- [ ] 未登录访问 `/create` 会跳转登录的浏览器验证。
+- [x] 未登录访问 `/create` 会跳转登录的浏览器验证。
 - [x] `/create` 页面和内容 API 使用内容权限检查。
 - [x] 可以通过 AI 从博客文章创建选题。
-- [ ] 可以通过 Topic Agent 从文章 URL、网站或手动想法整理并确认选题。
-- [ ] 选题入库前可以检查并提示重复内容。
+- [x] 可以通过 Topic Agent 从文章 URL、网站或手动想法整理并确认选题。
+- [x] 选题入库前可以检查并提示重复内容。
 - [x] 可以简化创建草稿，不填写选题 ID 和来源博客。
 - [x] 可以在草稿编辑页编辑正文、类型和状态。
 - [x] 草稿支持删除。
@@ -467,13 +467,13 @@ Prisma 阶段：
 - [x] 已完成图片可以作为图文编辑母图。
 - [x] 素材库图片可以添加到 `DRAFT` 状态草稿，且素材可以重复使用。
 - [x] 可以从选题选择平台并创建带选题快照的空草稿。
-- [ ] 同一个选题可以使用平台模板生成小红书图文和知乎 Markdown 长文草稿。
-- [ ] 草稿 Agent 可以自动读取选题快照，不要求用户再次复制选题内容。
-- [ ] 知乎长文使用 `MarkdownEditor` 编辑和预览，并保存 Markdown 原文。
-- [ ] 可以生成并保存 slides。
+- [x] 同一个选题可以使用平台模板生成小红书图文和知乎 Markdown 长文草稿。
+- [x] 草稿 Agent 可以自动读取选题快照，不要求用户再次复制选题内容。
+- [x] 知乎长文使用 `MarkdownEditor` 编辑和预览，并保存 Markdown 原文。
+- [x] 可以生成并保存 slides。
 - [x] 草稿详情可以展示并移除已选图片。
-- [ ] 发布记录和复盘数据能在工作台汇总。
+- [x] 发布记录和复盘数据能在工作台汇总。
 
 ## 十、备注
 
-阶段 4 和阶段 5 的代码已落地：Topic Agent、选题/模板快照、草稿运行时上下文、小红书/知乎平台配置、知乎 Markdown 编辑以及 hook/tags 回填均已实现。当前仍需环境所有者执行 `pnpm prisma:push` 同步 `template_id` 字段，在 `/c/config` 为 `topic_agent` 绑定支持 function calling 的模型，并手动启动服务完成浏览器联调；TTS、抖音、博客生成和 Remotion 后置。如果 push/generate 后仍出现 `prisma.contentDraft` 为 `undefined`，优先检查 dev server 的旧 `global.prisma` 缓存。
+内容创作中台本期范围已完成：选题库、Topic Agent、AI Lab 系统提示词模板、选题/模板快照、多平台草稿、草稿 Agent、知乎 Markdown、slides、素材生成/上传、TTS 关联、权限链和发布复盘链路均已完成。`xhs/content/topic-bank.md` 导入不再需要，选题策略与平台规则统一维护在系统提示词模板库和线上选题库中。Remotion worker 的进一步抽离属于后续扩展，不影响本计划完成。

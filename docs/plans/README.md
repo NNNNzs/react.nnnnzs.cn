@@ -4,26 +4,26 @@
 
 ## 📋 当前计划
 
-- [合集昼夜双主题与档案盒交互改造](./collection-day-night-redesign.md) — 🚧 进行中（前后台、SEO、双向轮播与竖长视频代码已迁移，待视频资源和跨端验收）
 - [博客轮询削峰与缓存防击穿改造](./polling-load-shedding.md) — 🔄 进行中（代码改造与静态验证已完成，待浏览器多标签页及生产缓存联调）
 - [后台任务桌面通知模块](./desktop-task-notifications.md) — 🔄 进行中（模块代码、静态检查和任务深链验收已完成，待数据库索引同步与通知授权后验收）
 - [MCP Prompt 动态注册改造](./mcp-prompts.md) — 🔄 进行中（Prompt 原语注册、后台暴露开关和静态检查已完成，待真实 MCP 客户端联调）
 - [AI Agent 工具定义与装配统一改造](./ai-agent-tools-unification.md) — 🔄 进行中（共享定义、请求级上下文工厂、Agent 白名单和 Prompt scope 已落地；待数据库模板同步与运行联调）
-- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
-- [内容创作中台建设](./content-creation-platform.md) — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
-- [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
+- [草稿库创作 Agent 助手](./create-agent.md) — 🔄 进行中（第一期代码、选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步、Provider 配置和真实 Agent/浏览器联调）
+- [昼夜双主题 3D 首页改造](./cyberpunk-homepage-3d.md) — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；待移动端截图、性能和首屏衔接验收）
 - [AI Lab / LLM 学习实验台建设](./ai-lab-llm-learning.md) — 🔄 进行中（已完成 Run 观测和系统级 Prompts 管理；下一步从 Run 转 Eval Case 并推进 Golden Dataset）
 - [AI Provider 配置管理重构](./ai-provider-config.md) — 🔄 进行中（Provider + 场景绑定代码已落地；待数据迁移与全场景手动验收）
-- [赛博朋克 Blender 建模路由](./cyberpunk-blender-modeling-route.md) — 🔄 进行中
+- [赛博朋克 Blender 建模路由](./cyberpunk-blender-modeling-route.md) — 🔄 进行中（房间建模、GLB 导出和节点交互契约已完成；待 collider/性能验收，可选拆分不阻塞当前首页）
 
 ---
 
 ## 📋 已完成计划
 
-完成后的计划文档应移至 `docs/designs/archive/` 或删除。
+完成后的计划文档移至 `docs/plans/archive/`，长期设计以 `docs/designs/` 下的设计文档为准。
 
 ### 已归档
 
+- [合集昼夜双主题与档案盒交互改造](./archive/collection-day-night-redesign.md) - 昼夜主题、档案盒交互、资源配置和 SEO 验收（2026-08-01 完成）
+- [内容创作中台建设](./archive/content-creation-platform.md) - `/create`、选题 Agent、模板库、多平台草稿和素材链路（2026-08-01 完成）
 - [RAG 系统重构](../designs/archive/rag-system-refactor.md) - 向量化系统简化（已完成）
 - [聊天系统 LangChain/LangGraph 迁移](../designs/archive/chat-langchain-migration.md) - 迁移至 LangGraph 技术栈（2026-05-10 完成）
 - [管理后台移动端适配优化](../designs/archive/admin-mobile-ux.md) - 响应式 Sider/Drawer 切换（commit 6f046a2 完成）
@@ -84,4 +84,4 @@
 
 ---
 
-**最后更新**: 2026-07-28
+**最后更新**: 2026-08-01

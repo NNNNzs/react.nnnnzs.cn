@@ -76,19 +76,19 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
-- **[合集昼夜双主题与档案盒交互改造](docs/plans/collection-day-night-redesign.md)** — 🚧 进行中（前后台、SEO、CDN 资源和数据库同步已完成，待竖长视频资源与跨端验收）
 - **[博客轮询削峰与缓存防击穿改造](docs/plans/polling-load-shedding.md)** — 🔄 进行中（代码改造与静态验证已完成，待浏览器多标签页及生产缓存联调）
 - **[后台任务桌面通知模块](docs/plans/desktop-task-notifications.md)** — 🔄 进行中（模块代码、静态检查和任务深链验收已完成，待数据库索引同步与通知授权后验收）
 - **[MCP Prompt 动态注册改造](docs/plans/mcp-prompts.md)** — 🔄 进行中（Prompt 原语注册、后台暴露开关和静态检查已完成，待真实 MCP 客户端联调）
 - **[AI Agent 工具定义与装配统一改造](docs/plans/ai-agent-tools-unification.md)** — 🔄 进行中（共享定义、请求级上下文工厂、Agent 白名单和 Prompt scope 已落地；待数据库模板同步与运行联调）
-- **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步与浏览器联调）
-- **[内容创作中台建设](docs/plans/content-creation-platform.md)** — 🔄 进行中（Topic Agent、小红书/知乎草稿转换与 Markdown 编辑代码已落地；待数据库同步、场景绑定和浏览器联调）
-- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；GLB 开发调参工具取消，后续做移动端与性能验收）
+- **[草稿库创作 Agent 助手](docs/plans/create-agent.md)** — 🔄 进行中（第一期代码、选题/模板上下文注入、知乎 Markdown、hook/tags 回填已落地；待数据库同步、Provider 配置和真实 Agent/浏览器联调）
+- **[赛博朋克 3D 首页改造](docs/plans/cyberpunk-homepage-3d.md)** — 🔄 进行中（Blender GLB、旧版视角/明亮度/HUD、动态内容与原有交互已恢复；待移动端截图、性能和首屏衔接验收）
 - **[AI Lab / LLM 学习实验台建设](docs/plans/ai-lab-llm-learning.md)** — 🔄 进行中（已完成后台信息架构拆分、Run 观测和系统级 Prompts 管理，后续推进 Run 转 Eval Case、Golden Dataset 与 Replay）
 - **[AI Provider 配置管理重构](docs/plans/ai-provider-config.md)** — 🔄 进行中（Provider + 场景绑定代码已落地；待数据迁移与全场景手动验收）
-- **[赛博朋克 Blender 建模路由](docs/plans/cyberpunk-blender-modeling-route.md)** — 🔄 进行中
+- **[赛博朋克 Blender 建模路由](docs/plans/cyberpunk-blender-modeling-route.md)** — 🔄 进行中（房间建模、GLB 导出和节点交互契约已完成；待 collider/性能验收，可选拆分不阻塞当前首页）
 
-### 已完成计划（已归档到 `docs/designs/archive/`）
+### 已完成计划（已归档到 `docs/plans/archive/`）
+- **[合集昼夜双主题与档案盒交互改造](docs/plans/archive/collection-day-night-redesign.md)** — 昼夜主题、档案盒交互、资源配置和 SEO 验收（2026-08-01 完成）
+- **[内容创作中台建设](docs/plans/archive/content-creation-platform.md)** — `/create`、选题 Agent、模板库、多平台草稿和素材链路（2026-08-01 完成）
 - **[LangChain/LangGraph 迁移](docs/designs/archive/chat-langchain-migration.md)** - 聊天系统迁移至 LangGraph
 - **[管理后台移动端适配](docs/designs/archive/admin-mobile-ux.md)** - 响应式 Sider/Drawer 切换
 - **[Prisma 7 升级](docs/designs/archive/prisma-7-upgrade.md)** - Prisma 7.8.0、MariaDB adapter 与 multi-file schema 升级

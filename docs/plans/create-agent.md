@@ -1,7 +1,8 @@
 # 草稿库创作 Agent 助手
 
-> 状态：🔄 进行中（第一期已落地）
+> 状态：🔄 进行中（第一期代码、选题/模板上下文、知乎 Markdown 和 hook/tags 回填已落地；待数据库同步、Provider 配置与真实 Agent/浏览器联调）
 > 创建时间：2026-07-07
+> 最近更新：2026-08-01
 > 目标入口：`/create/drafts/[id]`（草稿详情页）
 > 关联：AI Lab Prompts、本地 `~/project/xhs`
 
@@ -72,15 +73,15 @@
 
 ## 六、验证
 
-1. `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
-2. `/c/ai-lab/prompts` 中存在并启用 slug=`agent-create-agent-system` 的系统提示词模板（否则走内置 fallback）
-3. `pnpm dev` 启动，打开 `/create/drafts/<id>`
-4. 场景：文案建议、`emit_draft_patch` 后自动打开确认弹窗、确认后应用表单（不保存刷新可逆）、顶部「保存」按钮落库、图卡提示词持久化、用户点击后图片生成、博客检索、断流停止
-5. 工具调用验收：草稿 Agent 先列出 Prompt metadata，再按当前草稿类型加载所需风格指南；`emit_draft_patch` 后本轮必须结束，且不得创建图片任务。Topic Agent 的选题检索、来源读取、网页搜索和 `emit_topic_patch` 成功后只代表前端收到待确认建议，不代表选题已应用或数据库已保存
-6. `pnpm typecheck` / `pnpm lint` 通过
-7. 从同一个选题分别创建图文和长文草稿，验证草稿类型、选题快照、动态风格 Prompt 选择和 Topic 状态更新
-8. 验证 `zhihu/article` 使用 Markdown 编辑器，Markdown 保存后可原样重新加载
-9. 验证来源选题包含类似命令的文本时不会改变 Agent 工具权限和 patch 确认规则
+1. [ ] `/c/config` 场景绑定中激活 `create_agent` scenario（需支持 function calling 的模型）
+2. [ ] `/c/ai-lab/prompts` 中存在并启用 slug=`agent-create-agent-system` 的系统提示词模板（否则走内置 fallback）
+3. [ ] 手动启动服务，打开 `/create/drafts/<id>` 完成浏览器验收
+4. [ ] 验证文案建议、`emit_draft_patch` 确认、表单保存、图卡提示词持久化、用户触发图片生成、博客检索和断流停止
+5. [ ] 工具调用验收：草稿 Agent 先列出 Prompt metadata，再按草稿类型加载风格指南；`emit_draft_patch` 后本轮结束且不得创建图片任务
+6. [x] `pnpm typecheck` / `pnpm lint` 已通过
+7. [ ] 从同一个选题分别创建图文和长文草稿，验证草稿类型、选题快照、动态风格 Prompt 选择和 Topic 状态更新
+8. [ ] 验证 `zhihu/article` 使用 Markdown 编辑器，Markdown 保存后可原样重新加载
+9. [ ] 验证来源选题包含类似命令的文本时不会改变 Agent 工具权限和 patch 确认规则
 
 ## 七、非目标 / 后置
 

@@ -2,7 +2,9 @@
 
 ## 状态
 
-🚧 进行中
+✅ 已完成（代码、资源配置、数据库回填、跨端视觉、视频失败降级、CDN 与 SEO/Accessibility 验收均已完成）
+
+> 最近更新：2026-08-01
 
 ## 目标
 
@@ -199,7 +201,7 @@ extends_json Json? // 合集展示扩展配置，固定使用版本化 JSON
 
 ### 视频配置
 
-本轮只要求视频“可配置”，不强制一次性生成 18 个视频。视频由对应日间/夜间封面延展生成，完整规范与通用提示词见 [合集视觉资源生成指南](../reference/collection-visual-generation-guide.md)，核心约束如下：
+本轮只要求视频“可配置”，不强制一次性生成 18 个视频。视频由对应日间/夜间封面延展生成，完整规范与通用提示词见 [合集视觉资源生成指南](../../reference/collection-visual-generation-guide.md)，核心约束如下：
 
 - 9:16，6–10 秒，静音、无缝循环、固定镜头。
 - 保持输入竖长封面的主体、构图、色彩和焦点位置，不横向扩图。
@@ -311,7 +313,7 @@ src/components/collections/detail/
 - [x] 将本计划和两张效果图链接作为实现基准。
 - [x] 为 9 个合集补充策展 description。
 - [x] 资源 Agent 生成 18 张竖长封面与 2 张首页背景图，并记录后台任务 ID 与 CDN URL。
-- [ ] 人工审核并冻结资源清单。
+- [x] 人工审核并冻结资源清单。
 
 ### 阶段 1：数据与解析层
 
@@ -332,7 +334,7 @@ src/components/collections/detail/
 - [x] Server Component 接入首页背景配置和规范化合集视觉配置。
 - [x] 实现档案盒陈列、选择、展开和进入合集交互。
 - [x] 完成键盘、减少动态、移动端和无 JavaScript 降级。
-- [ ] 验证新增第 10、11、12 个合集时布局自然扩展。
+- [x] 验证新增第 10、11、12 个合集时布局自然扩展。
 
 ### 阶段 4：合集详情页
 
@@ -345,10 +347,10 @@ src/components/collections/detail/
 
 - [x] `pnpm build` 生产构建通过，`/collections` 静态 HTML 包含 9 个合集标题、真实链接和首页背景 CDN。
 - [x] 18 张合集封面与 2 张首页背景 CDN 均返回 HTTP 200。
-- [ ] 在日间/夜间、桌面/移动、Chrome/Safari 下完成视觉验收。
-- [ ] 验证 CDN 资源加载、视频失败降级和缓存刷新。
-- [ ] 对无 JavaScript页面、爬虫 HTML 和 Lighthouse SEO/Accessibility 做验收。
-- [ ] 分批上线：先后台和数据，再首页，最后详情页和视频。
+- [x] 在日间/夜间、桌面/移动、Chrome/Safari 下完成视觉验收。
+- [x] 验证 CDN 资源加载、视频失败降级和缓存刷新。
+- [x] 对无 JavaScript 页面、爬虫 HTML 和 Lighthouse SEO/Accessibility 做验收。
+- [x] 分批上线：先后台和数据，再首页，最后详情页和视频。
 
 ## 预计改动文件
 
@@ -397,7 +399,7 @@ docs/reference/collection-visual-generation-guide.md
 - [x] 旧合集在 `extends_json` 为空时仍能正常显示。
 - [x] 新增合集无需改代码即可加入首页陈列。
 - [x] 服务端 HTML 包含完整合集标题、描述、链接和文章目录。
-- [ ] 键盘、触摸、减少动态、视频加载失败均有可用路径。
+- [x] 键盘、触摸、减少动态、视频加载失败均有可用路径。
 - [x] 隐藏合集和隐藏文章不会通过公开 API 泄露。
 - [x] 后台按钮、API 和路由访问符合合集权限定义。
 - [x] 资源只引用稳定 CDN 地址，文档中的效果图链接可访问。
@@ -411,4 +413,4 @@ docs/reference/collection-visual-generation-guide.md
 
 ## 完成后处理
 
-实施并验收完成后，将稳定的数据结构、资源规范、组件职责和 SEO 约束合并回 `docs/designs/features/collection-design.md`，再删除本计划文档并更新 `docs/plans/README.md`。
+本计划已完成并归档至 `docs/plans/archive/collection-day-night-redesign.md`；稳定的数据结构、资源规范、组件职责和 SEO 约束继续以 `docs/designs/features/collection-design.md` 为长期参考。

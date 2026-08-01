@@ -168,6 +168,6 @@ AI 助手调用 `emit_draft_patch` 后，前端会立即打开「确认 AI 草�
 ## 八、关联计划
 
 - [草稿库创作 Agent 助手计划](../../plans/create-agent.md) - 实施计划
-- [内容创作中台建设](../../plans/content-creation-platform.md) - 所属中台
+- [内容创作中台建设](../../plans/archive/content-creation-platform.md) - 所属中台
 - [AI Provider 配置管理](./ai-config-profiles.md) - create_agent scenario 配置
 - [Agent 聊天系统](../chat/rag-chat.md) - chat-agent 参考实现

@@ -1,6 +1,6 @@
 # 博客合集功能设计文档
 
-> **昼夜双主题与档案盒交互迁移**：后续改造范围、效果图、资源字段、后台配置和 SEO 验收详见 [合集昼夜双主题与档案盒交互改造计划](../../plans/collection-day-night-redesign.md)。图片与视频生产统一参考 [合集视觉资源生成指南](../../reference/collection-visual-generation-guide.md)。
+> **昼夜双主题与档案盒交互迁移**：改造范围、效果图、资源字段、后台配置和 SEO 验收详见 [合集昼夜双主题与档案盒交互改造计划](../../plans/archive/collection-day-night-redesign.md)。图片与视频生产统一参考 [合集视觉资源生成指南](../../reference/collection-visual-generation-guide.md)。
 
 ## 昼夜视觉改造代码落点（2026-07-29）
 
