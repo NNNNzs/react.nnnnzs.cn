@@ -11,7 +11,8 @@ function isBackofficeRoute(pathname: string) {
     pathname === "/c" ||
     pathname.startsWith("/c/") ||
     pathname === "/create" ||
-    pathname.startsWith("/create/")
+    pathname.startsWith("/create/") ||
+    pathname === "/preview"
   );
 }
 

@@ -99,6 +99,8 @@ export default function Header() {
   const algoliaApiKey = algoliaConfig.algolia_api_key;
   const algoliaIndexName = algoliaConfig.algolia_index_name;
 
+  if (pathname === '/preview') return null;
+
   return (
     <>
       <header

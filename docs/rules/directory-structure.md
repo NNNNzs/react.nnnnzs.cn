@@ -6,6 +6,8 @@
 src/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API routes (REST + MCP)
+│   │   ├── create/                # 内容创作 API
+│   │   │   └── drafts/[id]/preview-share/ # 草稿公开预览分享管理（GET/POST/DELETE）
 │   │   ├── post/                 # 博客文章 API
 │   │   ├── user/                 # 用户认证 API
 │   │   ├── ai/                   # AI 生成端点
@@ -55,6 +57,7 @@ src/
 │   ├── tags/                     # 标签页面
 │   ├── archives/                 # 归档页面
 │   ├── chat/                     # AI 聊天界面
+│   ├── preview/                  # 持有效 opaque share token 的免登录草稿公开预览
 │   └── login/                    # 认证页面
 │
 ├── components/                   # React 组件

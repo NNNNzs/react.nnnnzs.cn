@@ -6,6 +6,7 @@
 'use client';
 
 import Script from 'next/script';
+import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -22,6 +23,8 @@ interface GoogleAnalyticsProps {
 }
 
 export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
+  const pathname = usePathname();
+  if (pathname === '/preview') return null;
   if (!measurementId) return null;
 
   return (

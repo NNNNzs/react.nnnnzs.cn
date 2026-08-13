@@ -18,6 +18,7 @@
 | `/bind-wechat` | 绑定微信 |
 | `/notifications`、`/notification-policy` | 通知中心与通知策略 |
 | `/privacy` | 隐私说明 |
+| `/preview?share=<opaque-token>&mode=<mode>` | 草稿公开预览；无需登录，但必须持有有效的 opaque 分享 token，`mode` 为 `xhs`、`zhihu` 或 `toutiao` |
 | `/authorize` | OAuth 授权确认 |
 | `/glb-model-inspector` | GLB 模型检查器 |
 
@@ -76,6 +77,9 @@
 | `/api/image-gen/*` | 图片生成、编辑、识别、任务状态、重试与队列 |
 | `/api/tts/*` | TTS 提交、日志、任务状态、重试与队列 |
 | `/api/create/*` | 选题、草稿、幻灯片、素材与创作总览 |
+| `GET /api/create/drafts/[id]/preview-share` | 列出草稿公开预览分享；需要内容查看权限及草稿数据范围权限 |
+| `POST /api/create/drafts/[id]/preview-share` | 创建或轮换公开预览分享，支持设置过期时间；需要内容编辑权限及草稿数据范围权限 |
+| `DELETE /api/create/drafts/[id]/preview-share` | 撤销草稿全部公开预览分享；需要内容编辑权限及草稿数据范围权限 |
 | `/api/admin/ai-lab/*` | AI Lab Run 与 Prompt 管理 |
 | `/api/admin/roles/*`、`/api/admin/permissions` | RBAC 管理 |
 | `/api/admin/api-registry` | API 注册表 |
@@ -99,4 +103,4 @@
 - `/.well-known/[...rest]`
 - `/rss.xml`
 
-最后更新：2026-07-28。
+最后更新：2026-08-13。

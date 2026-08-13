@@ -29,6 +29,7 @@ import {
   SaveOutlined,
 } from "@ant-design/icons";
 import { CreateAgentPanel } from "./CreateAgentPanel";
+import { DraftPreviewActions } from "./DraftPreviewActions";
 import { useCreateAgent } from "./useCreateAgent";
 import { ContentDiffViewer } from "@/components/diff/ContentDiffViewer";
 import type { DraftPatch } from "@/services/ai/tools/create-tools/draft-patch";
@@ -418,10 +419,10 @@ export function CreateDraftEditor() {
     )
   ), [body, draft, hook, status, tags, title, type]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     if (!title.trim()) {
       message.warning("请输入草稿标题");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -449,8 +450,10 @@ export function CreateDraftEditor() {
       setType(result.type);
       setStatus(result.status);
       message.success("草稿已保存");
+      return true;
     } catch (error) {
       message.error(error instanceof Error ? error.message : "保存草稿失败");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -791,6 +794,7 @@ export function CreateDraftEditor() {
               <Tag>{typeLabel.get(type) ?? type}</Tag>
               <Tag color="purple">{draft.platform === "zhihu" ? "知乎" : "小红书"}</Tag>
               <Tag color="green">{selectedImages.length} 张图片</Tag>
+              <Tag color={hasChanges ? "orange" : "default"}>{hasChanges ? "有未保存修改" : "已保存"}</Tag>
             </div>
             <Input
               value={title}
@@ -830,6 +834,12 @@ export function CreateDraftEditor() {
             <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!hasChanges} onClick={handleSave}>
               保存
             </Button>
+            <DraftPreviewActions
+              draftId={draftId}
+              defaultMode={draft.platform === "zhihu" ? "zhihu" : "xhs"}
+              hasChanges={hasChanges}
+              onSave={handleSave}
+            />
           </div>
         </section>
 

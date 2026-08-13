@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -7,14 +6,12 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
 import { CurrentPostProvider } from "@/contexts/CurrentPostContext";
 import { TaskNotificationProvider } from "@/contexts/TaskNotificationContext";
-import { GoogleTagManager } from "@next/third-parties/google";
-import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { getAnalyticsConfig } from "@/lib/analytics-config";
 import "./globals.css";
 // import "./antd-fix.css";
 import Header from "@/components/Header";
 import DeployStatusIndicator from "@/components/DeployStatusIndicator";
-import GoogleAdSense from "@/components/GoogleAdSense";
+import { SiteThirdParties } from "@/components/SiteThirdParties";
 // 初始化向量化队列
 import "@/lib/embedding-init";
 
@@ -107,21 +104,7 @@ export default async function RootLayout({
                     <Header />
                     {children}
                     <DeployStatusIndicator />
-                    <Script id="baidu-analytics" strategy="afterInteractive">
-                      {`
-                  var _hmt = _hmt || [];
-                  (function() {
-                    var hm = document.createElement("script");
-                    hm.src = "https://hm.baidu.com/hm.js?51f12d30a4c94bac90b35bde7079f7b8";
-                    var s = document.getElementsByTagName("script")[0];
-                    s.parentNode.insertBefore(hm, s);
-                  })();
-                  `}
-                    </Script>
-                    <GoogleAdSense />
-     
-                    <GoogleTagManager gtmId="GTM-PTJQT23X" />
-                    <GoogleAnalytics measurementId={analyticsConfig.measurementId} />
+                    <SiteThirdParties measurementId={analyticsConfig.measurementId} />
                   </TaskNotificationProvider>
                 </body>
               </ConfigProvider>

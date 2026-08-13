@@ -54,6 +54,7 @@ model ContentDraft {
   topic  ContentTopic?       @relation(fields: [topic_id], references: [id], onDelete: SetNull)
   slides ContentDraftSlide[]
   assets ContentDraftAsset[]
+  preview_shares ContentDraftPreviewShare[]
 
   @@index([status, updated_at], name: "idx_draft_status_updated")
   @@index([topic_id], name: "idx_draft_topic")
@@ -61,6 +62,22 @@ model ContentDraft {
   @@index([template_id], name: "idx_draft_template")
   @@index([created_by, created_at], name: "idx_draft_user_time")
   @@map("content_drafts")
+}
+
+// 匿名公开预览凭证：仅保存不可逆 token hash，明文只在创建/轮换响应中返回一次。
+model ContentDraftPreviewShare {
+  id         Int      @id @default(autoincrement())
+  draft_id   Int
+  token_hash String   @unique @db.Char(64)
+  created_by Int?
+  expires_at DateTime?
+  revoked_at DateTime?
+  created_at DateTime @default(now())
+
+  draft ContentDraft @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+
+  @@index([draft_id, revoked_at, expires_at], name: "idx_preview_share_draft_state")
+  @@map("content_draft_preview_shares")
 }
 
 // 小红书图文卡片结构化内容。

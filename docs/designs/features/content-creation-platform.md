@@ -104,6 +104,18 @@ flowchart TB
 | `/create/calendar` | 发布日历 | 管理平台、计划发布时间和发布状态 |
 | `/create/review` | 复盘数据 | 录入和查看收藏、评论、私信、博客回流 |
 
+### 4.1 草稿公开预览
+
+草稿详情可创建公开预览链接，入口为 `/preview?share=<opaque-token>&mode=<mode>`。`/preview` 不要求登录，也不进入 `/create` 的登录守卫；访问者必须携带有效、不可猜测的 opaque share token，否则统一显示不可用页面。
+
+预览支持三种 `mode`：`xhs` 展示小红书图文卡片样式，`zhihu` 展示 Markdown 长文和目录，`toutiao` 展示头条文章样式。三种模式均读取当前数据库中**已保存的实时草稿版本**，不会读取编辑器未保存内容，也不复制一份独立的公开草稿快照。
+
+分享由 `ContentDraftPreviewShare` 管理。服务端只持久化 token 的 SHA-256 `token_hash`；明文 token 仅在创建或轮换时返回一次。管理者可以设置 `expires_at`，也可以撤销全部分享（写入 `revoked_at`）；过期或撤销后的链接立即不可用。删除草稿时分享记录随草稿级联删除。
+
+创建、查询和撤销分享使用 `/api/create/drafts/[id]/preview-share`，仍按草稿的数据范围校验内容权限；公开预览读取不暴露管理接口、编辑能力或 token 列表。页面设置 `noindex, nofollow, nocache`，Markdown 禁用原始 HTML，并限制外链协议；token 不写入数据库日志或响应以外的持久化位置。
+
+MVP 不包含访客登录、评论、协作编辑、访问统计、密码保护、按人授权、独立发布快照或自动向第三方平台发布。分享链接是持有者令牌，不应被当作细粒度身份认证或长期发布渠道。
+
 ## 5. 页面体验
 
 ### 5.1 工作台
