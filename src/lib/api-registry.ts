@@ -263,7 +263,11 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpEnabled: true,
     mcpToolName: 'create_content_draft',
     handler: async (args, user) => {
-      const { createContentDraft } = await import('@/services/content-creation');
+      const [{ createContentDraft }, { assertContentDraftPreviewSigningConfigured, withContentDraftPreviewUrl }] = await Promise.all([
+        import('@/services/content-creation'),
+        import('@/lib/content-draft-preview'),
+      ]);
+      assertContentDraftPreviewSigningConfigured();
       const input = parseMcpInput(createDraftSchema.safeParse(args));
       if (
         hasDraftAssetSelections(input.assets)
@@ -272,11 +276,11 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       ) {
         throw new Error(`无权限：需要 ${contentAssetListRoute.permissionCode}`);
       }
-      return createContentDraft({
+      return withContentDraftPreviewUrl((await createContentDraft({
         ...input,
         created_by: user.id,
         asset_user_id: getScopedUserId(user, contentAssetListRoute.permissionCode!),
-      });
+      }))!);
     },
   },
   {
@@ -285,8 +289,13 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpEnabled: true,
     mcpToolName: 'get_content_draft',
     handler: async (args) => {
-      const { getContentDraft } = await import('@/services/content-creation');
-      return getContentDraft(getPositiveId(args, '草稿'));
+      const [{ getContentDraft }, { assertContentDraftPreviewSigningConfigured, withContentDraftPreviewUrl }] = await Promise.all([
+        import('@/services/content-creation'),
+        import('@/lib/content-draft-preview'),
+      ]);
+      assertContentDraftPreviewSigningConfigured();
+      const draft = await getContentDraft(getPositiveId(args, '草稿'));
+      return draft ? withContentDraftPreviewUrl(draft) : null;
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },
@@ -296,7 +305,11 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
     mcpEnabled: true,
     mcpToolName: 'update_content_draft',
     handler: async (args, user) => {
-      const { updateContentDraft } = await import('@/services/content-creation');
+      const [{ updateContentDraft }, { assertContentDraftPreviewSigningConfigured, withContentDraftPreviewUrl }] = await Promise.all([
+        import('@/services/content-creation'),
+        import('@/lib/content-draft-preview'),
+      ]);
+      assertContentDraftPreviewSigningConfigured();
       const id = getPositiveId(args, '草稿');
       const { id: _id, ...input } = args;
       void _id;
@@ -308,10 +321,10 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       ) {
         throw new Error(`无权限：需要 ${contentAssetListRoute.permissionCode}`);
       }
-      return updateContentDraft(id, {
+      return withContentDraftPreviewUrl((await updateContentDraft(id, {
         ...parsed,
         asset_user_id: getScopedUserId(user, contentAssetListRoute.permissionCode!),
-      });
+      }))!);
     },
     getOwnerId: (resource) => (resource as { created_by?: number })?.created_by,
   },

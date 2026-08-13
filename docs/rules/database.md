@@ -21,7 +21,7 @@
 | `blog.prisma` | `TbPost`、`TbConfig`、`TbPostVersion`、`TbCollection`、`TbCollectionPost`、`TbComment`、`TbNotification`、`TbNotificationDelivery`、`TbLikeRecord`、`TbEntityChangeLog` |
 | `rbac.prisma` | `TbUser`、`LongTermToken`、`TbRole`、`TbPermission`、`TbRolePermission`、`TbUserRole`、`TbApiRegistry` |
 | `ai.prisma` | `TbAiProvider`、`TbAiScenario`、`TbAiScenarioBinding`、`TbAiJob`、`TbAiTemplate`、`TbAiTemplateVersion`、`TbImageGenLogLegacy`、`TbChatSession`、`TbChatMessage`、`TbAiLabRun` |
-| `content.prisma` | `ContentTopic`、`ContentDraft`、`ContentDraftPreviewShare`、`ContentDraftSlide`、`ContentDraftAsset`、`ContentAsset` |
+| `content.prisma` | `ContentTopic`、`ContentDraft`、`ContentDraftSlide`、`ContentDraftAsset`、`ContentAsset` |
 
 不要在文档或业务代码中假设存在单文件 `prisma/schema.prisma`。图片与 TTS 新任务写入 `TbAiJob`；`TbImageGenLogLegacy` 仅保留旧表兼容，不接收新任务。
 
@@ -57,11 +57,9 @@
 
 - `ContentTopic` 管理选题。
 - `ContentDraft` 管理平台草稿，`ContentDraftSlide` 管理小红书等分页内容。
-- `ContentDraftPreviewShare` 管理草稿公开预览凭证；只保存 SHA-256 `token_hash`，明文 opaque token 仅在创建或轮换响应中返回一次，不能记录、查询或回显。
-- 分享凭证的 `expires_at` 与 `revoked_at` 分别表示过期和撤销状态；公开读取必须同时拒绝已过期或已撤销的凭证。
 - `ContentAsset` 管理上传、外链与 AI 生成素材。
 - `ContentDraftAsset` 管理草稿与素材的多对多使用关系；同一草稿内素材唯一，排序和备注属于关联记录。
-- 删除草稿时级联删除 `ContentDraftPreviewShare`、`ContentDraftAsset` 与图卡；删除素材时由草稿关联和图卡引用共同限制，不允许静默解除。
+- 删除草稿时级联删除 `ContentDraftAsset` 与图卡；删除素材时由草稿关联和图卡引用共同限制，不允许静默解除。
 - 从草稿解除素材关联时，业务事务必须先清空同一草稿内引用该素材的 `ContentDraftSlide.asset_id`。
 
 字段、relation、index、default 与物理表名必须直接查看对应 `.prisma` 文件，不在规范中复制可能漂移的完整模型。
@@ -121,7 +119,7 @@ import { prisma } from '@/lib/prisma';
 - 是否修改了正确的模块文件？
 - model / field 映射是否与现有物理表一致？
 - relation、unique、index 与删除行为是否完整？
-- 公开分享凭证是否只保存 `token_hash`，并正确处理 `expires_at`、`revoked_at` 与草稿删除级联？
+- 草稿公开预览是否只签名草稿 ID 与有效期，且不将预览参数或敏感内容持久化？
 - 是否影响 seed、同步脚本、权限注册或队列恢复？
 - 是否运行 format、validate、`pnpm prisma:push`（或如实记录 `DATABASE_URL` / 连接阻塞）、generate、typecheck？
 - 是否同步更新 `docs/rules/`、相关设计文档和 README？

@@ -755,6 +755,8 @@ export const BUILTIN_AI_TEMPLATES: CreateAiTemplateInput[] = [
 - poll_image_job：轮询文生图任务状态，成功返回 CDN URL
 - emit_draft_patch：把你建议写进草稿的内容以结构化 patch 形式发给前端，等待用户确认
 
+草稿创建、更新或读取工具返回的 previewUrl 是固定 7 天有效的公开预览基础链接。需要预览时，在其后追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao，分别使用小红书、知乎或今日头条样式；mode 不参与签名校验。
+
 工作原则：
 1. 先理解用户意图，需要方法论时先用 list_prompts 或 load_prompt_template 读取对应模板。
 2. 修改草稿内容时，禁止只在对话里贴文本，必须调用 emit_draft_patch 工具提交结构化 patch，由前端展示差异并等待用户确认。

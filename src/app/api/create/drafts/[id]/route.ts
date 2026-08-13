@@ -19,6 +19,7 @@ import {
   draftAssetsSchema,
   hasDraftAssetSelections,
 } from '@/lib/content-draft-assets';
+import { assertContentDraftPreviewSigningConfigured, withContentDraftPreviewUrl } from '@/lib/content-draft-preview';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -37,13 +38,13 @@ export const updateDraftSchema = z.object({
 const draftIdInputSchema = { id: { type: 'number', description: '草稿 ID' } };
 
 export const getDescriptor: ApiDescriptor = {
-  code: 'create_drafts_get', name: '草稿详情', description: '按 ID 获取草稿正文、标签、图卡和已选素材。',
+  code: 'create_drafts_get', name: '草稿详情', description: '按 ID 获取草稿正文、标签、图卡和已选素材。响应中的 previewUrl 为固定 7 天有效的公开预览基础链接；追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao 分别使用小红书、知乎或今日头条样式，mode 不参与签名校验。',
   module: 'content', method: 'GET', permissionCode: CONTENT_VIEW,
   inputSchema: { type: 'object', properties: draftIdInputSchema, required: ['id'] },
 };
 
 export const updateDescriptor: ApiDescriptor = {
-  code: 'create_drafts_update', name: '更新草稿', description: '更新草稿字段；assets 省略时不变，传入时完整替换素材关联。',
+  code: 'create_drafts_update', name: '更新草稿', description: '更新草稿字段；assets 省略时不变，传入时完整替换素材关联。响应中的 previewUrl 为固定 7 天有效的公开预览基础链接；追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao 分别使用小红书、知乎或今日头条样式，mode 不参与签名校验。',
   module: 'content', method: 'PATCH', permissionCode: CONTENT_EDIT,
   inputSchema: {
     type: 'object',
@@ -75,6 +76,7 @@ async function readDraftId(context: RouteContext) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    assertContentDraftPreviewSigningConfigured();
     const check = await requirePermission(request, CONTENT_VIEW);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
@@ -94,7 +96,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json(errorResponse('无权限操作此资源'), { status: 403 });
     }
 
-    return NextResponse.json(successResponse(draft), {
+    return NextResponse.json(successResponse(withContentDraftPreviewUrl(draft)), {
       headers: {
         'Cache-Control': 'no-store',
         Pragma: 'no-cache',
@@ -108,6 +110,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    assertContentDraftPreviewSigningConfigured();
     const check = await requirePermission(request, CONTENT_EDIT);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
@@ -134,15 +137,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (hasDraftAssetSelections(validation.data.assets) && !check.user.permissions.includes(CONTENT_VIEW)) {
       return NextResponse.json(errorResponse(`无权限：需要 ${CONTENT_VIEW}`), { status: 403 });
     }
-    if (existing.platform === 'zhihu' && validation.data.type && validation.data.type !== 'article') {
-      return NextResponse.json(errorResponse('知乎草稿必须使用长文 / Markdown 类型'), { status: 400 });
+    if ((existing.platform === 'zhihu' || existing.platform === 'toutiao') && validation.data.type && validation.data.type !== 'article') {
+      return NextResponse.json(errorResponse('知乎和今日头条草稿必须使用长文 / Markdown 类型'), { status: 400 });
     }
 
     const draft = await updateContentDraft(draftId, {
       ...validation.data,
       asset_user_id: hasDataPermission(check.user, CONTENT_VIEW) ? undefined : check.user.id,
     });
-    return NextResponse.json(successResponse(draft, '草稿已保存'), {
+    return NextResponse.json(successResponse(withContentDraftPreviewUrl(draft!), '草稿已保存'), {
       headers: {
         'Cache-Control': 'no-store',
         Pragma: 'no-cache',

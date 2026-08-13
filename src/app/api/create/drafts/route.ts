@@ -22,10 +22,11 @@ import {
   draftAssetsSchema,
   hasDraftAssetSelections,
 } from '@/lib/content-draft-assets';
+import { assertContentDraftPreviewSigningConfigured, withContentDraftPreviewUrl } from '@/lib/content-draft-preview';
 
 export const createDraftSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(255, '标题不能超过255个字符'),
-  platform: z.enum(['xhs', 'zhihu']).default('xhs'),
+  platform: z.enum(['xhs', 'zhihu', 'toutiao']).default('xhs'),
   type: z.enum(CONTENT_DRAFT_TYPES).default('note'),
   status: z.enum(CONTENT_DRAFT_STATUSES).default('DRAFT'),
   topic_id: z.coerce.number().int().positive().optional().nullable(),
@@ -36,11 +37,11 @@ export const createDraftSchema = z.object({
   tags: z.array(z.string().min(1)).max(20).optional().nullable(),
   assets: draftAssetsSchema.optional(),
 }).superRefine((value, context) => {
-  if (value.platform === 'zhihu' && value.type !== 'article') {
+  if ((value.platform === 'zhihu' || value.platform === 'toutiao') && value.type !== 'article') {
     context.addIssue({
       code: 'custom',
       path: ['type'],
-      message: '知乎草稿必须使用长文 / Markdown 类型',
+      message: '知乎和今日头条草稿必须使用长文 / Markdown 类型',
     });
   }
 });
@@ -58,7 +59,7 @@ export const getDescriptor: ApiDescriptor = {
       pageNum: { type: 'number', description: '页码，默认 1' },
       pageSize: { type: 'number', description: '每页数量，默认 20，最大 100' },
       query: { type: 'string', description: '搜索草稿标题、开头或正文' },
-      platform: { type: 'string', description: '平台：xhs 或 zhihu' },
+      platform: { type: 'string', description: '平台：xhs、zhihu 或 toutiao' },
       type: { type: 'string', description: '草稿类型' },
       status: { type: 'string', description: '草稿状态' },
       topicId: { type: 'number', description: '关联选题 ID' },
@@ -69,7 +70,7 @@ export const getDescriptor: ApiDescriptor = {
 export const createDescriptor: ApiDescriptor = {
   code: 'create_drafts_create',
   name: '新建草稿',
-  description: '新建小红书或知乎草稿，可直接写入正文、标签和有序素材关联。',
+  description: '新建小红书、知乎或今日头条草稿，可直接写入正文、标签和有序素材关联。响应中的 previewUrl 为固定 7 天有效的公开预览基础链接；追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao 分别使用小红书、知乎或今日头条样式，mode 不参与签名校验。',
   module: 'content',
   method: 'POST',
   permissionCode: CONTENT_CREATE,
@@ -77,8 +78,8 @@ export const createDescriptor: ApiDescriptor = {
     type: 'object',
     properties: {
       title: { type: 'string', description: '草稿标题' },
-      platform: { type: 'string', description: '平台：xhs 或 zhihu，默认 xhs' },
-      type: { type: 'string', description: '类型；知乎必须使用 article' },
+      platform: { type: 'string', description: '平台：xhs、zhihu 或 toutiao，默认 xhs' },
+      type: { type: 'string', description: '类型；知乎和今日头条必须使用 article' },
       status: { type: 'string', description: '状态，默认 DRAFT' },
       topic_id: { type: 'number', description: '关联选题 ID' },
       source_post_id: { type: 'number', description: '来源博客文章 ID' },
@@ -126,6 +127,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    assertContentDraftPreviewSigningConfigured();
     const check = await requirePermission(request, CONTENT_CREATE);
     if ('error' in check) {
       return NextResponse.json(errorResponse(check.error), { status: check.status });
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
       asset_user_id: hasDataPermission(check.user, CONTENT_VIEW) ? undefined : check.user.id,
     });
 
-    return NextResponse.json(successResponse(result, '草稿已创建'), { status: 201 });
+    return NextResponse.json(successResponse(withContentDraftPreviewUrl(result!), '草稿已创建'), { status: 201, headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } });
   } catch (error) {
     console.error('创建内容草稿失败:', error);
     if (error instanceof ContentDraftAssetPermissionError) {

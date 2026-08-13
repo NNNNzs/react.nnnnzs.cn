@@ -27,6 +27,12 @@ const ZHIHU_QUICK_PROMPTS = [
   { label: "补充一个可运行的示例和踩坑说明" },
 ];
 
+const TOUTIAO_QUICK_PROMPTS = [
+  { label: "根据来源选题生成一版适合今日头条阅读的文章" },
+  { label: "优化标题和开头，提高文章的可读性" },
+  { label: "检查文章结构并补充清晰的小节" },
+];
+
 export function CreateAgentPanel({
   open,
   onClose,
@@ -39,6 +45,7 @@ export function CreateAgentPanel({
   platform,
 }: CreateAgentPanelProps) {
   const isZhihu = platform === "zhihu";
+  const isToutiao = platform === "toutiao";
   return (
     <AgentAssistantPanel
       open={open}
@@ -48,9 +55,11 @@ export function CreateAgentPanel({
       isStreaming={isStreaming}
       onSend={onSend}
       onAbort={onAbort}
-      quickPrompts={isZhihu ? ZHIHU_QUICK_PROMPTS : XHS_QUICK_PROMPTS}
+      quickPrompts={isZhihu ? ZHIHU_QUICK_PROMPTS : isToutiao ? TOUTIAO_QUICK_PROMPTS : XHS_QUICK_PROMPTS}
       emptyDescription={isZhihu
         ? "可以让我根据来源选题起草、调整文章结构或完善 Markdown 长文。建议会先对比再应用。"
+        : isToutiao
+          ? "可以让我根据来源选题起草今日头条文章、优化标题或梳理阅读结构。建议会先对比再应用。"
         : "告诉我你想做什么：改标题、写文案、生成配图。AI 给出草稿建议后，你可以先对比再应用。"}
       patchNotice={hasPendingPatch ? "收到草稿建议，待确认" : "草稿建议已处理"}
       patchActionLabel={hasPendingPatch ? "查看对比" : undefined}

@@ -153,6 +153,7 @@ const topicSourceOptions = [
 const topicDraftPlatformOptions = [
   { label: "小红书图文", value: "xhs" },
   { label: "知乎 Markdown", value: "zhihu" },
+  { label: "今日头条文章", value: "toutiao" },
 ];
 
 const topicSourceLabel = new Map(topicSourceOptions.map((option) => [option.value, option.label]));
@@ -218,6 +219,7 @@ const draftStatusLabel = new Map(draftStatusOptions.map((option) => [option.valu
 const draftPlatformCreateOptions = [
   { label: "小红书", value: "xhs" },
   { label: "知乎", value: "zhihu" },
+  { label: "今日头条", value: "toutiao" },
 ];
 
 async function requestApi<T>(url: string, options?: RequestInit) {
@@ -994,11 +996,11 @@ export function CreateDraftsManager() {
             <Form.Item name="platform" label="平台" rules={[{ required: true }]}>
               <Select
                 options={draftPlatformCreateOptions}
-                onChange={(platform) => form.setFieldValue("type", platform === "zhihu" ? "article" : "note")}
+                onChange={(platform) => form.setFieldValue("type", platform === "xhs" ? "note" : "article")}
               />
             </Form.Item>
             <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select options={draftTypeCreateOptions} disabled={createDraftPlatform === "zhihu"} />
+              <Select options={draftTypeCreateOptions} disabled={createDraftPlatform === "zhihu" || createDraftPlatform === "toutiao"} />
             </Form.Item>
             <Form.Item name="status" label="状态" rules={[{ required: true }]}>
               <Select options={draftStatusCreateOptions} />

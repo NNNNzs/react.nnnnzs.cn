@@ -6,12 +6,13 @@ import { CONTENT_CREATE } from '@/constants/permissions';
 import { createContentDraft, getContentTopic, updateContentTopic } from '@/services/content-creation';
 import { validationErrorResponse } from '../../../_utils';
 import { DRAFT_PLATFORM_PROFILES } from '@/constants/content-drafts';
+import { withContentDraftPreviewUrl } from '@/lib/content-draft-preview';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-const platformSchema = z.enum(['xhs', 'zhihu']);
+const platformSchema = z.enum(['xhs', 'zhihu', 'toutiao']);
 const createDraftFromTopicSchema = z.object({
   platform: platformSchema,
 });
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (topic.status === 'IDEA') {
       await updateContentTopic(topic.id, { status: 'USED' });
     }
-    return NextResponse.json(successResponse(draft, `已创建${target.label}草稿`), { status: 201 });
+    return NextResponse.json(successResponse(withContentDraftPreviewUrl(draft!), `已创建${target.label}草稿`), { status: 201, headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } });
   } catch (error) {
     console.error('从选题创建草稿失败:', error);
     return NextResponse.json(errorResponse(error instanceof Error ? error.message : '从选题创建草稿失败'), { status: 500 });

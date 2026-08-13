@@ -20,11 +20,3 @@ export interface PublicDraftPreviewDto {
     name: string;
   };
 }
-
-export interface DraftPreviewShareView {
-  id: number;
-  expiresAt: Date | null;
-  revokedAt: Date | null;
-  createdAt: Date;
-  active: boolean;
-}

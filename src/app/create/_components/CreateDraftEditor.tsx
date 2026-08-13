@@ -97,6 +97,7 @@ interface DraftRecord {
   updated_at: string;
   slides: DraftSlideItem[];
   assets: DraftAssetItem[];
+  previewUrl?: string;
 }
 
 interface TopicSnapshot {
@@ -346,8 +347,8 @@ export function CreateDraftEditor() {
     () => readDraftSnapshots(draft?.generation_snapshot_json),
     [draft?.generation_snapshot_json],
   );
-  const isZhihuArticle = draft?.platform === "zhihu" && type === "article";
-  const availableDraftTypeOptions = draft?.platform === "zhihu"
+  const isArticlePlatform = (draft?.platform === "zhihu" || draft?.platform === "toutiao") && type === "article";
+  const availableDraftTypeOptions = draft?.platform === "zhihu" || draft?.platform === "toutiao"
     ? DRAFT_TYPE_OPTIONS.filter((option) => option.value === "article")
     : DRAFT_TYPE_OPTIONS;
   const pendingPatchDiff = useMemo(() => (
@@ -792,7 +793,7 @@ export function CreateDraftEditor() {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <Tag color="blue">{statusLabel.get(status) ?? status}</Tag>
               <Tag>{typeLabel.get(type) ?? type}</Tag>
-              <Tag color="purple">{draft.platform === "zhihu" ? "知乎" : "小红书"}</Tag>
+              <Tag color="purple">{draft.platform === "zhihu" ? "知乎" : draft.platform === "toutiao" ? "今日头条" : "小红书"}</Tag>
               <Tag color="green">{selectedImages.length} 张图片</Tag>
               <Tag color={hasChanges ? "orange" : "default"}>{hasChanges ? "有未保存修改" : "已保存"}</Tag>
             </div>
@@ -834,12 +835,11 @@ export function CreateDraftEditor() {
             <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!hasChanges} onClick={handleSave}>
               保存
             </Button>
-            <DraftPreviewActions
-              draftId={draftId}
-              defaultMode={draft.platform === "zhihu" ? "zhihu" : "xhs"}
+            {draft.previewUrl ? <DraftPreviewActions
+              previewUrl={draft.previewUrl}
               hasChanges={hasChanges}
               onSave={handleSave}
-            />
+            /> : null}
           </div>
         </section>
 
@@ -882,7 +882,7 @@ export function CreateDraftEditor() {
                 rows={2}
                 maxLength={5000}
                 showCount
-                placeholder={isZhihuArticle ? "用一段话说明文章要回答的问题" : "用一句话抓住读者注意力"}
+                placeholder={isArticlePlatform ? "用一段话说明文章要回答的问题" : "用一句话抓住读者注意力"}
               />
               <div className="mb-2 mt-4 text-xs font-medium text-slate-500">标签</div>
               <Select
@@ -899,14 +899,14 @@ export function CreateDraftEditor() {
             <div className="min-h-0 rounded-md border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <FileTextOutlined />
-                {isZhihuArticle ? "Markdown 长文" : "正文"}
+                {isArticlePlatform ? "Markdown 长文" : "正文"}
               </div>
-              {isZhihuArticle ? (
+            {isArticlePlatform ? (
                 <div className="h-[680px] overflow-hidden rounded border border-slate-200">
                   <MarkdownEditor
                     value={body}
                     onChange={setBody}
-                    placeholder="使用 Markdown 撰写知乎长文..."
+                    placeholder={draft.platform === "toutiao" ? "使用 Markdown 撰写今日头条文章..." : "使用 Markdown 撰写知乎长文..."}
                     className="h-full"
                   />
                 </div>

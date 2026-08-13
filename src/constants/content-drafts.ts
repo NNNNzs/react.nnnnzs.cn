@@ -11,6 +11,12 @@ export const DRAFT_PLATFORM_PROFILES = {
     label: '知乎长文',
     editor: 'markdown',
   },
+  toutiao: {
+    platform: 'toutiao',
+    type: 'article',
+    label: '今日头条文章',
+    editor: 'article',
+  },
 } as const;
 
 export type DraftPlatform = keyof typeof DRAFT_PLATFORM_PROFILES;

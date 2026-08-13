@@ -128,7 +128,7 @@ interface TopicPatch {
 
 ```ts
 interface CreateDraftFromTopicInput {
-  platform: 'xhs' | 'zhihu';
+  platform: 'xhs' | 'zhihu' | 'toutiao';
 }
 ```
 
@@ -160,6 +160,11 @@ const DRAFT_PLATFORM_PROFILES = {
     templateScenario: 'topic_to_zhihu_article',
     editor: 'markdown',
   },
+  toutiao: {
+    type: 'article',
+    label: '今日头条文章',
+    editor: 'article',
+  },
 } as const;
 ```
 
@@ -175,7 +180,7 @@ const DRAFT_PLATFORM_PROFILES = {
 interface DraftGenerationContext {
   draft: {
     id: number;
-    platform: 'xhs' | 'zhihu';
+    platform: 'xhs' | 'zhihu' | 'toutiao';
     type: 'note' | 'article';
     title: string;
     body: string | null;
@@ -299,7 +304,7 @@ interface DraftPatch {
 
 ### 阶段 B：选题转草稿与上下文契约
 
-1. [x] 抽取共享 `DRAFT_PLATFORM_PROFILES`，首批只在 UI 暴露 `xhs` 和 `zhihu`。
+1. [x] 抽取共享 `DRAFT_PLATFORM_PROFILES`，UI 暴露 `xhs`、`zhihu` 和 `toutiao`。
 2. [x] 给 `ContentDraft` 增加可空 `template_id` 并生成 Prisma Client。
 3. [ ] 数据库结构待用户确认后执行 `pnpm prisma:push`。
 4. [x] 扩展选题转草稿接口，匹配模板并保存选题/模板快照。
@@ -319,10 +324,10 @@ interface DraftPatch {
 
 - 用户可以用 Topic Agent 新建或完善选题，AI 建议不会未经确认直接写库。
 - Topic Agent 可以提示标题、来源或关键词层面的重复选题。
-- 用户可以从同一选题分别创建小红书图文笔记和知乎长文草稿。
+- 用户可以从同一选题分别创建小红书图文笔记、知乎长文和今日头条文章草稿。
 - 新草稿保存创建时刻的选题快照和模板快照，之后修改选题或模板不会改写历史上下文。
 - 草稿 Agent 能稳定读取选题快照，不需要用户再次复制选题内容。
-- 小红书草稿保持图文编辑和图片素材流程；知乎草稿使用 Markdown 编辑/预览。
+- 小红书草稿保持图文编辑和图片素材流程；知乎与今日头条草稿使用 Markdown 编辑和对应平台预览。
 - `hook`、`tags` 等 Agent 已支持的字段可以显示、确认、编辑并保存，不再在应用 patch 时丢失。
 - Agent 输出必须经过差异确认和用户保存；模型失败时不影响手工编辑。
 - 旧草稿的 `generation_snapshot_json` 可以继续读取。
@@ -337,7 +342,7 @@ interface DraftPatch {
 | 转草稿 | 平台映射正确，权限正确，快照完整，旧选题不被覆盖 |
 | 模板匹配 | 只使用 ACTIVE 模板，显式模板必须匹配目标平台场景 |
 | 上下文注入 | Topic 字段进入运行时上下文，来源中的命令不提升为 system 指令 |
-| 编辑器 | `xhs/note` 与 `zhihu/article` 选择正确编辑器，Markdown 原样保存 |
+| 编辑器 | `xhs/note`、`zhihu/article` 与 `toutiao/article` 选择正确编辑器，Markdown 原样保存 |
 | Patch 确认 | 收到 patch 不改表单，确认后只改前端 state，保存后才写库 |
 | 草稿素材权限 | 非空素材要求 `content:view`，空数组可由草稿编辑权限直接清空，`self/all` 范围不能越权 |
 | MCP schema | `assets` 保留 `asset_id/remark` 对象结构，`create_content_asset` 暴露可选 `draft_id` |

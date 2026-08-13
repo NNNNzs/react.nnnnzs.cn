@@ -1,11 +1,16 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   CONTENT_DRAFT_PREVIEW_MODES,
   type ContentDraftPreviewMode,
   type PublicDraftPreviewDto,
 } from '@/types/content-draft-preview';
 
-export const PREVIEW_SHARE_TOKEN_BYTES = 32;
+export const CONTENT_DRAFT_PREVIEW_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+type ContentDraftPreviewSignaturePayload = {
+  draftId: number;
+  expiresAt: number;
+};
 
 export function parseContentDraftPreviewMode(value: string | null | undefined): ContentDraftPreviewMode | null {
   return CONTENT_DRAFT_PREVIEW_MODES.includes(value as ContentDraftPreviewMode)
@@ -13,12 +18,47 @@ export function parseContentDraftPreviewMode(value: string | null | undefined): 
     : null;
 }
 
-export function createPreviewShareToken(): string {
-  return randomBytes(PREVIEW_SHARE_TOKEN_BYTES).toString('base64url');
+function getPreviewSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET 未配置，无法生成草稿预览链接');
+  return secret;
 }
 
-export function hashPreviewShareToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+export function assertContentDraftPreviewSigningConfigured(): void {
+  getPreviewSecret();
+}
+
+function createSignature(payload: ContentDraftPreviewSignaturePayload): string {
+  return createHmac('sha256', getPreviewSecret())
+    .update(`${payload.draftId}.${payload.expiresAt}`)
+    .digest('base64url');
+}
+
+export function createContentDraftPreviewUrl(draftId: number, now = Date.now()): string {
+  const expiresAt = Math.floor(now / 1000) + CONTENT_DRAFT_PREVIEW_TTL_SECONDS;
+  const signature = createSignature({ draftId, expiresAt });
+  return `/preview?draftId=${draftId}&expiresAt=${expiresAt}&signature=${encodeURIComponent(signature)}`;
+}
+
+export function withContentDraftPreviewUrl<T extends { id: number }>(draft: T): T & { previewUrl: string } {
+  return { ...draft, previewUrl: createContentDraftPreviewUrl(draft.id) };
+}
+
+export function verifyContentDraftPreviewSignature(
+  draftId: number,
+  expiresAt: number,
+  signature: string | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!Number.isInteger(draftId) || draftId <= 0 || !Number.isInteger(expiresAt) || expiresAt * 1000 <= now || !signature) return false;
+  try {
+    const expected = createSignature({ draftId, expiresAt });
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    return signatureBuffer.length === expectedBuffer.length && timingSafeEqual(signatureBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 /** Only absolute HTTP(S) URLs are suitable for publicly rendered assets. */
@@ -45,10 +85,6 @@ export function getSafePublicMarkdownUrl(
     // Relative and malformed URLs are intentionally not rendered in public previews.
   }
   return '';
-}
-
-export function isPreviewShareActive(share: { expires_at: Date | null; revoked_at: Date | null }, now = new Date()): boolean {
-  return !share.revoked_at && (!share.expires_at || share.expires_at > now);
 }
 
 export function summarizeDraftPreview(hook: string | null, body: string | null): string {

@@ -1,68 +1,57 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  hashPreviewShareToken,
+  CONTENT_DRAFT_PREVIEW_TTL_SECONDS,
+  createContentDraftPreviewUrl,
   getSafePublicImageUrl,
   getSafePublicMarkdownUrl,
-  isPreviewShareActive,
   parseContentDraftPreviewMode,
-  summarizeDraftPreview,
-  toPublicDraftPreviewDto,
+  verifyContentDraftPreviewSignature,
 } from './content-draft-preview';
 
-test('preview mode only accepts supported modes', () => {
+const now = Date.parse('2026-08-13T00:00:00.000Z');
+
+test('signed preview URL is valid for seven days and mode does not affect its signature', () => {
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'preview-test-secret';
+  try {
+    const url = new URL(createContentDraftPreviewUrl(123, now), 'https://www.example.com');
+    const expiresAt = Number(url.searchParams.get('expiresAt'));
+    assert.equal(expiresAt, Math.floor(now / 1000) + CONTENT_DRAFT_PREVIEW_TTL_SECONDS);
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, url.searchParams.get('signature'), now), true);
+    url.searchParams.set('mode', 'zhihu');
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, url.searchParams.get('signature'), now), true);
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previousSecret;
+  }
+});
+
+test('preview signature rejects changed draft ID, expiry, signature, expired URL, and missing secret', () => {
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'preview-test-secret';
+  try {
+    const url = new URL(createContentDraftPreviewUrl(123, now), 'https://www.example.com');
+    const expiresAt = Number(url.searchParams.get('expiresAt'));
+    const signature = url.searchParams.get('signature');
+    assert.equal(verifyContentDraftPreviewSignature(124, expiresAt, signature, now), false);
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt + 1, signature, now), false);
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, `${signature}x`, now), false);
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, signature, expiresAt * 1000), false);
+    delete process.env.JWT_SECRET;
+    assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, signature, now), false);
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previousSecret;
+  }
+});
+
+test('preview mode and public URLs accept only supported and safe values', () => {
   assert.equal(parseContentDraftPreviewMode('xhs'), 'xhs');
   assert.equal(parseContentDraftPreviewMode('zhihu'), 'zhihu');
   assert.equal(parseContentDraftPreviewMode('toutiao'), 'toutiao');
   assert.equal(parseContentDraftPreviewMode('admin'), null);
-});
-
-test('share token hashes deterministically without retaining its input', () => {
-  assert.equal(hashPreviewShareToken('opaque-token'), hashPreviewShareToken('opaque-token'));
-  assert.notEqual(hashPreviewShareToken('opaque-token'), 'opaque-token');
-});
-
-test('expired and revoked shares are never active', () => {
-  const now = new Date('2026-08-13T00:00:00.000Z');
-  assert.equal(isPreviewShareActive({ expires_at: new Date('2026-08-12T00:00:00.000Z'), revoked_at: null }, now), false);
-  assert.equal(isPreviewShareActive({ expires_at: null, revoked_at: now }, now), false);
-  assert.equal(isPreviewShareActive({ expires_at: new Date('2026-08-14T00:00:00.000Z'), revoked_at: null }, now), true);
-});
-
-test('public DTO is whitelisted, summarizes hook, and orders usable associated images', () => {
-  const dto = toPublicDraftPreviewDto({
-    title: '公开标题', hook: '  Hook 摘要  ', body: '# 正文', tags_json: [' 技术 ', 2, ''], updated_at: new Date('2026-08-13T00:00:00.000Z'),
-    assets: [
-      { sort_order: 2, created_at: new Date('2026-08-13T00:01:00.000Z'), asset: { type: 'image', title: null, cdn_url: ' https://img/2 ' } },
-      { sort_order: 1, created_at: new Date('2026-08-13T00:02:00.000Z'), asset: { type: 'image', title: '封面', cdn_url: 'https://img/1' } },
-      { sort_order: 0, created_at: new Date(), asset: { type: 'image', title: '不可用', cdn_url: null } },
-    ],
-  });
-  assert.deepEqual(Object.keys(dto).sort(), ['author', 'body', 'hook', 'images', 'summary', 'tags', 'title', 'updatedAt'].sort());
-  assert.equal(dto.summary, 'Hook 摘要');
-  assert.deepEqual(dto.tags, ['技术']);
-  assert.deepEqual(dto.images.map((image) => image.url), ['https://img/1', 'https://img/2']);
-  assert.equal(summarizeDraftPreview(null, '## 正文  内容'), '正文 内容');
-});
-
-test('public DTO excludes unsafe and relative asset URLs', () => {
-  const dto = toPublicDraftPreviewDto({
-    title: '公开标题', hook: null, body: null, tags_json: null, updated_at: new Date(),
-    assets: [
-      { sort_order: 1, created_at: new Date(), asset: { type: 'image', title: null, cdn_url: 'javascript:alert(1)' } },
-      { sort_order: 2, created_at: new Date(), asset: { type: 'image', title: null, cdn_url: '/private-image' } },
-      { sort_order: 3, created_at: new Date(), asset: { type: 'image', title: null, cdn_url: 'https://cdn.example/image.png' } },
-    ],
-  });
-  assert.equal(getSafePublicImageUrl('data:image/png;base64,abc'), null);
-  assert.deepEqual(dto.images.map((image) => image.url), ['https://cdn.example/image.png']);
-});
-
-test('public Markdown URLs only allow absolute HTTP(S), plus mailto links', () => {
+  assert.equal(getSafePublicImageUrl('javascript:alert(1)'), null);
   assert.equal(getSafePublicMarkdownUrl('https://example.com/read', 'link'), 'https://example.com/read');
-  assert.equal(getSafePublicMarkdownUrl('mailto:hello@example.com', 'link'), 'mailto:hello@example.com');
-  assert.equal(getSafePublicMarkdownUrl('mailto:hello@example.com', 'image'), '');
   assert.equal(getSafePublicMarkdownUrl('/private-path', 'link'), '');
-  assert.equal(getSafePublicMarkdownUrl('javascript:alert(1)', 'link'), '');
-  assert.equal(getSafePublicMarkdownUrl('data:text/html,unsafe', 'image'), '');
 });

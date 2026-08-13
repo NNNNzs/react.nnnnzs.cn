@@ -13,6 +13,7 @@
     "test:collection-visual": "tsx --test src/lib/collection-visual.test.ts",
     "test:cache-impact": "tsx --test src/lib/cache-impact.test.ts",
     "test:content-draft-assets": "tsx --test src/lib/content-draft-assets.test.ts src/lib/mcp-adapter.test.ts",
+    "test:content-draft-preview": "tsx --test src/lib/content-draft-preview.test.ts",
     "test:image-gen": "tsx --test src/lib/image-gen.test.ts src/lib/mcp-adapter.test.ts",
     "verify:ai-tools": "tsx --env-file=.env scripts/verify-ai-agent-tools.ts",
     "prisma:generate": "npx prisma generate",

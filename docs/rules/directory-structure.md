@@ -6,8 +6,6 @@
 src/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API routes (REST + MCP)
-│   │   ├── create/                # 内容创作 API
-│   │   │   └── drafts/[id]/preview-share/ # 草稿公开预览分享管理（GET/POST/DELETE）
 │   │   ├── post/                 # 博客文章 API
 │   │   ├── user/                 # 用户认证 API
 │   │   ├── ai/                   # AI 生成端点
