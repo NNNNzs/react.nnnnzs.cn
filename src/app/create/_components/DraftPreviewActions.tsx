@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button, Dropdown } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import type { ContentDraftPreviewMode } from '@/types/content-draft-preview';
@@ -17,6 +18,8 @@ export function DraftPreviewActions({
   hasChanges: boolean;
   onSave: () => Promise<boolean>;
 }) {
+  const [open, setOpen] = useState(false);
+
   const openPreview = async (mode: ContentDraftPreviewMode) => {
     if (hasChanges && !(await onSave())) return;
     const url = new URL(previewUrl, window.location.origin);
@@ -26,7 +29,19 @@ export function DraftPreviewActions({
   };
 
   return (
-    <Dropdown menu={{ items: previewOptions, onClick: ({ key }) => void openPreview(key as ContentDraftPreviewMode) }}>
+    <Dropdown
+      open={open}
+      trigger={['hover', 'click']}
+      onOpenChange={setOpen}
+      destroyOnHidden
+      menu={{
+        items: previewOptions,
+        onClick: ({ key }) => {
+          setOpen(false);
+          void openPreview(key as ContentDraftPreviewMode);
+        },
+      }}
+    >
       <Button icon={<EyeOutlined />}>{hasChanges ? '保存并预览' : '预览'}</Button>
     </Dropdown>
   );

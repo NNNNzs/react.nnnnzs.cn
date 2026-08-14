@@ -6,6 +6,7 @@ import {
 } from '@/types/content-draft-preview';
 
 export const CONTENT_DRAFT_PREVIEW_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_SITE_URL = 'https://www.nnnnzs.cn';
 
 type ContentDraftPreviewSignaturePayload = {
   draftId: number;
@@ -37,7 +38,8 @@ function createSignature(payload: ContentDraftPreviewSignaturePayload): string {
 export function createContentDraftPreviewUrl(draftId: number, now = Date.now()): string {
   const expiresAt = Math.floor(now / 1000) + CONTENT_DRAFT_PREVIEW_TTL_SECONDS;
   const signature = createSignature({ draftId, expiresAt });
-  return `/preview?draftId=${draftId}&expiresAt=${expiresAt}&signature=${encodeURIComponent(signature)}`;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL).replace(/\/+$/, '');
+  return `${siteUrl}/preview?draftId=${draftId}&expiresAt=${expiresAt}&signature=${encodeURIComponent(signature)}`;
 }
 
 export function withContentDraftPreviewUrl<T extends { id: number }>(draft: T): T & { previewUrl: string } {
@@ -93,6 +95,7 @@ export function summarizeDraftPreview(hook: string | null, body: string | null):
 }
 
 type PreviewDraftInput = {
+  type: string;
   title: string;
   hook: string | null;
   body: string | null;
@@ -126,6 +129,7 @@ export function toPublicDraftPreviewDto(draft: PreviewDraftInput): PublicDraftPr
     }));
 
   return {
+    isMarkdown: draft.type === 'article',
     title: draft.title,
     hook: draft.hook?.trim() || null,
     summary: summarizeDraftPreview(draft.hook, draft.body),

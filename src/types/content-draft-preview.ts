@@ -9,6 +9,7 @@ export interface PublicDraftPreviewImage {
 }
 
 export interface PublicDraftPreviewDto {
+  isMarkdown: boolean;
   title: string;
   hook: string | null;
   summary: string;

@@ -184,7 +184,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
           width={280}
         />
 
-        <Content className="flex-1 overflow-hidden bg-slate-50 px-3 py-4">
+        <Content className="min-w-0 flex-1 overflow-hidden bg-slate-50 px-3 py-4">
           {children}
         </Content>
       </Layout>
@@ -212,7 +212,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
         className="h-full min-w-0 bg-slate-50 transition-[margin-left] duration-200"
         style={{ marginLeft: desktopSidebarWidth }}
       >
-        <Content className="h-full overflow-hidden bg-slate-50 px-6 py-8">
+        <Content className="h-full min-w-0 overflow-hidden bg-slate-50 px-6 py-8">
           {children}
         </Content>
       </Layout>

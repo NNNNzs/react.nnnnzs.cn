@@ -6,6 +6,7 @@
 
 import { useRef, useMemo } from "react";
 import { MdPreview, MdPreviewProps, MdCatalog } from "md-editor-rt";
+import xss from "xss";
 import "md-editor-rt/lib/preview.css";
 import { useDarkMode } from "@/hooks/useDarkMode";
 
@@ -65,7 +66,13 @@ export default function MarkdownPreview({
 
   return (
     <div ref={wrapperRef} className={`markdown-preview-wrapper relative ${isDark ? 'md-dark-preview' : ''}`}>
-      <MdPreview editorId={editorId} modelValue={content} theme={isDark ? "dark" : "light"} {...props} />
+      <MdPreview
+        editorId={editorId}
+        modelValue={content}
+        theme={isDark ? "dark" : "light"}
+        {...props}
+        sanitize={xss}
+      />
       {showMdCatalog && hasCatalog && (
         <aside
           className="

@@ -8,6 +8,7 @@ export async function getPublicContentDraftPreview(draftId: number): Promise<Pub
   const draft = await prisma.contentDraft.findUnique({
     where: { id: draftId },
     select: {
+      type: true,
       title: true,
       hook: true,
       body: true,

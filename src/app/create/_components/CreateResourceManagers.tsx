@@ -630,8 +630,8 @@ export function CreateTopicsManager() {
   };
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="h-full min-w-0 overflow-auto">
+      <div className="mx-auto flex min-w-0 w-full max-w-6xl flex-col gap-5">
         <PageHeader
           eyebrow="topic bank"
           title="选题库"
@@ -898,8 +898,8 @@ export function CreateDraftsManager() {
   }, [data]);
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="h-full min-w-0 overflow-auto">
+      <div className="mx-auto flex min-w-0 w-full max-w-6xl flex-col gap-5">
         <PageHeader
           eyebrow="drafts first"
           title="草稿库"
@@ -932,7 +932,7 @@ export function CreateDraftsManager() {
         ) : data?.record.length ? (
           <div className="grid gap-3">
             {data.record.map((draft) => (
-              <article key={draft.id} className="rounded-md border border-slate-200 bg-white p-4">
+              <article key={draft.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap gap-2">

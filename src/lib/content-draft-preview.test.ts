@@ -13,9 +13,12 @@ const now = Date.parse('2026-08-13T00:00:00.000Z');
 
 test('signed preview URL is valid for seven days and mode does not affect its signature', () => {
   const previousSecret = process.env.JWT_SECRET;
+  const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   process.env.JWT_SECRET = 'preview-test-secret';
+  process.env.NEXT_PUBLIC_SITE_URL = 'https://preview.example.com/';
   try {
     const url = new URL(createContentDraftPreviewUrl(123, now), 'https://www.example.com');
+    assert.equal(url.origin, 'https://preview.example.com');
     const expiresAt = Number(url.searchParams.get('expiresAt'));
     assert.equal(expiresAt, Math.floor(now / 1000) + CONTENT_DRAFT_PREVIEW_TTL_SECONDS);
     assert.equal(verifyContentDraftPreviewSignature(123, expiresAt, url.searchParams.get('signature'), now), true);
@@ -24,6 +27,8 @@ test('signed preview URL is valid for seven days and mode does not affect its si
   } finally {
     if (previousSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = previousSecret;
+    if (previousSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+    else process.env.NEXT_PUBLIC_SITE_URL = previousSiteUrl;
   }
 });
 
