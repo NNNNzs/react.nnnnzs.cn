@@ -26,6 +26,7 @@ import CommentSection from "@/components/CommentSection";
 import SetCurrentPost from "@/components/SetCurrentPost";
 import PostVersionHistory from "@/components/PostVersionHistory";
 import ArticleCollections from "@/components/ArticleCollections";
+import { formatShanghaiDateTime } from "@/lib/date-time";
 import type { Post } from "@/types";
 import type { PostCollectionInfo } from "@/dto/collection.dto";
 
@@ -183,7 +184,7 @@ export default async function PostDetail({ params }: PageProps) {
         <meta
           name="post-cache-debug"
           data-post-id={post.id}
-          data-post-updated-at={post.updated || ""}
+          data-post-updated-at={formatShanghaiDateTime(post.updated)}
         />
         {/* 将文章信息传递给 Header 组件 */}
         <SetCurrentPost post={post} />

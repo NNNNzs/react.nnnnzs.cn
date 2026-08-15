@@ -1,13 +1,20 @@
 "use client";
 
-import React, { useMemo, useSyncExternalStore } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Avatar, Dropdown, Space } from "antd";
+import { Avatar, Dropdown, message, Space } from "antd";
 import type { MenuProps } from "antd";
-import { EditOutlined, SettingOutlined, UserOutlined, LogoutOutlined, LoginOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  SettingOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  LoginOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
-import { CONTENT_VIEW, USER_MANAGE } from "@/constants/permissions";
+import { CDN_PURGE_VIEW, CONTENT_VIEW, USER_MANAGE } from "@/constants/permissions";
 import NotificationBell from "@/components/NotificationBell";
 
 const subscribeToHydration = () => () => {};
@@ -22,6 +29,7 @@ export default function HeaderUserMenu() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, logout, hasPermission } = useAuth();
+  const [purgingCurrentPage, setPurgingCurrentPage] = useState(false);
 
   // 防止 hydration mismatch：登录态由客户端异步获取，
   // SSR 时 user 恒为 null。在 mount 完成前渲染稳定占位，
@@ -37,6 +45,28 @@ export default function HeaderUserMenu() {
     const search = searchParams.toString();
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
+
+  const purgeCurrentPage = async () => {
+    if (purgingCurrentPage) return;
+
+    setPurgingCurrentPage(true);
+    try {
+      const response = await fetch("/api/admin/cdn/purge-current", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: currentUrl }),
+      });
+      const result = await response.json() as { status?: boolean; message?: string };
+      if (!response.ok || !result.status) {
+        throw new Error(result.message || "刷新当前页面 CDN 失败");
+      }
+      message.success(result.message || "当前页面 CDN 刷新已提交");
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "刷新当前页面 CDN 失败");
+    } finally {
+      setPurgingCurrentPage(false);
+    }
+  };
 
   const menuItems: MenuProps["items"] = [
     {
@@ -68,6 +98,17 @@ export default function HeaderUserMenu() {
             key: "settings",
             label: <Link href="/c/user">设置</Link>,
             icon: <SettingOutlined />,
+          },
+      ]
+      : []),
+    ...(hasPermission(CDN_PURGE_VIEW)
+      ? [
+          {
+            key: "purge-current-page-cdn",
+            label: purgingCurrentPage ? "正在刷新当前页面 CDN" : "刷新当前页面 CDN",
+            icon: <ReloadOutlined />,
+            disabled: purgingCurrentPage,
+            onClick: () => void purgeCurrentPage(),
           },
         ]
       : []),

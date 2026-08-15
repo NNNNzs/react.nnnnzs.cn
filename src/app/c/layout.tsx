@@ -23,6 +23,7 @@ import {
   ApiOutlined,
   ExperimentOutlined,
   DeploymentUnitOutlined,
+  CloudServerOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeaderStyle } from "@/contexts/HeaderStyleContext";
@@ -41,6 +42,7 @@ import {
   USER_VIEW,
   USER_MANAGE,
   CHAT_LOG_VIEW,
+  CDN_PURGE_VIEW,
 } from "@/constants/permissions";
 
 const { Content } = Layout;
@@ -129,6 +131,14 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         key: "/c/queue",
         icon: <ClusterOutlined />,
         label: "队列监控",
+      });
+    }
+
+    if (hasPermission(CDN_PURGE_VIEW)) {
+      items.push({
+        key: "/c/cdn-logs",
+        icon: <CloudServerOutlined />,
+        label: "CDN 刷新记录",
       });
     }
 
@@ -221,6 +231,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         ['/c/api-registry', USER_MANAGE],
         ['/c/permissions', USER_VIEW],
         ['/c/queue', QUEUE_VIEW],
+        ['/c/cdn-logs', CDN_PURGE_VIEW],
         ['/c/vector-search', VECTOR_VIEW],
         ['/c/tts', TTS_VIEW],
         ['/c/image-gen', IMAGE_VIEW],
@@ -262,6 +273,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
       '/c/api-registry',
       '/c/permissions',
       '/c/queue',
+      '/c/cdn-logs',
       '/c/ai-lab',
       '/c/ai-lab/runs',
       '/c/ai-lab/retrieval-playground',

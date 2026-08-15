@@ -12,6 +12,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import DeployStatusIndicator from "@/components/DeployStatusIndicator";
 import { SiteThirdParties } from "@/components/SiteThirdParties";
+import { formatShanghaiDateTime } from "@/lib/date-time";
 // 初始化向量化队列
 import "@/lib/embedding-init";
 
@@ -28,21 +29,6 @@ export const metadata: Metadata = {
 export const experimental = {
   scrollRestoration: true,
 };
-
-function formatShanghaiDateTime(date: Date): string {
-  return new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  })
-    .format(date)
-    .replace(/\//g, "-");
-}
 
 export default async function RootLayout({
   children,

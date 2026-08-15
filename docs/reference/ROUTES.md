@@ -49,6 +49,7 @@
 | `/c/roles`、`/c/permissions` | RBAC 管理 |
 | `/c/api-registry` | API 注册表 |
 | `/c/chat-logs` | 聊天日志 |
+| `/c/cdn-logs` | 腾讯云 CDN 刷新记录 |
 | `/c/vector-search` | 向量检索与向量化运维 |
 | `/c/queue` | 后台任务队列监控 |
 | `/c/image-gen`、`/c/tts` | 图片生成与语音合成兼容入口 |
@@ -81,6 +82,8 @@
 | `/api/admin/roles/*`、`/api/admin/permissions` | RBAC 管理 |
 | `/api/admin/api-registry` | API 注册表 |
 | `/api/admin/chat-logs` | 聊天日志 |
+| `/api/admin/cdn/purge-tasks` | 腾讯云 CDN 刷新记录 |
+| `/api/admin/cdn/purge-current` | 刷新当前页面 CDN |
 | `/api/notifications/*`、`/api/ai-jobs/notifications` | 站内通知与 AI 任务通知 |
 | `/api/mcp` | MCP endpoint |
 | `/api/oauth/*`、`/api/oauth-authorization-server`、`/api/oauth-protected-resource/*` | OAuth 2.0 |
@@ -100,4 +103,4 @@
 - `/.well-known/[...rest]`
 - `/rss.xml`
 
-最后更新：2026-08-13。
+最后更新：2026-08-15。

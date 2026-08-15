@@ -1,19 +1,66 @@
 import type { CacheImpactPlan } from '@/lib/cache-impact';
 
 type CdnClient = {
-  PurgeUrlsCache(input: { Urls: string[] }): Promise<{ RequestId?: string }>;
+  PurgeUrlsCache(input: { Urls: string[] }): Promise<TencentCdnPurgeSubmissionResponse>;
   PurgePathCache(input: {
     Paths: string[];
     FlushType: 'delete';
-  }): Promise<{ RequestId?: string }>;
+  }): Promise<TencentCdnPurgeSubmissionResponse>;
+  DescribePurgeTasks(input: TencentCdnPurgeTasksRequest): Promise<TencentCdnPurgeTasksResponse>;
 };
+
+export type TencentCdnPurgeType = 'url' | 'path';
+export type TencentCdnPurgeStatus = 'process' | 'done' | 'fail';
+export type TencentCdnPurgeArea = 'mainland' | 'overseas' | 'global';
+
+export interface TencentCdnPurgeTasksRequest {
+  PurgeType?: TencentCdnPurgeType;
+  StartTime?: string;
+  EndTime?: string;
+  Offset?: number;
+  Limit?: number;
+  Keyword?: string;
+  Status?: TencentCdnPurgeStatus;
+  Area?: TencentCdnPurgeArea;
+}
+
+export interface TencentCdnPurgeTask {
+  TaskId?: string;
+  Url?: string;
+  Status?: TencentCdnPurgeStatus;
+  PurgeType?: TencentCdnPurgeType;
+  FlushType?: 'flush' | 'delete';
+  CreateTime?: string;
+}
+
+export interface TencentCdnPurgeTasksResponse {
+  PurgeLogs?: TencentCdnPurgeTask[];
+  TotalCount?: number;
+  RequestId?: string;
+}
+
+export interface TencentCdnPurgeSubmissionResponse {
+  TaskId?: string;
+  RequestId?: string;
+}
+
+export interface TencentCdnPurgeTasksQuery {
+  startTime: string;
+  endTime: string;
+  offset: number;
+  limit: number;
+  purgeType?: TencentCdnPurgeType;
+  keyword?: string;
+  status?: TencentCdnPurgeStatus;
+  area?: TencentCdnPurgeArea;
+}
 
 const recentPurges = new Map<string, number>();
 const DEFAULT_SITE_URL = 'https://www.nnnnzs.cn';
 const URL_BATCH_SIZE = 1000;
 const PATH_BATCH_SIZE = 500;
 
-function getSiteUrl(): string {
+export function getTencentCdnSiteUrl(): string {
   const configured =
     process.env.CDN_SITE_URL ||
     (process.env.NEXT_PUBLIC_SITE_URL?.includes('localhost')
@@ -24,7 +71,7 @@ function getSiteUrl(): string {
 
 function toAbsoluteUrl(value: string): string {
   if (/^https?:\/\//i.test(value)) return value;
-  return `${getSiteUrl()}${value.startsWith('/') ? value : `/${value}`}`;
+  return `${getTencentCdnSiteUrl()}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
 export function classifyTencentCdnTargets(
@@ -108,7 +155,7 @@ export async function purgeTencentCdn(
 
   if (purgeFullSite) {
     const response = await client.PurgePathCache({
-      Paths: [`${getSiteUrl()}/`],
+      Paths: [`${getTencentCdnSiteUrl()}/`],
       FlushType: 'delete',
     });
     console.info('[CDN刷新] 全站目录刷新已提交', { requestId: response.RequestId });
@@ -123,4 +170,40 @@ export async function purgeTencentCdn(
       requestId: response.RequestId,
     });
   }
+}
+
+export async function purgeTencentCdnUrl(
+  url: string,
+  clientOverride?: CdnClient,
+): Promise<TencentCdnPurgeSubmissionResponse & { deduplicated?: boolean }> {
+  if (isRecent(`manual-url:${url}`)) {
+    return { deduplicated: true };
+  }
+
+  const client = clientOverride || await createClient();
+  const response = await client.PurgeUrlsCache({ Urls: [url] });
+  console.info('[CDN刷新] 当前页面 URL 刷新已提交', {
+    url,
+    taskId: response.TaskId,
+    requestId: response.RequestId,
+  });
+  return response;
+}
+
+export async function queryTencentCdnPurgeTasks(
+  input: TencentCdnPurgeTasksQuery,
+  clientOverride?: CdnClient,
+): Promise<TencentCdnPurgeTasksResponse> {
+  const client = clientOverride || await createClient();
+
+  return client.DescribePurgeTasks({
+    StartTime: input.startTime,
+    EndTime: input.endTime,
+    Offset: input.offset,
+    Limit: input.limit,
+    PurgeType: input.purgeType,
+    Keyword: input.keyword,
+    Status: input.status,
+    Area: input.area,
+  });
 }

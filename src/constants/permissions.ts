@@ -47,3 +47,6 @@ export const CONTENT_VIEW = 'content:view';
 export const CONTENT_CREATE = 'content:create';
 export const CONTENT_EDIT = 'content:edit';
 export const CONTENT_DELETE = 'content:delete';
+
+// ============ CDN 模块 ============
+export const CDN_PURGE_VIEW = 'cdn:purge:view';

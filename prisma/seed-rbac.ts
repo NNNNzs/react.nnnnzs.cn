@@ -62,6 +62,8 @@ const seedPermissions: PermissionSeed[] = [
   { code: 'content:create', name: '创建内容', module: 'content', type: 'button', sort_order: 2 },
   { code: 'content:edit', name: '编辑内容', module: 'content', type: 'button', sort_order: 3 },
   { code: 'content:delete', name: '删除内容', module: 'content', type: 'button', sort_order: 4 },
+  // CDN 模块
+  { code: 'cdn:purge:view', name: '查看 CDN 刷新记录', module: 'cdn', type: 'menu', sort_order: 1 },
 ];
 
 // ============ 角色定义 ============

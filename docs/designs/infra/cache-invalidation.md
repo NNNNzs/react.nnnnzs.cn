@@ -40,7 +40,7 @@ flowchart LR
 />
 ```
 
-文章详情额外包含 `data-post-id` 和 `data-post-updated-at`。时间使用 `Asia/Shanghai`，表示该路由 HTML 的生成时间，不是当前请求时间。
+文章详情额外包含 `data-post-id` 和 `data-post-updated-at`。两个诊断时间字段都使用 `Asia/Shanghai` 的 `YYYY-MM-DD HH:mm:ss` 格式；`next-rendered-at` 表示 HTML 生成时间，`data-post-updated-at` 表示文章更新时间，两者语义不同，数值不要求相同。
 
 排查时分别请求源站和公网：
 

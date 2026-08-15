@@ -4,6 +4,7 @@ import {
   type CacheImpactPlan,
   type WarmupTarget,
 } from '@/lib/cache-impact';
+import { formatShanghaiDateTime } from '@/lib/date-time';
 import { purgeTencentCdn } from '@/services/tencent-cdn';
 
 let backgroundRefreshChain: Promise<void> = Promise.resolve();
@@ -81,10 +82,11 @@ async function warmupTarget(
 
     if (target.expectedUpdatedAt) {
       const actualUpdatedAt = html.match(POST_UPDATED_PATTERN)?.[1];
-      if (actualUpdatedAt !== target.expectedUpdatedAt) {
+      const expectedUpdatedAt = formatShanghaiDateTime(target.expectedUpdatedAt);
+      if (actualUpdatedAt !== expectedUpdatedAt) {
         console.warn('[缓存预热] 文章版本不符合预期，跳过 CDN 刷新', {
           path: target.path,
-          expected: target.expectedUpdatedAt,
+          expected: expectedUpdatedAt,
           actual: actualUpdatedAt,
         });
         return false;
