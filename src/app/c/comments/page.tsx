@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Button, Input, Tag, message, Modal, Select, Tooltip, Card } from 'antd';
+import { Button, Input, Tag, Select, Tooltip, Card } from 'antd';
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from 'antd';
 import {
   DeleteOutlined,
@@ -27,7 +28,7 @@ import {
 } from '@/components/admin/AdminPageHeader';
 
 const { Search } = Input;
-const { confirm } = Modal;
+const confirm = (...args: Parameters<typeof modal.confirm>) => modal.confirm(...args);
 
 /**
  * 评论数据类型

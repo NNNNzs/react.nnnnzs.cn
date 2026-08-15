@@ -7,7 +7,8 @@ import React, {
   useImperativeHandle,
   useState,
 } from "react";
-import { AutoComplete, Button, Image, Input, Segmented, message } from "antd";
+import { AutoComplete, Button, Image, Input, Segmented } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { DeleteOutlined, PictureOutlined, PlusOutlined, ScanOutlined, SendOutlined } from "@ant-design/icons";
 import ImageReferenceAddModal, { type AddedImageReference } from "@/components/ImageGen/ImageReferenceAddModal";
 import ImageRecognitionWorkbench from "@/components/ImageGen/ImageRecognitionWorkbench";

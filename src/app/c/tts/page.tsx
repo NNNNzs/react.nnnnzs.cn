@@ -8,19 +8,8 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import {
-  Card,
-  Select,
-  Input,
-  Button,
-  Space,
-  message,
-  Row,
-  Col,
-  Tag,
-  Tooltip,
-  Spin,
-} from "antd";
+import { Card, Select, Input, Button, Space, Row, Col, Tag, Tooltip, Spin,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   SoundOutlined,
   DownloadOutlined,

@@ -9,18 +9,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import {
-  Input,
-  Space,
-  Tag,
-  message,
-  Modal,
-  Form,
-  Select,
-  Switch,
-  Card,
-  Tooltip,
-} from "antd";
+import { Input, Space, Tag, Modal, Form, Select, Switch, Card, Tooltip,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
   EditOutlined,

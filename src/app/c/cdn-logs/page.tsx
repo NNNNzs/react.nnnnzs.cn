@@ -7,18 +7,8 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  Button,
-  Card,
-  DatePicker,
-  Input,
-  message,
-  Select,
-  Spin,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
+import { Button, Card, DatePicker, Input, Select, Spin, Tag, Tooltip, Typography,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";

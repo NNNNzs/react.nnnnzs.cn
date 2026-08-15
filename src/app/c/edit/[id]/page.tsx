@@ -7,20 +7,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import {
-  Form,
-  Input,
-  Button,
-  Select,
-  message,
-  Spin,
-  DatePicker,
-  Drawer,
-  Radio,
-  Space,
-  Divider,
-  Tooltip,
-} from "antd";
+import { Form, Input, Button, Select, Spin, DatePicker, Drawer, Radio, Space, Divider, Tooltip,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   SaveOutlined,
   TagsOutlined,

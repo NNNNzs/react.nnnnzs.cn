@@ -3,7 +3,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Avatar, Button, Card, Form, Input, Space, Tabs, Tag, Typography, Upload, message } from 'antd';
+import { Avatar, Button, Card, Form, Input, Space, Tabs, Tag, Typography, Upload } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { ArrowLeftOutlined, EditOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import type { RcFile } from 'antd/es/upload';

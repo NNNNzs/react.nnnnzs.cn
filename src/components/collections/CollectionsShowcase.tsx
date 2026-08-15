@@ -280,7 +280,7 @@ export default function CollectionsShowcase({ collections, homeVisual }: Collect
                       }}
                       layout={!shouldReduceMotion}
                       transition={shouldReduceMotion ? { duration: 0 } : collectionMotion.transition}
-                      className={`group relative flex h-[82px] w-[220px] shrink-0 overflow-hidden border outline-none transition-[border-color,background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#4a8fbd] focus-visible:ring-offset-2 motion-reduce:transition-none dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-[#04111c] lg:w-full ${
+                      className={`group relative flex h-[82px] w-[220px] shrink-0 overflow-hidden border text-[#332f2b] outline-none transition-[border-color,background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#4a8fbd] focus-visible:ring-offset-2 motion-reduce:transition-none dark:text-slate-100 dark:focus-visible:ring-cyan-300 dark:focus-visible:ring-offset-[#04111c] lg:w-full ${
                         isSelected
                           ? 'border-[#4a8fbd]/70 bg-white/78 shadow-[0_12px_28px_-18px_rgba(40,82,112,0.75)] dark:border-cyan-300/70 dark:bg-cyan-300/[0.07] dark:shadow-[0_12px_34px_-18px_rgba(34,211,238,0.55)]'
                           : 'border-[#746b60]/18 bg-white/42 hover:border-[#4a8fbd]/45 hover:bg-white/65 dark:border-cyan-100/12 dark:bg-black/20 dark:hover:border-cyan-300/38 dark:hover:bg-cyan-300/[0.04]'

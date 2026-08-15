@@ -8,20 +8,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  Alert,
-  Button,
-  Card,
-  Form,
-  Input,
-  message,
-  Space,
-  Spin,
-  Tabs,
-  Tag,
-  type FormInstance,
-  type TabsProps,
-} from 'antd';
+import { Alert, Button, Card, Form, Input, Space, Spin, Tabs, Tag, type FormInstance, type TabsProps,  } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   ArrowLeftOutlined,
   EyeOutlined,

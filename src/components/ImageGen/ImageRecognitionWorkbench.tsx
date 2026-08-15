@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Drawer, Empty, Image, Input, Select, message } from "antd";
+import { Button, Drawer, Empty, Image, Input, Select } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   CopyOutlined,
   DeleteOutlined,

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Form, Input, Modal, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, Space, Tag, Typography } from 'antd';
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import { DisconnectOutlined, MailOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -54,7 +55,7 @@ export default function EmailBindingCard({ mail, verifiedAt, onStatusChange }: E
     }
   };
 
-  const unbind = () => Modal.confirm({
+  const unbind = () => modal.confirm({
     title: '确认解绑邮箱',
     content: '解绑后将无法接收邮件提醒，也不能通过邮箱初始化快捷登录账号的密码。',
     okText: '确认解绑',

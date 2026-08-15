@@ -173,9 +173,6 @@ importers:
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
-      xss:
-        specifier: ^1.0.15
-        version: 1.0.15
       zod:
         specifier: ^4.3.6
         version: 4.3.6

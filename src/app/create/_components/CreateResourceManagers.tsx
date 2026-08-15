@@ -2,19 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Button,
-  Empty,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Skeleton,
-  Tag,
-  message,
-} from "antd";
+import { Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Skeleton, Tag,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   BulbOutlined,
   DeleteOutlined,

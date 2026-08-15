@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Card, Button, Space, Typography, Modal, message } from 'antd';
+import { Card, Button, Space, Typography, Modal } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { ScanOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import axios from 'axios';
 

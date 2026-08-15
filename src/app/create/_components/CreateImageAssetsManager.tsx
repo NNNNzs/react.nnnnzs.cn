@@ -1,19 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Button,
-  Empty,
-  Input,
-  Modal,
-  Popconfirm,
-  Segmented,
-  Skeleton,
-  Space,
-  Tag,
-  Tooltip,
-  message,
-} from "antd";
+import { Button, Empty, Input, Modal, Popconfirm, Segmented, Skeleton, Space, Tag, Tooltip,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   CopyOutlined,
   DeleteOutlined,

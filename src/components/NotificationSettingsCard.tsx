@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Alert, Card, Space, Switch, Typography, message } from 'antd';
+import { Alert, Card, Space, Switch, Typography } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { BellOutlined, MailOutlined } from '@ant-design/icons';
 import type { NotificationSettings } from '@/types/notification';
 import { defaultNotificationSettings } from '@/types/notification';

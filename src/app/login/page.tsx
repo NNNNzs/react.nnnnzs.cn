@@ -7,7 +7,8 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Card, Tabs, message, Checkbox } from 'antd';
+import { Form, Input, Button, Card, Tabs, Checkbox } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, GithubOutlined, ScanOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';

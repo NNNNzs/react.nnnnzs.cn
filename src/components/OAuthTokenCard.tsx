@@ -5,17 +5,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Card,
-  Button,
-  message,
-  Space,
-  Typography,
-  Alert,
-  Tag,
-  Modal,
-  Tooltip,
-} from "antd";
+import { Card, Button, Space, Typography, Alert, Tag, Tooltip,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import {
   SafetyOutlined,
   CopyOutlined,
@@ -102,7 +93,7 @@ const OAuthTokenCard: React.FC<OAuthTokenCardProps> = () => {
 
   // 删除Token
   const handleDelete = useCallback(async (token: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个OAuth Token吗？删除后对应的应用将无法继续使用此Token访问您的账户。",
       icon: <ExclamationCircleOutlined />,

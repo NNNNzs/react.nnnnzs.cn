@@ -5,7 +5,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Button, Space, Typography, Avatar, message } from 'antd';
+import { Card, Button, Space, Typography, Avatar } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { GithubOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
 import axios from 'axios';
 

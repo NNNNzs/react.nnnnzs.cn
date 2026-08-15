@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Form, Input, Space, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { LockOutlined } from '@ant-design/icons';
 import axios from 'axios';
 

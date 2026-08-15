@@ -5,20 +5,8 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import {
-  Card,
-  Button,
-  message,
-  Space,
-  Typography,
-  Select,
-  Divider,
-  Alert,
-  Tag,
-  Modal,
-  Input,
-  Tooltip,
-} from "antd";
+import { Card, Button, Space, Typography, Select, Divider, Alert, Tag, Input, Tooltip,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import {
   KeyOutlined,
   ClockCircleOutlined,
@@ -137,7 +125,7 @@ const LongTermTokenCard: React.FC<LongTermTokenCardProps> = () => {
 
   // 删除Token
   const handleDelete = useCallback(async (tokenId: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个Token吗？删除后将无法恢复。",
       icon: <ExclamationCircleOutlined />,

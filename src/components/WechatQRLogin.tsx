@@ -5,7 +5,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { message, Spin, Card } from 'antd';
+import { Spin, Card } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 

@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Button, Modal, List, Select, Spin, Empty, message, Tooltip } from 'antd';
+import { Button, Modal, List, Select, Spin, Empty, Tooltip } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { HistoryOutlined, SwapOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axios from '@/lib/axios';

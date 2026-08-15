@@ -13,18 +13,8 @@ import React, {
   Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Button,
-  Input,
-  Space,
-  Tag,
-  message,
-  Modal,
-  Form,
-  Select,
-  Switch,
-  Card,
-} from "antd";
+import { Button, Input, Space, Tag, Modal, Form, Select, Switch, Card,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
   EditOutlined,
@@ -48,7 +38,7 @@ import {
 } from "@/components/admin/AdminPageHeader";
 
 const { Search } = Input;
-const { confirm } = Modal;
+const confirm = (...args: Parameters<typeof modal.confirm>) => modal.confirm(...args);
 
 /**
  * 从 URL 查询参数中读取状态
@@ -329,7 +319,7 @@ function UserPageContent() {
    * 重置密码
    */
   const handleResetPassword = (targetUser: UserInfo) => {
-    Modal.confirm({
+    modal.confirm({
       title: "重置密码",
       content: (
         <div>

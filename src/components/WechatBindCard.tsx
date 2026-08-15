@@ -6,7 +6,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Button, Modal, message, Space, Typography, Divider } from 'antd';
+import { Card, Button, Modal, Space, Typography, Divider } from 'antd';
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import { WechatOutlined, DisconnectOutlined, LinkOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import WechatQRLogin from '@/components/WechatQRLogin';
@@ -102,7 +103,7 @@ export default function WechatBindCard({ isBound, onStatusChange }: WechatBindCa
    * 解绑微信
    */
   const handleUnbind = () => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认解绑',
       content: '解绑后将无法使用微信扫码登录，确定要解绑吗？',
       okText: '确认',

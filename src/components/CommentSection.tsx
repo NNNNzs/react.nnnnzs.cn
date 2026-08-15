@@ -7,7 +7,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Avatar, Button, message, Typography, Space, Spin, Empty, Collapse, Tabs } from 'antd';
+import { Card, Avatar, Button, Typography, Space, Spin, Empty, Collapse, Tabs } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { SendOutlined, LoginOutlined, EditOutlined, EyeOutlined, LikeOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';

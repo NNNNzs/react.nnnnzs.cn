@@ -6,7 +6,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, message } from 'antd';
+import { Button } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { HeartOutlined, HeartFilled } from '@ant-design/icons';
 import axios, { type AxiosError } from 'axios';
 

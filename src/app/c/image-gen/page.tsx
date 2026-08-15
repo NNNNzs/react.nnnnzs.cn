@@ -6,7 +6,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Card, Spin, Tag, message } from "antd";
+import { Card, Spin, Tag } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { PictureOutlined } from "@ant-design/icons";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";

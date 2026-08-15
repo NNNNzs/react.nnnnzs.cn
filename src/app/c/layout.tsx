@@ -9,7 +9,8 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Layout, message } from "antd";
+import { Layout } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { MenuProps } from "antd";
 import {
   FileTextOutlined,

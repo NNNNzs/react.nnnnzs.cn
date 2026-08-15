@@ -6,21 +6,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  Tag,
-  Empty,
-  Spin,
-  Tooltip,
-  Image,
-  Input,
-  Pagination,
-  message,
-  Button,
-  Space,
-  Modal,
-  Checkbox,
-  Popover,
-} from "antd";
+import { Tag, Empty, Spin, Tooltip, Image, Input, Pagination, Button, Space, Checkbox, Popover,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import {
   CopyOutlined,
   RobotOutlined,
@@ -256,7 +243,7 @@ export default function ImageGenHistory({
       e.stopPropagation();
       let deleteCos = true;
 
-      Modal.confirm({
+      modal.confirm({
         title: "删除生成记录",
         content: (
           <div className="space-y-3">
@@ -319,7 +306,7 @@ export default function ImageGenHistory({
     if (selectedIds.size === 0) return;
     let deleteCos = true;
 
-    Modal.confirm({
+    modal.confirm({
       title: `批量删除 ${selectedIds.size} 条记录`,
       content: (
         <div className="space-y-3">

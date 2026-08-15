@@ -6,7 +6,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { Tag, message, Card, Input, Select, Empty } from "antd";
+import { Tag, Card, Input, Select, Empty } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { SearchOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { useBreakpoint } from "@/hooks/useBreakpoint";

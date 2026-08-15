@@ -10,7 +10,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Input, Upload, Button, Space, Image, message } from "antd";
+import { Input, Upload, Button, Space, Image } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { UploadOutlined, DeleteOutlined, ScissorOutlined } from "@ant-design/icons";
 import type { RcFile } from "antd/es/upload";
 import ImageCropper from "@/components/ImageCropper";

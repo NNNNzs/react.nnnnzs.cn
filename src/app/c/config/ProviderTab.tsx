@@ -6,17 +6,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Button,
-  Input,
-  Tag,
-  Card,
-  message,
-  Modal,
-  Form,
-  Space,
-  Popconfirm,
-} from "antd";
+import { Button, Input, Tag, Card, Modal, Form, Space, Popconfirm,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
   EditOutlined,

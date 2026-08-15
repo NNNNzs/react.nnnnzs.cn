@@ -6,22 +6,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  message,
-  Popconfirm,
-  Popover,
-  Row,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, Button, Card, Col, Descriptions, Popconfirm, Popover, Row, Space, Statistic, Table, Tag, Typography,  } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from 'antd';
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from '@/lib/axios';

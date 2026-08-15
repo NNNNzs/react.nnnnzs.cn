@@ -4,18 +4,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  Alert,
-  Button,
-  Card,
-  Empty,
-  Input,
-  Pagination,
-  Space,
-  Spin,
-  Tag,
-  message,
-} from 'antd';
+import { Alert, Button, Card, Empty, Input, Pagination, Space, Spin, Tag,  } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,

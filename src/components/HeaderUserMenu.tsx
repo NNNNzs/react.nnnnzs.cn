@@ -29,6 +29,7 @@ export default function HeaderUserMenu() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, logout, hasPermission } = useAuth();
+  const [messageApi, messageContextHolder] = message.useMessage();
   const [purgingCurrentPage, setPurgingCurrentPage] = useState(false);
 
   // 防止 hydration mismatch：登录态由客户端异步获取，
@@ -60,9 +61,9 @@ export default function HeaderUserMenu() {
       if (!response.ok || !result.status) {
         throw new Error(result.message || "刷新当前页面 CDN 失败");
       }
-      message.success(result.message || "当前页面 CDN 刷新已提交");
+      messageApi.success(result.message || "当前页面 CDN 刷新已提交");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "刷新当前页面 CDN 失败");
+      messageApi.error(error instanceof Error ? error.message : "刷新当前页面 CDN 失败");
     } finally {
       setPurgingCurrentPage(false);
     }
@@ -130,6 +131,7 @@ export default function HeaderUserMenu() {
 
   return (
     <>
+      {messageContextHolder}
       <div className="h-full flex items-center">
         {!mounted ? (
           // 占位：宽度与登录按钮/头像区接近，避免首屏跳动；与服务端输出一致

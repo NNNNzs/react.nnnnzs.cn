@@ -6,7 +6,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Select, message } from "antd";
+import { Select } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { GetProps } from "antd";
 import type { SerializedCollection } from "@/dto/collection.dto";
 

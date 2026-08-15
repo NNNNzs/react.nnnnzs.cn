@@ -6,7 +6,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, message, Spin } from 'antd';
+import { Card, Spin } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';

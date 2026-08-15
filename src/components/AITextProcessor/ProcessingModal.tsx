@@ -7,7 +7,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Modal, Button, Spin, Space, message, Alert } from 'antd';
+import { Modal, Button, Spin, Space, Alert } from 'antd';
+import { message } from "@/components/AntdAppFeedbackBridge";
 import { CheckOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import type { AIActionType } from '@/lib/ai-text';
 import { getAIActionLabel, callAIAPI } from '@/lib/ai-text';

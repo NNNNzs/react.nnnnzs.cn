@@ -1,3 +1,6 @@
+/* Ant Design 位于 Tailwind utilities 之前，避免全局 a 等组件基础样式覆盖业务工具类。 */
+@layer theme, base, antd, components, utilities;
+
 @import "tailwindcss";
 
 /* Tailwind CSS v4 需要显式声明暗色模式变体 */

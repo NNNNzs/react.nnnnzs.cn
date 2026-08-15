@@ -13,16 +13,8 @@ import React, {
   Suspense,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  Button,
-  Input,
-  Tag,
-  message,
-  Modal,
-  Form,
-  Select,
-  Card,
-} from "antd";
+import { Button, Input, Tag, Modal, Form, Select, Card,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
   EditOutlined,
@@ -44,7 +36,7 @@ import type { QueryConfigCondition } from "@/dto/config.dto";
 import type { TbConfig } from "@/generated/prisma-client/client";
 
 const { Search } = Input;
-const { confirm } = Modal;
+const confirm = (...args: Parameters<typeof modal.confirm>) => modal.confirm(...args);
 const { TextArea } = Input;
 
 type Config = TbConfig;

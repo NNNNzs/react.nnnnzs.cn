@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { ConfigProvider } from "antd";
+import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderStyleProvider } from "@/contexts/HeaderStyleContext";
@@ -12,6 +12,8 @@ import "./globals.css";
 import Header from "@/components/Header";
 import DeployStatusIndicator from "@/components/DeployStatusIndicator";
 import { SiteThirdParties } from "@/components/SiteThirdParties";
+import { AntdAppFeedbackBridge } from "@/components/AntdAppFeedbackBridge";
+import { AntdStyleProvider } from "@/components/AntdStyleProvider";
 import { formatShanghaiDateTime } from "@/lib/date-time";
 // 初始化向量化队列
 import "@/lib/embedding-init";
@@ -59,41 +61,46 @@ export default async function RootLayout({
         <CurrentPostProvider>
           <HeaderStyleProvider>
             <AntdRegistry>
-              <ConfigProvider
-                locale={zhCN}
-                theme={{
-                  token: {
-                    colorPrimary: "#1677ff",
-                    borderRadius: 6,
-                    fontSize: 14,
-                    lineHeight: 1.5715,
-                    controlHeight: 32,
-                    controlHeightLG: 40,
-                    controlHeightSM: 24,
-                  },
-                  components: {
-                    Button: {
-                      controlHeightLG: 40,
+              <AntdStyleProvider>
+                <ConfigProvider
+                  locale={zhCN}
+                  theme={{
+                    token: {
+                      colorPrimary: "#1677ff",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      lineHeight: 1.5715,
                       controlHeight: 32,
+                      controlHeightLG: 40,
                       controlHeightSM: 24,
                     },
-                    Input: {
-                      controlHeightLG: 40,
-                      controlHeight: 32,
-                      controlHeightSM: 24,
+                    components: {
+                      Button: {
+                        controlHeightLG: 40,
+                        controlHeight: 32,
+                        controlHeightSM: 24,
+                      },
+                      Input: {
+                        controlHeightLG: 40,
+                        controlHeight: 32,
+                        controlHeightSM: 24,
+                      },
                     },
-                  },
-                }}
-              >
-                <body className="antialiased" suppressHydrationWarning>
-                  <TaskNotificationProvider>
-                    <Header />
-                    {children}
-                    <DeployStatusIndicator />
-                    <SiteThirdParties measurementId={analyticsConfig.measurementId} />
-                  </TaskNotificationProvider>
-                </body>
-              </ConfigProvider>
+                  }}
+                >
+                  <body className="antialiased" suppressHydrationWarning>
+                    <App>
+                      <AntdAppFeedbackBridge />
+                      <TaskNotificationProvider>
+                        <Header />
+                        {children}
+                        <DeployStatusIndicator />
+                        <SiteThirdParties measurementId={analyticsConfig.measurementId} />
+                      </TaskNotificationProvider>
+                    </App>
+                  </body>
+                </ConfigProvider>
+              </AntdStyleProvider>
             </AntdRegistry>
           </HeaderStyleProvider>
         </CurrentPostProvider>

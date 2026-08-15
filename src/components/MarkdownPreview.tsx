@@ -6,7 +6,6 @@
 
 import { useRef, useMemo } from "react";
 import { MdPreview, MdPreviewProps, MdCatalog } from "md-editor-rt";
-import xss from "xss";
 import "md-editor-rt/lib/preview.css";
 import { useDarkMode } from "@/hooks/useDarkMode";
 
@@ -71,21 +70,10 @@ export default function MarkdownPreview({
         modelValue={content}
         theme={isDark ? "dark" : "light"}
         {...props}
-        sanitize={xss}
       />
       {showMdCatalog && hasCatalog && (
         <aside
-          className="
-            fixed top-1/2 -translate-y-1/2
-            h-auto max-h-[70vh] overflow-y-auto
-            w-auto min-w-[180px] max-w-[280px]
-            hidden xl:block
-            bg-white/80 dark:bg-gray-900/80
-            backdrop-blur-sm
-            rounded-lg shadow-lg
-            p-4
-            border border-gray-200/50 dark:border-gray-700/50
-          "
+          className="fixed top-1/2 -translate-y-1/2 h-auto max-h-[70vh] overflow-y-auto w-auto min-w-[180px] max-w-[280px] hidden xl:block bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg shadow-lg p-4 border border-gray-200/50 dark:border-gray-700/50"
           style={{
             // 使用 calc 计算位置：距离视口左边 16px
             // 在大屏幕上会显示在内容左侧

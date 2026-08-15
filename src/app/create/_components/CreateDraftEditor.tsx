@@ -3,19 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import {
-  Button,
-  Empty,
-  Image,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Skeleton,
-  Tag,
-  Tooltip,
-  message,
-} from "antd";
+import { Button, Empty, Image, Input, Modal, Popconfirm, Select, Skeleton, Tag, Tooltip,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   ArrowLeftOutlined,
   DeleteOutlined,

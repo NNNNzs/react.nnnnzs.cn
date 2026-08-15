@@ -12,11 +12,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { message } from 'antd';
+
 import type { AIActionType } from '@/lib/ai-text';
 import { validateTextForAI } from '@/lib/ai-text';
 import FloatingMenu from './FloatingMenu';
 import ProcessingModal from './ProcessingModal';
+import { message } from "@/components/AntdAppFeedbackBridge";
 
 export interface AITextProcessorProps {
   /** 编辑器内容 */

@@ -1,23 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  Descriptions,
-  Drawer,
-  Empty,
-  Form,
-  Input,
-  Mentions,
-  Modal,
-  Select,
-  Space,
-  Spin,
-  Switch,
-  Tag,
-  Typography,
-  message,
-} from "antd";
+import { Button, Descriptions, Drawer, Empty, Form, Input, Mentions, Modal, Select, Space, Spin, Switch, Tag, Typography,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { MentionsOptionProps } from "antd/es/mentions";
 import {
   BranchesOutlined,

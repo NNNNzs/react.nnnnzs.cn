@@ -6,20 +6,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Button,
-  Collapse,
-  Input,
-  Select,
-  Form,
-  Modal,
-  Tag,
-  Space,
-  message,
-  Tooltip,
-  InputNumber,
-  Popconfirm,
-} from "antd";
+import { Button, Collapse, Input, Select, Form, Modal, Tag, Space, Tooltip, InputNumber, Popconfirm,  } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   PlusOutlined,
   CheckCircleOutlined,

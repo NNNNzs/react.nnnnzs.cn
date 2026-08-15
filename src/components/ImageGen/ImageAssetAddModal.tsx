@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Image, Input, Modal, Segmented, Upload, message } from "antd";
+import { Alert, Button, Image, Input, Modal, Segmented, Upload } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import type { UploadProps } from "antd";
 import { DeleteOutlined, LinkOutlined, UploadOutlined } from "@ant-design/icons";
 

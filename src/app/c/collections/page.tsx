@@ -8,7 +8,8 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Button, Input, Tag, message, Modal, Switch, Card, Space } from 'antd';
+import { Button, Input, Tag, Switch, Card, Space } from 'antd';
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from 'antd';
 import {
   EditOutlined,
@@ -45,7 +46,7 @@ import {
 import { useStyleVariant } from '@/lib/site-style/useStyleVariant';
 
 const { Search } = Input;
-const { confirm } = Modal;
+const confirm = (...args: Parameters<typeof modal.confirm>) => modal.confirm(...args);
 
 /**
  * 从 URL 查询参数中读取状态

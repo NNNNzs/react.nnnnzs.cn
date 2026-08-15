@@ -5,7 +5,8 @@
 "use client";
 
 import React, { useCallback } from "react";
-import { Button, Empty, Image, Space, Spin, Tag, Tooltip, message } from "antd";
+import { Button, Empty, Image, Space, Spin, Tag, Tooltip } from "antd";
+import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   DownloadOutlined,
   LinkOutlined,

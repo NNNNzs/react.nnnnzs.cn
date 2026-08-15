@@ -7,17 +7,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import {
-  Button,
-  Input,
-  Space,
-  Tag,
-  message,
-  Modal,
-  Form,
-  Switch,
-  Card,
-} from "antd";
+import { Button, Input, Space, Tag, Modal, Form, Switch, Card,  } from "antd";
+import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
   EditOutlined,
@@ -42,7 +33,7 @@ import { ADMIN_REQUIRED_PERMISSIONS, ADMIN_ROLE_CODE, isSystemRoleCode } from "@
 
 const { Search } = Input;
 
-const { confirm } = Modal;
+const confirm = (...args: Parameters<typeof modal.confirm>) => modal.confirm(...args);
 
 /**
  * 从 URL 查询参数中读取状态
