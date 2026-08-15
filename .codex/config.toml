@@ -1,3 +1,7 @@
 sandbox_mode = "danger-full-access"
 [features]
 hooks = true
+
+[mcp_servers.next-devtools]
+command = "pnpm"
+args = ["dlx", "next-devtools-mcp@latest"]
