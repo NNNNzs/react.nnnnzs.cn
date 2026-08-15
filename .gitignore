@@ -78,3 +78,5 @@ logs/
 public/version.json
 .workbuddy
 .cdn-purge/
+.secret
+nextjs-page-audit
