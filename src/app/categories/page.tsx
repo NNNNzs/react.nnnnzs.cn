@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Empty } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
@@ -10,6 +11,12 @@ import Banner from '@/components/Banner';
 import { getAllCategories } from '@/services/category';
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: '文章分类 - NNNNzs',
+  description: '按分类浏览 NNNNzs 的前端、后端、人工智能与工程实践文章。',
+  alternates: { canonical: '/categories' },
+};
 
 export default async function CategoriesPage() {
   const categories = await getAllCategories();

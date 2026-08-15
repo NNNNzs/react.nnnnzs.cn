@@ -61,6 +61,42 @@ export async function getAllCategories(): Promise<[string, number][]> {
   return categories;
 }
 
+export interface IndexableCategoryEntry {
+  name: string;
+  count: number;
+  lastModified: Date | null;
+}
+
+/** 获取符合公开与人工索引条件的分类统计，供 metadata 与 sitemap 使用。 */
+export async function getIndexableCategoryEntries(): Promise<IndexableCategoryEntry[]> {
+  const prisma = await getPrisma();
+  const posts = await prisma.tbPost.findMany({
+    where: {
+      hide: '0',
+      is_delete: 0,
+      seo_indexable: true,
+      category: { not: null },
+    },
+    select: { category: true, updated: true, date: true },
+  });
+  const entries = new Map<string, { count: number; lastModified: Date | null }>();
+
+  posts.forEach((post) => {
+    const category = post.category?.trim();
+    if (!category) return;
+    const current = entries.get(category) || { count: 0, lastModified: null };
+    const modified = post.updated || post.date;
+    entries.set(category, {
+      count: current.count + 1,
+      lastModified: !current.lastModified || (modified && modified > current.lastModified)
+        ? modified
+        : current.lastModified,
+    });
+  });
+
+  return [...entries.entries()].map(([name, value]) => ({ name, ...value }));
+}
+
 /**
  * 根据分类获取文章列表
  */

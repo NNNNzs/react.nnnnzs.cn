@@ -3,12 +3,15 @@
  */
 
 import React from 'react';
+import type { Metadata } from 'next';
 import { Empty } from 'antd';
 import { unstable_cache } from 'next/cache';
 import PostListItem from '@/components/PostListItem';
 import Banner from '@/components/Banner';
 import { getPostsByTag } from '@/services/tag';
 import type { Post } from '@/types';
+import { createSeoDescription, meetsSeoAggregateThreshold } from '@/lib/seo-content';
+import { toAbsoluteSiteUrl } from '@/lib/site-url';
 
 interface PageProps {
   params: Promise<{
@@ -31,6 +34,29 @@ const getCachedPostsByTag = unstable_cache(
 );
 
 export const revalidate = 3600;
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { tag: rawTag } = await params;
+  const tag = decodeURIComponent(rawTag);
+  const posts = await getCachedPostsByTag(tag);
+  const indexableCount = posts.filter((post) => post.seo_indexable).length;
+  const canonical = toAbsoluteSiteUrl(`/tags/${encodeURIComponent(tag)}`);
+  const description = createSeoDescription(
+    null,
+    posts.map((post) => post.description || post.title || '').join('。'),
+    `浏览 NNNNzs 关于 ${tag} 的文章。`,
+  );
+
+  return {
+    title: `${tag} 标签文章 - NNNNzs`,
+    description,
+    alternates: { canonical },
+    robots: meetsSeoAggregateThreshold(indexableCount)
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
+    openGraph: { type: 'website', title: `${tag} 标签文章`, description, url: canonical },
+  };
+}
 
 export default async function TagPostsPage({ params }: PageProps) {
   const { tag: rawTag } = await params;

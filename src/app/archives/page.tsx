@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import type { Metadata } from 'next';
 import { unstable_cache } from 'next/cache';
 import Banner from '@/components/Banner';
 import ArchivesList from '@/components/ArchivesList';
@@ -23,6 +24,13 @@ const getCachedArchives = unstable_cache(
 );
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: '文章归档 - NNNNzs',
+  description: '按年份浏览 NNNNzs 的全部公开文章。',
+  alternates: { canonical: '/archives' },
+  robots: { index: false, follow: true },
+};
 
 export default async function ArchivesPage() {
   const archives = await getCachedArchives();

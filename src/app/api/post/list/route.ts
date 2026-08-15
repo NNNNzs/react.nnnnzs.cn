@@ -26,6 +26,7 @@ export const descriptor: ApiDescriptor = {
       pageSize: { type: 'number', description: '每页数量（默认10）' },
       keyword: { type: 'string', description: '搜索关键词' },
       hide: { type: 'string', description: '可见性过滤' },
+      seo_indexable: { type: 'boolean', description: 'SEO 收录状态过滤' },
     },
   },
 };
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || '';
     const createdBy = searchParams.get('created_by');
     const isDelete = searchParams.get('is_delete'); // 是否包含已删除文章
+    const seoIndexableParam = searchParams.get('seo_indexable');
+
+    if (seoIndexableParam !== null && !['true', 'false'].includes(seoIndexableParam)) {
+      return NextResponse.json(errorResponse('seo_indexable 必须为 true 或 false'), { status: 400 });
+    }
 
     // 获取用户信息（可能为空）
     const user = await getAuthUserFromRequest(request.headers);
@@ -85,6 +91,7 @@ export async function GET(request: NextRequest) {
       pageSize,
       hide,
       query,
+      seo_indexable: seoIndexableParam === null ? undefined : seoIndexableParam === 'true',
     };
 
     // 按用户过滤

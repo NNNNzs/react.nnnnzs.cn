@@ -5,9 +5,9 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Form, Input, Button, Select, Spin, DatePicker, Drawer, Radio, Space, Divider, Tooltip,  } from "antd";
+import { Alert, Form, Input, Button, Select, Spin, DatePicker, Drawer, Radio, Space, Divider, Tooltip, Switch } from "antd";
 import { message } from "@/components/AntdAppFeedbackBridge";
 import {
   SaveOutlined,
@@ -26,6 +26,7 @@ import MediaUpload from "@/components/MediaUpload";
 import { fetchAndProcessStream } from "@/lib/stream";
 import MarkdownPreview from "@/components/MarkdownPreview";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { getSeoQualityRisks } from "@/lib/seo-content";
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -49,6 +50,20 @@ export default function EditPostPage() {
 
   const isNewPost = params.id === "new";
   const { isMobile } = useBreakpoint();
+  const watchedTitle = Form.useWatch("title", form);
+  const watchedDescription = Form.useWatch("description", form);
+  const watchedCategory = Form.useWatch("category", form);
+  const watchedTags = Form.useWatch("tags", form);
+  const seoQualityRisks = useMemo(
+    () => getSeoQualityRisks({
+      title: watchedTitle,
+      content,
+      description: watchedDescription,
+      category: watchedCategory,
+      tags: watchedTags,
+    }),
+    [content, watchedCategory, watchedDescription, watchedTags, watchedTitle],
+  );
 
   /**
    * 检查权限
@@ -164,6 +179,7 @@ export default function EditPostPage() {
         category: values.category || null,
         description: values.description || null,
         hide: values.hide || "0",
+        seo_indexable: values.seo_indexable ?? true,
         layout: values.layout || null,
         collection_ids: values.collection_ids || [],
       };
@@ -376,6 +392,7 @@ export default function EditPostPage() {
           date: dayjs(),
           updated: dayjs(),
           hide: "0",
+          seo_indexable: true,
           tags: [],
           content: "",
           collection_ids: [],
@@ -551,6 +568,32 @@ export default function EditPostPage() {
                 />
               </Form.Item>
 
+              <Form.Item
+                label="允许搜索引擎索引"
+                name="seo_indexable"
+                valuePropName="checked"
+                tooltip="关闭后文章仍可公开访问，只会从 sitemap 和搜索索引退出"
+              >
+                <Switch checkedChildren="允许" unCheckedChildren="禁止" />
+              </Form.Item>
+
+              {seoQualityRisks.length > 0 ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="SEO 内容风险提示"
+                  description={
+                    <ul className="mb-0 list-disc pl-5">
+                      {seoQualityRisks.map((risk) => (
+                        <li key={risk.code}>{risk.message}</li>
+                      ))}
+                    </ul>
+                  }
+                />
+              ) : (
+                <Alert type="success" showIcon message="未发现基础内容质量风险" />
+              )}
+
               <Form.Item label="背景图" name="cover">
                 <MediaUpload
                   placeholder="背景图URL"
@@ -582,6 +625,10 @@ export default function EditPostPage() {
                     label: tag[0],
                   }))}
                 />
+              </Form.Item>
+
+              <Form.Item label="分类" name="category">
+                <Input placeholder="例如：前端开发" />
               </Form.Item>
 
               <Form.Item label="所属合集" name="collection_ids">

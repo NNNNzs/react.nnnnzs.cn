@@ -25,6 +25,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: '文章合集 - NNNNzs',
   description: '按主题浏览 NNNNzs 的长期写作合集，涵盖前端、AI、运维、工具、生活与旅行。',
+  alternates: { canonical: '/collections' },
 };
 
 export default async function CollectionsPage() {

@@ -6,22 +6,13 @@
  */
 
 import { MetadataRoute } from 'next';
-
-/**
- * 获取网站基础 URL
- */
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-  return 'https://www.nnnnzs.cn';
-}
+import { getSiteUrl } from '@/lib/site-url';
 
 /**
  * 生成 robots.txt
  */
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getSiteUrl();
   
   return {
     rules: [
@@ -31,7 +22,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/c/',
-          '/login',
         ],
       },
     ],

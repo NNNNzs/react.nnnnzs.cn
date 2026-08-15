@@ -12,6 +12,7 @@
     "test:polling": "tsx --test src/lib/polling-load-shedding.test.ts",
     "test:collection-visual": "tsx --test src/lib/collection-visual.test.ts",
     "test:cache-impact": "tsx --test src/lib/cache-impact.test.ts",
+    "test:seo": "tsx --test src/lib/seo-content.test.ts",
     "test:content-draft-assets": "tsx --test src/lib/content-draft-assets.test.ts src/lib/mcp-adapter.test.ts",
     "test:content-draft-preview": "tsx --test src/lib/content-draft-preview.test.ts",
     "test:image-gen": "tsx --test src/lib/image-gen.test.ts src/lib/mcp-adapter.test.ts",

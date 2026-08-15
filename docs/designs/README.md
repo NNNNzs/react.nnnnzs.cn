@@ -30,6 +30,7 @@ docs/designs/
 │   ├── rbac-config-design.md    # 配置化 RBAC 权限系统
 │   ├── mcp-oauth-design.md      # MCP OAuth 2.0 认证
 │   ├── open-platform-oauth-integration.md # 开放平台 OAuth 集成
+│   ├── seo-indexing.md            # SEO 收录与 AdSense 内容质量策略
 │   ├── task-queue.md            # 后台任务队列系统
 │   └── performance-optimization-plan.md # 性能优化计划
 ├── search/                      # 检索系统
@@ -102,6 +103,7 @@ docs/designs/
 | [配置化 RBAC](infra/rbac-config-design.md) | 角色权限配置化 + 统一接口注册表 + MCP 自动注册 | ✅ 已实施 |
 | [MCP OAuth 2.0](infra/mcp-oauth-design.md) | MCP 服务认证 | ✅ 已实施 |
 | [开放平台 OAuth 集成](infra/open-platform-oauth-integration.md) | 第三方应用 OAuth 接入 | ✅ 已实施 |
+| [SEO 收录与 AdSense 内容质量策略](infra/seo-indexing.md) | 文章人工收录开关、聚合页阈值、sitemap、缓存与广告排除 | ✅ 已实施 |
 | [后台任务队列系统](infra/task-queue.md) | 通用 TaskQueue、业务适配器、图片生成队列监控与重试 | ✅ 已实施 |
 | [性能优化计划](infra/performance-optimization-plan.md) | 性能优化实施记录 | ✅ 已完成 |
 
@@ -129,4 +131,4 @@ docs/designs/
 
 ---
 
-**最后更新**: 2026-08-01
+**最后更新**: 2026-08-16

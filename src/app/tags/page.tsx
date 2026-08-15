@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Empty } from 'antd';
 import { unstable_cache } from 'next/cache';
@@ -25,6 +26,12 @@ const getCachedAllTags = unstable_cache(
 );
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: '文章标签 - NNNNzs',
+  description: '按技术主题与实践方向浏览 NNNNzs 的博客文章标签。',
+  alternates: { canonical: '/tags' },
+};
 
 export default async function TagsPage() {
   const tags = await getCachedAllTags();

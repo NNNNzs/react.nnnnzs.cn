@@ -1,4 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: '通知策略 - NNNNzs',
+  description: '了解 NNNNzs 站内通知与邮件提醒的触发条件、投递方式和关闭方法。',
+  alternates: { canonical: '/notification-policy' },
+  robots: { index: true, follow: true },
+};
 
 export default function NotificationPolicyPage() {
   return <main className="mx-auto min-h-[calc(100vh-var(--header-height))] max-w-3xl px-4 py-10 prose dark:prose-invert">

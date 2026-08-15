@@ -8,6 +8,8 @@ import CollectionArticleIndex from '@/components/collections/detail/CollectionAr
 import CollectionHero from '@/components/collections/detail/CollectionHero';
 import { getCollectionBySlug } from '@/services/collection';
 import { resolveCollectionVisual } from '@/lib/collection-visual';
+import { createSeoDescription, meetsSeoAggregateThreshold } from '@/lib/seo-content';
+import { toAbsoluteSiteUrl } from '@/lib/site-url';
 
 const getCachedCollectionBySlug = unstable_cache(
   async (slug: string) => getCollectionBySlug(slug),
@@ -24,14 +26,6 @@ interface CollectionDetailPageProps {
   params: Promise<{ slug: string }>;
 }
 
-function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || 'https://www.nnnnzs.cn';
-}
-
-function toAbsoluteUrl(path: string): string {
-  return new URL(path, getSiteUrl()).toString();
-}
-
 export default async function CollectionDetailPage({ params }: CollectionDetailPageProps) {
   const { slug } = await params;
   const collection = await getCachedCollectionBySlug(slug);
@@ -44,7 +38,7 @@ export default async function CollectionDetailPage({ params }: CollectionDetailP
     '@type': 'CollectionPage',
     name: collection.title,
     description: collection.description || `${collection.title}文章合集`,
-    url: toAbsoluteUrl(`/collections/${collection.slug}`),
+    url: toAbsoluteSiteUrl(`/collections/${encodeURIComponent(collection.slug)}`),
     mainEntity: {
       '@type': 'ItemList',
       numberOfItems: articles.length,
@@ -52,7 +46,7 @@ export default async function CollectionDetailPage({ params }: CollectionDetailP
         '@type': 'ListItem',
         position: index + 1,
         name: article.title,
-        url: toAbsoluteUrl(article.path || `/post/${article.id}`),
+        url: toAbsoluteSiteUrl(article.path || `/post/${article.id}`),
       })),
     },
   };
@@ -87,17 +81,26 @@ export async function generateMetadata({ params }: CollectionDetailPageProps): P
   if (!collection) return { title: '合集不存在' };
 
   const dayVisual = resolveCollectionVisual(collection, 'day');
-  const description = collection.description || `${collection.title}文章合集，共 ${collection.article_count} 篇文章。`;
+  const description = createSeoDescription(
+    collection.description,
+    collection.articles.map((article) => article.description || article.title || '').join('。'),
+    `${collection.title}文章合集，共 ${collection.article_count} 篇文章。`,
+  );
+  const canonical = toAbsoluteSiteUrl(`/collections/${encodeURIComponent(collection.slug)}`);
+  const indexableCount = collection.articles.filter((article) => article.seo_indexable).length;
 
   return {
     title: `${collection.title} - 文章合集`,
     description,
-    alternates: { canonical: toAbsoluteUrl(`/collections/${collection.slug}`) },
+    alternates: { canonical },
+    robots: meetsSeoAggregateThreshold(indexableCount)
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: {
       type: 'website',
       title: collection.title,
       description,
-      url: toAbsoluteUrl(`/collections/${collection.slug}`),
+      url: canonical,
       images: dayVisual.coverImageUrl ? [{ url: dayVisual.coverImageUrl, alt: `${collection.title}合集封面` }] : undefined,
     },
   };

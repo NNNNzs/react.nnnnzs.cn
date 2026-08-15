@@ -41,6 +41,12 @@ export interface QueryCondition {
   query?: string;
   created_by?: number; // 按创建者过滤
   is_delete?: number; // 是否包含已删除文章（0=未删除，1=已删除）
+  seo_indexable?: boolean; // SEO 收录状态
+}
+
+export interface BatchPostSeoIndexingResult {
+  updatedCount: number;
+  seoIndexable: boolean;
 }
 
 /**

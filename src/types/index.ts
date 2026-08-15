@@ -16,6 +16,7 @@ export type {
   QueryCondition,
   PageQueryRes,
   SerializedPost,
+  BatchPostSeoIndexingResult,
 } from '@/dto/post.dto';
 
 export type {

@@ -33,6 +33,7 @@ export const descriptor: ApiDescriptor = {
       description: { type: 'string', description: '简短描述' },
       cover: { type: 'string', description: '封面图URL' },
       hide: { type: 'string', description: '1隐藏 0显示' },
+      seo_indexable: { type: 'boolean', description: '是否允许搜索引擎索引，默认 true' },
     },
     required: ['title', 'content'],
   },
@@ -55,6 +56,7 @@ const createPostSchema = z.object({
     z.date(),
   ]).optional().nullable(),
   hide: z.enum(['0', '1']).optional(),
+  seo_indexable: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {

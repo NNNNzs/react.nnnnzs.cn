@@ -7,7 +7,7 @@
 
 import React, { cache, Suspense } from "react";
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Tag } from "antd";
 import {
   EyeOutlined,
@@ -16,7 +16,7 @@ import {
 } from "@ant-design/icons";
 
 import dayjs from "dayjs";
-import { getPostByPath, getPostList, getPostByTitle } from "@/services/post";
+import { getPostByPath, getPostList, getPublicPostByTitle } from "@/services/post";
 
 import { getCollectionsByPostId } from "@/services/collection";
 import PostLikeButton from "./PostLikeButton";
@@ -29,6 +29,8 @@ import ArticleCollections from "@/components/ArticleCollections";
 import { formatShanghaiDateTime } from "@/lib/date-time";
 import type { Post } from "@/types";
 import type { PostCollectionInfo } from "@/dto/collection.dto";
+import { createSeoDescription } from "@/lib/seo-content";
+import { getSiteUrl, toAbsoluteSiteUrl } from "@/lib/site-url";
 
 interface PageProps {
   params:
@@ -60,30 +62,29 @@ async function resolveParams(params: PageProps["params"]) {
  * 获取文章数据（直接调用 service，不使用缓存）
  * 构建时会预渲染，运行时使用 ISR
  */
-async function getCachedPost(path: string) {
-  return await getPostByPath(path);
+function getRequestedPath(params: Awaited<PageProps["params"]>): string {
+  return `/${params.year}/${params.month}/${params.date}/${params.title}`;
 }
 
-async function getPost(params: PageProps["params"]): Promise<Post | null> {
+function safelyDecodePath(path: string): string {
   try {
-    const resolvedParams = await resolveParams(params);
-    const { year, month, date, title } = resolvedParams;
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
 
-    // 构建路径
-    const path = `/${year}/${month}/${date}/${title}`;
-
+const getPost = cache(async (path: string, rawTitle: string): Promise<Post | null> => {
+  try {
     console.log("🔍 获取文章 - 文章路径:", path);
-
-    // 优先通过 path 查询
-    const postByPath = await getCachedPost(path);
+    const postByPath = await getPostByPath(path);
     if (postByPath) {
       return postByPath;
     }
 
-    // path 查询失败，尝试通过 title 查询（兼容老旧地址）
-    const decodedTitle = decodeURIComponent(title);
-    console.log("🔍 path 查询失败，尝试通过 title 查询:", title,'decode',decodedTitle);
-    const postByTitle = await getPostByTitle(decodedTitle);
+    const decodedTitle = safelyDecodePath(rawTitle);
+    console.log("🔍 path 查询失败，尝试通过公开标题查询:", rawTitle, 'decode', decodedTitle);
+    const postByTitle = await getPublicPostByTitle(decodedTitle);
     if (postByTitle) {
       console.log("✅ 通过 title 查询成功，文章 ID:", postByTitle.id);
     }
@@ -92,7 +93,7 @@ async function getPost(params: PageProps["params"]): Promise<Post | null> {
     console.error("❌ 获取文章详情失败:", error);
     return null;
   }
-}
+});
 
 /**
  * 获取文章所属合集
@@ -116,7 +117,8 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const resolvedParams = await resolveParams(params);
-  const post = await getPost(resolvedParams);
+  const requestedPath = getRequestedPath(resolvedParams);
+  const post = await getPost(requestedPath, resolvedParams.title);
 
   if (!post) {
     return {
@@ -124,18 +126,22 @@ export async function generateMetadata({
     };
   }
 
-  const description =
-    post.description ||
-    (post.content
-      ? post.content.substring(0, 150).replace(/[#*`]/g, "")
-      : "") ||
-    `${post.title} - 文章详情`;
+  const description = createSeoDescription(
+    post.description,
+    post.content,
+    `${post.title || '文章'} - NNNNzs`,
+  );
 
   const coverImages = post.cover ? [post.cover] : undefined;
+  const canonicalUrl = toAbsoluteSiteUrl(post.path);
 
   return {
     title: `${post.title} | 博客`,
     description,
+    alternates: { canonical: canonicalUrl },
+    robots: post.seo_indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     keywords:
       Array.isArray(post.tags) && post.tags.length > 0
         ? post.tags.join(",")
@@ -151,6 +157,7 @@ export async function generateMetadata({
         Array.isArray(post.tags) && post.tags.length > 0
           ? post.tags
           : undefined,
+      url: canonicalUrl,
     },
     twitter: {
       card: "summary_large_image",
@@ -165,19 +172,46 @@ export async function generateMetadata({
  * 页面组件（服务端渲染）
  */
 export default async function PostDetail({ params }: PageProps) {
-  try {
     // 解析 params
     const resolvedParams = await resolveParams(params);
-
-    const post = await getPost(resolvedParams);
+    const requestedPath = getRequestedPath(resolvedParams);
+    const post = await getPost(requestedPath, resolvedParams.title);
 
     if (!post) {
       // console.log("❌ 文章不存在，调用 notFound()");
       notFound();
     }
 
+    if (safelyDecodePath(requestedPath) !== safelyDecodePath(post.path)) {
+      permanentRedirect(post.path);
+    }
+
     // 获取文章所属合集
     const collections = await getPostCollections(post.id);
+    const description = createSeoDescription(
+      post.description,
+      post.content,
+      `${post.title || '文章'} - NNNNzs`,
+    );
+    const canonicalUrl = toAbsoluteSiteUrl(post.path);
+    const siteUrl = getSiteUrl();
+    const breadcrumbItems = [
+      { "@type": "ListItem", position: 1, name: "首页", item: siteUrl },
+      ...(post.category
+        ? [{
+            "@type": "ListItem",
+            position: 2,
+            name: post.category,
+            item: toAbsoluteSiteUrl(`/categories/${encodeURIComponent(post.category)}`),
+          }]
+        : []),
+      {
+        "@type": "ListItem",
+        position: post.category ? 3 : 2,
+        name: post.title || "文章",
+        item: canonicalUrl,
+      },
+    ];
 
     return (
       <>
@@ -196,24 +230,44 @@ export default async function PostDetail({ params }: PageProps) {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "BlogPosting",
+              "@id": `${canonicalUrl}#article`,
+              url: canonicalUrl,
+              mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
               headline: post.title,
-              description: post.description || post.content?.substring(0, 200),
+              description,
               image: post.cover,
               datePublished: post.date,
               dateModified: post.updated,
               author: {
                 "@type": "Person",
                 name: "nnnnzs",
+                url: "https://github.com/NNNNzs",
               },
               publisher: {
-                "@type": "Organization",
-                name: "nnnnzs",
+                "@type": "Person",
+                name: "NNNNzs",
+                url: siteUrl,
+              },
+              isPartOf: {
+                "@type": "Blog",
+                name: "NNNNzs",
+                url: siteUrl,
               },
               keywords:
                 Array.isArray(post.tags) && post.tags.length > 0
                   ? post.tags.join(",")
                   : undefined,
-            }),
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: breadcrumbItems,
+            }).replace(/</g, "\\u003c"),
           }}
         />
 
@@ -289,11 +343,6 @@ export default async function PostDetail({ params }: PageProps) {
         </div>
       </>
     );
-  } catch (error) {
-    console.error("❌ 页面渲染失败:", error);
-    // 如果数据库连接失败，返回错误页面而不是404
-    throw error;
-  }
 }
 
 export async function generateStaticParams() {

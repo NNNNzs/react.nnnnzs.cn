@@ -27,6 +27,7 @@ function post(overrides: Partial<SerializedPost> = {}): SerializedPost {
     layout: 'post',
     hide: '0',
     is_delete: 0,
+    seo_indexable: true,
     likes: 0,
     visitors: 0,
     created_by: 1,
@@ -160,6 +161,49 @@ test('likes, visitors and internal RAG updates have no public cache impact', () 
     assert.deepEqual(plan.cdnPagePaths, []);
     assert.deepEqual(plan.nextTags, []);
   }
+});
+
+test('SEO indexing updates refresh detail, sitemap and affected aggregates only', () => {
+  const before = post({ seo_indexable: true });
+  const after = post({ seo_indexable: false });
+  const plan = collectPostCacheImpact({
+    kind: 'update',
+    before,
+    after,
+    beforeCollections: [{ slug: 'series-a' }],
+    afterCollections: [{ slug: 'series-a' }],
+    changedFields: ['seo_indexable'],
+  });
+
+  for (const path of [
+    before.path,
+    '/sitemap.xml',
+    '/tags/old%2Ftag',
+    '/categories/old%20category',
+    '/collections/series-a',
+  ]) {
+    assert.ok(plan.cdnPagePaths.includes(path), `missing ${path}`);
+  }
+  for (const path of ['/', '/archives', '/rss.xml', '/tags', '/categories', '/collections']) {
+    assert.equal(plan.cdnPagePaths.includes(path), false, `unexpected ${path}`);
+  }
+});
+
+test('content update still refreshes RSS when the request also carries SEO state', () => {
+  const before = post();
+  const after = post({ content: 'new content', seo_indexable: false });
+  const plan = collectPostCacheImpact({
+    kind: 'update',
+    before,
+    after,
+    beforeCollections: [{ slug: 'series-a' }],
+    afterCollections: [{ slug: 'series-a' }],
+    changedFields: ['content', 'seo_indexable'],
+  });
+
+  assert.ok(plan.cdnPagePaths.includes('/rss.xml'));
+  assert.ok(plan.cdnPagePaths.includes('/sitemap.xml'));
+  assert.ok(plan.nextTags.includes('collection'));
 });
 
 test('collection membership and sorting share the complete public range', () => {

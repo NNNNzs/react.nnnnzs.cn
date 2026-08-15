@@ -1,3 +1,5 @@
+import { permanentRedirect } from 'next/navigation';
+
 export default function TimelinePage() {
-  return <div>TimelinePage</div>;
+  permanentRedirect('/archives');
 }

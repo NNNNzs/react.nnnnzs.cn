@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { descriptor as postCreateRoute } from '@/app/api/post/create/route';
 import { getDescriptor as postGetRoute, updateDescriptor as postUpdateRoute, deleteDescriptor as postDeleteRoute } from '@/app/api/post/[id]/route';
 import { descriptor as postListRoute } from '@/app/api/post/list/route';
+import { descriptor as postSeoIndexingRoute } from '@/app/api/post/seo-indexing/route';
 import { descriptor as imageGenRoute } from '@/app/api/image-gen/route';
 import { descriptor as imageRecognizeRoute } from '@/app/api/image-gen/recognize/route';
 import { descriptor as ttsSynthesizeRoute } from '@/app/api/tts/synthesize/route';
@@ -166,6 +167,11 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
       }));
       return post;
     },
+  },
+  {
+    ...postSeoIndexingRoute,
+    apiPath: '/api/post/seo-indexing',
+    mcpEnabled: false,
   },
   {
     ...contentTopicListRoute,
@@ -613,6 +619,7 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
         pageSize: (args.pageSize as number) ?? 10,
         query: args.keyword as string | undefined,
         hide: args.hide as string | undefined,
+        seo_indexable: args.seo_indexable as boolean | undefined,
       });
       // 批量查询文章合集信息
       const postIds = result.record.map(p => p.id);

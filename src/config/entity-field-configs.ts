@@ -110,6 +110,11 @@ export const postFieldConfigs: EntityFieldConfigs = {
     displayName: '删除状态',
     valueType: ValueType.BOOLEAN,
   },
+  seoIndexable: {
+    fieldName: 'seo_indexable',
+    displayName: '允许搜索引擎索引',
+    valueType: ValueType.BOOLEAN,
+  },
   githubUrl: {
     fieldName: 'github_url',
     displayName: 'GitHub URL',

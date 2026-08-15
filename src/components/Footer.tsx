@@ -51,7 +51,7 @@ export default function Footer() {
               关于博主
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Neon Nomad Navigating Night Zones。这里记录前端架构、后端服务、人工智能等领域的实践与思考。
+              NNNNzs 是一名全栈开发者，长期实践 React、Next.js、Node.js、Java、数据库、云原生与 AI 工程。本站聚焦真实项目中的架构取舍、故障排查、工具开发和原创技术记录。
             </p>
           </div>
 
@@ -71,7 +71,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/tags"
+                  href="/categories"
                   className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
                   分类

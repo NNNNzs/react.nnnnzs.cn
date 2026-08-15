@@ -69,6 +69,7 @@
 #### 基础设施
 - **[配置化 RBAC](docs/designs/infra/rbac-config-design.md)** - 角色权限配置化 + 统一接口注册表 + MCP 自动注册
 - **[MCP OAuth 2.0 认证设计](docs/designs/infra/mcp-oauth-design.md)** - MCP 服务 OAuth 2.0 集成
+- **[SEO 收录与 AdSense 内容质量策略](docs/designs/infra/seo-indexing.md)** - 文章人工收录开关、聚合页阈值、sitemap、缓存与广告排除
 - **[后台任务队列系统](docs/designs/infra/task-queue.md)** - 通用 TaskQueue、业务适配器、图片生成队列监控与重试
 - **[性能优化计划](docs/designs/infra/performance-optimization-plan.md)** - 性能优化实施记录
 

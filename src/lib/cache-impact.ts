@@ -72,6 +72,7 @@ export const PUBLIC_PAGE_PATHS = {
 const DETAIL_FIELDS = new Set(['content', 'description', 'cover', 'layout']);
 const IDENTITY_FIELDS = new Set(['title', 'date', 'path']);
 const VISIBILITY_FIELDS = new Set(['hide', 'is_delete']);
+const SEO_FIELDS = new Set(['seo_indexable']);
 const TAXONOMY_FIELDS = new Set(['tags', 'category']);
 const COUNTER_FIELDS = new Set(['likes', 'visitors']);
 const INTERNAL_FIELDS = new Set([
@@ -130,6 +131,7 @@ function detectChangedFields(
     ...DETAIL_FIELDS,
     ...IDENTITY_FIELDS,
     ...VISIBILITY_FIELDS,
+    ...SEO_FIELDS,
     ...TAXONOMY_FIELDS,
     ...COUNTER_FIELDS,
     ...INTERNAL_FIELDS,
@@ -213,12 +215,14 @@ export function collectPostCacheImpact(context: PostCacheImpactContext): CacheIm
     });
   }
 
-  const detailChanged =
+  const nonSeoDetailChanged =
     context.kind !== 'update' ||
     intersects(fields, DETAIL_FIELDS) ||
     intersects(fields, IDENTITY_FIELDS) ||
     intersects(fields, VISIBILITY_FIELDS) ||
     intersects(fields, TAXONOMY_FIELDS);
+  const seoChanged = intersects(fields, SEO_FIELDS);
+  const detailChanged = nonSeoDetailChanged || seoChanged;
   const identityChanged = context.kind !== 'update' || intersects(fields, IDENTITY_FIELDS);
   const visibilityChanged = context.kind !== 'update' || intersects(fields, VISIBILITY_FIELDS);
   const taxonomyChanged = context.kind !== 'update' || intersects(fields, TAXONOMY_FIELDS);
@@ -275,7 +279,11 @@ export function collectPostCacheImpact(context: PostCacheImpactContext): CacheIm
     addPage(PUBLIC_PAGE_PATHS.sitemap, makeWarmupTarget(PUBLIC_PAGE_PATHS.sitemap));
   }
 
-  if (detailChanged || identityChanged || visibilityChanged || taxonomyChanged) {
+  if (seoChanged) {
+    addPage(PUBLIC_PAGE_PATHS.sitemap, makeWarmupTarget(PUBLIC_PAGE_PATHS.sitemap));
+  }
+
+  if (nonSeoDetailChanged) {
     addPage(PUBLIC_PAGE_PATHS.rss, makeWarmupTarget(PUBLIC_PAGE_PATHS.rss));
   }
 
@@ -289,8 +297,16 @@ export function collectPostCacheImpact(context: PostCacheImpactContext): CacheIm
     }
   }
 
-  if (detailChanged || identityChanged || visibilityChanged || collectionChanged) {
-    nextTags.add('collection');
+
+  if (seoChanged) {
+    for (const tag of unique([...beforeTags, ...afterTags])) addPage(publicRoute.tag(tag));
+    for (const category of unique([beforeCategory || '', afterCategory || ''])) {
+      addPage(publicRoute.category(category));
+    }
+  }
+
+  if (detailChanged || identityChanged || visibilityChanged || collectionChanged || seoChanged) {
+    if (nonSeoDetailChanged || collectionChanged) nextTags.add('collection');
     for (const slug of unique([...beforeCollections, ...afterCollections])) {
       addPage(publicRoute.collection(slug));
     }

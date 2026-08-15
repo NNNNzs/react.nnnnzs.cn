@@ -15,10 +15,12 @@ import { SiteThirdParties } from "@/components/SiteThirdParties";
 import { AntdAppFeedbackBridge } from "@/components/AntdAppFeedbackBridge";
 import { AntdStyleProvider } from "@/components/AntdStyleProvider";
 import { formatShanghaiDateTime } from "@/lib/date-time";
+import { getSiteUrl } from "@/lib/site-url";
 // 初始化向量化队列
 import "@/lib/embedding-init";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: "NNNNzs",
   description: "Neon Nomad Navigating Night Zones",
   // favicon 由 Next metadata 渲染，保证 SSR HTML 里有原生 <link rel="icon">，

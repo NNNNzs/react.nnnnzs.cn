@@ -1,5 +1,11 @@
 import { getPrisma } from '@/lib/prisma';
-import type { QueryCondition, PageQueryRes, Archive, SerializedPost } from '@/dto/post.dto';
+import type {
+  QueryCondition,
+  PageQueryRes,
+  Archive,
+  SerializedPost,
+  BatchPostSeoIndexingResult,
+} from '@/dto/post.dto';
 import { TbPost } from '@/generated/prisma-client/client';
 import dayjs from 'dayjs';
 import { createPostVersion } from '@/services/post-version';
@@ -109,7 +115,15 @@ function genCover(date: Date | string): string {
  * 获取文章列表
  */
 export async function getPostList(params: QueryCondition): Promise<PageQueryRes<SerializedPost>> {
-  const { pageNum = 1, pageSize = 10, hide = '0', query = '', created_by, is_delete } = params;
+  const {
+    pageNum = 1,
+    pageSize = 10,
+    hide = '0',
+    query = '',
+    created_by,
+    is_delete,
+    seo_indexable,
+  } = params;
 
   const prisma = await getPrisma();
 
@@ -130,6 +144,10 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
   // 按创建者过滤
   if (created_by !== undefined) {
     whereConditions.created_by = created_by;
+  }
+
+  if (seo_indexable !== undefined) {
+    whereConditions.seo_indexable = seo_indexable;
   }
 
   if (query) {
@@ -163,6 +181,7 @@ export async function getPostList(params: QueryCondition): Promise<PageQueryRes<
         likes: true,
         hide: true,
         is_delete: true,
+        seo_indexable: true,
         created_by: true,
         rag_status: true,
         rag_error: true,
@@ -231,6 +250,22 @@ export async function getPostByTitle(title: string): Promise<SerializedPost | nu
     },
   });
   
+  return post ? serializePost(post) : null;
+}
+
+/**
+ * 根据标题获取公开文章，仅供公开页面的旧地址兼容跳转使用。
+ */
+export async function getPublicPostByTitle(title: string): Promise<SerializedPost | null> {
+  const prisma = await getPrisma();
+  const post = await prisma.tbPost.findFirst({
+    where: {
+      title,
+      hide: '0',
+      is_delete: 0,
+    },
+  });
+
   return post ? serializePost(post) : null;
 }
 
@@ -367,6 +402,7 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
       updated: now,
       hide: data.hide || '0',
       is_delete: 0,
+      seo_indexable: data.seo_indexable ?? true,
       visitors: 0,
       likes: 0,
       // 创建人：允许上层传入，默认为空
@@ -513,6 +549,7 @@ export async function updatePost(
   }
   if (data.description !== undefined) updateData.description = data.description;
   if (data.hide !== undefined) updateData.hide = data.hide;
+  if (data.seo_indexable !== undefined) updateData.seo_indexable = data.seo_indexable;
   if (data.visitors !== undefined) updateData.visitors = data.visitors;
   if (data.likes !== undefined) updateData.likes = data.likes;
 
@@ -580,6 +617,89 @@ export async function updatePost(
   }
 
   return serializePost(updatedPost);
+}
+
+export class BatchPostSeoIndexingError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 400 | 403 | 404,
+  ) {
+    super(message);
+    this.name = 'BatchPostSeoIndexingError';
+  }
+}
+
+export interface BatchPostSeoIndexingInput {
+  postIds: number[];
+  seoIndexable: boolean;
+  userId: number;
+  canEditAll: boolean;
+}
+
+export interface BatchPostSeoIndexingMutation extends BatchPostSeoIndexingResult {
+  before: SerializedPost[];
+  after: SerializedPost[];
+}
+
+/**
+ * 原子批量修改文章 SEO 收录状态。
+ *
+ * 此操作刻意不复用 updatePost，避免修改正文更新时间、创建正文版本或触发向量化。
+ */
+export async function updatePostsSeoIndexing(
+  input: BatchPostSeoIndexingInput,
+): Promise<BatchPostSeoIndexingMutation> {
+  const prisma = await getPrisma();
+  const uniqueIds = [...new Set(input.postIds)];
+
+  return prisma.$transaction(async (tx) => {
+    const posts = await tx.tbPost.findMany({
+      where: { id: { in: uniqueIds } },
+      orderBy: { id: 'asc' },
+    });
+
+    if (posts.length !== uniqueIds.length) {
+      throw new BatchPostSeoIndexingError('部分文章不存在', 404);
+    }
+    if (posts.some((post) => post.is_delete !== 0)) {
+      throw new BatchPostSeoIndexingError('批量操作不能包含已删除文章', 400);
+    }
+    if (!input.canEditAll && posts.some((post) => post.created_by !== input.userId)) {
+      throw new BatchPostSeoIndexingError('无权限编辑部分文章', 403);
+    }
+
+    const changedPosts = posts.filter(
+      (post) => post.seo_indexable !== input.seoIndexable,
+    );
+
+    if (changedPosts.length > 0) {
+      await tx.tbPost.updateMany({
+        where: { id: { in: changedPosts.map((post) => post.id) }, is_delete: 0 },
+        data: { seo_indexable: input.seoIndexable },
+      });
+      await tx.tbEntityChangeLog.createMany({
+        data: changedPosts.map((post) => ({
+          entity_id: post.id,
+          entity_type: EntityType.POST,
+          field_name: 'seo_indexable',
+          old_value: String(post.seo_indexable),
+          new_value: String(input.seoIndexable),
+          value_type: 'boolean',
+          created_by: input.userId,
+        })),
+      });
+    }
+
+    return {
+      updatedCount: changedPosts.length,
+      seoIndexable: input.seoIndexable,
+      before: posts.map(serializePost),
+      after: posts.map((post) => serializePost({
+        ...post,
+        seo_indexable: input.seoIndexable,
+      })),
+    };
+  });
 }
 
 /**

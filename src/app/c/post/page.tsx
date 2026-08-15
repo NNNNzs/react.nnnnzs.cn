@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Button, Input, Space, Tag, Select, Progress, Dropdown, Card } from 'antd';
+import { Button, Checkbox, Input, Space, Tag, Select, Progress, Dropdown, Card } from 'antd';
 import { message, modal } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from 'antd';
 import {
@@ -21,11 +21,12 @@ import {
   ReloadOutlined,
   HistoryOutlined,
   MoreOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { POST_RESTORE, POST_VIEW_DELETED } from '@/constants/permissions';
+import { POST_EDIT, POST_RESTORE, POST_VIEW_DELETED } from '@/constants/permissions';
 import type { Post } from '@/types';
 import EntityChangeHistoryModal from '@/components/EntityChangeHistoryModal';
 import { EntityType } from '@/types/entity-change';
@@ -51,6 +52,7 @@ function useUrlState() {
     hideFilter: searchParams.get('hide') || 'all',
     ownerFilter: searchParams.get('owner') || 'mine', // 创建者筛选，默认'mine'（我创建的）
     includeDeleted: searchParams.get('is_delete') === '1', // 是否包含已删除文章（仅管理员）
+    seoIndexableFilter: searchParams.get('seo_indexable') || 'all',
     current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
   }), [searchParams]);
@@ -64,6 +66,7 @@ interface QueryParams {
   hide?: string;
   owner?: string; // 创建者筛选（mine/all）
   is_delete?: string; // 是否包含已删除文章（'0'=未删除，'1'=已删除）
+  seo_indexable?: string;
   page?: number;
   pageSize?: number;
 }
@@ -83,6 +86,7 @@ function useUpdateUrl() {
       hide: searchParams.get('hide') || undefined,
       owner: searchParams.get('owner') || undefined,
       is_delete: searchParams.get('is_delete') || undefined,
+      seo_indexable: searchParams.get('seo_indexable') || undefined,
       page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
       pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined,
     };
@@ -116,6 +120,10 @@ function useUpdateUrl() {
       params.set('is_delete', '1');
     }
 
+    if (mergedParams.seo_indexable && ['true', 'false'].includes(mergedParams.seo_indexable)) {
+      params.set('seo_indexable', mergedParams.seo_indexable);
+    }
+
     // 处理页码 page
     if (mergedParams.page && mergedParams.page > 1) {
       params.set('page', mergedParams.page.toString());
@@ -142,6 +150,8 @@ function AdminPageContent() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [selectedPostIds, setSelectedPostIds] = useState<React.Key[]>([]);
+  const [seoBatchLoading, setSeoBatchLoading] = useState(false);
   // 搜索框的临时输入状态（用于用户输入时显示）
   const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
   // 批量更新向量相关状态
@@ -195,6 +205,7 @@ function AdminPageContent() {
         query?: string;
         created_by?: number;
         is_delete?: number;
+        seo_indexable?: boolean;
       }
 
       // 使用传入的参数，如果没有则使用当前 URL 状态
@@ -208,6 +219,10 @@ function AdminPageContent() {
 
       if (urlState.hideFilter && urlState.hideFilter !== 'all') {
         params.hide = urlState.hideFilter;
+      }
+
+      if (urlState.seoIndexableFilter !== 'all') {
+        params.seo_indexable = urlState.seoIndexableFilter === 'true';
       }
 
       // 如果有搜索关键词，也传给服务端
@@ -394,6 +409,44 @@ function AdminPageContent() {
     });
   };
 
+  const handleBatchSeoIndexing = (seoIndexable: boolean) => {
+    if (selectedPostIds.length === 0) {
+      message.warning('请先选择文章');
+      return;
+    }
+
+    confirm({
+      title: seoIndexable ? '确认批量允许索引' : '确认批量禁止索引',
+      content: seoIndexable
+        ? `确定允许搜索引擎索引已选择的 ${selectedPostIds.length} 篇文章吗？`
+        : `确定禁止搜索引擎索引已选择的 ${selectedPostIds.length} 篇文章吗？文章仍可访问，只从 sitemap 和搜索索引退出。`,
+      okText: seoIndexable ? '允许索引' : '禁止索引',
+      okType: seoIndexable ? 'primary' : 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setSeoBatchLoading(true);
+          const response = await axios.patch('/api/post/seo-indexing', {
+            postIds: selectedPostIds.map(Number),
+            seoIndexable,
+          });
+          if (!response.data.status) {
+            message.error(response.data.message || '批量设置失败');
+            return;
+          }
+          message.success(`已更新 ${response.data.data.updatedCount} 篇文章`);
+          setSelectedPostIds([]);
+          await loadPosts(urlState.current, urlState.pageSize);
+        } catch (error) {
+          console.error('批量设置 SEO 收录状态失败:', error);
+          message.error('批量设置 SEO 收录状态失败');
+        } finally {
+          setSeoBatchLoading(false);
+        }
+      },
+    });
+  };
+
   /**
    * 单篇文章更新向量
    */
@@ -431,7 +484,7 @@ function AdminPageContent() {
     }
   // 只在真正需要重新加载数据时触发
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.searchText, urlState.ownerFilter, urlState.includeDeleted]);
+  }, [user, urlState.current, urlState.pageSize, urlState.hideFilter, urlState.seoIndexableFilter, urlState.searchText, urlState.ownerFilter, urlState.includeDeleted]);
 
   /**
    * 桌面端表格列定义
@@ -473,6 +526,17 @@ function AdminPageContent() {
       render: (hide: string) => (
         <Tag color={hide === '0' ? 'success' : 'default'}>
           {hide === '0' ? '显示' : '隐藏'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'SEO',
+      dataIndex: 'seo_indexable',
+      key: 'seo_indexable',
+      width: 100,
+      render: (seoIndexable: boolean) => (
+        <Tag color={seoIndexable ? 'blue' : 'default'}>
+          {seoIndexable ? '允许索引' : '禁止索引'}
         </Tag>
       ),
     },
@@ -641,10 +705,22 @@ function AdminPageContent() {
         }
       >
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          <Checkbox
+            checked={selectedPostIds.includes(post.id)}
+            disabled={post.is_delete !== 0}
+            onChange={(event) => setSelectedPostIds((current) => (
+              event.target.checked
+                ? [...new Set([...current, post.id])]
+                : current.filter((id) => id !== post.id)
+            ))}
+          />
           <Tag color={post.hide === '0' ? 'success' : 'default'}>
             {post.hide === '0' ? '显示' : '隐藏'}
           </Tag>
           <Tag color={ragConf.color}>{ragConf.text}</Tag>
+          <Tag color={post.seo_indexable ? 'blue' : 'default'}>
+            {post.seo_indexable ? '允许索引' : '禁止索引'}
+          </Tag>
           {Array.isArray(post.tags) && post.tags.length > 0 && post.tags.map((tag, i) => (
             <Tag key={i} color="blue">{tag}</Tag>
           ))}
@@ -692,6 +768,23 @@ function AdminPageContent() {
                 </Button>
               </Dropdown>
             )}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'enable', label: '允许索引', onClick: () => handleBatchSeoIndexing(true) },
+                  { key: 'disable', label: '禁止索引', danger: true, onClick: () => handleBatchSeoIndexing(false) },
+                ],
+              }}
+            >
+              <Button
+                icon={<GlobalOutlined />}
+                loading={seoBatchLoading}
+                disabled={!hasPermission(POST_EDIT) || selectedPostIds.length === 0}
+                size="small"
+              >
+                {isMobile ? `SEO (${selectedPostIds.length})` : `批量 SEO (${selectedPostIds.length})`}
+              </Button>
+            </Dropdown>
             <Button variant="solid" color="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
@@ -799,6 +892,18 @@ function AdminPageContent() {
                     ]
               }
             />
+            <Select
+              placeholder="SEO 收录"
+              allowClear
+              size="middle"
+              style={{ width: isMobile ? 'auto' : 130, minWidth: isMobile ? 100 : undefined, flex: isMobile ? '1 1 auto' : undefined }}
+              value={urlState.seoIndexableFilter === 'all' ? undefined : urlState.seoIndexableFilter}
+              onChange={(value) => updateQueryParams({ seo_indexable: value || undefined, page: 1 })}
+              options={[
+                { label: '允许索引', value: 'true' },
+                { label: '禁止索引', value: 'false' },
+              ]}
+            />
           </div>
         </div>
 
@@ -808,6 +913,12 @@ function AdminPageContent() {
           dataSource={posts}
           rowKey="id"
           loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedPostIds,
+            preserveSelectedRowKeys: true,
+            onChange: setSelectedPostIds,
+            getCheckboxProps: (record) => ({ disabled: record.is_delete !== 0 }),
+          }}
           renderMobileCard={renderMobileCard}
           pagination={{
             current: pagination.current,

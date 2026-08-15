@@ -62,6 +62,37 @@ export async function getAllTags(): Promise<[string, number][]> {
   return tags;
 }
 
+export interface IndexableTaxonomyEntry {
+  name: string;
+  count: number;
+  lastModified: Date | null;
+}
+
+/** 获取符合公开与人工索引条件的标签统计，供 metadata 与 sitemap 使用。 */
+export async function getIndexableTagEntries(): Promise<IndexableTaxonomyEntry[]> {
+  const prisma = await getPrisma();
+  const posts = await prisma.tbPost.findMany({
+    where: { hide: '0', is_delete: 0, seo_indexable: true },
+    select: { tags: true, updated: true, date: true },
+  });
+  const entries = new Map<string, { count: number; lastModified: Date | null }>();
+
+  posts.forEach((post) => {
+    parseTagsString(post.tags).forEach((tag) => {
+      const current = entries.get(tag) || { count: 0, lastModified: null };
+      const modified = post.updated || post.date;
+      entries.set(tag, {
+        count: current.count + 1,
+        lastModified: !current.lastModified || (modified && modified > current.lastModified)
+          ? modified
+          : current.lastModified,
+      });
+    });
+  });
+
+  return [...entries.entries()].map(([name, value]) => ({ name, ...value }));
+}
+
 /**
  * 根据标签获取文章列表
  */

@@ -55,6 +55,7 @@ export const updateDescriptor: ApiDescriptor = {
       description: { type: 'string', description: '简短描述' },
       cover: { type: 'string', description: '封面图URL' },
       hide: { type: 'string', description: '1隐藏 0显示' },
+      seo_indexable: { type: 'boolean', description: '是否允许搜索引擎索引' },
       add_to_collections: { type: 'string', description: '添加到的合集ID或slug，逗号分隔' },
       remove_from_collections: { type: 'string', description: '移除的合集ID或slug，逗号分隔' },
     },
@@ -95,6 +96,7 @@ const updatePostSchema = z.object({
     z.date(),
   ]).optional().nullable(),
   hide: z.enum(['0', '1']).optional(),
+  seo_indexable: z.boolean().optional(),
   visitors: z.number().int().min(0).optional(),
   likes: z.number().int().min(0).optional(),
 });

@@ -5,14 +5,25 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   async headers() {
-    return [{
+    const privateRouteHeaders = [
+      { key: 'Cache-Control', value: 'no-store, max-age=0' },
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nocache' },
+    ];
+    return [
+      '/login/:path*',
+      '/authorize/:path*',
+      '/bind-wechat/:path*',
+      '/notifications/:path*',
+      '/chat/:path*',
+      '/create/:path*',
+      '/c/:path*',
+    ].map((source) => ({ source, headers: privateRouteHeaders })).concat({
       source: '/preview/:path*',
       headers: [
-        { key: 'Cache-Control', value: 'no-store, max-age=0' },
+        ...privateRouteHeaders,
         { key: 'Referrer-Policy', value: 'no-referrer' },
-        { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
       ],
-    }];
+    });
   },
   async rewrites() {
     return [
