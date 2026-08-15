@@ -2,7 +2,7 @@
 
 Use @CLAUDE.md as the source of truth for this project.
 
-Claude Code assets in `.claude/` are mirrored locally for Codex by the project hook. Do not edit generated bridge files; update the `.claude/` source instead.
+Codex-first Agent Skills live in `.agents/skills/` and are committed as the shared source of truth. `.claude/skills` is a repository symlink to `../.agents/skills`, so edit the files through `.agents/skills/`. Claude project agents in `.claude/agents/` are still bridged into ignored `.codex/agents/*.toml` files by the project hook; edit the Claude source when changing those agents.
 
 ## Blender MCP
 

@@ -40,11 +40,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local Codex bridge output
-/.agents/skills/
+# Codex-first Agent Skills
+# .agents/skills/ is the tracked source of truth.
+# .claude/skills is a tracked symlink to ../.agents/skills.
+!/.agents/
+!/.agents/skills/
+!/.agents/skills/**
 /.agents/CLAUDE_BRIDGE.md
 /.agents/claude-sync-manifest.json
 /.codex/agents/*.toml
+/.codex/claude-sync-manifest.json
 
 # prisma generated client
 /src/generated/prisma-client

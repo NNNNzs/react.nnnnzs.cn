@@ -1,5 +1,5 @@
 {
-  "description": "Sync Claude Code project skills and agents into local Codex bridge output.",
+  "description": "Validate Codex-first skills and sync Claude project agents into the local Codex bridge.",
   "hooks": {
     "SessionStart": [
       {

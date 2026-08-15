@@ -183,6 +183,18 @@ docs/                             # 项目文档
 ├── designs/                      # 功能详细设计文档
 └── rules/                        # 开发规范文档
 
+.agents/                          # Codex-first Agent Skills
+└── skills/                       # 已提交的共享技能源目录
+
+.claude/                          # Claude Code 项目配置
+├── agents/                       # Claude 项目 Agent 源文件
+└── skills -> ../.agents/skills   # 共享技能软链接，不单独维护副本
+
+.codex/                           # Codex 项目集成配置
+├── agents/                       # 被忽略的 Claude Agent 兼容生成目录
+├── hooks/                        # 项目 Hook 脚本
+└── hooks.json                    # Codex Hook 声明
+
 prisma/                           # Prisma Schema 定义
 ```
 

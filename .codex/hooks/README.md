@@ -2,16 +2,17 @@
 
 This directory contains project-local Codex hook scripts.
 
-## Claude Bridge
+## Claude Agent Bridge
 
-`sync-claude-to-codex.mjs` converts the project's Claude Code assets into local Codex-readable bridge output:
+`sync-claude-to-codex.mjs` validates the Codex-first skill repository and converts the project's Claude Code agents into local Codex-readable bridge output:
 
-- `.claude/skills/*` -> `.agents/skills/*`
+- `.agents/skills/*/SKILL.md` is validated in place; no skill copy is generated.
+- `.claude/skills` is a symlink to `../.agents/skills`.
 - `.claude/agents/*.md` -> `.codex/agents/*.toml`
 
-Generated names match the Claude Code source names.
+Generated agent names match the Claude Code source names.
 
-The generated output is ignored by git. The hook script itself is committed so every developer gets the same local setup behavior.
+Only the generated agent output is ignored by git. The skills and the Claude compatibility symlink are committed so every developer gets the same shared skill repository.
 
 Recommended hook command:
 

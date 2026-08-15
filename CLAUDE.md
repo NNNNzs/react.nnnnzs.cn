@@ -7,6 +7,7 @@
 ### 项目基础
 - **[项目概述](docs/rules/project-overview.md)** - 技术栈、框架版本
 - **[目录结构](docs/rules/directory-structure.md)** - 完整目录树和职责说明
+- **[Agent Skills 管理](docs/rules/agent-skills.md)** - Codex-first 技能源目录和 Claude Code 软链接
 - **[环境变量](docs/rules/environment-variables.md)** - 配置规范和必需变量
 - **[包管理](docs/rules/package-management.md)** - pnpm 使用和常用命令
 - **[Git 规范](docs/rules/git-conventions.md)** - Commit 格式和分支策略
