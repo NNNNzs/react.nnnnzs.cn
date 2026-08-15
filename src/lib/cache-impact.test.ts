@@ -129,6 +129,10 @@ test('hide and delete retain the old detail path and old relationships', () => {
     plan.warmupTargets.find((target) => target.path === before.path)?.expectedVisibility,
     'absent',
   );
+  assert.ok(plan.nextTags.includes('collection-list'));
+  assert.ok(plan.nextTags.includes('collections'));
+  assert.ok(plan.cdnPagePaths.includes('/collections'));
+  assert.ok(plan.cdnPagePaths.includes('/'));
 });
 
 test('editing an already hidden or deleted post has no public cache impact', () => {

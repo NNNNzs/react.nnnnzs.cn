@@ -303,6 +303,13 @@ export function collectPostCacheImpact(context: PostCacheImpactContext): CacheIm
     addPage(PUBLIC_PAGE_PATHS.home);
   }
 
+  if (visibilityChanged && beforeCollections.length > 0) {
+    nextTags.add('collection-list');
+    nextTags.add('collections');
+    addPage(PUBLIC_PAGE_PATHS.collectionsIndex);
+    addPage(PUBLIC_PAGE_PATHS.home);
+  }
+
   return normalizeCacheImpactPlan({
     source: 'post',
     nextTags: [...nextTags],

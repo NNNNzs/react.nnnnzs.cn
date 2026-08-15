@@ -22,6 +22,10 @@ import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogsAsync } from '@/services/entity-change-log';
 import { EntityType, ValueType } from '@/types/entity-change';
 import { parseCollectionVisualConfig } from '@/lib/collection-visual';
+import {
+  getPublicCollectionArticleCounts,
+  refreshCollectionArticleCount,
+} from '@/services/collection-count';
 
 /**
  * 将 Prisma 实体序列化为纯对象
@@ -82,8 +86,16 @@ export async function getCollectionList(
     }),
   ]);
 
+  const publicArticleCounts = await getPublicCollectionArticleCounts(
+    data.map((collection) => collection.id),
+    prisma,
+  );
+
   return {
-    record: data.map(serializeCollection),
+    record: data.map((collection) => ({
+      ...serializeCollection(collection),
+      article_count: publicArticleCounts.get(collection.id) || 0,
+    })),
     total,
     pageNum,
     pageSize,
@@ -128,8 +140,14 @@ export async function getCollectionShowcaseList(): Promise<CollectionShowcaseIte
     },
   });
 
+  const publicArticleCounts = await getPublicCollectionArticleCounts(
+    data.map((collection) => collection.id),
+    prisma,
+  );
+
   return data.map(({ collectionPosts, ...collection }) => ({
     ...serializeCollection(collection),
+    article_count: publicArticleCounts.get(collection.id) || 0,
     articles: collectionPosts.map(({ post, sort_order }) => ({
       id: post.id,
       title: post.title,
@@ -210,6 +228,7 @@ async function getCollectionDetail(
 
   return {
     ...serializeCollection(collection),
+    article_count: articles.length,
     articles,
   };
 }
@@ -252,7 +271,13 @@ export async function getCollectionById(id: number): Promise<SerializedCollectio
     where: { id, is_delete: 0 },
   });
 
-  return collection ? serializeCollection(collection) : null;
+  if (!collection) return null;
+
+  const article_count = await getPublicCollectionArticleCounts([id], prisma);
+  return {
+    ...serializeCollection(collection),
+    article_count: article_count.get(id) || 0,
+  };
 }
 
 /** 获取后台文章管理所需的合集文章，包含隐藏但未删除的文章。 */
@@ -449,14 +474,7 @@ export async function addPostsToCollection(
     }
 
     // 更新合集的 article_count
-    const count = await tx.tbCollectionPost.count({
-      where: { collection_id: collectionId },
-    });
-
-    await tx.tbCollection.update({
-      where: { id: collectionId },
-      data: { article_count: count },
-    });
+    await refreshCollectionArticleCount(collectionId, tx);
 
     return { created: createData.length, addedPostIds: newPostIds };
   });
@@ -511,14 +529,7 @@ export async function removePostsFromCollection(
     });
 
     // 更新计数
-    const count = await tx.tbCollectionPost.count({
-      where: { collection_id: collectionId },
-    });
-
-    await tx.tbCollection.update({
-      where: { id: collectionId },
-      data: { article_count: count },
-    });
+    await refreshCollectionArticleCount(collectionId, tx);
   });
 
   // 记录变更日志（在事务外异步执行）
@@ -670,7 +681,6 @@ export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
       title: true,
       slug: true,
       description: true,
-      article_count: true,
       collectionPosts: {
         select: {
           post_id: true,
@@ -684,17 +694,17 @@ export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
         orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
       },
     },
-    orderBy: {
-      article_count: 'desc',
-    },
+    orderBy: { id: 'asc' },
   });
 
-  return collections.map((collection) => ({
-    id: collection.id,
-    title: collection.title,
-    slug: collection.slug,
-    description: collection.description,
-    articleCount: collection.collectionPosts.length,
-    postIds: collection.collectionPosts.map((cp) => cp.post_id),
-  }));
+  return collections
+    .map((collection) => ({
+      id: collection.id,
+      title: collection.title,
+      slug: collection.slug,
+      description: collection.description,
+      articleCount: collection.collectionPosts.length,
+      postIds: collection.collectionPosts.map((cp) => cp.post_id),
+    }))
+    .sort((left, right) => right.articleCount - left.articleCount || left.id - right.id);
 }

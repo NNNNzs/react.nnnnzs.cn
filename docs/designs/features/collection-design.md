@@ -62,7 +62,7 @@ model TbCollection {
   color       String?   @db.VarChar(20)     // 主题色，如 #2563eb
 
   // 统计信息（冗余字段，提高查询性能）
-  article_count Int     @default(0)       // 文章数量
+  article_count Int     @default(0)       // 公开可见文章数量（tb_post.is_delete = 0 且 hide = '0'）
   total_views   Int     @default(0)       // 总浏览量
   total_likes   Int     @default(0)       // 总点赞数
 
@@ -84,6 +84,10 @@ model TbCollection {
   @@map("tb_collection")
 }
 ```
+
+`article_count` 的统计口径是公开可见文章，而不是 `tb_collection_post` 的全部关联数。隐藏或软删除文章仍然保留在关联表中，供后台管理和恢复操作使用，但不应出现在公开合集目录，也不应计入公开合集数量。
+
+文章关联新增、移除，以及文章隐藏、取消隐藏、软删除、恢复时，都必须同步重算所属合集的 `article_count`。公开列表和详情读取也应按 `tb_post.is_delete = 0 AND hide = '0'` 重新核对计数，避免历史冗余字段过期导致页面显示错误。
 
 #### `tb_collection_post` - 合集文章关联表（中间表）
 

@@ -7,6 +7,7 @@ import { queueEmbedPost } from '@/services/embedding';
 import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
+import { refreshCollectionArticleCountsForPost } from '@/services/collection-count';
 
 /**
  * 将字符串标签转换为数组
@@ -521,6 +522,10 @@ export async function updatePost(
     data: updateData,
   });
 
+  if (existingPost.hide !== updatedPost.hide || existingPost.is_delete !== updatedPost.is_delete) {
+    await refreshCollectionArticleCountsForPost(id, prisma);
+  }
+
   // 检测字段变更并记录日志，确保 MCP/HTTP 请求返回前日志已落库
   const changes = detectChanges(
     EntityType.POST,
@@ -589,6 +594,8 @@ export async function deletePost(id: number): Promise<boolean> {
     },
   });
 
+  await refreshCollectionArticleCountsForPost(id, prisma);
+
   // 异步删除向量数据（不阻塞响应）
   if (result) {
     (async () => {
@@ -625,6 +632,8 @@ export async function restorePost(id: number): Promise<SerializedPost | null> {
       updated: new Date(),
     },
   });
+
+  await refreshCollectionArticleCountsForPost(id, prisma);
 
   return serializePost(restoredPost);
 }
