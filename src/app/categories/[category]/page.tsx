@@ -9,7 +9,7 @@ import { Empty } from 'antd';
 import PostListItem from '@/components/PostListItem';
 import Banner from '@/components/Banner';
 import { getPostsByCategory } from '@/services/category';
-import { createSeoDescription, meetsSeoAggregateThreshold } from '@/lib/seo-content';
+import { createSeoDescription } from '@/lib/seo-content';
 import { toAbsoluteSiteUrl } from '@/lib/site-url';
 
 interface PageProps {
@@ -26,7 +26,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { category: rawCategory } = await params;
   const category = decodeURIComponent(rawCategory);
   const posts = await getCachedPostsByCategory(category);
-  const indexableCount = posts.filter((post) => post.seo_indexable).length;
   const canonical = toAbsoluteSiteUrl(`/categories/${encodeURIComponent(category)}`);
   const description = createSeoDescription(
     null,
@@ -38,9 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${category} 分类文章 - NNNNzs`,
     description,
     alternates: { canonical },
-    robots: meetsSeoAggregateThreshold(indexableCount)
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
+    robots: { index: false, follow: true },
     openGraph: { type: 'website', title: `${category} 分类文章`, description, url: canonical },
   };
 }

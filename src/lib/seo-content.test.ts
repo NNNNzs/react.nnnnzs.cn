@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createSeoDescription,
+  getSeoQualityAssessment,
   getSeoQualityRisks,
   markdownToPlainText,
   meetsSeoAggregateThreshold,
@@ -9,6 +10,7 @@ import {
 import { isAdSenseExcludedRoute } from '@/lib/adsense-route';
 import { batchSeoIndexingSchema } from '@/lib/post-seo-indexing';
 import { getSiteUrl } from '@/lib/site-url';
+import { INDEXABLE_POST_WHERE, isIndexablePost, isPublicPost, PUBLIC_POST_WHERE } from '@/lib/post-visibility';
 
 test('Markdown 摘要会移除 HTML 与语法标记并压缩空白', () => {
   assert.equal(
@@ -45,6 +47,39 @@ test('质量提示不改变人工开关，聚合页阈值固定为 3 篇', () =>
   assert.equal(manualIndexable, true);
   assert.equal(meetsSeoAggregateThreshold(2), false);
   assert.equal(meetsSeoAggregateThreshold(3), true);
+});
+
+test('SEO 审计等级按风险数量计算，且不改变人工索引状态', () => {
+  const clean = getSeoQualityAssessment({
+    title: '真实项目实践',
+    content: 'a'.repeat(800),
+    description: 'a'.repeat(50),
+    category: '工程实践',
+    tags: ['Next.js'],
+    seoIndexable: false,
+  });
+  assert.equal(clean.grade, 'A');
+  assert.equal(clean.seoIndexable, false);
+
+  const oneRisk = getSeoQualityAssessment({
+    title: '真实项目实践',
+    content: 'a'.repeat(800),
+    description: 'a'.repeat(50),
+    category: null,
+    tags: [],
+  });
+  assert.equal(oneRisk.grade, 'B');
+
+  const manyRisks = getSeoQualityAssessment({ title: '测试', content: '', description: '' });
+  assert.equal(manyRisks.grade, 'C');
+});
+
+test('公开与可索引文章查询条件保持严格包含关系', () => {
+  assert.deepEqual(PUBLIC_POST_WHERE, { hide: '0', is_delete: 0 });
+  assert.deepEqual(INDEXABLE_POST_WHERE, { hide: '0', is_delete: 0, seo_indexable: true });
+  assert.equal(isPublicPost({ hide: '0', is_delete: 0, seo_indexable: false }), true);
+  assert.equal(isIndexablePost({ hide: '0', is_delete: 0, seo_indexable: false }), false);
+  assert.equal(isIndexablePost({ hide: '0', is_delete: 0, seo_indexable: true }), true);
 });
 
 test('AdSense 只在公开内容路由加载', () => {

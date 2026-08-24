@@ -88,6 +88,8 @@ export interface CollectionQueryCondition {
   pageNum: number;
   status?: number;
   query?: string;
+  /** 公开内容列表是否只统计允许搜索引擎发现的文章。 */
+  indexableOnly?: boolean;
 }
 
 /**

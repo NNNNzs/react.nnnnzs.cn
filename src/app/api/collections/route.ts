@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
       pageNum,
       query,
       status: 1,
+      indexableOnly: true,
     });
 
     return NextResponse.json({

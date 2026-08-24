@@ -10,7 +10,7 @@ import PostListItem from '@/components/PostListItem';
 import Banner from '@/components/Banner';
 import { getPostsByTag } from '@/services/tag';
 import type { Post } from '@/types';
-import { createSeoDescription, meetsSeoAggregateThreshold } from '@/lib/seo-content';
+import { createSeoDescription } from '@/lib/seo-content';
 import { toAbsoluteSiteUrl } from '@/lib/site-url';
 
 interface PageProps {
@@ -39,7 +39,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
   const posts = await getCachedPostsByTag(tag);
-  const indexableCount = posts.filter((post) => post.seo_indexable).length;
   const canonical = toAbsoluteSiteUrl(`/tags/${encodeURIComponent(tag)}`);
   const description = createSeoDescription(
     null,
@@ -51,9 +50,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${tag} 标签文章 - NNNNzs`,
     description,
     alternates: { canonical },
-    robots: meetsSeoAggregateThreshold(indexableCount)
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
+    robots: { index: false, follow: true },
     openGraph: { type: 'website', title: `${tag} 标签文章`, description, url: canonical },
   };
 }

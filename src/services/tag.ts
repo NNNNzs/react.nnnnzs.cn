@@ -1,6 +1,7 @@
 import { getPrisma } from '@/lib/prisma';
 import { SerializedPost } from '@/dto/post.dto';
 import type { TbPost } from '@/generated/prisma-client/client';
+import { INDEXABLE_POST_WHERE, PUBLIC_POST_WHERE } from '@/lib/post-visibility';
 
 /**
  * 将字符串标签转换为数组
@@ -31,15 +32,12 @@ function serializePost(post: TbPost): SerializedPost {
 /**
  * 获取所有标签及其文章数量
  */
-export async function getAllTags(): Promise<[string, number][]> {
+export async function getAllTags(indexableOnly = true): Promise<[string, number][]> {
   const prisma = await getPrisma();
 
   // 获取所有未删除且显示的文章的标签
   const posts = await prisma.tbPost.findMany({
-    where: {
-      hide: '0',
-      is_delete: 0,
-    },
+    where: indexableOnly ? INDEXABLE_POST_WHERE : PUBLIC_POST_WHERE,
     select: {
       tags: true,
     },
@@ -72,7 +70,7 @@ export interface IndexableTaxonomyEntry {
 export async function getIndexableTagEntries(): Promise<IndexableTaxonomyEntry[]> {
   const prisma = await getPrisma();
   const posts = await prisma.tbPost.findMany({
-    where: { hide: '0', is_delete: 0, seo_indexable: true },
+    where: INDEXABLE_POST_WHERE,
     select: { tags: true, updated: true, date: true },
   });
   const entries = new Map<string, { count: number; lastModified: Date | null }>();
@@ -110,8 +108,7 @@ export async function getPostsByTag(tag: string): Promise<SerializedPost[]> {
   // 匹配三种情况：标签在开头、中间或末尾
   const posts = await prisma.tbPost.findMany({
     where: {
-      hide: '0',
-      is_delete: 0,
+      ...INDEXABLE_POST_WHERE,
       OR: [
         { tags: { equals: sanitizedTag } }, // 只有一个标签
         { tags: { startsWith: `${sanitizedTag},` } }, // 标签在开头

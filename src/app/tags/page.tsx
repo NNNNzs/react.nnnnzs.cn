@@ -31,6 +31,7 @@ export const metadata: Metadata = {
   title: '文章标签 - NNNNzs',
   description: '按技术主题与实践方向浏览 NNNNzs 的博客文章标签。',
   alternates: { canonical: '/tags' },
+  robots: { index: false, follow: true },
 };
 
 export default async function TagsPage() {

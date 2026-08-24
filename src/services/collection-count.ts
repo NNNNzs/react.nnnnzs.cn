@@ -1,24 +1,26 @@
 import { getPrisma } from '@/lib/prisma';
 import type { Prisma, PrismaClient } from '@/generated/prisma-client/client';
+import { INDEXABLE_POST_WHERE, PUBLIC_POST_WHERE } from '@/lib/post-visibility';
 
 type CollectionDbClient = PrismaClient | Prisma.TransactionClient;
 
-const PUBLIC_POST_FILTER = {
-  post: {
-    is_delete: 0,
-    hide: '0',
-  },
-} as const;
+const PUBLIC_POST_FILTER = { post: PUBLIC_POST_WHERE } as const;
+const INDEXABLE_POST_FILTER = { post: INDEXABLE_POST_WHERE } as const;
+
+function getPostFilter(indexableOnly: boolean) {
+  return indexableOnly ? INDEXABLE_POST_FILTER : PUBLIC_POST_FILTER;
+}
 
 /** 获取一个合集当前可公开展示的文章数。 */
 export async function countPublicCollectionPosts(
   collectionId: number,
   db: CollectionDbClient,
+  indexableOnly = false,
 ): Promise<number> {
   return db.tbCollectionPost.count({
     where: {
       collection_id: collectionId,
-      ...PUBLIC_POST_FILTER,
+      ...getPostFilter(indexableOnly),
     },
   });
 }
@@ -29,13 +31,14 @@ export async function countPublicCollectionPosts(
 export async function getPublicCollectionArticleCounts(
   collectionIds: number[],
   db: CollectionDbClient,
+  indexableOnly = false,
 ): Promise<Map<number, number>> {
   if (collectionIds.length === 0) return new Map();
 
   const relations = await db.tbCollectionPost.findMany({
     where: {
       collection_id: { in: collectionIds },
-      ...PUBLIC_POST_FILTER,
+      ...getPostFilter(indexableOnly),
     },
     select: { collection_id: true },
   });

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { INDEXABLE_POST_WHERE } from '@/lib/post-visibility';
 
 /**
  * 将字符串标签转换为数组
@@ -74,10 +75,7 @@ export async function GET(request: NextRequest) {
     const prisma = await getPrisma();
 
     // 构建 where 条件
-    const where: Record<string, unknown> = {
-      is_delete: 0,
-      hide: '0',
-    };
+    const where: Record<string, unknown> = { ...INDEXABLE_POST_WHERE };
 
     // 标签筛选（逗号分隔）
     if (params.tags) {

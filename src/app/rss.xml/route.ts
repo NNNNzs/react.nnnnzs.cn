@@ -7,6 +7,7 @@
 
 import { Feed } from 'feed';
 import { getPrisma } from '@/lib/prisma';
+import { INDEXABLE_POST_WHERE } from '@/lib/post-visibility';
 
 const DEFAULT_SITE_URL = 'https://www.nnnnzs.cn';
 const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || 'NNNNzs';
@@ -40,10 +41,7 @@ export async function GET() {
   const prisma = await getPrisma();
 
   const posts = await prisma.tbPost.findMany({
-    where: {
-      hide: '0',
-      is_delete: 0,
-    },
+    where: INDEXABLE_POST_WHERE,
     select: {
       path: true,
       title: true,

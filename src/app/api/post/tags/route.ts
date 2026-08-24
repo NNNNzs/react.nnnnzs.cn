@@ -9,7 +9,8 @@ import { successResponse, errorResponse } from '@/dto/response.dto';
 
 export async function GET() {
   try {
-    const tags = await getAllTags();
+    // 后台编辑器需要看到全部公开文章的历史标签，不能把 seo_indexable 当成管理数据权限。
+    const tags = await getAllTags(false);
     return NextResponse.json(successResponse(tags));
   } catch (error) {
     console.error('获取标签列表失败:', error);

@@ -5,7 +5,7 @@
 
 import { embedText } from '@/services/embedding/embedding';
 import { searchSimilarVectors } from '@/services/embedding/vector-store';
-import { getPostById } from '@/services/post';
+import { getIndexablePostsByIds } from '@/services/post';
 import type { Tool, ToolResult } from './index';
 
 const EMBEDDING_TIMEOUT_MS = 8_000;
@@ -128,30 +128,18 @@ export const searchArticlesTool: Tool = {
         };
       }
 
-      // 3. 获取文章详细信息
-      // ⚠️ 安全过滤：getPostById 会自动过滤 is_delete=1 的文章（返回 null）
-      // 所以这里不需要额外检查
+      // 3. 通过数据库做最终可索引过滤，避免 Qdrant 旧向量或状态延迟重新暴露文章
       const uniquePostIds = [...new Set(searchResults.map((r) => r.postId))];
+      const postMap = await getIndexablePostsByIds(uniquePostIds);
       const postInfoMap = new Map<number, { title: string; url: string | null }>();
 
-      await Promise.all(
-        uniquePostIds.map(async (postId) => {
-          const post = await getPostById(postId);
-          if (post) {
-            // 注意：这里不包含 baseUrl，因为前端会根据当前域名生成 URL
-            const postUrl = post.path || null;
-            postInfoMap.set(postId, {
-              title: post.title || `文章 ${postId}`,
-              url: postUrl,
-            });
-          } else {
-            postInfoMap.set(postId, {
-              title: `文章 ${postId}`,
-              url: null,
-            });
-          }
-        })
-      );
+      postMap.forEach((post, postId) => {
+        // 注意：这里不包含 baseUrl，因为前端会根据当前域名生成 URL
+        postInfoMap.set(postId, {
+          title: post.title || `文章 ${postId}`,
+          url: post.path || null,
+        });
+      });
 
       // 4. 按文章分组结果
       const resultsByPost = new Map<number, ArticleSearchResult>();

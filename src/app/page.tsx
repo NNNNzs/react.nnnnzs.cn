@@ -75,6 +75,7 @@ const getCachedPosts = unstable_cache(
       pageNum: 1,
       pageSize,
       hide: "0",
+      seo_indexable: true,
     });
     return result;
   },
@@ -91,6 +92,7 @@ const getCachedCollections = unstable_cache(
       pageNum: 1,
       pageSize: 20,
       status: 1,
+      indexableOnly: true,
     });
     return result.record.map((c) => ({
       id: c.id,

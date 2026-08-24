@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: '文章分类 - NNNNzs',
   description: '按分类浏览 NNNNzs 的前端、后端、人工智能与工程实践文章。',
   alternates: { canonical: '/categories' },
+  robots: { index: false, follow: true },
 };
 
 export default async function CategoriesPage() {

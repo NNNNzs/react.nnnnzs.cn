@@ -12,6 +12,16 @@ export interface SeoQualityRisk {
   message: string;
 }
 
+export type SeoQualityGrade = 'A' | 'B' | 'C';
+
+export interface SeoQualityAssessment {
+  grade: SeoQualityGrade;
+  contentLength: number;
+  descriptionLength: number;
+  risks: SeoQualityRisk[];
+  seoIndexable?: boolean;
+}
+
 const PLACEHOLDER_TITLE_PATTERN = /^(?:(?:无标题(?:文章)?|未命名(?:文章)?|untitled|test|测试(?:文章)?|todo|临时(?:文章)?)\s*\d*|\d+)$/i;
 
 function decodeBasicHtmlEntities(value: string): string {
@@ -93,6 +103,33 @@ export function getSeoQualityRisks(input: {
   }
 
   return risks;
+}
+
+/**
+ * 计算文章质量审计结果。
+ *
+ * 这是只读的启发式报告，不会替文章修改 seo_indexable 状态。
+ * A=0 个风险，B=1 个风险，C=2 个及以上风险。
+ */
+export function getSeoQualityAssessment(input: {
+  title?: string | null;
+  content?: string | null;
+  description?: string | null;
+  category?: string | null;
+  tags?: string[] | string | null;
+  seoIndexable?: boolean;
+}): SeoQualityAssessment {
+  const contentLength = Array.from(markdownToPlainText(input.content).replace(/\s/g, '')).length;
+  const descriptionLength = Array.from(markdownToPlainText(input.description)).length;
+  const risks = getSeoQualityRisks(input);
+
+  return {
+    grade: risks.length === 0 ? 'A' : risks.length === 1 ? 'B' : 'C',
+    contentLength,
+    descriptionLength,
+    risks,
+    seoIndexable: input.seoIndexable,
+  };
 }
 
 export function meetsSeoAggregateThreshold(indexablePostCount: number): boolean {

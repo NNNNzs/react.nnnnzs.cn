@@ -172,7 +172,8 @@ async function createMcpServer(headers: Headers) {
       await ensureAuth();
       const collections = await getCollectionList({
         pageNum: 1,
-        pageSize: 100
+        pageSize: 100,
+        indexableOnly: true,
       });
 
       // 格式化为易读的文本

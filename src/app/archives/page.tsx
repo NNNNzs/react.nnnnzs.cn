@@ -27,7 +27,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: '文章归档 - NNNNzs',
-  description: '按年份浏览 NNNNzs 的全部公开文章。',
+  description: '按年份浏览 NNNNzs 的可索引原创文章。',
   alternates: { canonical: '/archives' },
   robots: { index: false, follow: true },
 };

@@ -163,7 +163,7 @@ test('likes, visitors and internal RAG updates have no public cache impact', () 
   }
 });
 
-test('SEO indexing updates refresh detail, sitemap and affected aggregates only', () => {
+test('SEO indexing updates refresh all public discovery surfaces', () => {
   const before = post({ seo_indexable: true });
   const after = post({ seo_indexable: false });
   const plan = collectPostCacheImpact({
@@ -185,7 +185,7 @@ test('SEO indexing updates refresh detail, sitemap and affected aggregates only'
     assert.ok(plan.cdnPagePaths.includes(path), `missing ${path}`);
   }
   for (const path of ['/', '/archives', '/rss.xml', '/tags', '/categories', '/collections']) {
-    assert.equal(plan.cdnPagePaths.includes(path), false, `unexpected ${path}`);
+    assert.ok(plan.cdnPagePaths.includes(path), `missing ${path}`);
   }
 });
 

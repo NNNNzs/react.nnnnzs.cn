@@ -280,7 +280,16 @@ export function collectPostCacheImpact(context: PostCacheImpactContext): CacheIm
   }
 
   if (seoChanged) {
+    for (const tag of ['home', 'post-list', 'archives', 'tags', 'tag-list', 'collections', 'collection-list', 'collection']) {
+      nextTags.add(tag);
+    }
+    addPage(PUBLIC_PAGE_PATHS.home);
+    addPage(PUBLIC_PAGE_PATHS.archives);
+    addPage(PUBLIC_PAGE_PATHS.rss, makeWarmupTarget(PUBLIC_PAGE_PATHS.rss));
     addPage(PUBLIC_PAGE_PATHS.sitemap, makeWarmupTarget(PUBLIC_PAGE_PATHS.sitemap));
+    addPage(PUBLIC_PAGE_PATHS.tagsIndex);
+    addPage(PUBLIC_PAGE_PATHS.categoriesIndex);
+    addPage(PUBLIC_PAGE_PATHS.collectionsIndex);
   }
 
   if (nonSeoDetailChanged) {

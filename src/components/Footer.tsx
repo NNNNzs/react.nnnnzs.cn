@@ -63,6 +63,14 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <li>
                 <Link
+                  href="/about"
+                  className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  关于博主
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/archives"
                   className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >

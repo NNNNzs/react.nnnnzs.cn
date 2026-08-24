@@ -9,7 +9,7 @@ import { searchSimilarVectors } from '@/services/embedding/vector-store';
 import { requirePermission } from '@/lib/permission';
 import { VECTOR_VIEW } from '@/constants/permissions';
 import { successResponse, errorResponse } from '@/dto/response.dto';
-import { getPrisma } from '@/lib/prisma';
+import { getIndexablePostIds } from '@/services/post';
 
 /**
  * POST /api/search/vector
@@ -44,24 +44,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ 向量搜索完成，找到 ${results.length} 个结果`);
 
-    // ⚠️ 应用层安全过滤：排除已删除的文章
-    // 虽然 Qdrant 已经过滤了 hide='0'，但还需要在应用层检查 is_delete
+    // 应用层最终安全过滤：校验 hide、is_delete 和 seo_indexable。
+    // Qdrant 的 hide='0' 过滤只是第一层优化，不能替代数据库状态。
     const validPostIds = results.map(r => r.postId);
     let filteredResults = results;
 
     if (validPostIds.length > 0) {
-      const prisma = await getPrisma();
-      const posts = await prisma.tbPost.findMany({
-        where: {
-          id: { in: validPostIds },
-          is_delete: 0,  // ✅ 只返回未删除的文章
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      const validIds = new Set(posts.map(p => p.id));
+      const validIds = await getIndexablePostIds(validPostIds);
       filteredResults = results.filter(r => validIds.has(r.postId));
 
       if (filteredResults.length < results.length) {

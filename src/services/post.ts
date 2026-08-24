@@ -14,6 +14,7 @@ import { detectChanges } from '@/services/entity-change-detector';
 import { createChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
 import { refreshCollectionArticleCountsForPost } from '@/services/collection-count';
+import { INDEXABLE_POST_WHERE } from '@/lib/post-visibility';
 
 /**
  * 将字符串标签转换为数组
@@ -55,10 +56,7 @@ export async function getPublicPostCount(): Promise<number> {
   const prisma = await getPrisma();
 
   return prisma.tbPost.count({
-    where: {
-      hide: '0',
-      is_delete: 0,
-    },
+    where: INDEXABLE_POST_WHERE,
   });
 }
 
@@ -283,6 +281,37 @@ export async function getPostById(id: number): Promise<SerializedPost | null> {
   return post;
 }
 
+/** 批量获取可索引文章，供搜索和 RAG 做数据库最终过滤。 */
+export async function getIndexablePostsByIds(ids: number[]): Promise<Map<number, SerializedPost>> {
+  if (ids.length === 0) return new Map();
+
+  const prisma = await getPrisma();
+  const posts = await prisma.tbPost.findMany({
+    where: {
+      ...INDEXABLE_POST_WHERE,
+      id: { in: ids },
+    },
+  });
+
+  return new Map(posts.map((post) => [post.id, serializePost(post)]));
+}
+
+/** 仅获取可索引文章 ID，供不需要正文的搜索 API 使用。 */
+export async function getIndexablePostIds(ids: number[]): Promise<Set<number>> {
+  if (ids.length === 0) return new Set();
+
+  const prisma = await getPrisma();
+  const posts = await prisma.tbPost.findMany({
+    where: {
+      ...INDEXABLE_POST_WHERE,
+      id: { in: ids },
+    },
+    select: { id: true },
+  });
+
+  return new Set(posts.map((post) => post.id));
+}
+
 /**
  * 根据 ID 获取文章，包含软删除记录。
  *
@@ -309,10 +338,7 @@ export async function getPostByIdIncludingDeleted(id: number): Promise<Serialize
 export async function getArchives(): Promise<Archive[]> {
   const prisma = await getPrisma();
   const posts = await prisma.tbPost.findMany({
-    where: {
-      hide: '0',
-      is_delete: 0,
-    },
+    where: INDEXABLE_POST_WHERE,
     orderBy: {
       date: 'desc',
     },

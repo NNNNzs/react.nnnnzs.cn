@@ -1,6 +1,6 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getPostById } from '@/services/post';
+import { getIndexablePostsByIds } from '@/services/post';
 import { searchArticlesTool } from './search-articles';
 import { searchPostsMetaTool } from './search-posts-meta';
 import {
@@ -61,7 +61,7 @@ export const searchPostsLangChainTool = tool(
 export const getPostContentLangChainTool = tool(
   async ({ postId }) => {
     try {
-      const post = await getPostById(postId);
+      const post = (await getIndexablePostsByIds([postId])).get(postId);
       if (!post) return serializeToolData({ error: `文章 ${postId} 不存在` });
 
       return serializeToolData({

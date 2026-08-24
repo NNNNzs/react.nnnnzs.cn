@@ -347,7 +347,7 @@ export default async function PostDetail({ params }: PageProps) {
 
 export async function generateStaticParams() {
   try {
-    const { record } = await getPostList({ pageNum: 1, pageSize: 10000 }); // DB 查 path
+    const { record } = await getPostList({ pageNum: 1, pageSize: 10000, seo_indexable: true }); // DB 查 path
 
     return record.map((post) => {
       const [, year, month, date, title] = post.path!.split("/");

@@ -40,7 +40,7 @@ async function getDeployCatalog(): Promise<DeployCacheCatalog> {
     getPostList({ pageNum: 1, pageSize: 10_000, hide: '0' }),
     getAllTags(),
     getAllCategories(),
-    getCollectionList({ pageNum: 1, pageSize: 1_000, status: 1 }),
+    getCollectionList({ pageNum: 1, pageSize: 1_000, status: 1, indexableOnly: true }),
   ]);
   return {
     postPaths: posts.record.map((post) => post.path).filter((path): path is string => Boolean(path)),

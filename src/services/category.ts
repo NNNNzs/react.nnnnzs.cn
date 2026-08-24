@@ -1,6 +1,7 @@
 import { getPrisma } from '@/lib/prisma';
 import { SerializedPost } from '@/dto/post.dto';
 import type { TbPost } from '@/generated/prisma-client/client';
+import { INDEXABLE_POST_WHERE } from '@/lib/post-visibility';
 
 /**
  * 将字符串标签转换为数组
@@ -36,10 +37,7 @@ export async function getAllCategories(): Promise<[string, number][]> {
 
   // 获取所有未删除且显示的文章的分类
   const posts = await prisma.tbPost.findMany({
-    where: {
-      hide: '0',
-      is_delete: 0,
-    },
+    where: INDEXABLE_POST_WHERE,
     select: {
       category: true,
     },
@@ -72,9 +70,7 @@ export async function getIndexableCategoryEntries(): Promise<IndexableCategoryEn
   const prisma = await getPrisma();
   const posts = await prisma.tbPost.findMany({
     where: {
-      hide: '0',
-      is_delete: 0,
-      seo_indexable: true,
+      ...INDEXABLE_POST_WHERE,
       category: { not: null },
     },
     select: { category: true, updated: true, date: true },
@@ -105,8 +101,7 @@ export async function getPostsByCategory(category: string): Promise<SerializedPo
 
   const posts = await prisma.tbPost.findMany({
     where: {
-      hide: '0',
-      is_delete: 0,
+      ...INDEXABLE_POST_WHERE,
       category: category, // Exact match for category usually
     },
     orderBy: {

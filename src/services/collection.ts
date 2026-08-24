@@ -26,6 +26,7 @@ import {
   getPublicCollectionArticleCounts,
   refreshCollectionArticleCount,
 } from '@/services/collection-count';
+import { INDEXABLE_POST_WHERE } from '@/lib/post-visibility';
 
 /**
  * 将 Prisma 实体序列化为纯对象
@@ -45,7 +46,7 @@ export function serializeCollection(collection: TbCollection): SerializedCollect
 export async function getCollectionList(
   params: CollectionQueryCondition
 ): Promise<CollectionPageQueryRes> {
-  const { pageSize, pageNum, status, query } = params;
+  const { pageSize, pageNum, status, query, indexableOnly = false } = params;
   const prisma = await getPrisma();
 
   // 构建 where 条件
@@ -89,6 +90,7 @@ export async function getCollectionList(
   const publicArticleCounts = await getPublicCollectionArticleCounts(
     data.map((collection) => collection.id),
     prisma,
+    indexableOnly,
   );
 
   return {
@@ -117,10 +119,7 @@ export async function getCollectionShowcaseList(): Promise<CollectionShowcaseIte
     include: {
       collectionPosts: {
         where: {
-          post: {
-            is_delete: 0,
-            hide: '0',
-          },
+          post: INDEXABLE_POST_WHERE,
         },
         orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
         take: 11,
@@ -143,6 +142,7 @@ export async function getCollectionShowcaseList(): Promise<CollectionShowcaseIte
   const publicArticleCounts = await getPublicCollectionArticleCounts(
     data.map((collection) => collection.id),
     prisma,
+    true,
   );
 
   return data.map(({ collectionPosts, ...collection }) => ({
@@ -201,10 +201,7 @@ async function getCollectionDetail(
         // 合集详情：序号越大越靠前；同序时，较新的文章排在前面。
         orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
         where: {
-          post: {
-            is_delete: 0,
-            hide: '0',
-          },
+          post: INDEXABLE_POST_WHERE,
         },
       },
     },
@@ -690,10 +687,7 @@ export async function getAllCollectionsSummary(): Promise<CollectionSummary[]> {
           post_id: true,
         },
         where: {
-          post: {
-            is_delete: 0,
-            hide: '0',
-          },
+          post: INDEXABLE_POST_WHERE,
         },
         orderBy: [{ sort_order: 'desc' }, { post: { date: 'desc' } }, { id: 'desc' }],
       },
