@@ -282,10 +282,6 @@ function LoginPage() {
               登录
             </Button>
           </Form.Item>
-
-          <div className="text-center text-sm text-slate-500">
-            测试账号: admin / admin123
-          </div>
         </Form>
       ),
     },
