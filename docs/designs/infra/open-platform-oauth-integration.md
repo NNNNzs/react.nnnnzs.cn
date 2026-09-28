@@ -11,7 +11,7 @@
 - 直接升级，不保留旧逻辑
 
 **涉及系统：**
-- 博客前端：`react.nnnnzs.cn`
+- 博客前端：`https://www.nnnnzs.cn`
 - 博客后端：`api.nnnnzs.cn`
 - 开放平台：`https://api.nnnnzs.cn/open-platform`
 

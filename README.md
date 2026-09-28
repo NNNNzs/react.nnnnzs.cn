@@ -2,6 +2,8 @@
 
 这是一个基于 Next.js 16 + React 19 + Prisma + MySQL 构建的全栈博客系统，包含完整的前端展示、AI 聊天、向量检索和后台管理功能。
 
+**正式站点：** [https://www.nnnnzs.cn](https://www.nnnnzs.cn)。仓库及 npm 包名 `react.nnnnzs.cn` 仅用于标识项目，线上页面与 API 地址以正式站点域名为准；本地开发使用 `http://localhost:3000`。配置规则见 [环境变量文档](docs/rules/environment-variables.md)。
+
 ##  技术栈
 
 ### 前端核心

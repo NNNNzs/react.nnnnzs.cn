@@ -9,7 +9,7 @@ import React, { Suspense, useCallback, useState, useEffect, useRef } from "react
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
-import { EditOutlined, CodeOutlined, BulbOutlined, MenuOutlined } from "@ant-design/icons";
+import { EditOutlined, CodeOutlined, MenuOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
@@ -27,10 +27,10 @@ import { buildEditPostPath } from "@/lib/routes";
 
 // 导航菜单配置
 const navItems = [
-  { href: "/", labelKey: "navHome", type: "link" as const },
-  { href: "/archives", labelKey: "navArchives", type: "link" as const },
-  { href: "/collections", labelKey: "navCollections", type: "link" as const },
-  { href: "/chat", labelKey: "navChat", type: "ai-badge" as const },
+  { href: "/", labelKey: "navHome" },
+  { href: "/archives", labelKey: "navArchives" },
+  { href: "/collections", labelKey: "navCollections" },
+  { href: "/about", labelKey: "navAbout" },
 ] as const;
 
 export default function Header() {
@@ -135,26 +135,6 @@ export default function Header() {
 	              <nav className="hidden md:flex items-center gap-6">
 	                {navItems.map((item) => {
                   const label = selectStyleText(headerCopy[item.labelKey], styleVariant);
-
-	                  if (item.type === "ai-badge") {
-	                    // AI Badge 特殊样式
-	                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        suppressHydrationWarning
-                        className="group/ai flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                          bg-indigo-50 dark:bg-indigo-900/20
-                          text-indigo-600 dark:text-indigo-400
-                          text-sm font-semibold
-                          hover:bg-indigo-100 dark:hover:bg-indigo-900/40
-                          transition-all border border-indigo-100 dark:border-indigo-800/50"
-	                      >
-	                        <BulbOutlined className="text-[18px] group-hover/ai:animate-pulse" />
-	                        {label}
-	                      </Link>
-	                    );
-	                  }
 
                   const isActive = pathname === item.href;
                   return (
@@ -310,6 +290,16 @@ export default function Header() {
 	              </Link>
 	            );
 	          })}
+
+          <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+            <Link
+              href="/chat"
+              className="text-text-main-light dark:text-text-main-dark"
+              onClick={() => setDrawerOpen(false)}
+            >
+              {selectStyleText(headerCopy.navChat, styleVariant)} · AI 工具
+            </Link>
+          </div>
 
           {/* 编辑按钮 - 在移动端抽屉中显示 */}
           {shouldShowEditButton && currentPost && (

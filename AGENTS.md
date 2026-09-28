@@ -2,6 +2,8 @@
 
 Use @CLAUDE.md as the source of truth for this project.
 
+Production website: `https://www.nnnnzs.cn`. `react.nnnnzs.cn` is the repository and package name; do not infer a public URL from it. For deployment and URL settings, see `docs/rules/project-overview.md` and `docs/rules/environment-variables.md`.
+
 Codex-first Agent Skills live in `.agents/skills/` and are committed as the shared source of truth. `.claude/skills` is a repository symlink to `../.agents/skills`, so edit the files through `.agents/skills/`. Claude project agents in `.claude/agents/` are still bridged into ignored `.codex/agents/*.toml` files by the project hook; edit the Claude source when changing those agents.
 
 ## Blender MCP

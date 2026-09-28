@@ -69,6 +69,10 @@ ENV WX_APP_SECRET=${WX_APP_SECRET}
 # 生成 Prisma Client（输出到自定义目录 src/generated/prisma-client）
 RUN pnpm prisma generate
 
+# 本地构建与 CI 构建使用同一来源的真实镜像构建时间。
+RUN mkdir -p public && \
+    echo "{\"version\":\"${VERSION}\",\"buildDate\":\"${BUILD_DATE}\",\"commitSha\":\"${COMMIT_SHA}\"}" > public/version.json
+
 # 构建 Next.js 应用
 RUN pnpm build
 

@@ -93,8 +93,12 @@ FACE_GROUP_ID=blog_users
 
 ### 站点配置
 ```bash
+# 本地开发
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+# 生产环境：NEXT_PUBLIC_SITE_URL=https://www.nnnnzs.cn
 ```
+
+`NEXT_PUBLIC_SITE_URL` 用于生成公开页面的绝对 URL、canonical 和 sitemap。生产环境应配置为 `https://www.nnnnzs.cn`；`react.nnnnzs.cn` 只是仓库及 npm 包名，不能据此推断访问域名。`CDN_SITE_URL` 是页面 CDN 刷新目标，生产环境同样对应正式站点域名；`CDN_URL` 则用于静态资源。
 
 ### LangGraph 本地调试（可选）
 ```bash

@@ -4,6 +4,13 @@
 ## 项目定位
 基于 Next.js 16 的全栈博客项目，支持 Markdown 文章管理、标签分类、文章合集、AI 对话、语义搜索、评论系统、变更追踪等功能。
 
+## 站点地址
+
+- 正式站点：`https://www.nnnnzs.cn`，线上页面、API、canonical、sitemap 和公开可用性检查均使用该域名。
+- 本地开发：`http://localhost:3000`。
+- `react.nnnnzs.cn` 是仓库和 npm 包名，不是本项目的正式访问域名。不要从仓库名推断线上域名。
+- 运行时站点 URL 由 `NEXT_PUBLIC_SITE_URL` 配置；未配置时的默认值见 `src/lib/site-url.ts`。页面 CDN 域名另由 `CDN_SITE_URL` 配置，详见[环境变量配置](environment-variables.md)。
+
 ## 技术栈
 
 ### 核心框架

@@ -83,7 +83,7 @@ test('公开与可索引文章查询条件保持严格包含关系', () => {
 });
 
 test('AdSense 只在公开内容路由加载', () => {
-  for (const path of ['/c/post', '/create/drafts', '/login', '/archives', '/privacy']) {
+  for (const path of ['/c/post', '/create/drafts', '/login', '/archives', '/privacy', '/contact', '/terms']) {
     assert.equal(isAdSenseExcludedRoute(path), true, path);
   }
   assert.equal(isAdSenseExcludedRoute('/2026/08/16/article'), false);

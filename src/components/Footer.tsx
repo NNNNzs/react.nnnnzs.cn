@@ -30,14 +30,10 @@ export default function Footer() {
     // 读取构建信息（加时间戳参数避免 CDN 缓存）
     fetch(`/version.json?t=${Date.now()}`)
       .then((res) => res.json())
-      .then((data) => setBuildInfo(data))
+      .then((data: BuildInfo) => setBuildInfo(data))
       .catch(() => {
-        // 本地开发环境可能没有 version.json，使用默认值
-        setBuildInfo({
-          version: "dev",
-          buildDate: new Date().toISOString(),
-          commitSha: "local",
-        });
+        // 未提供版本文件时不显示未经证实的构建时间。
+        setBuildInfo(null);
       });
   }, []);
 
@@ -61,6 +57,16 @@ export default function Footer() {
               快速链接
             </h3>
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+              <li>
+                <Link href="/collections" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  合集
+                </Link>
+              </li>
+              <li>
+                <Link href="/chat" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  回想 · AI 工具
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/about"
@@ -117,6 +123,11 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <li>
+                <Link href="/contact" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  联系方式
+                </Link>
+              </li>
+              <li>
                 Email:{" "}
                 <a
                   href="mailto:nnnnzs@vip.qq.com"
@@ -142,24 +153,23 @@ export default function Footer() {
 
         {/* 版权信息 */}
         <div className="mt-12 pt-8 border-t border-slate-300 dark:border-slate-700 text-center">
-          <p className="text-xs text-slate-600 dark:text-slate-400">
-            © {currentYear} 我的博客. All rights reserved.
-            <br className="md:hidden" />
-            <span className="hidden md:inline"> | </span>
+          <p className="text-xs text-slate-600 dark:text-slate-400">© {currentYear} NNNNzs. All rights reserved.</p>
+          <nav aria-label="站点说明" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-slate-600 dark:text-slate-400">
             <Link
               href="/privacy"
               className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
               隐私政策
             </Link>
-            <span className="hidden md:inline"> | </span>
             <Link
               href="/notification-policy"
               className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
               通知策略
             </Link>
-            <span className="hidden md:inline"> | </span>
+            <Link href="/terms" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              免责声明与服务条款
+            </Link>
             <a
               href="https://beian.miit.gov.cn/"
               target="_blank"
@@ -168,23 +178,19 @@ export default function Footer() {
             >
               皖ICP备16025009号-1
             </a>
-            {formattedBuildDate && (
-              <>
-                <br className="md:hidden" />
-                <span className="hidden md:inline"> | </span>
-                <span className="font-mono">
-                  构建于 {formattedBuildDate.toLocaleString("zh-CN", {
-                    timeZone: "Asia/Shanghai",
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </>
-            )}
-          </p>
+          </nav>
+          {formattedBuildDate && (
+            <p className="mt-3 font-mono text-xs text-slate-600 dark:text-slate-400">
+              构建于 {formattedBuildDate.toLocaleString("zh-CN", {
+                timeZone: "Asia/Shanghai",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          )}
         </div>
       </div>
 

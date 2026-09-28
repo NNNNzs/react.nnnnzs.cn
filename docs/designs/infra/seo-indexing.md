@@ -69,7 +69,7 @@ GET /api/post/seo-audit?pageNum=1&pageSize=20&grade=C&seo_indexable=false&hide=0
 | `/collections` | 始终 index | self-canonical |
 | `/archives` | `noindex, follow` | self-canonical |
 | `/timeline` | 308 跳转到 `/archives` | 不单独输出 |
-| 隐私政策、通知策略 | 始终 index | self-canonical |
+| 关于、联系、隐私政策、免责声明与服务条款、通知策略 | 始终 index | self-canonical |
 | 登录、授权、绑定、通知、聊天、创作、预览、后台 | `noindex, nofollow, noarchive, nocache` | 不参与 sitemap |
 
 旧标题路径只能回退查询 `hide='0' AND is_delete=0` 的文章。命中后永久跳转到正式路径，隐藏或删除文章不能通过标题回退公开。
@@ -79,7 +79,7 @@ GET /api/post/seo-audit?pageNum=1&pageSize=20&grade=C&seo_indexable=false&hide=0
 Sitemap 只包含：
 
 - 首页。
-- About、合集顶层页。
+- About、Contact、Terms、合集顶层页。
 - 允许索引的公开文章。
 - 达到 3 篇阈值的已发布合集详情。
 - 隐私政策和通知策略。
@@ -105,7 +105,9 @@ Sitemap 只包含：
 
 AdSense 脚本不在后台、创作、预览、登录、授权、绑定、通知、聊天、归档及政策页面加载。生产发布后仍需在 AdSense 后台同步 URL 排除规则。
 
-Footer 和 `/about` 提供作者技术背景、站点定位、原创实践方向、邮箱和 GitHub。隐私政策说明 AdSense、GA4、广告 Cookie、第三方供应商、个性化广告退出入口、数据保存周期、用户控制权和联系渠道。
+主导航提供首页、文章、合集与 About 入口；回想位于移动端二级菜单和首页 Footer。Footer 和 `/about` 提供作者技术背景、站点定位、原创实践方向、邮箱和 GitHub。`/contact` 单独提供邮箱、GitHub 与数据请求渠道，`/terms` 提供免责声明与服务条款。隐私政策说明 AdSense、GA4、第三方广告 Cookie（含 DART 旧称）、第三方供应商、个性化广告退出入口、数据保存周期、用户控制权和联系渠道。联系、隐私、条款与通知策略页面不加载 AdSense。
+
+文章发布时间使用 `TbPost.date`，修订时间使用 `TbPost.updated`；文章元数据与 sitemap 均使用数据库时间。构建时间由镜像构建参数写入 `public/version.json`，仅用于 Footer 的版本提示，不参与文章时间和 sitemap。没有有效版本文件时不显示构建时间。
 
 ## 发布与验收
 

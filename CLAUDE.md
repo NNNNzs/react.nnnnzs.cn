@@ -109,6 +109,7 @@
 
 ## 🚀 部署
 
+- **正式站点 URL**: `https://www.nnnnzs.cn`。`react.nnnnzs.cn` 是仓库及 npm 包名，不代表线上访问域名；线上页面、API、canonical 与 sitemap 核验均使用正式站点 URL。
 - **CI/CD**: GitHub Actions (`Docker Release` workflow)，push 到 `main` 分支自动触发
 - **部署目标**: Docker 镜像构建后部署到 `www.nnnnzs.cn`（非 Vercel）
 - **构建命令**: `pnpm build`（含 `npx prisma generate && next build`）

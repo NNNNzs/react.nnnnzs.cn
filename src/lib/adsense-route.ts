@@ -10,6 +10,8 @@ const ADSENSE_EXCLUDED_ROUTES = [
   '/archives',
   '/privacy',
   '/notification-policy',
+  '/contact',
+  '/terms',
 ] as const;
 
 export function isAdSenseExcludedRoute(pathname: string): boolean {

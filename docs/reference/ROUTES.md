@@ -18,6 +18,9 @@
 | `/bind-wechat` | 绑定微信 |
 | `/notifications`、`/notification-policy` | 通知中心与通知策略 |
 | `/privacy` | 隐私说明 |
+| `/about` | 关于作者与本站 |
+| `/contact` | 联系方式 |
+| `/terms` | 免责声明与服务条款 |
 | `/preview?draftId=<id>&expiresAt=<unix-seconds>&signature=<hmac>&mode=<mode>` | 草稿公开预览；无需登录，但必须持有有效的 HMAC 签名链接；链接固定 7 天有效，`mode` 为 `xhs`、`zhihu` 或 `toutiao`，不参与签名 |
 | `/authorize` | OAuth 授权确认 |
 | `/glb-model-inspector` | GLB 模型检查器 |
@@ -103,4 +106,4 @@
 - `/.well-known/[...rest]`
 - `/rss.xml`
 
-最后更新：2026-08-15。
+最后更新：2026-09-28。

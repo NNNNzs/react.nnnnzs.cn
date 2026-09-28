@@ -13,6 +13,10 @@ export const headerCopy = defineStyleCopy({
     day: '合集',
     night: '档案库',
   },
+  navAbout: {
+    day: '关于',
+    night: '关于',
+  },
   navChat: {
     day: '回想',
     night: 'Relic',
