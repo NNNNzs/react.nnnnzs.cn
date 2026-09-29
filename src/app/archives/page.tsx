@@ -33,7 +33,12 @@ export const metadata: Metadata = {
 };
 
 export default async function ArchivesPage() {
-  const archives = await getCachedArchives();
+  let archives: { year: number; posts: unknown[] }[] = [];
+  try {
+    archives = await getCachedArchives();
+  } catch (error) {
+    console.warn("⚠️ ArchivesPage: 数据库连接失败，使用空数据:", error);
+  }
 
   // 计算总文章数
   const totalPosts = archives.reduce((sum: number, item: { posts: unknown[] }) => sum + item.posts.length, 0);
