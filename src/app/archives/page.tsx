@@ -8,6 +8,7 @@ import { unstable_cache } from 'next/cache';
 import Banner from '@/components/Banner';
 import ArchivesList from '@/components/ArchivesList';
 import { getArchives } from '@/services/post';
+import type { Archive } from '@/dto/post.dto';
 
 /**
  * 获取归档数据（使用 unstable_cache + 缓存标签）
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ArchivesPage() {
-  let archives: { year: number; posts: unknown[] }[] = [];
+  let archives: Archive[] = [];
   try {
     archives = await getCachedArchives();
   } catch (error) {
