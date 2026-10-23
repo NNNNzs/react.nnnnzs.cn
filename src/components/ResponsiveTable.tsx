@@ -14,9 +14,11 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 const MOBILE_BREAKPOINT = 768;
 
 export interface ResponsiveTableProps<T extends object = Record<string, unknown>>
-  extends Omit<TableProps<T>, "columns"> {
+  extends Omit<TableProps<T>, "columns" | "rowKey"> {
   /** 桌面端表格列定义 */
   columns: TableColumnsType<T>;
+  /** 稳定标识记录的字段名或只依赖记录内容的 key 生成函数。 */
+  rowKey?: string | ((record: T) => React.Key);
   /** 移动端卡片渲染函数 */
   renderMobileCard: (record: T) => React.ReactNode;
   /** 移动端断点，默认 768 */
@@ -106,13 +108,15 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
 
   const getMobileRecordKey = (record: T, index: number): React.Key => {
     if (typeof rowKey === "function") {
-      return rowKey(record, index);
+      return rowKey(record);
     }
     if (typeof rowKey === "string" && rowKey in record) {
       return record[rowKey as keyof T] as React.Key;
     }
     return (record as { key?: React.Key }).key ?? index;
   };
+  const desktopRowKey: TableProps<T>["rowKey"] =
+    typeof rowKey === "function" ? (record) => rowKey(record) : rowKey;
   const handleMobilePaginationChange = (page: number, pageSize: number) => {
     if (!pagination) return;
 
@@ -171,7 +175,7 @@ export default function ResponsiveTable<T extends object = Record<string, unknow
       <Table<T>
         columns={columns}
         dataSource={dataSource}
-        rowKey={rowKey}
+        rowKey={desktopRowKey}
         loading={loading}
         scroll={desktopScroll}
         pagination={pagination}

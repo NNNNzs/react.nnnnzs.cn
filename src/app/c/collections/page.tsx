@@ -122,6 +122,7 @@ function CollectionsManagePageContent() {
 
   const [collections, setCollections] = useState<SerializedCollection[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingStatusIds, setPendingStatusIds] = useState<Set<number>>(() => new Set());
   const [total, setTotal] = useState(0);
   const [searchInputValue, setSearchInputValue] = useState(urlState.searchText);
   // 变更历史弹窗状态
@@ -251,22 +252,45 @@ function CollectionsManagePageContent() {
   };
 
   // 切换状态
-  const handleToggleStatus = async (id: number, status: number) => {
-    if (!canEdit) return;
+  const handleToggleStatus = async (id: number, checked: boolean) => {
+    if (!canEdit || pendingStatusIds.has(id)) return;
+
+    const collection = collections.find((item) => item.id === id);
+    if (!collection) return;
+    const previousStatus = collection.status;
+
+    setPendingStatusIds((current) => new Set(current).add(id));
+    setCollections((current) => current.map((item) => (
+      item.id === id ? { ...item, status: checked ? 1 : 0 } : item
+    )));
+
     try {
       const res = await axios.put(`/api/collection/${id}`, {
-        status: status === 1 ? '1' : '0', // 传递字符串而不是数字
+        status: checked ? '1' : '0', // API schema 接收字符串状态
       });
 
       if (res.data.status) {
         message.success('状态更新成功');
-        loadCollections(urlState.current, urlState.pageSize);
       } else {
-        message.error(res.data.message || '状态更新失败');
+        throw new Error(res.data.message || '状态更新失败');
       }
     } catch (error) {
       console.error('更新状态失败:', error);
-      message.error('更新状态失败');
+      setCollections((current) => current.map((item) => (
+        item.id === id ? { ...item, status: previousStatus } : item
+      )));
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || '更新状态失败，已恢复原状态'
+        : error instanceof Error
+          ? error.message
+          : '更新状态失败，已恢复原状态';
+      message.error(errorMessage);
+    } finally {
+      setPendingStatusIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -307,8 +331,9 @@ function CollectionsManagePageContent() {
             </a>
             <Switch
               checked={record.status === 1}
-              onChange={() => handleToggleStatus(record.id, record.status)}
-              disabled={!canEdit}
+              onChange={(checked) => handleToggleStatus(record.id, checked)}
+              disabled={!canEdit || pendingStatusIds.has(record.id)}
+              loading={pendingStatusIds.has(record.id)}
               checkedChildren="显示"
               unCheckedChildren="隐藏"
               size="small"
@@ -457,8 +482,9 @@ function CollectionsManagePageContent() {
       render: (status: number, record) => (
         <Switch
           checked={status === 1}
-          onChange={() => handleToggleStatus(record.id, status)}
-          disabled={!canEdit}
+          onChange={(checked) => handleToggleStatus(record.id, checked)}
+          disabled={!canEdit || pendingStatusIds.has(record.id)}
+          loading={pendingStatusIds.has(record.id)}
           checkedChildren="显示"
           unCheckedChildren="隐藏"
         />

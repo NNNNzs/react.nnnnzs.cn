@@ -19,8 +19,59 @@ import { NextRequest, NextResponse } from 'next/server';
 import { queryEntityChangeLogs } from '@/services/entity-change-log';
 import { EntityType } from '@/types/entity-change';
 import { getPostByIdIncludingDeleted } from '@/services/post';
+import { getPrisma } from '@/lib/prisma';
 import { getAuthUserFromRequest } from '@/lib/auth';
 import { canViewPost } from '@/lib/permission';
+
+interface ArticleSnapshot {
+  id: number;
+  title: string;
+  path: string;
+}
+
+function parsePostsValue(value: string | null): unknown[] {
+  if (!value) return [];
+  try {
+    let parsed: unknown = JSON.parse(value);
+    // 兼容早期日志将 JSON 字符串再次 JSON.stringify 的格式。
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function getArticleId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  if (value && typeof value === 'object' && 'id' in value) {
+    const id = (value as { id?: unknown }).id;
+    if (typeof id === 'number' && Number.isInteger(id)) return id;
+    if (typeof id === 'string' && /^\d+$/.test(id)) return Number(id);
+  }
+  return null;
+}
+
+function toArticleSnapshots(
+  values: unknown[],
+  currentArticles: Map<number, { title: string | null; path: string }>,
+): ArticleSnapshot[] {
+  return values.flatMap((value) => {
+    const id = getArticleId(value);
+    if (id === null) return [];
+
+    const stored = value && typeof value === 'object'
+      ? value as { title?: unknown; path?: unknown }
+      : {};
+    const current = currentArticles.get(id);
+    const title = typeof stored.title === 'string'
+      ? stored.title
+      : current?.title || (current ? '未命名文章' : `文章已删除（原 ID：${id}）`);
+    const path = typeof stored.path === 'string' ? stored.path : current?.path || '';
+
+    return [{ id, title, path }];
+  });
+}
 
 export async function GET(
   request: NextRequest,
@@ -79,14 +130,44 @@ export async function GET(
       offset,
     });
 
+    let responseLogs = logs;
+    if (entityType === EntityType.COLLECTION) {
+      const postLogs = logs.filter((log) => log.fieldName === 'posts');
+      const referencedIds = new Set<number>();
+      for (const log of postLogs) {
+        for (const value of [...parsePostsValue(log.oldValue), ...parsePostsValue(log.newValue)]) {
+          const id = getArticleId(value);
+          if (id !== null) referencedIds.add(id);
+        }
+      }
+
+      if (referencedIds.size > 0) {
+        const prisma = await getPrisma();
+        const articles = await prisma.tbPost.findMany({
+          where: { id: { in: [...referencedIds] } },
+          select: { id: true, title: true, path: true },
+        });
+        const currentArticles = new Map(articles.map((article) => [
+          article.id,
+          { title: article.title, path: article.path },
+        ]));
+
+        responseLogs = logs.map((log) => log.fieldName !== 'posts' ? log : {
+          ...log,
+          oldValue: JSON.stringify(toArticleSnapshots(parsePostsValue(log.oldValue), currentArticles)),
+          newValue: JSON.stringify(toArticleSnapshots(parsePostsValue(log.newValue), currentArticles)),
+        });
+      }
+    }
+
     // 返回结果
     return NextResponse.json({
       success: true,
       data: {
         entityType,
         entityId: entityIdNum,
-        total: logs.length,
-        logs,
+        total: responseLogs.length,
+        logs: responseLogs,
       },
     }, { headers: privateHeaders });
   } catch (error) {

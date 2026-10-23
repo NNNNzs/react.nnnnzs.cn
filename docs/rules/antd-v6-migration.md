@@ -56,6 +56,7 @@ pnpm dlx @ant-design/cli --version 6.1.1 --lang zh --format markdown migrate 5 6
 | `Dropdown` | `overlayClassName/overlayStyle` | `classNames.root/styles.root` |
 | `Image` | `visible/onVisibleChange` | `open/onOpenChange` |
 | `Image` | `toolbarRender` | `actionsRender` |
+| `Table` | `rowKey={(record, index) => ...}` | `rowKey={(record) => record.id}`，使用记录中的稳定标识，不依赖 index |
 | `Tabs` | `Tabs.TabPane` | `items` |
 | `Timeline` | `Timeline.Item` | `items` |
 | `List` | `<List>` / `<List.Item>` | 原生列表结构 + `Pagination` / `Spin` / `Empty` |

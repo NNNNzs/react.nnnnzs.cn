@@ -1,12 +1,12 @@
 /**
  * AI 供应商管理 Tab
- * 列表 + 新建/编辑弹窗 + 一键拉取模型
+ * 列表 + 新建/编辑弹窗 + 拉取候选并选择模型
  */
 
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Button, Input, Tag, Card, Modal, Form, Space, Popconfirm,  } from "antd";
+import { Button, Checkbox, Input, Tag, Card, Modal, Form, Space, Popconfirm,  } from "antd";
 import { message } from "@/components/AntdAppFeedbackBridge";
 import type { TableColumnsType } from "antd";
 import {
@@ -47,6 +47,9 @@ function ProviderTab() {
   const [modelInput, setModelInput] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [modelFilter, setModelFilter] = useState("");
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [selectedFetchedModels, setSelectedFetchedModels] = useState<string[]>([]);
+  const [fetchedModelFilter, setFetchedModelFilter] = useState("");
 
   const filteredModels = useMemo(
     () =>
@@ -54,6 +57,13 @@ function ProviderTab() {
         ? models.filter((m) => m.toLowerCase().includes(modelFilter.trim().toLowerCase()))
         : models,
     [models, modelFilter],
+  );
+  const filteredFetchedModels = useMemo(
+    () =>
+      fetchedModelFilter.trim()
+        ? fetchedModels.filter((m) => m.toLowerCase().includes(fetchedModelFilter.trim().toLowerCase()))
+        : fetchedModels,
+    [fetchedModels, fetchedModelFilter],
   );
   const [fetchingModels, setFetchingModels] = useState(false);
   const [form] = Form.useForm();
@@ -83,6 +93,9 @@ function ProviderTab() {
     form.resetFields();
     setModels([]);
     setModelInput("");
+    setFetchedModels([]);
+    setSelectedFetchedModels([]);
+    setFetchedModelFilter("");
     setIsModalOpen(true);
   };
 
@@ -97,6 +110,9 @@ function ProviderTab() {
     });
     setModels(record.models);
     setModelInput("");
+    setFetchedModels([]);
+    setSelectedFetchedModels([]);
+    setFetchedModelFilter("");
     setIsModalOpen(true);
   };
 
@@ -153,15 +169,28 @@ function ProviderTab() {
   };
 
   const handleFetchModels = async () => {
-    if (!editing) return;
+    const { base_url, api_key } = form.getFieldsValue(["base_url", "api_key"]);
+    if (typeof base_url !== "string" || !base_url.trim()) {
+      message.warning("请先填写 Base URL");
+      return;
+    }
+    if (typeof api_key !== "string" || !api_key.trim()) {
+      message.warning("请先填写 API Key");
+      return;
+    }
+
+    setFetchedModels([]);
+    setSelectedFetchedModels([]);
     setFetchingModels(true);
     try {
-      const res = await axios.post(`/api/config/ai/providers/${editing.id}/fetch-models`);
+      const res = await axios.post("/api/config/ai/providers/fetch-models", { base_url, api_key });
       if (res.data.status) {
         const data = res.data.data;
         if (data?.ok && data.models) {
-          setModels(data.models);
-          message.success(`已拉取 ${data.models.length} 个模型`);
+          const candidates = (data.models as string[]).filter((model) => !models.includes(model));
+          setFetchedModels(candidates);
+          setFetchedModelFilter("");
+          message.success(`已发现 ${data.models.length} 个模型，其中 ${candidates.length} 个尚未加入`);
         } else {
           message.warning(data?.error || "拉取失败，请手动添加模型");
         }
@@ -173,6 +202,14 @@ function ProviderTab() {
     } finally {
       setFetchingModels(false);
     }
+  };
+
+  const addSelectedFetchedModels = () => {
+    if (selectedFetchedModels.length === 0) return;
+    setModels((current) => Array.from(new Set([...current, ...selectedFetchedModels])));
+    setFetchedModels((current) => current.filter((model) => !selectedFetchedModels.includes(model)));
+    setSelectedFetchedModels([]);
+    message.success(`已加入 ${selectedFetchedModels.length} 个模型`);
   };
 
   const addModel = () => {
@@ -362,16 +399,14 @@ function ProviderTab() {
           <Form.Item label="可用模型">
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                {editing && (
-                  <Button
-                    size="small"
-                    icon={<CloudSyncOutlined />}
-                    loading={fetchingModels}
-                    onClick={handleFetchModels}
-                  >
-                    一键拉取
-                  </Button>
-                )}
+                <Button
+                  size="small"
+                  icon={<CloudSyncOutlined />}
+                  loading={fetchingModels}
+                  onClick={handleFetchModels}
+                >
+                  拉取模型
+                </Button>
                 {models.length > 0 && (
                   <Popconfirm
                     title="确定清空所有模型？"
@@ -422,6 +457,46 @@ function ProviderTab() {
                   <span className="text-sm text-gray-400">暂无模型</span>
                 )}
               </div>
+              {fetchedModels.length > 0 && (
+                <div className="rounded-md border border-border-light p-3 dark:border-border-dark">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      拉取到的候选模型 <span className="text-gray-400">{fetchedModels.length}</span>
+                    </span>
+                    <Input
+                      size="small"
+                      placeholder="筛选候选模型"
+                      value={fetchedModelFilter}
+                      onChange={(e) => setFetchedModelFilter(e.target.value)}
+                      allowClear
+                      style={{ width: 200 }}
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded bg-gray-50 p-2 dark:bg-white/5">
+                    {filteredFetchedModels.length > 0 ? (
+                      <Checkbox.Group
+                        className="flex flex-col gap-2"
+                        options={filteredFetchedModels}
+                        value={selectedFetchedModels}
+                        onChange={(values) => setSelectedFetchedModels(values as string[])}
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-400">没有匹配的候选模型</span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-500">勾选后点击加入，才会保存到供应商模型清单</span>
+                    <Button
+                      size="small"
+                      type="primary"
+                      disabled={selectedFetchedModels.length === 0}
+                      onClick={addSelectedFetchedModels}
+                    >
+                      加入选中模型（{selectedFetchedModels.length}）
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Input
                   size="small"

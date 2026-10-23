@@ -94,29 +94,40 @@ export async function deleteProvider(id: number): Promise<void> {
 }
 
 /**
- * 从供应商的 base_url + /models 拉取可用模型清单（仅支持 OpenAI 兼容协议）。
- * 拉取失败时返回 ok:false，由前端降级为手填。
+ * 从 OpenAI 兼容供应商拉取模型候选清单，不修改 Provider 配置。
  */
-export async function fetchProviderModels(id: number): Promise<FetchModelsResult> {
-  const provider = await getProvider(id);
-  if (!provider) {
-    return { ok: false, error: '供应商不存在' };
+export async function fetchModelsFromProvider(
+  baseUrlInput: string,
+  apiKeyInput: string,
+): Promise<FetchModelsResult> {
+  const trimmedBaseUrl = baseUrlInput.trim().replace(/\/+$/, '');
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(trimmedBaseUrl);
+  } catch {
+    return { ok: false, error: 'Base URL 格式无效' };
+  }
+  if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:') {
+    return { ok: false, error: 'Base URL 仅支持 HTTP 或 HTTPS' };
   }
 
-  const baseUrl = provider.base_url.replace(/\/+$/, '');
-  const url = `${baseUrl}/models`;
+  const url = `${trimmedBaseUrl}/models`;
 
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${provider.api_key}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    clearTimeout(timer);
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKeyInput.trim()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!resp.ok) {
       return { ok: false, error: `上游返回 ${resp.status}` };
@@ -129,11 +140,18 @@ export async function fetchProviderModels(id: number): Promise<FetchModelsResult
       return { ok: false, error: '响应中未解析到模型' };
     }
 
-    // 拉取成功则回填到 provider.models
-    await updateProvider(id, { models });
     return { ok: true, models };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };
   }
+}
+
+/** 从已保存的供应商拉取候选模型，不修改其模型清单。 */
+export async function fetchProviderModels(id: number): Promise<FetchModelsResult> {
+  const provider = await getProvider(id);
+  if (!provider) {
+    return { ok: false, error: '供应商不存在' };
+  }
+  return fetchModelsFromProvider(provider.base_url, provider.api_key);
 }

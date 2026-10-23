@@ -351,12 +351,12 @@ function PageContent() {
         <ResponsiveTable<PurgeTaskRecord>
           columns={columns}
           dataSource={data}
-          rowKey={(record, index) => [
-            record.TaskId || "task",
+          rowKey={(record) => record.TaskId || [
             record.Url || "url",
             record.CreateTime || "time",
             record.PurgeType || "type",
-            index,
+            record.FlushType || "flush",
+            record.Status || "status",
           ].join(":")}
           loading={loading}
           renderMobileCard={renderMobileCard}

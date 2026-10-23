@@ -1,7 +1,7 @@
 /**
  * AI 供应商拉取模型列表 API
  * POST /api/config/ai/providers/[id]/fetch-models
- * 调用供应商 /models 接口拉取可用模型清单并回填
+ * 调用供应商 /models 接口拉取候选模型，不修改已保存清单
  */
 
 import { NextRequest, NextResponse } from 'next/server';

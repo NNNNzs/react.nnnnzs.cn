@@ -390,10 +390,14 @@ export async function updateCollection(
     });
 
     // 检测字段变更并记录日志（异步执行，不阻塞响应）
+    const changeData = {
+      ...updateData,
+      ...(data.extends_json !== undefined ? { extends_json: data.extends_json } : {}),
+    };
     const changes = detectChanges(
       EntityType.COLLECTION,
       existingCollection,
-      updateData
+      changeData
     );
 
     if (changes.length > 0) {
@@ -485,18 +489,25 @@ export async function addPostsToCollection(
     // 获取合集当前所有文章
     const currentPosts = await prisma.tbCollectionPost.findMany({
       where: { collection_id: collectionId },
-      select: { post_id: true },
+      select: {
+        post: { select: { id: true, title: true, path: true } },
+      },
       orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
     });
 
-    const currentPostIds = currentPosts.map(p => p.post_id);
+    const currentPostSnapshots = currentPosts.map(({ post }) => ({
+      id: post.id,
+      title: post.title,
+      path: post.path,
+    }));
+    const addedPostIdSet = new Set(result.addedPostIds);
 
-    // 生成变更记录：记录整个文章列表的变化
+    // 保存变更时的标题和路径快照，避免文章之后改名导致历史内容漂移。
     const changes = [{
       fieldName: 'posts' as const,
       displayName: '关联文章',
-      oldValue: JSON.stringify(currentPostIds.filter(id => !result.addedPostIds.includes(id))),
-      newValue: JSON.stringify(currentPostIds),
+      oldValue: currentPostSnapshots.filter(({ id }) => !addedPostIdSet.has(id)),
+      newValue: currentPostSnapshots,
       valueType: ValueType.ARRAY,
     }];
 
@@ -521,7 +532,15 @@ export async function removePostsFromCollection(
 ) {
   const prisma = await getPrisma();
 
-  await prisma.$transaction(async (tx) => {
+  const removedPostIds = await prisma.$transaction(async (tx) => {
+    const existingRelations = await tx.tbCollectionPost.findMany({
+      where: {
+        collection_id: collectionId,
+        post_id: { in: postIds },
+      },
+      select: { post_id: true },
+    });
+
     await tx.tbCollectionPost.deleteMany({
       where: {
         collection_id: collectionId,
@@ -531,26 +550,37 @@ export async function removePostsFromCollection(
 
     // 更新计数
     await refreshCollectionArticleCount(collectionId, tx);
+
+    return existingRelations.map(({ post_id }) => post_id);
   });
 
   // 记录变更日志（在事务外异步执行）
-  if (userId && postIds.length > 0) {
+  if (userId && removedPostIds.length > 0) {
     // 获取合集当前所有文章（已移除后的状态）
     const currentPosts = await prisma.tbCollectionPost.findMany({
       where: { collection_id: collectionId },
-      select: { post_id: true },
+      select: {
+        post: { select: { id: true, title: true, path: true } },
+      },
       orderBy: [{ sort_order: 'desc' }, { id: 'desc' }],
     });
 
-    const currentPostIds = currentPosts.map(p => p.post_id);
+    const currentPostSnapshots = currentPosts.map(({ post }) => ({
+      id: post.id,
+      title: post.title,
+      path: post.path,
+    }));
+    const removedPosts = await prisma.tbPost.findMany({
+      where: { id: { in: removedPostIds } },
+      select: { id: true, title: true, path: true },
+    });
 
-    // 生成变更记录： oldValue 是移除前的列表（当前列表 + 已移除的文章）
-    const previousPostIds = [...currentPostIds, ...postIds];
+    // 保存文章标题和路径快照，便于历史记录直接说明具体文章。
     const changes = [{
       fieldName: 'posts' as const,
       displayName: '关联文章',
-      oldValue: JSON.stringify(previousPostIds),
-      newValue: JSON.stringify(currentPostIds),
+      oldValue: [...currentPostSnapshots, ...removedPosts],
+      newValue: currentPostSnapshots,
       valueType: ValueType.ARRAY,
     }];
 

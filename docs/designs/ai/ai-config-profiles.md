@@ -71,7 +71,8 @@ AI Lab 不再有独立 `/c/ai-lab/config` 页面。AI Lab 首页的配置入口�
 | `/api/config/ai/providers` | POST | `config:edit` | 创建 Provider |
 | `/api/config/ai/providers/[id]` | PUT | `config:edit` | 更新 Provider 并清缓存 |
 | `/api/config/ai/providers/[id]` | DELETE | `config:edit` | 删除 Provider 并清缓存 |
-| `/api/config/ai/providers/[id]/fetch-models` | POST | `config:edit` | 调 OpenAI 兼容 `/models` 拉取模型清单 |
+| `/api/config/ai/providers/fetch-models` | POST | `config:edit` | 使用表单中的 Base URL 和 API Key 拉取候选模型，不写入 Provider |
+| `/api/config/ai/providers/[id]/fetch-models` | POST | `config:edit` | 从已保存 Provider 拉取候选模型，不修改其模型清单 |
 | `/api/config/ai/bindings` | GET | `config:view` | 获取场景绑定列表和场景元数据 |
 | `/api/config/ai/bindings` | PUT | `config:edit` | 创建或更新绑定并清缓存 |
 | `/api/config/ai/bindings/[id]/activate` | POST | `config:edit` | 激活绑定并清缓存 |
@@ -91,7 +92,7 @@ AI Lab 不再有独立 `/c/ai-lab/config` 页面。AI Lab 首页的配置入口�
 
 ## 验收
 
-- `/c/config` 能创建 Provider、手动维护模型、一键拉取模型。
+- `/c/config` 能创建 Provider、手动维护模型、拉取候选模型并选择加入模型清单。
 - 7 个内置场景都能创建绑定并激活。
 - 修改 Provider 的 `api_key` 或 `base_url` 后，关联场景立即读到新配置。
 - `/chat`、文章描述、编辑器 AI、向量化、图片生成、TTS、创作 Agent 至少各跑通一次。

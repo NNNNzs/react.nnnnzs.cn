@@ -16,7 +16,7 @@
 
 | 决策点 | 选择 |
 |---|---|
-| Provider 模型清单 | provider 存 `models[]`,后台支持「一键拉取」(走 OpenAI 兼容 `/models`);拉取失败则手填。**不考虑 anthropic 等非 OpenAI 兼容接口的拉取** |
+| Provider 模型清单 | provider 存 `models[]`,后台支持手工维护；可从 OpenAI 兼容 `/models` 拉取候选列表并勾选加入,拉取过程不直接改写模型清单。**不考虑 anthropic 等非 OpenAI 兼容接口的拉取** |
 | 协议(protocol) | **暂不引入**。默认全走 OpenAI 兼容协议,后端工厂层保持现状不重写 |
 | 旧数据迁移 | 迁移到新表,**直接弃用旧 3 个 JSON key**。写一次性迁移脚本,不保留兼容回退层 |
 | UI 归属 | 并入 `/c/config`,三个 Tab:**单项配置 | Provider | 场景绑定**。从 `ai-lab` 移除配置入口 |
@@ -149,7 +149,8 @@ pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 | POST | `/api/config/ai/providers` | 新建 provider |
 | PUT | `/api/config/ai/providers/[id]` | 更新 provider |
 | DELETE | `/api/config/ai/providers/[id]` | 删除 provider(级联删除 binding) |
-| POST | `/api/config/ai/providers/[id]/fetch-models` | 调 `base_url + /models` 拉取模型列表,回填 `models[]`;失败返回错误由前端手填 |
+| POST | `/api/config/ai/providers/fetch-models` | 接收表单中的 `base_url` + `api_key`,调 `/models` 返回候选列表,不写入数据库 |
+| POST | `/api/config/ai/providers/[id]/fetch-models` | 从已保存 Provider 拉取候选列表,不写入 `models[]` |
 | GET | `/api/config/ai/bindings` | 列出所有场景绑定(按 scenario 分组) |
 | PUT | `/api/config/ai/bindings` | 批量 upsert 绑定 |
 | POST | `/api/config/ai/bindings/[id]/activate` | 激活某绑定(事务内重置同场景其它 active)+ 清缓存 |
@@ -160,8 +161,9 @@ pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 权限复用现有 `CONFIG_VIEW` / `CONFIG_EDIT`(见 `src/constants/permissions`),并在 API registry 注册 descriptor。
 
 `fetch-models` 实现要点:
-- 用 provider 的 base_url + api_key,`fetch(\`${baseUrl}/models\`)`。
-- 仅支持 OpenAI 兼容协议;超时 10s;失败返回错误,前端降级为手填输入框。
+- 新建与编辑弹窗都使用当前表单的 `base_url` + `api_key`,允许未保存的 Provider 拉取模型。
+- 仅支持 OpenAI 兼容协议;超时 10s;失败返回错误,前端保留手动添加能力。
+- 返回候选清单后不自动加入 Provider 的 `models[]`;用户勾选并点击“加入选中模型”后才进入待保存清单。
 
 ## 7. 前端 UI
 
@@ -176,8 +178,8 @@ pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 
 ### Tab 2:Provider 管理
 - 列表:Name / Base URL / 模型数 / 状态 / 操作(编辑、拉取模型、删除)。
-- 表单:Name、Base URL、API Key、models(标签式可增删,带「一键拉取」按钮)、备注。
-- 拉取按钮:调 `fetch-models`,成功回填 models;失败提示并允许手填。
+- 表单:Name、Base URL、API Key、models(标签式可增删,带「拉取模型」按钮)、备注。
+- 拉取按钮:调 `fetch-models`,成功显示可搜索、可多选的候选模型;勾选并加入后进入 models 清单,失败提示并允许手填。
 
 ### Tab 3:场景绑定
 - 按 7 个 scenario 分组(每组用 `AI_SCENARIO_META` 的 label/description 做标题)。
@@ -212,6 +214,6 @@ pnpm tsx scripts/db/migrate-ai-config-to-provider.ts
 
 - [ ] 7 个场景通过新 UI 配置后,`/chat`、文章描述生成、编辑器 AI、向量化、图片生成、TTS、创作 Agent 各跑一次,确认走通。
 - [ ] provider 改 api_key 一处,所有引用该 provider 的场景立即生效(验证复用)。
-- [ ] 「一键拉取」对 DeepSeek/Qwen 等 OpenAI 兼容供应商成功;对无 `/models` 的供应商优雅降级手填。
+- [ ] 拉取 DeepSeek/Qwen 等 OpenAI 兼容供应商的候选模型,只将用户选中的模型加入清单;对无 `/models` 的供应商优雅降级手填。
 - [ ] 激活切换后 5 分钟内缓存生效(或立即清缓存)。
 - [ ] 旧 3 个 JSON key 已删除,`tbConfig` 中无残留 AI 配置。
