@@ -22,7 +22,7 @@ interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-const updateTemplateSchema = z.object({
+export const updateTemplateSchema = z.object({
   key: z.string().max(120).optional().nullable(),
   name: z.string().min(1).max(200).optional(),
   type: z.enum(AI_TEMPLATE_TYPES).optional(),
@@ -59,6 +59,13 @@ export const getDescriptor: ApiDescriptor = {
   module: 'ai_lab',
   method: 'GET',
   permissionCode: CONFIG_VIEW,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      slug: { type: 'string', description: '模板唯一标识 slug 或别名' },
+    },
+    required: ['slug'],
+  },
 };
 
 export const updateDescriptor: ApiDescriptor = {
@@ -68,6 +75,27 @@ export const updateDescriptor: ApiDescriptor = {
   module: 'ai_lab',
   method: 'PATCH',
   permissionCode: CONFIG_EDIT,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      slug: { type: 'string', description: '目标模板 slug' },
+      name: { type: 'string', description: '新的模板名称' },
+      scope: { type: 'string', description: '作用域：system / content / chat 等' },
+      description: { type: 'string', description: '模板说明' },
+      aliases: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '别名列表',
+      },
+      metadata: {
+        type: 'object',
+        description: '模板元数据，如 { mcpExposed: boolean }',
+      },
+      status: { type: 'string', description: '状态：ACTIVE / DRAFT / ARCHIVED' },
+      currentVersion: { type: 'number', description: '激活的目标版本号' },
+    },
+    required: ['slug'],
+  },
 };
 
 export async function GET(request: NextRequest, context: RouteContext) {

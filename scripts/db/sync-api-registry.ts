@@ -192,6 +192,7 @@ async function main() {
       data: {
         input_schema: entry.inputSchema ? JSON.stringify(entry.inputSchema) : null,
         cache_tags: entry.cacheTags ? entry.cacheTags.join(',') : null,
+        mcp_tool_name: entry.mcpToolName || null,
         mcp_available: 1,
         mcp_enabled: 1,
         status: 1,

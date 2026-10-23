@@ -12,6 +12,7 @@
  */
 
 import type { AuthUser } from '@/types/auth';
+import type { Prisma } from '@/generated/prisma-client/client';
 import { CONFIG_EDIT, FILE_UPLOAD } from '@/constants/permissions';
 import { hasDataPermission } from '@/lib/permission';
 import type { ApiDescriptor } from '@/types/api-descriptor';
@@ -37,8 +38,20 @@ import { descriptor as aiBindingActivate } from '@/app/api/config/ai/bindings/[i
 import { deleteDescriptor as aiBindingDelete } from '@/app/api/config/ai/bindings/[id]/route';
 import { getDescriptor as aiScenariosGet, createDescriptor as aiScenarioCreate } from '@/app/api/config/ai/scenarios/route';
 // ---- AI Lab Prompt 管理描述符 ----
-import { getDescriptor as aiLabPromptsGet, updateDescriptor as aiLabPromptsUpdate } from '@/app/api/admin/ai-lab/prompts/[slug]/route';
-import { createDescriptor as aiLabPromptsCreateVersion } from '@/app/api/admin/ai-lab/prompts/[slug]/versions/route';
+import {
+  listDescriptor as aiLabPromptsList,
+  createDescriptor as aiLabPromptsCreate,
+  createTemplateSchema,
+} from '@/app/api/admin/ai-lab/prompts/route';
+import {
+  getDescriptor as aiLabPromptsGet,
+  updateDescriptor as aiLabPromptsUpdate,
+  updateTemplateSchema,
+} from '@/app/api/admin/ai-lab/prompts/[slug]/route';
+import {
+  createDescriptor as aiLabPromptsCreateVersion,
+  createVersionSchema,
+} from '@/app/api/admin/ai-lab/prompts/[slug]/versions/route';
 import { descriptor as aiLabPromptsDiff } from '@/app/api/admin/ai-lab/prompts/[slug]/diff/route';
 import { descriptor as aiLabPromptsRender } from '@/app/api/admin/ai-lab/prompts/render/route';
 import {
@@ -799,9 +812,107 @@ export const API_REGISTRY: ApiRegistryEntry[] = [
   { ...aiScenariosGet, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
   { ...aiScenarioCreate, apiPath: '/api/config/ai/scenarios', mcpEnabled: false },
   // ---- AI Lab Prompt 管理 ----
-  { ...aiLabPromptsGet, apiPath: '/api/admin/ai-lab/prompts/[slug]', mcpEnabled: false },
-  { ...aiLabPromptsUpdate, apiPath: '/api/admin/ai-lab/prompts/[slug]', mcpEnabled: false },
-  { ...aiLabPromptsCreateVersion, apiPath: '/api/admin/ai-lab/prompts/[slug]/versions', mcpEnabled: false },
+  {
+    ...aiLabPromptsList,
+    apiPath: '/api/admin/ai-lab/prompts',
+    mcpEnabled: true,
+    mcpToolName: 'list_prompt_templates',
+    handler: async (args) => {
+      const { listAiTemplates } = await import('@/services/ai-template');
+      return listAiTemplates({
+        pageNum: args.pageNum ? Number(args.pageNum) : undefined,
+        pageSize: args.pageSize ? Number(args.pageSize) : undefined,
+        query: args.query as string | undefined,
+        type: args.type as string | undefined,
+        scope: args.scope as string | undefined,
+        status: args.status as string | undefined,
+      });
+    },
+  },
+  {
+    ...aiLabPromptsCreate,
+    apiPath: '/api/admin/ai-lab/prompts',
+    mcpEnabled: true,
+    mcpToolName: 'create_prompt_template',
+    handler: async (args, user) => {
+      const { createAiTemplate } = await import('@/services/ai-template');
+      const parsed = parseMcpInput(createTemplateSchema.safeParse(args));
+      return createAiTemplate({
+        ...parsed,
+        metadata: (parsed.metadata as Prisma.InputJsonValue | null) ?? undefined,
+        createdBy: user.id,
+      });
+    },
+  },
+  {
+    ...aiLabPromptsGet,
+    apiPath: '/api/admin/ai-lab/prompts/[slug]',
+    mcpEnabled: true,
+    mcpToolName: 'get_prompt_template',
+    handler: async (args) => {
+      const slug = String(args.slug || '').trim();
+      if (!slug) throw new Error('缺少参数 slug');
+      const { getAiTemplateBySlug } = await import('@/services/ai-template');
+      const template = await getAiTemplateBySlug(slug);
+      if (!template) throw new Error(`模板 ${slug} 不存在`);
+      return template;
+    },
+  },
+  {
+    ...aiLabPromptsUpdate,
+    apiPath: '/api/admin/ai-lab/prompts/[slug]',
+    mcpEnabled: true,
+    mcpToolName: 'update_prompt_template',
+    handler: async (args) => {
+      const slug = String(args.slug || '').trim();
+      if (!slug) throw new Error('缺少参数 slug');
+      const { updateAiTemplate, activateAiTemplateVersion, getAiTemplateBySlug } = await import('@/services/ai-template');
+      const { slug: _slug, ...rest } = args;
+      void _slug;
+      const parsed = parseMcpInput(updateTemplateSchema.safeParse(rest));
+      const { currentVersion, ...templateUpdates } = parsed;
+      const hasTemplateUpdates = Object.keys(templateUpdates).length > 0;
+
+      if (hasTemplateUpdates) {
+        await updateAiTemplate(slug, {
+          ...templateUpdates,
+          metadata: (templateUpdates.metadata as Prisma.InputJsonValue | null) ?? undefined,
+        });
+      }
+
+      if (currentVersion !== undefined) {
+        return activateAiTemplateVersion(slug, currentVersion);
+      }
+
+      if (hasTemplateUpdates) {
+        return getAiTemplateBySlug(slug);
+      }
+
+      throw new Error('至少提供一个需要更新的模板字段或 currentVersion');
+    },
+  },
+  {
+    ...aiLabPromptsCreateVersion,
+    apiPath: '/api/admin/ai-lab/prompts/[slug]/versions',
+    mcpEnabled: true,
+    mcpToolName: 'create_prompt_version',
+    handler: async (args, user) => {
+      const slug = String(args.slug || '').trim();
+      if (!slug) throw new Error('缺少参数 slug');
+      const { createAiTemplateVersion } = await import('@/services/ai-template');
+      const { slug: _slug, ...rest } = args;
+      void _slug;
+      const parsed = parseMcpInput(createVersionSchema.safeParse(rest));
+      return createAiTemplateVersion({
+        slug,
+        content: parsed.content,
+        metadata: (parsed.metadata as Prisma.InputJsonValue | null) ?? undefined,
+        changeNote: parsed.changeNote,
+        activate: parsed.activate ?? true,
+        createdBy: user.id,
+      });
+    },
+  },
   { ...aiLabPromptsDiff, apiPath: '/api/admin/ai-lab/prompts/[slug]/diff', mcpEnabled: false },
   { ...aiLabPromptsRender, apiPath: '/api/admin/ai-lab/prompts/render', mcpEnabled: false },
 ];

@@ -13,7 +13,7 @@ interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-const createVersionSchema = z.object({
+export const createVersionSchema = z.object({
   content: z.string().min(1).max(300000),
   metadata: z.unknown().optional().nullable(),
   changeNote: z.string().max(2000).optional().nullable(),
@@ -38,6 +38,16 @@ export const createDescriptor: ApiDescriptor = {
   module: 'ai_lab',
   method: 'POST',
   permissionCode: CONFIG_EDIT,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      slug: { type: 'string', description: '目标模板 slug' },
+      content: { type: 'string', description: '新版本 Markdown 正文内容' },
+      changeNote: { type: 'string', description: '版本变更说明' },
+      activate: { type: 'boolean', description: '是否立即激活为当前版本，默认为 true' },
+    },
+    required: ['slug', 'content'],
+  },
 };
 
 export async function POST(request: NextRequest, context: RouteContext) {

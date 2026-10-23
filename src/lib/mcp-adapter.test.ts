@@ -118,3 +118,29 @@ test('self 与 all 数据范围严格区分资源归属', async () => {
   assert.equal(hasDataPermission(allUser, 'content:edit', 99), true);
   assert.equal(hasDataPermission(createUser([]), 'content:edit', 7), false);
 });
+
+test('AI Lab Prompt 模板 CRUD 接口正确注册为 MCP 工具', async () => {
+  const { API_REGISTRY } = await import('./api-registry');
+  const listPrompts = API_REGISTRY.find((entry) => entry.mcpToolName === 'list_prompt_templates');
+  const getPrompt = API_REGISTRY.find((entry) => entry.mcpToolName === 'get_prompt_template');
+  const createPrompt = API_REGISTRY.find((entry) => entry.mcpToolName === 'create_prompt_template');
+  const updatePrompt = API_REGISTRY.find((entry) => entry.mcpToolName === 'update_prompt_template');
+  const createVersion = API_REGISTRY.find((entry) => entry.mcpToolName === 'create_prompt_version');
+
+  assert.ok(listPrompts && listPrompts.mcpEnabled && typeof listPrompts.handler === 'function');
+  assert.ok(getPrompt && getPrompt.mcpEnabled && typeof getPrompt.handler === 'function');
+  assert.ok(createPrompt && createPrompt.mcpEnabled && typeof createPrompt.handler === 'function');
+  assert.ok(updatePrompt && updatePrompt.mcpEnabled && typeof updatePrompt.handler === 'function');
+  assert.ok(createVersion && createVersion.mcpEnabled && typeof createVersion.handler === 'function');
+
+  assert.equal(listPrompts.permissionCode, 'config:view');
+  assert.equal(getPrompt.permissionCode, 'config:view');
+  assert.equal(createPrompt.permissionCode, 'config:edit');
+  assert.equal(updatePrompt.permissionCode, 'config:edit');
+  assert.equal(createVersion.permissionCode, 'config:edit');
+
+  assert.deepEqual(getPrompt.inputSchema?.required, ['slug']);
+  assert.deepEqual(createPrompt.inputSchema?.required, ['slug', 'name', 'content']);
+  assert.deepEqual(updatePrompt.inputSchema?.required, ['slug']);
+  assert.deepEqual(createVersion.inputSchema?.required, ['slug', 'content']);
+});

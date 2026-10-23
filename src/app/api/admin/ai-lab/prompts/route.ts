@@ -47,16 +47,28 @@ export const createDescriptor: ApiDescriptor = {
   inputSchema: {
     type: 'object',
     properties: {
-      slug: { type: 'string', description: '模板 slug' },
-      name: { type: 'string', description: '模板名称' },
-      type: { type: 'string', description: '模板类型' },
-      content: { type: 'string', description: '模板正文' },
+      slug: { type: 'string', description: '模板唯一英文标识 slug，如 my-prompt-slug' },
+      name: { type: 'string', description: '模板中文名称' },
+      content: { type: 'string', description: '初始版本的 Markdown 提示词正文' },
+      scope: { type: 'string', description: '作用域：system / content / chat 等，默认为 content' },
+      description: { type: 'string', description: '模板用途说明' },
+      aliases: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '别名列表',
+      },
+      metadata: {
+        type: 'object',
+        description: '模板元数据，如 { mcpExposed: true }',
+      },
+      changeNote: { type: 'string', description: '版本变更说明' },
+      status: { type: 'string', description: '状态：ACTIVE 或 DRAFT，默认为 ACTIVE' },
     },
     required: ['slug', 'name', 'content'],
   },
 };
 
-const createTemplateSchema = z.object({
+export const createTemplateSchema = z.object({
   slug: z.string().min(1).max(120),
   key: z.string().max(120).optional().nullable(),
   name: z.string().min(1).max(200),
