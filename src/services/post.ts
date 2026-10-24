@@ -428,7 +428,8 @@ export async function createPost(data: Partial<TbPost>): Promise<SerializedPost>
       updated: now,
       hide: data.hide || '0',
       is_delete: 0,
-      seo_indexable: data.seo_indexable ?? true,
+      // 隐藏文章会返回 404，不能同时保留搜索引擎索引许可。
+      seo_indexable: data.hide === '1' ? false : data.seo_indexable ?? true,
       visitors: 0,
       likes: 0,
       // 创建人：允许上层传入，默认为空
@@ -575,7 +576,13 @@ export async function updatePost(
   }
   if (data.description !== undefined) updateData.description = data.description;
   if (data.hide !== undefined) updateData.hide = data.hide;
-  if (data.seo_indexable !== undefined) updateData.seo_indexable = data.seo_indexable;
+  const nextHide = data.hide ?? existingPost.hide;
+  if (nextHide === '1') {
+    // 隐藏文章会返回 404；即使请求同时传入 true，也必须禁止索引。
+    updateData.seo_indexable = false;
+  } else if (data.seo_indexable !== undefined) {
+    updateData.seo_indexable = data.seo_indexable;
+  }
   if (data.visitors !== undefined) updateData.visitors = data.visitors;
   if (data.likes !== undefined) updateData.likes = data.likes;
 
@@ -689,6 +696,9 @@ export async function updatePostsSeoIndexing(
     }
     if (posts.some((post) => post.is_delete !== 0)) {
       throw new BatchPostSeoIndexingError('批量操作不能包含已删除文章', 400);
+    }
+    if (input.seoIndexable && posts.some((post) => post.hide === '1')) {
+      throw new BatchPostSeoIndexingError('隐藏文章不能设置为允许搜索引擎索引', 400);
     }
     if (!input.canEditAll && posts.some((post) => post.created_by !== input.userId)) {
       throw new BatchPostSeoIndexingError('无权限编辑部分文章', 403);

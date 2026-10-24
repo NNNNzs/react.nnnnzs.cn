@@ -33,7 +33,7 @@ export const descriptor: ApiDescriptor = {
       description: { type: 'string', description: '简短描述' },
       cover: { type: 'string', description: '封面图URL' },
       hide: { type: 'string', description: '1隐藏 0显示' },
-      seo_indexable: { type: 'boolean', description: '是否允许搜索引擎索引，默认 true' },
+      seo_indexable: { type: 'boolean', description: '是否允许搜索引擎索引，默认 true；隐藏文章强制为 false' },
     },
     required: ['title', 'content'],
   },

@@ -15,7 +15,7 @@ import type { ApiDescriptor } from '@/types/api-descriptor';
 export const descriptor: ApiDescriptor = {
   code: 'post_seo_indexing_batch',
   name: '批量设置文章 SEO 收录状态',
-  description: '最多批量设置 50 篇文章是否允许搜索引擎索引，不改变公开访问、正文更新时间或向量数据。',
+  description: '最多批量设置 50 篇文章是否允许搜索引擎索引，不改变公开访问、正文更新时间或向量数据；隐藏文章不能设为允许索引。',
   module: 'post',
   method: 'PATCH',
   permissionCode: POST_EDIT,
