@@ -74,6 +74,19 @@ function safelyDecodePath(path: string): string {
   }
 }
 
+function encodePathForRedirect(path: string): string {
+  return path
+    .split('/')
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return encodeURIComponent(segment);
+      }
+    })
+    .join('/');
+}
+
 const getPost = cache(async (path: string, rawTitle: string): Promise<Post | null> => {
   try {
     console.log("🔍 获取文章 - 文章路径:", path);
@@ -183,7 +196,7 @@ export default async function PostDetail({ params }: PageProps) {
     }
 
     if (safelyDecodePath(requestedPath) !== safelyDecodePath(post.path)) {
-      permanentRedirect(post.path);
+      permanentRedirect(encodePathForRedirect(post.path));
     }
 
     // 获取文章所属合集
