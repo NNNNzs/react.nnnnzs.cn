@@ -26,6 +26,7 @@ interface PermissionSeed {
 }
 
 const seedPermissions: PermissionSeed[] = [
+  { code: 'analytics:view', name: '访问统计', module: 'analytics', type: 'menu', sort_order: 1 },
   // 文章模块
   { code: 'post:view', name: '查看文章', module: 'post', type: 'api', sort_order: 1 },
   { code: 'post:create', name: '创建文章', module: 'post', type: 'button', sort_order: 2 },

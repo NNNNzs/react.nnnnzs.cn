@@ -38,7 +38,10 @@
     "analyze:quick": "node performance/index.js quick",
     "perf": "node performance/index.js all",
     "perf:quick": "node performance/index.js quick",
-    "kill": "lsof -ti:3000 | xargs kill -9 2>/dev/null || echo '没有进程监听 3000 端口'"
+    "kill": "lsof -ti:3000 | xargs kill -9 2>/dev/null || echo '没有进程监听 3000 端口'",
+    "analytics:install": "tsx scripts/analytics/install.ts",
+    "test:analytics": "tsx --test src/lib/ga4-report.test.ts",
+    "analytics:verify": "tsx --env-file=.env scripts/analytics/verify.ts"
   },
   "dependencies": {
     "@ant-design/cssinjs": "^2.1.2",
@@ -78,6 +81,7 @@
     "dotenv": "^17.4.2",
     "feed": "^6.0.0",
     "framer-motion": "^12.38.0",
+    "google-auth-library": "^11.3.1",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.10.1",
     "leva": "^0.10.1",

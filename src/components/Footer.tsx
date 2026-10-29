@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import BackToTop from "@/components/BackToTop";
+import FooterVisitorStats from "@/components/FooterVisitorStats";
 
 interface BuildInfo {
   version: string;
@@ -153,6 +154,7 @@ export default function Footer() {
 
         {/* 版权信息 */}
         <div className="mt-12 pt-8 border-t border-slate-300 dark:border-slate-700 text-center">
+          <FooterVisitorStats />
           <p className="text-xs text-slate-600 dark:text-slate-400">© {currentYear} NNNNzs. All rights reserved.</p>
           <nav aria-label="站点说明" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-slate-600 dark:text-slate-400">
             <Link

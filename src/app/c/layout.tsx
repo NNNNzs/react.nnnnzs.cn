@@ -44,6 +44,7 @@ import {
   USER_MANAGE,
   CHAT_LOG_VIEW,
   CDN_PURGE_VIEW,
+  ANALYTICS_VIEW,
 } from "@/constants/permissions";
 
 const { Content } = Layout;
@@ -133,6 +134,10 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         icon: <ClusterOutlined />,
         label: "队列监控",
       });
+    }
+
+    if (hasPermission(ANALYTICS_VIEW)) {
+      items.push({ key: "/c/analytics", icon: <ClusterOutlined />, label: "访问统计" });
     }
 
     if (hasPermission(CDN_PURGE_VIEW)) {
@@ -233,6 +238,7 @@ export default function CLayout({ children }: { children: React.ReactNode }) {
         ['/c/permissions', USER_VIEW],
         ['/c/queue', QUEUE_VIEW],
         ['/c/cdn-logs', CDN_PURGE_VIEW],
+        ['/c/analytics', ANALYTICS_VIEW],
         ['/c/vector-search', VECTOR_VIEW],
         ['/c/tts', TTS_VIEW],
         ['/c/image-gen', IMAGE_VIEW],

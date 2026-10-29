@@ -50,3 +50,6 @@ export const CONTENT_DELETE = 'content:delete';
 
 // ============ CDN 模块 ============
 export const CDN_PURGE_VIEW = 'cdn:purge:view';
+
+/** 全站访问统计。 */
+export const ANALYTICS_VIEW = 'analytics:view';

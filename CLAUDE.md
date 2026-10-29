@@ -54,11 +54,12 @@
 - **[语义搜索](docs/designs/search/semantic-search.md)** - 向量检索实现
 
 #### 业务功能
+- **[全站访客与访问统计](docs/designs/features/visitor-analytics.md)** - GA4 报表、累计 PV/UV、访问会话与后台看板
 - **[内容创作中台](docs/designs/features/content-creation-platform.md)** - 独立 `/create` 创作后台，整合博客文章与 `xhs` 本地工作流
 - **[博客合集功能设计](docs/designs/features/collection-design.md)** - 文章合集管理功能
 - **[评论系统设计](docs/designs/features/comment-system-design.md)** - 评论功能设计
 - **[实体变更日志](docs/designs/features/entity-change-design.md)** - 数据变更追踪
-- **[统计系统设计](docs/designs/features/analytics-system-design.md)** - 点赞防刷 + GA4
+- **[统计系统设计](docs/designs/features/analytics-system-design.md)** - 点赞防刷与可选第三方统计
 
 #### 首页与风格
 - **[站点级昼夜风格语义系统](docs/designs/homepage/day-night-style-system.md)** - 日间温和文艺、夜间赛博朋克的站点级风格与文案语义系统
@@ -78,6 +79,7 @@
 详见：[docs/plans/README.md](docs/plans/README.md)
 
 ### 当前计划
+- **[全站访客与访问统计](docs/plans/visitor-analytics.md)** — 🔄 进行中（凭据与 VPC 代理已配置；待服务账号真实报表及页面验收）
 - **[博客轮询削峰与缓存防击穿改造](docs/plans/polling-load-shedding.md)** — 🔄 进行中（代码改造与静态验证已完成，待浏览器多标签页及生产缓存联调）
 - **[后台任务桌面通知模块](docs/plans/desktop-task-notifications.md)** — 🔄 进行中（模块代码、静态检查和任务深链验收已完成，待数据库索引同步与通知授权后验收）
 - **[MCP Prompt 动态注册改造](docs/plans/mcp-prompts.md)** — 🔄 进行中（Prompt 原语注册、后台暴露开关和静态检查已完成，待真实 MCP 客户端联调）

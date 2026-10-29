@@ -269,3 +269,16 @@ src/components/cyberpunk/
 - 不可见补光必须明确命名或注释为 fill/bounce/window light，并保持 `visibleFixture={false}` 或直接使用不可见 light primitive，避免被误认为房间里的物件。
 - 纯装饰 emissive 片、HUD 光点、状态点可以 mesh-only；一旦承担照明语义，就要和 `pointLight` / `spotLight` 封装到同一个物件组件中。
 - 灯具组件优先按 `*Fixture` / `*Light` / `*Lamp` 这类语义命名，组件内部统一负责位置、模型、发光材质和实际光源。
+
+## 访问统计模块
+
+- `src/services/ga4.ts`：服务账号认证、GA4 Data API 查询与 30 分钟缓存。
+- `src/lib/ga4-report.ts`、`analytics-format.ts`：报表请求、字段校验、日期与计数格式化。
+- `src/services/site-analytics/`：GA4 数据转换和公开累计汇总。
+- `src/lib/site-analytics/report-handler.ts`：后台查询权限与响应处理。
+- `src/app/api/analytics/`：公开累计汇总，以及受保护的概览、页面和来源查询。
+- `src/components/FooterVisitorStats.tsx`：首页底部累计 UV、PV。
+- `src/app/c/analytics/`：GA4 PV、UV、会话、页面与来源看板。
+- `scripts/analytics/`：限定范围的配置/权限初始化及真实报表验证；无采集维护任务或建表 SQL。
+
+设计见[全站访客与访问统计](../designs/features/visitor-analytics.md)。

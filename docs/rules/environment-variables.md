@@ -179,3 +179,17 @@ cp .env.example .env
 - `.env.local` 和 `.env.production` 已在 `.gitignore` 中
 - 仅提交 `.env.example` 作为模板
 - 生产环境使用平台的环境变量配置功能
+
+## GA4 访问统计
+
+以下变量仅供服务端读取，不使用 `NEXT_PUBLIC_` 前缀。
+
+| 变量 | 作用 |
+| --- | --- |
+| `GA4_PROPERTY_ID` | 数字媒体资源 ID，优先于数据库 `ga4.property_id`；不能填写 G- 开头的测量 ID |
+| `GA4_STATS_START_DATE` | 可选累计起始日期 YYYY-MM-DD，优先于数据库 `ga4.stats_start_date`；留空读取可查询历史 |
+| `GA4_REPORT_HOSTNAME` | 精确匹配的站点主机名，默认 `www.nnnnzs.cn`，不随本地 URL 改变 |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 可选的仓库外服务账号 JSON 文件路径；容器中使用只读挂载路径 |
+| `GA4_SERVICE_ACCOUNT_JSON` | 推荐的服务端完整 JSON 字符串；本地与 VPC 各自在未提交的 `.env` 配置，Compose 运行时注入，优先于文件路径 |
+
+凭据需拥有目标 GA4 媒体资源的查看者权限，所属 Google Cloud 项目需启用 Analytics Data API。测量 ID 与 Measurement Protocol 上报密钥不具备报表读取权限。初始化、缓存及网络要求见[全站访客与访问统计](../designs/features/visitor-analytics.md)。

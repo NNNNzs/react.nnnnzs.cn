@@ -87,6 +87,7 @@ docs/designs/
 | [内容创作中台](features/content-creation-platform.md) | 独立 `/create` 创作后台，整合博客文章与 xhs 本地工作流；支持选题 Agent 和多平台草稿 | ✅ 已实施 |
 | [实体变更日志](features/entity-change-design.md) | 数据变更追踪 | ✅ 已实施 |
 | [统计系统](features/analytics-system-design.md) | 点赞防刷 + GA4 | ✅ 已实施 |
+| [全站访客与访问统计](features/visitor-analytics.md) | GA4 报表、首页累计 PV/UV 与后台看板 | 凭据及 VPC 代理已配置；待真实报表与页面验收 |
 
 ### 首页与风格
 

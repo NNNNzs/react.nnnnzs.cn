@@ -3,6 +3,11 @@ node_modules
 .pnp
 .pnp.*
 
+# 本地与部署环境变量仅在运行时注入，不进入 Docker 构建上下文
+.env
+.env.*
+!.env.example
+
 # 测试
 coverage
 

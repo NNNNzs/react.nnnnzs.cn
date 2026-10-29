@@ -28,7 +28,7 @@ model ContentTopic {
 
   @@index([status, priority], name: "idx_topic_status_priority")
   @@index([source_post_id], name: "idx_topic_source_post")
-  @@index([dedup_key], name: "idx_topic_dedup_key")
+  @@index([dedup_key(length: 191)], name: "idx_topic_dedup_key")
   @@index([created_at], name: "idx_topic_created_at")
   @@map("content_topics")
 }

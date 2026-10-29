@@ -36,6 +36,13 @@
 - 通知由 `TbNotification` 持久化，外部投递审计位于 `TbNotificationDelivery`。
 - 点赞防刷记录位于 `TbLikeRecord`，实体审计位于 `TbEntityChangeLog`。
 
+### 访问统计
+
+- 全站 PV、UV 和会话由 GA4 Data API 查询，不建立本地访客、会话、浏览明细或每日汇总表。
+- GA4 数字媒体资源 ID、可选统计起始日期沿用 `TbConfig`；报表凭据仅保存在服务端文件或环境变量。
+- `pnpm analytics:install --apply` 只补齐本功能配置、权限和只读接口，不运行全量 RBAC seed。
+- 文章阅读量继续使用 `TbPost.visitors`，点赞防刷继续使用 `TbLikeRecord`，与 GA4 全站报表口径独立。
+
 ### 用户与 RBAC
 
 - 用户、角色、权限通过 `TbUserRole` 与 `TbRolePermission` 关联。
@@ -74,6 +81,13 @@
 - 软删除只用于已有 `is_delete` 约定的模型，不要假设所有表都有软删除。
 - relation 删除行为必须显式审查；审计记录通常使用 `SetNull`，强所有权子项才使用 `Cascade`。
 - 高频筛选、排序和通知轮询必须有与查询顺序匹配的索引。
+
+## 环境与项目边界
+
+- [mac] `/Users/nnnnzs/project/react.nnnnzs.cn` 是开发工作区；Mac 开发流程使用本项目的 Prisma 结构同步。
+- 数据库位于云端或使用 RDS 域名不代表生产库，环境归属以当前项目配置和用户说明为准。
+- 已授权功能所需的开发库新增模型、`db push` 和最小初始化直接完成，不逐条重复申请确认；同步前审查差异，不接受数据丢失或范围外变更。
+- 其他项目的 SQL 发布、按日迁移和生产基线规则只在对应项目生效，不跨项目套用。
 
 ## 开发流程
 

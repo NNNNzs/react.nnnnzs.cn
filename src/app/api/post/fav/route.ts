@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/dto/response.dto';
 import { canLike, recordLike } from '@/services/like-record';
-import { trackEvent, createSessionCookie } from '@/lib/analytics';
 
 export async function PUT(request: NextRequest) {
   try {
@@ -55,22 +54,6 @@ export async function PUT(request: NextRequest) {
         [type]: currentValue + 1,
       },
     });
-
-    // 如果是点赞，发送 GA4 事件
-    if (type === 'likes') {
-      const gaResult = await trackEvent('like', {
-        target_type: 'POST',
-        target_id: postId,
-        post_title: post.title || undefined,
-      }, request);
-
-      // 如果需要设置 Cookie，添加到响应头
-      const response = NextResponse.json(successResponse(updatedPost));
-      if (gaResult.needsSetCookie) {
-        response.headers.set('Set-Cookie', createSessionCookie(gaResult.sessionId));
-      }
-      return response;
-    }
 
     return NextResponse.json(successResponse(updatedPost));
   } catch (error) {

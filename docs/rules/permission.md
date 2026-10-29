@@ -80,6 +80,7 @@ Layer 3: 服务层过滤（最后一道防线）
 | | `tts:view` | 语音合成 |
 | | `image:view` | AI 图片生成/编辑/识图 |
 | | `file:upload` | 文件上传 |
+| **访问统计** | `analytics:view` | 访问统计看板，仅允许 `all` 范围 |
 | **聊天记录** | `chat:log:view` | 查看聊天记录 |
 | | `chat:log:delete` | 删除聊天记录 |
 | **内容创作** | `content:view` | 查看创作中台 |
