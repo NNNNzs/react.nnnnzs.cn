@@ -13,6 +13,9 @@ const DEFAULT_SITE_URL = 'https://www.nnnnzs.cn';
 const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || 'NNNNzs';
 const SITE_DESCRIPTION = 'Neon Nomad Navigating Night Zones';
 
+/** RSS 2.0 的 author 字段要求邮箱；不公开站长邮箱时省略作者节点。 */
+const RSS_AUTHOR_EMAIL = process.env.RSS_AUTHOR_EMAIL?.trim();
+
 /**
  * 强制动态生成，确保订阅源使用数据库中的最新文章数据。
  */
@@ -81,10 +84,15 @@ export async function GET() {
     feedLinks: {
       rss: feedUrl,
     },
-    author: {
-      name: SITE_NAME,
-      link: baseUrl,
-    },
+    ...(RSS_AUTHOR_EMAIL
+      ? {
+          author: {
+            name: SITE_NAME,
+            email: RSS_AUTHOR_EMAIL,
+            link: baseUrl,
+          },
+        }
+      : {}),
   });
 
   for (const post of posts) {
@@ -103,13 +111,21 @@ export async function GET() {
       date: post.updated || post.date || new Date(),
       published: post.date || undefined,
       category: parseCategories(post.category, post.tags),
-      image: post.cover || undefined,
-      author: [
-        {
-          name: SITE_NAME,
-          link: baseUrl,
-        },
-      ],
+      // feed@6 derives enclosure MIME from the URL suffix; explicitly use standard image/jpeg for JPG files.
+      image: post.cover
+        ? /\.jpe?g(?:$|[?#])/i.test(post.cover)
+          ? { url: post.cover, type: 'image/jpeg' }
+          : post.cover
+        : undefined,
+      author: RSS_AUTHOR_EMAIL
+        ? [
+            {
+              name: SITE_NAME,
+              email: RSS_AUTHOR_EMAIL,
+              link: baseUrl,
+            },
+          ]
+        : undefined,
     });
   }
 
