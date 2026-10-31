@@ -9,7 +9,7 @@ import React, { Suspense, useCallback, useState, useEffect, useRef } from "react
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "antd";
-import { EditOutlined, CodeOutlined, MenuOutlined } from "@ant-design/icons";
+import { EditOutlined, CodeOutlined, BulbOutlined, MenuOutlined } from "@ant-design/icons";
 import { DocSearch } from "@docsearch/react";
 import "@docsearch/css";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
@@ -151,6 +151,20 @@ export default function Header() {
 	                    </Link>
 	                  );
 	                })}
+
+                <Link
+                  href="/chat"
+                  suppressHydrationWarning
+                  className="group/ai flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                    bg-indigo-50 dark:bg-indigo-900/20
+                    text-indigo-600 dark:text-indigo-400
+                    text-sm font-semibold
+                    hover:bg-indigo-100 dark:hover:bg-indigo-900/40
+                    transition-all border border-indigo-100 dark:border-indigo-800/50"
+                >
+                  <BulbOutlined className="text-[18px] group-hover/ai:animate-pulse" />
+                  {selectStyleText(headerCopy.navChat, styleVariant)}
+                </Link>
 
                 {/* 编辑按钮 - 仅在当前用户是文章创建人时显示 */}
                 {shouldShowEditButton && currentPost && (
