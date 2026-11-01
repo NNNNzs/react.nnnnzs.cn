@@ -70,7 +70,7 @@ export const getDescriptor: ApiDescriptor = {
 export const createDescriptor: ApiDescriptor = {
   code: 'create_drafts_create',
   name: '新建草稿',
-  description: '新建小红书、知乎或今日头条草稿，可直接写入正文、标签和有序素材关联。响应中的 previewUrl 为固定 7 天有效的公开预览基础链接；追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao 分别使用小红书、知乎或今日头条样式，mode 不参与签名校验。',
+  description: '新建小红书、知乎或今日头条草稿，可直接写入正文、标签和有序素材关联。响应中的 previewUrl 是固定 7 天有效、可直接打开的公开预览链接；如需指定样式，可追加 &mode=xhs、&mode=zhihu 或 &mode=toutiao，省略时自动按草稿内容选择默认样式。',
   module: 'content',
   method: 'POST',
   permissionCode: CONTENT_CREATE,

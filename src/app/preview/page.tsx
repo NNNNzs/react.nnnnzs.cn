@@ -8,11 +8,11 @@ export const revalidate = 0;
 
 export default async function PreviewPage({ searchParams }: { searchParams: Promise<{ draftId?: string; expiresAt?: string; signature?: string; mode?: string }> }) {
   const { draftId: draftIdValue, expiresAt: expiresAtValue, signature, mode: modeValue } = await searchParams;
-  const mode = parseContentDraftPreviewMode(modeValue);
   const draftId = Number(draftIdValue);
   const expiresAt = Number(expiresAtValue);
-  if (!mode || !verifyContentDraftPreviewSignature(draftId, expiresAt, signature)) notFound();
+  if (!verifyContentDraftPreviewSignature(draftId, expiresAt, signature)) notFound();
   const draft = await getPublicContentDraftPreview(draftId);
   if (!draft) notFound();
+  const mode = parseContentDraftPreviewMode(modeValue) ?? (draft.isMarkdown ? 'zhihu' : 'xhs');
   return <DraftPreview draft={draft} mode={mode} />;
 }

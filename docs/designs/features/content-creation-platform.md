@@ -106,13 +106,13 @@ flowchart TB
 
 ### 4.1 草稿公开预览
 
-草稿创建、更新和详情均返回公开预览基础链接，入口为 `/preview?draftId=<id>&expiresAt=<unix-seconds>&signature=<hmac>&mode=<mode>`。`/preview` 不要求登录，也不进入 `/create` 的登录守卫；访问者必须携带有效、不可篡改的 HMAC 签名链接，否则统一显示不可用页面。
+草稿创建、更新和详情均返回可直接打开的公开预览链接，入口为 `/preview?draftId=<id>&expiresAt=<unix-seconds>&signature=<hmac>`。`/preview` 不要求登录，也不进入 `/create` 的登录守卫；访问者必须携带有效、不可篡改的 HMAC 签名链接，否则统一显示不可用页面。
 
 草稿平台支持 `xhs`、`zhihu` 与 `toutiao`：小红书使用 `note` 图文笔记，知乎和今日头条使用 `article` Markdown 长文。预览支持三种同名 `mode`，分别展示小红书图文卡片、知乎长文目录和头条文章样式；三种模式均读取当前数据库中**已保存的实时草稿版本**，不会读取编辑器未保存内容，也不复制一份独立的公开草稿快照。
 
 预览链接不使用数据表。服务端使用 `JWT_SECRET` 对草稿 ID 与固定 7 天到期时间计算 HMAC-SHA256 签名；签名和到期时间被篡改、已过期，或草稿已删除时链接立即不可用。草稿内容更新后已签发链接继续展示最新已保存版本；因无状态设计，不支持单链接撤销，轮换 `JWT_SECRET` 会使全部既有链接失效。
 
-`mode` 不参与签名，追加 `mode=xhs`、`mode=zhihu` 或 `mode=toutiao` 分别展示小红书、知乎和头条样式。签发仍按草稿的数据范围校验内容权限；公开预览读取不暴露管理接口或编辑能力。页面设置 `noindex, nofollow, nocache`，Markdown 禁用原始 HTML，并限制外链协议。
+`mode` 不参与签名，追加 `mode=xhs`、`mode=zhihu` 或 `mode=toutiao` 分别展示小红书、知乎和头条样式；省略时，Markdown 草稿默认使用知乎样式，其他草稿默认使用小红书样式。签发仍按草稿的数据范围校验内容权限；公开预览读取不暴露管理接口或编辑能力。页面设置 `noindex, nofollow, nocache`，Markdown 禁用原始 HTML，并限制外链协议。
 
 MVP 不包含访客登录、评论、协作编辑、访问统计、密码保护、按人授权、独立发布快照或自动向第三方平台发布。分享链接是持有者令牌，不应被当作细粒度身份认证或长期发布渠道。
 
