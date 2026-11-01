@@ -1,0 +1,37 @@
+// 仅保存检查点和审计元数据，不复制原始会话。
+model TbPersonaRun {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  policy_hash   String    @default("") @db.VarChar(64)
+  scheduled_day String    @db.VarChar(10)
+  status        String    @db.VarChar(24)
+  attempts      Int       @default(0)
+  next_attempt  DateTime?
+  checkpoints   Json
+  source_errors Json
+  activity_log  Json?
+  error_code    String?   @db.VarChar(80)
+  models        Json?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([scheduled_day, created_at])
+  @@index([status, next_attempt])
+  @@map("tb_persona_run")
+}
+
+model TbPersonaVersion {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  run_id       String?   @db.VarChar(36)
+  status       String    @db.VarChar(24)
+  profile      Json
+  feed         Json
+  source_refs  Json
+  audit        Json
+  policy_hash  String    @db.VarChar(64)
+  created_at   DateTime  @default(now())
+  published_at DateTime?
+  revoked_at   DateTime?
+
+  @@index([status, published_at])
+  @@map("tb_persona_version")
+}

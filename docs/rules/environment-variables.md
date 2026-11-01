@@ -153,6 +153,15 @@ QDRANT_API_KEY=your-qdrant-api-key
 QDRANT_TIMEOUT=30000
 ```
 
+### OpenViking 公开资料检索（可选）
+
+`/chat` 的普通 Agent 可以按需调用 `search_public_profile`。工具先读取 `viking://resources/persona/current.json`，再读取其中 `profile` 字段指向的已发布资料；`feed: null` 表示当前没有近况资料。该工具不做问题分类、不整理会话或发布资料；检索账号应只持有该公开资料所需的读取权限。
+
+```bash
+OPENVIKING_PROFILE_URL=https://memory.example.com
+OPENVIKING_PROFILE_API_KEY=由管理员签发的只读用户密钥
+```
+
 ### TTS 语音合成
 - `tts.api_key`：MiMo API 密钥
 - `tts.base_url`：API 基地址

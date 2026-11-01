@@ -31,7 +31,19 @@ export const createDescriptor: ApiDescriptor = {
       name: { type: 'string', description: '供应商显示名' },
       base_url: { type: 'string', description: 'OpenAI 兼容 base url' },
       api_key: { type: 'string', description: 'API Key' },
-      models: { type: 'array', items: { type: 'string' }, description: '可用模型清单' },
+      models: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: '模型 ID' },
+            isEmbeddingModel: { type: 'boolean', description: '是否为嵌入模型' },
+            sendDimensions: { type: 'boolean', description: '请求时是否发送 dimensions 参数' },
+          },
+          required: ['id', 'isEmbeddingModel', 'sendDimensions'],
+        },
+        description: '模型清单及模型能力配置，存储于 provider.models JSON 字段',
+      },
       status: { type: 'integer', description: '1 启用 0 停用' },
       remark: { type: 'string' },
     },

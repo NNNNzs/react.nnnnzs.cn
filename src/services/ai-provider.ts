@@ -9,9 +9,17 @@ export interface AiProviderInput {
   name: string;
   base_url: string;
   api_key: string;
-  models?: string[];
+  models?: unknown;
   status?: number;
   remark?: string;
+}
+
+export interface AiProviderModelConfig {
+  id: string;
+  isEmbeddingModel: boolean;
+  sendDimensions: boolean;
+  /** false 表示从旧版 string[] 模型清单转换而来，尚未由管理员确认属性。 */
+  configured: boolean;
 }
 
 export interface FetchModelsResult {
@@ -20,19 +28,46 @@ export interface FetchModelsResult {
   error?: string;
 }
 
-/** 规范化模型清单：去空白、去重 */
-export function normalizeModels(models: unknown): string[] {
+/** 规范化模型清单，兼容旧版 string[] 并读取新版 JSON 对象配置。 */
+export function normalizeProviderModels(models: unknown): AiProviderModelConfig[] {
   if (!Array.isArray(models)) return [];
   const seen = new Set<string>();
-  const result: string[] = [];
+  const result: AiProviderModelConfig[] = [];
   for (const m of models) {
-    if (typeof m !== 'string') continue;
-    const trimmed = m.trim();
+    const record = m && typeof m === 'object' && !Array.isArray(m)
+      ? m as Record<string, unknown>
+      : null;
+    const modelId = typeof m === 'string' ? m : record?.id;
+    if (typeof modelId !== 'string') continue;
+    const trimmed = modelId.trim();
     if (!trimmed || seen.has(trimmed)) continue;
     seen.add(trimmed);
-    result.push(trimmed);
+    const configured = typeof record?.isEmbeddingModel === 'boolean'
+      && typeof record.sendDimensions === 'boolean';
+    result.push({
+      id: trimmed,
+      isEmbeddingModel: record?.isEmbeddingModel === true,
+      // 旧配置维持原行为；只有管理员明确关闭时才省略 dimensions。
+      sendDimensions: typeof record?.sendDimensions === 'boolean'
+        ? record.sendDimensions
+        : true,
+      configured,
+    });
   }
   return result;
+}
+
+/** 仅取模型名称，供 API 模型发现结果去重和兼容旧调用。 */
+export function normalizeModelNames(models: unknown): string[] {
+  return normalizeProviderModels(models).map((model) => model.id);
+}
+
+function serializeProviderModels(models: unknown) {
+  return normalizeProviderModels(models).map(({ id, isEmbeddingModel, sendDimensions }) => ({
+    id,
+    isEmbeddingModel,
+    sendDimensions,
+  }));
 }
 
 export async function listProviders() {
@@ -43,7 +78,7 @@ export async function listProviders() {
   });
   return providers.map((p) => ({
     ...p,
-    models: normalizeModels(p.models),
+    models: normalizeProviderModels(p.models),
     bindingCount: p._count.bindings,
   }));
 }
@@ -52,7 +87,7 @@ export async function getProvider(id: number) {
   const prisma = await getPrisma();
   const provider = await prisma.tbAiProvider.findUnique({ where: { id } });
   if (!provider) return null;
-  return { ...provider, models: normalizeModels(provider.models) };
+  return { ...provider, models: normalizeProviderModels(provider.models) };
 }
 
 export async function createProvider(input: AiProviderInput) {
@@ -63,7 +98,7 @@ export async function createProvider(input: AiProviderInput) {
       name: input.name.trim(),
       base_url: input.base_url.trim(),
       api_key: input.api_key.trim(),
-      models: normalizeModels(input.models),
+      models: serializeProviderModels(input.models),
       status: input.status ?? 1,
       remark: input.remark,
       created_at: now,
@@ -80,7 +115,7 @@ export async function updateProvider(id: number, input: Partial<AiProviderInput>
   if (input.api_key !== undefined && input.api_key.trim()) {
     data.api_key = input.api_key.trim();
   }
-  if (input.models !== undefined) data.models = normalizeModels(input.models);
+  if (input.models !== undefined) data.models = serializeProviderModels(input.models);
   if (input.status !== undefined) data.status = input.status;
   if (input.remark !== undefined) data.remark = input.remark;
 
@@ -135,7 +170,7 @@ export async function fetchModelsFromProvider(
 
     const json: unknown = await resp.json();
     const data = (json as { data?: unknown })?.data;
-    const models = normalizeModels(Array.isArray(data) ? data.map((m) => (m as { id?: string })?.id) : []);
+    const models = normalizeModelNames(Array.isArray(data) ? data.map((m) => (m as { id?: string })?.id) : []);
     if (models.length === 0) {
       return { ok: false, error: '响应中未解析到模型' };
     }

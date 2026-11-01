@@ -82,7 +82,7 @@ export function extractReasoningContent(chunk: unknown): string {
  * 尝试 JSON.parse：若是带 results 数组的检索结果，取标题摘要；
  * 否则返回原文（截断）。
  */
-export function extractObservationText(data: unknown): string {
+export function extractObservationText(data: unknown, toolName?: string): string {
   const event = getRecord(data);
   if (!event) return '';
 
@@ -95,6 +95,19 @@ export function extractObservationText(data: unknown): string {
 
   try {
     const parsed = JSON.parse(content);
+
+    if (toolName === 'search_public_profile') {
+      if (parsed.success === false) {
+        return typeof parsed.error === 'string'
+          ? `公开资料读取失败：${parsed.error}`
+          : '公开资料读取失败';
+      }
+      if (Array.isArray(parsed.results)) {
+        return parsed.results.length > 0
+          ? `读取到 ${parsed.results.length} 份已发布人物资料`
+          : '当前没有可用的已发布人物资料';
+      }
+    }
 
     if (Array.isArray(parsed.results) && parsed.results.length > 0) {
       const total = parsed.totalResults || parsed.total || parsed.results.length;

@@ -40,6 +40,8 @@ async function getEmbeddingModel(): Promise<OpenAIEmbeddings> {
     console.warn('⚠️ API key 格式可能不正确，SiliconFlow API key 通常以 "sk-" 开头');
   }
 
+  const configuredDimensions = config.dimensions || 1024;
+
   return new OpenAIEmbeddings({
     apiKey: config.api_key,
     openAIApiKey: config.api_key, // 同时设置两个参数以确保兼容性
@@ -47,8 +49,8 @@ async function getEmbeddingModel(): Promise<OpenAIEmbeddings> {
     configuration: {
       baseURL: normalizeEmbeddingBaseUrl(config.base_url),
     },
-    // 使用配置中的维度，默认 1024
-    dimensions: config.dimensions || 1024,
+    // 不同供应商对 dimensions 参数的支持不同，由 Provider 模型配置决定是否发送。
+    ...(config.send_dimensions !== false ? { dimensions: configuredDimensions } : {}),
   });
 }
 

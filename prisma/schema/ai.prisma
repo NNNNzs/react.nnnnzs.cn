@@ -5,7 +5,7 @@ model TbAiProvider {
   name       String    @db.VarChar(100)                          // 显示名，如 "DeepSeek 官方"
   base_url   String    @db.VarChar(500)
   api_key    String    @db.VarChar(500)                          // 明文存储（与旧 tbConfig 现状一致）
-  models     Json?                                               // string[] 可用模型清单（一键拉取或手填）
+  models     Json?                                               // 模型清单；兼容 string[]，新配置保存模型能力对象
   status     Int       @default(1)                                // 1 启用 0 停用
   remark     String?   @db.Text
   created_at DateTime  @default(now())

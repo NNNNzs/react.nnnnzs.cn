@@ -31,12 +31,19 @@ interface ProviderRecord {
   name: string;
   base_url: string;
   api_key: string;
-  models: string[];
+  models: ProviderModelConfig[];
   status: number;
   remark: string | null;
   created_at: string;
   updated_at: string;
   bindingCount: number;
+}
+
+interface ProviderModelConfig {
+  id: string;
+  isEmbeddingModel: boolean;
+  sendDimensions: boolean;
+  configured: boolean;
 }
 
 function ProviderTab() {
@@ -45,7 +52,7 @@ function ProviderTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProviderRecord | null>(null);
   const [modelInput, setModelInput] = useState("");
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<ProviderModelConfig[]>([]);
   const [modelFilter, setModelFilter] = useState("");
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
   const [selectedFetchedModels, setSelectedFetchedModels] = useState<string[]>([]);
@@ -54,7 +61,7 @@ function ProviderTab() {
   const filteredModels = useMemo(
     () =>
       modelFilter.trim()
-        ? models.filter((m) => m.toLowerCase().includes(modelFilter.trim().toLowerCase()))
+        ? models.filter((m) => m.id.toLowerCase().includes(modelFilter.trim().toLowerCase()))
         : models,
     [models, modelFilter],
   );
@@ -187,7 +194,7 @@ function ProviderTab() {
       if (res.data.status) {
         const data = res.data.data;
         if (data?.ok && data.models) {
-          const candidates = (data.models as string[]).filter((model) => !models.includes(model));
+          const candidates = (data.models as string[]).filter((model) => !models.some((entry) => entry.id === model));
           setFetchedModels(candidates);
           setFetchedModelFilter("");
           message.success(`已发现 ${data.models.length} 个模型，其中 ${candidates.length} 个尚未加入`);
@@ -206,7 +213,15 @@ function ProviderTab() {
 
   const addSelectedFetchedModels = () => {
     if (selectedFetchedModels.length === 0) return;
-    setModels((current) => Array.from(new Set([...current, ...selectedFetchedModels])));
+    setModels((current) => {
+      const existing = new Set(current.map((model) => model.id));
+      return [
+        ...current,
+        ...selectedFetchedModels
+          .filter((model) => !existing.has(model))
+          .map((id) => ({ id, isEmbeddingModel: false, sendDimensions: true, configured: true })),
+      ];
+    });
     setFetchedModels((current) => current.filter((model) => !selectedFetchedModels.includes(model)));
     setSelectedFetchedModels([]);
     message.success(`已加入 ${selectedFetchedModels.length} 个模型`);
@@ -215,16 +230,27 @@ function ProviderTab() {
   const addModel = () => {
     const trimmed = modelInput.trim();
     if (!trimmed) return;
-    if (models.includes(trimmed)) {
+    if (models.some((model) => model.id === trimmed)) {
       message.warning("模型已存在");
       return;
     }
-    setModels([...models, trimmed]);
+    setModels([...models, {
+      id: trimmed,
+      isEmbeddingModel: false,
+      sendDimensions: true,
+      configured: true,
+    }]);
     setModelInput("");
   };
 
-  const removeModel = (m: string) => {
-    setModels(models.filter((item) => item !== m));
+  const removeModel = (id: string) => {
+    setModels(models.filter((item) => item.id !== id));
+  };
+
+  const updateModel = (id: string, patch: Partial<ProviderModelConfig>) => {
+    setModels((current) => current.map((item) => item.id === id
+      ? { ...item, ...patch, configured: true }
+      : item));
   };
 
   const columns: TableColumnsType<ProviderRecord> = [
@@ -250,7 +276,7 @@ function ProviderTab() {
       dataIndex: "models",
       key: "models",
       width: 80,
-      render: (m: string[]) => <Tag>{m?.length ?? 0}</Tag>,
+      render: (m: ProviderModelConfig[]) => <Tag>{m?.length ?? 0}</Tag>,
     },
     {
       title: "绑定数",
@@ -441,21 +467,40 @@ function ProviderTab() {
               </div>
               <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto">
                 {filteredModels.length > 0 ? (
-                  filteredModels.map((m) => (
-                    <Tag
-                      key={m}
-                      closable
-                      onClose={() => removeModel(m)}
-                      className="cursor-pointer"
+                  filteredModels.map((model) => (
+                    <div
+                      key={model.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded border border-border-light px-2 py-1 dark:border-border-dark"
                     >
-                      {m}
-                    </Tag>
+                      <Tag closable onClose={() => removeModel(model.id)} className="mr-auto">
+                        {model.id}
+                      </Tag>
+                      <Checkbox
+                        checked={model.isEmbeddingModel}
+                        onChange={(event) => updateModel(model.id, { isEmbeddingModel: event.target.checked })}
+                      >
+                        嵌入模型
+                      </Checkbox>
+                      <Checkbox
+                        checked={model.sendDimensions}
+                        disabled={!model.isEmbeddingModel}
+                        onChange={(event) => updateModel(model.id, { sendDimensions: event.target.checked })}
+                      >
+                        发送 dimensions
+                      </Checkbox>
+                      {!model.configured && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400">待确认</span>
+                      )}
+                    </div>
                   ))
                 ) : models.length > 0 ? (
                   <span className="text-sm text-gray-400">无匹配模型</span>
                 ) : (
                   <span className="text-sm text-gray-400">暂无模型</span>
                 )}
+              </div>
+              <div className="text-xs text-gray-500">
+                嵌入模型会出现在“向量嵌入”场景的模型选项中；勾选“发送 dimensions”后，才会把场景绑定中的向量维度传给供应商。
               </div>
               {fetchedModels.length > 0 && (
                 <div className="rounded-md border border-border-light p-3 dark:border-border-dark">

@@ -23,7 +23,14 @@ interface ProviderOption {
   id: number;
   name: string;
   base_url: string;
-  models: string[];
+  models: ProviderModelConfig[];
+}
+
+interface ProviderModelConfig {
+  id: string;
+  isEmbeddingModel: boolean;
+  sendDimensions: boolean;
+  configured: boolean;
 }
 
 interface BindingRecord {
@@ -93,9 +100,20 @@ function BindingTab() {
 
   /** 当前表单选中的 provider 可用模型列表 */
   const selectedProviderId = Form.useWatch("provider_id", form);
+  const selectedModelId = Form.useWatch("model", form);
   const selectedProvider = useMemo(
     () => providers.find((p) => p.id === selectedProviderId),
     [providers, selectedProviderId],
+  );
+  const selectedModelConfig = useMemo(
+    () => selectedProvider?.models.find((model) => model.id === selectedModelId),
+    [selectedProvider, selectedModelId],
+  );
+  const availableModels = useMemo(
+    () => (selectedProvider?.models || []).filter(
+      (model) => selectedScenario !== "embedding" || model.isEmbeddingModel,
+    ),
+    [selectedProvider, selectedScenario],
   );
 
   /** 搜索过滤后的场景列表 */
@@ -235,7 +253,13 @@ function BindingTab() {
         );
       case "dimensions":
         return (
-          <Form.Item label={label} name="dimensions">
+          <Form.Item
+            label={label}
+            name="dimensions"
+            extra={selectedScenario === "embedding" && selectedModelConfig?.configured && !selectedModelConfig.sendDimensions
+              ? "该模型配置为不发送 dimensions 字段，将使用模型默认输出维度。"
+              : undefined}
+          >
             <InputNumber min={128} max={8192} step={128} placeholder="如 1024" style={{ width: "100%" }} />
           </Form.Item>
         );
@@ -426,10 +450,12 @@ function BindingTab() {
               placeholder="选择或输入模型名"
               showSearch
               allowClear
-              options={(selectedProvider?.models || []).map((m) => ({ label: m, value: m }))}
+              options={availableModels.map((model) => ({ label: model.id, value: model.id }))}
               notFoundContent={
                 selectedProvider?.models?.length
-                  ? "无匹配模型"
+                  ? selectedScenario === "embedding"
+                    ? "请先在供应商配置中标记可用的嵌入模型"
+                    : "无匹配模型"
                   : "该供应商暂无模型清单，可直接输入"
               }
               filterOption={false}

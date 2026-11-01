@@ -12,6 +12,7 @@ import {
 } from './prompt-template-tools';
 import { assembleAgentTools } from './tool-assembly';
 import { serializeToolResult } from './tool-result';
+import { searchPublicProfileTool } from './search-public-profile';
 import { webSearchLangChainTool } from './web-tools';
 
 const searchCollectionLangChainTool = tool(
@@ -64,6 +65,7 @@ const githubSearchLangChainTool = tool(
 export const chatTools = assembleAgentTools([
   searchArticlesLangChainTool,
   searchPostsLangChainTool,
+  searchPublicProfileTool,
   searchCollectionLangChainTool,
   githubSearchLangChainTool,
   webSearchLangChainTool,

@@ -26,6 +26,8 @@
 
 Provider 删除会级联删除关联绑定。运行时缓存只按场景缓存 5 分钟，Provider 或 Binding 写操作必须清理 `clearAIConfigCache()`。
 
+`tb_ai_provider.models` 继续使用现有 JSON 字段，不新增数据库列。旧版 `string[]` 模型清单仍可读取；模型配置后保存为对象数组，每项包含 `id`、`isEmbeddingModel` 和 `sendDimensions`。`embedding` 场景只展示已标记的嵌入模型，并按模型配置决定是否向 OpenAI 兼容接口发送 `dimensions` 参数。
+
 ## 覆盖范围
 
 | 场景 | 使用位置 | 场景专属字段 |

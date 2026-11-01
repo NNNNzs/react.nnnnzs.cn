@@ -76,7 +76,7 @@ export interface PumpAgentEventsOptions {
    * 工具返回结果的解析器，默认 extractObservationText。
    * 不同 agent 的工具 output 形态不同时可自定义。
    */
-  extractResult?: (data: unknown) => string;
+  extractResult?: (data: unknown, toolName?: string) => string;
   /**
    * 业务 patch 钩子（如 draft_patch）。
    * 返回的 patch 会作为 SSE `patch` 帧下发（事件名统一为 patch）。
@@ -178,7 +178,7 @@ export async function pumpAgentEvents(
 
       emitter.enqueue('tool_end', {
         tool: toolMeta?.toolName || getStringField(event, 'name'),
-        result: truncate(extractResult(data)),
+        result: truncate(extractResult(data, toolMeta?.toolName || getStringField(event, 'name'))),
         step,
         runId,
         endedAt,

@@ -149,3 +149,5 @@ import { prisma } from '@/lib/prisma';
 - [Agent 聊天系统](../designs/chat/rag-chat.md)
 
 最后更新：2026-08-13。
+
+`prisma/schema/persona.prisma` 中的 `TbPersonaRun` 和 `TbPersonaVersion` 是旧版会话整理流程留下的历史表，当前博客运行时不再使用。保留 Prisma 模型以避免同步时删除包含历史记录的表；相关旧提示词、场景绑定和 `persona.policy` 配置已从开发库清理。

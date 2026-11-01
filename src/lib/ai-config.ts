@@ -13,6 +13,7 @@ import {
   listBindingsByScenario,
   type AiBindingWithProvider,
 } from '@/services/ai-scenario-binding';
+import { normalizeProviderModels } from '@/services/ai-provider';
 
 /**
  * AI 配置场景类型
@@ -29,6 +30,7 @@ export interface AIConfig {
   temperature?: number;
   max_tokens?: number;
   dimensions?: number; // 仅用于 embedding
+  send_dimensions?: boolean; // embedding 请求是否发送 dimensions 参数
   api_mode?: string; // 仅用于 image_gen
   voice?: string; // 仅用于 tts
 }
@@ -42,6 +44,12 @@ function bindingToAIConfig(scenario: AIConfigScenario, binding: AiBindingWithPro
   const apiKey = binding.provider.api_key;
   const baseUrl = binding.provider.base_url;
   const model = binding.model;
+  const modelSettings = normalizeProviderModels(binding.provider.models)
+    .find((item) => item.id === model);
+
+  if (scenario === 'embedding' && modelSettings?.configured && !modelSettings.isEmbeddingModel) {
+    throw new Error(`供应商模型 ${model} 尚未配置为嵌入模型`);
+  }
 
   if (!apiKey) {
     throw new Error(`AI 场景 ${scenario} 的供应商缺少 api_key`);
@@ -60,6 +68,10 @@ function bindingToAIConfig(scenario: AIConfigScenario, binding: AiBindingWithPro
     ...(binding.temperature !== null && { temperature: binding.temperature }),
     ...(binding.max_tokens !== null && { max_tokens: binding.max_tokens }),
     ...(binding.dimensions !== null && { dimensions: binding.dimensions }),
+    ...(scenario === 'embedding' && {
+      // 旧版模型清单默认保留原请求行为；新版配置按每个供应商模型的开关执行。
+      send_dimensions: modelSettings?.configured ? modelSettings.sendDimensions : true,
+    }),
     ...(binding.api_mode && { api_mode: binding.api_mode }),
     ...(binding.voice && { voice: binding.voice }),
   };

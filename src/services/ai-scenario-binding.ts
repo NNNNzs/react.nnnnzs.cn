@@ -40,6 +40,7 @@ export interface AiBindingWithProvider {
     name: string;
     base_url: string;
     api_key: string;
+    models?: unknown;
   };
 }
 
@@ -58,7 +59,7 @@ function toBindingWithProvider(b: {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
-  provider: { id: number; name: string; base_url: string; api_key: string };
+  provider: { id: number; name: string; base_url: string; api_key: string; models?: unknown };
 }): AiBindingWithProvider {
   return { ...b };
 }
@@ -122,7 +123,7 @@ export async function listBindingsByScenario(scenario: string): Promise<AiBindin
       is_active: true,
       created_at: true,
       updated_at: true,
-      provider: { select: PROVIDER_SELECT },
+      provider: { select: { ...PROVIDER_SELECT, models: true } },
     },
   });
   return bindings.map(toBindingWithProvider);
@@ -148,7 +149,7 @@ export async function getActiveBinding(scenario: string): Promise<AiBindingWithP
       is_active: true,
       created_at: true,
       updated_at: true,
-      provider: { select: PROVIDER_SELECT },
+      provider: { select: { ...PROVIDER_SELECT, models: true } },
     },
   });
   return binding ? toBindingWithProvider(binding) : null;
