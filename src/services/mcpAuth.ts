@@ -414,7 +414,7 @@ async function handleAuthorizationCodeGrant(
     console.log('🗑️ [OAuth] 授权码已删除（一次性使用）');
 
     // 从授权码数据中获取duration，默认7天
-    const duration = authCodeData.duration || 7;
+    const duration = authCodeData.duration ?? 7;
 
     // 生成新的 access_token
     const crypto = await import('crypto');
